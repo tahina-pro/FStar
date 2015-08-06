@@ -28,6 +28,14 @@ let fail_exp (lid:lident) (t:typ) = mk_Exp_app(Util.fvar None Const.failwith_lid
                           [ targ t
                           ; varg <| mk_Exp_constant (Const_string (Bytes.string_as_unicode_bytes ("Not yet implemented:"^(Print.sli lid)), dummyRange)) None dummyRange]) None dummyRange 
 
+let fixProjectorLid (x: lident) : lident =
+    let projecteeName = x.ident in
+    let constrName::constrNS = List.rev x.ns in // this cannot be nil
+    let crstr = List.map (fun x->x.idText) constrNS in
+    let newName = ExtractTyp.projectorNameAux constrName.idText projecteeName.idText in
+    let newIdent = {x.ident with idText=newName} in
+    {ns=constrNS; ident= newIdent; nsstr=String.concat "." crstr; str=newName (*this was different in old extraction*)}
+
     
 let rec extract_sig (g:env) (se:sigelt) : env * list<mlmodule1> = 
    (debug g (fun u -> Util.print_string (Util.format1 "now extracting :  %s \n" (Print.sigelt_to_string se))));
@@ -55,14 +63,19 @@ let rec extract_sig (g:env) (se:sigelt) : env * list<mlmodule1> =
 
        | Sig_val_decl(lid, t, quals, r) -> 
          if quals |> List.contains Assumption 
-         then let impl = match Util.function_formals t with 
+         then 
+              let is_record = Util.for_some (function RecordType _ -> true | _ -> false) quals in
+              let is_projector = Util.for_some  (function  Projector (l,_)  -> true |  _ -> false) quals in
+              let is_discriminator = Util.for_some (function  Discriminator l  -> true |  _ -> false) quals in
+              //let lid = (if is_projector && (not is_record) then fixProjectorLid lid else lid) in
+              // this lid fix cannot be done here, because original names are needed for typechecking future references
+              // Recall, the invariant was : for typechecking to work, no name changes while translating AST. name changes were supposed to be done in the pretty printing phase
+              // perhaps we can mark in the OCaml AST that tis let binding was a projector.
+              let impl = match Util.function_formals t with 
                 | Some (bs, c) -> mk_Exp_abs(bs, fail_exp lid (Util.comp_result c)) None dummyRange 
                 | _ -> fail_exp lid t in 
               let se = Sig_let((false, [{lbname=Inr lid; lbtyp=t; lbeff=Const.effect_ML_lid; lbdef=impl}]), r, [], quals) in
               let g, mlm = extract_sig g se in
-              let is_record = Util.for_some (function RecordType _ -> true | _ -> false) quals in
-              let is_projector = Util.for_some  (function  Projector (l,_)  -> true |  _ -> false) quals in
-              let is_discriminator = Util.for_some (function  Discriminator l  -> true |  _ -> false) quals in
               match Util.find_map quals (function Discriminator l -> Some l |  _ -> None) with
               | Some l when (not is_record) -> g, [ExtractExp.ind_discriminator_body g lid l] // what happens for records?
               | _ -> match Util.find_map quals (function  Projector (l,_)  -> Some l |  _ -> None) with

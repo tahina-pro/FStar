@@ -335,12 +335,13 @@ let mlTyIdentOfBinder (b : binder) = prependTick (convIdent (binderPPnames b))
 
 let binder_as_mlident (b:binder) : mlident = ((binderPPnames b).idText ,0)
 
+let projectorNameAux constrUnqualifiedName projecteeName = "___"^constrUnqualifiedName^"___"^projecteeName
 
 let projectorName (constrName:lident)  (projectee : binder) : mlident = 
     let constrMLP = mlpath_of_lident constrName in
     let constrUnqualifiedName = snd constrMLP in
     let projecteeName = fst (binder_as_mlident projectee) in
-    ("___"^constrUnqualifiedName^"___"^projecteeName,0)
+    (projectorNameAux constrUnqualifiedName projecteeName,0)
 
 // not extending the context here. It is done when the projector with empty body in the sigbundle is extracted
 let ind_projector_body  (allArgs : list<binder>) (constrName:lident) (projectee : binder) : mlmodule1 = 
