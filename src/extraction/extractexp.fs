@@ -463,6 +463,7 @@ and synth_exp' (g:env) (e:exp) : (mlexpr * e_tag * mlty) =
 
 
 (*copied from ocaml-asttrans.fs*)
+(*no need to use fresh. Unlike in the old extraction where discriminators where inlined, here this is a top level let. this name might shadow some free var, but that should not be a problem*)
 let fresh = let c = mk_ref 0 in                                            
             fun x -> (incr c; (x, !c))
 
@@ -482,22 +483,5 @@ let ind_discriminator_body env (discName:lident) (constrName:lident) : mlmodule1
 
 let dummyPatIdent (n:int) : mlident = ("dummyPat"^(Util.string_of_int n), 0)
 let dummyPatIdents (n:int) : list<mlident> = List.map dummyPatIdent (ExtractTyp.firstNNats n)
-
-(*TODO : need to put this inside a submodule with the same name as the name of the construcor*)
-let ind_projector_body (c:env) (discName:lident) (constrName:lident) : mlmodule1 = 
-                    let mlid = fresh "_proj_" in
-                    let _,(_,ctype) = lookup_fv_by_lid c constrName in
-                    let cargs = ExtractTyp.argTypes ctype in
-                    let projs = dummyPatIdents (List.length cargs) in
-                    let cargs = List.map (fun x -> MLP_Var x) projs in
-                    let cn::cr = List.rev discName.ns in
-                    let crstr = List.map (fun x->x.idText) cr in
-                    let rid = {ns=cr; ident={discName.ident with idText=cn.idText}; nsstr=String.concat "." crstr; str=discName.nsstr} in
-                    let cn = cn.idText in
-                    let discrBody= 
-                    MLE_Fun([(mlid,None)], MLE_Match(MLE_Name([], idsym mlid), [
-                        MLP_CTor(mlpath_of_lident rid, cargs), None, MLE_Name ([], discName.ident.idText);
-                    ])) in
-                MLM_Let (false,[{mllb_name=convIdent discName.ident; mllb_tysc=None; mllb_add_unit=false; mllb_def=discrBody}] )
 
 

@@ -61,6 +61,8 @@ let rec extract_sig (g:env) (se:sigelt) : env * list<mlmodule1> =
               let se = Sig_let((false, [{lbname=Inr lid; lbtyp=t; lbeff=Const.effect_ML_lid; lbdef=impl}]), r, [], quals) in
               let g, mlm = extract_sig g se in
               let is_record = Util.for_some (function RecordType _ -> true | _ -> false) quals in
+              let is_projector = Util.for_some  (function  Projector (l,_)  -> true |  _ -> false) quals in
+              let is_discriminator = Util.for_some (function  Discriminator l  -> true |  _ -> false) quals in
               match Util.find_map quals (function Discriminator l -> Some l |  _ -> None) with
               | Some l when (not is_record) -> g, [ExtractExp.ind_discriminator_body g lid l] // what happens for records?
               | _ -> match Util.find_map quals (function  Projector (l,_)  -> Some l |  _ -> None) with

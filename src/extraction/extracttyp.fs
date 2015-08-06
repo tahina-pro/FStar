@@ -333,19 +333,47 @@ let rec zipUnequal (la : list<'a>) (lb : list<'b>) : list<('a * 'b)> =
 
 let mlTyIdentOfBinder (b : binder) = prependTick (convIdent (binderPPnames b))
 
-let extractCtor (tyBinders : list<binder>) (c:context) (ctor: inductiveConstructor):  context * (mlsymbol * list<mlty>) =
-        (let (lb, tr) = bindersOfFuntype c (List.length tyBinders) ctor.ctype in 
+let binder_as_mlident (b:binder) : mlident = ((binderPPnames b).idText ,0)
+
+
+let projectorName (constrName:lident)  (projectee : binder) : mlident = 
+    let constrMLP = mlpath_of_lident constrName in
+    let constrUnqualifiedName = snd constrMLP in
+    let projecteeName = fst (binder_as_mlident projectee) in
+    (constrUnqualifiedName^"___"^projecteeName,0)
+
+// not extending the context here. It is done when the projector with empty body in the sigbundle is extracted
+let ind_projector_body  (allArgs : list<binder>) (constrName:lident) (projectee : binder) : mlmodule1 = 
+    let mlid = ("_proj_",0) in
+    let projs = List.map binder_as_mlident allArgs in
+    let cargs = List.map (fun x -> MLP_Var x) projs in
+    //let cn::cr = List.rev discName.ns in
+    //let crstr = List.map (fun x->x.idText) cr in
+    //let rid = {ns=cr; ident={discName.ident with idText=cn.idText}; nsstr=String.concat "." crstr; str=discName.nsstr} in
+    //let cn = cn.idText in
+    let discrBody= 
+    MLE_Fun([(mlid,None)], MLE_Match(MLE_Name([], idsym mlid), [
+        MLP_CTor(mlpath_of_lident constrName, cargs), None, MLE_Name ([], fst (binder_as_mlident projectee));
+    ])) in
+    MLM_Let (false,[{mllb_name=projectorName constrName projectee; mllb_tysc=None; mllb_add_unit=false; mllb_def=discrBody}] )
+
+
+
+let extractCtor (tyBinders : list<binder>) (c:context) (ctor: inductiveConstructor):  context * ((mlsymbol * list<mlty>) * (list<mlmodule1> (*projectors*)))=
+        let (lb, tr) = bindersOfFuntype c (List.length tyBinders) ctor.ctype in 
         assert (List.length lb = List.length tyBinders);
         let lp = List.zip tyBinders lb in
         //assert (List.length tyBinders = List.length lp);
         let newC = extendContextWithRepAsTyVars (List.map (fun (x,y) -> (fst x, fst y)) lp) c in
         let mlt = Util.eraseTypeDeep c (extractTyp newC tr) in
+        let allBinders = allBindersOfFuntype c tr in // used to generate projectors
+        let projectors = List.map (ind_projector_body allBinders ctor.cname) allBinders in 
         let tys = (List.map mlTyIdentOfBinder tyBinders, mlt) in //MayErase, because constructors are always pure
         let fvv = mkFvvar ctor.cname ctor.ctype in 
             // fprint1 "(* extracting the type of constructor %s\n" (lident2mlsymbol ctor.cname);
            // fprint1 "%s\n" (typ_to_string ctor.ctype);
             // printfn "%A *)\n" (tys);
-        (extend_fv c fvv tys false, (lident2mlsymbol ctor.cname, argTypes mlt)))
+        (extend_fv c fvv tys false, ((lident2mlsymbol ctor.cname, argTypes mlt), projectors))
 
 (*indices get collapsed to unit, so all we need is the number of index arguments.
   We will use dummy type variables for these in the dectaration of the inductive type.
@@ -363,10 +391,13 @@ let rec firstNNats (n:int) : list<int> =
 let dummyIdent (n:int) : mlident = ("'dummyV"^(Util.string_of_int n), 0)
 let dummyIndexIdents (n:int) : list<mlident> = List.map dummyIdent (firstNNats n)
 
-let extractInductive (c:context) (ind: inductiveTypeFam ) :  context* (mlsymbol * mlidents * option<mltybody>) =
+
+let extractInductive (c:context) (ind: inductiveTypeFam ) :  context * ((mlsymbol * mlidents * option<mltybody>) * (list<mlmodule1>))=
         let newContext = c in // (extendContext c (mfst ind.tyBinders)) in
         let nIndices = numIndices ind.k ind.tyName.ident.idText in
-        let (nc, tyb) = (Util.fold_map (extractCtor ind.tyBinders) newContext ind.constructors) in
+        let (nc, mlcode) = (Util.fold_map (extractCtor ind.tyBinders) newContext ind.constructors) in
+        let tyb= List.map fst mlcode in 
+        let projectors = List.collect snd mlcode in 
         let mlbs = List.append (List.map mlTyIdentOfBinder ind.tyBinders) (dummyIndexIdents nIndices) in
         let tbody = match Util.find_opt (function RecordType _ -> true | _ -> false) ind.qualifiers with 
             | Some (RecordType ids) -> 
@@ -376,7 +407,7 @@ let extractInductive (c:context) (ind: inductiveTypeFam ) :  context* (mlsymbol 
               let fields = List.map2 (fun lid ty -> (lid.ident.idText, ty)) ids c_ty in
               MLTD_Record fields
             | _ -> MLTD_DType tyb in
-        nc, (lident2mlsymbol ind.tyName,  mlbs , Some tbody)
+        nc, ((lident2mlsymbol ind.tyName,  mlbs , Some tbody), projectors)
 
 let mfst x = List.map fst x
 
@@ -430,9 +461,11 @@ let rec extractSigElt (c:context) (s:sigelt) : context * list<mlmodule1> =
     | Sig_bundle (sigs, _, _ ,_) -> 
         //let xxxx = List.map (fun se -> fprint1 "%s\n" (Util.format1 "sig bundle: : %s\n" (Print.sigelt_to_string se))) sigs in
         let inds, abbs, _ = parseInductiveTypesFromSigBundle c sigs in
-        let c, indDecls = Util.fold_map extractInductive c inds in
+        let c, indsAndProjectors = Util.fold_map extractInductive c inds in
+        let indDecls = List.map fst indsAndProjectors in
+        let projectors = List.collect snd indsAndProjectors in
         let c, tyAbDecls = Util.fold_map extractTypeAbbrev c abbs in
-        (c, [MLM_Ty (indDecls@tyAbDecls)])
+        (c, (MLM_Ty (indDecls@tyAbDecls))::projectors)
 
     | Sig_tycon (_, _, _, _, _, quals, _) -> 
         //Util.print_string ((Print.sigelt_to_string s)^"\n");
