@@ -340,7 +340,7 @@ let projectorName (constrName:lident)  (projectee : binder) : mlident =
     let constrMLP = mlpath_of_lident constrName in
     let constrUnqualifiedName = snd constrMLP in
     let projecteeName = fst (binder_as_mlident projectee) in
-    (constrUnqualifiedName^"___"^projecteeName,0)
+    ("___"^constrUnqualifiedName^"___"^projecteeName,0)
 
 // not extending the context here. It is done when the projector with empty body in the sigbundle is extracted
 let ind_projector_body  (allArgs : list<binder>) (constrName:lident) (projectee : binder) : mlmodule1 = 
@@ -399,14 +399,14 @@ let extractInductive (c:context) (ind: inductiveTypeFam ) :  context * ((mlsymbo
         let tyb= List.map fst mlcode in 
         let projectors = List.collect snd mlcode in 
         let mlbs = List.append (List.map mlTyIdentOfBinder ind.tyBinders) (dummyIndexIdents nIndices) in
-        let tbody = match Util.find_opt (function RecordType _ -> true | _ -> false) ind.qualifiers with 
+        let tbody , projectors = match Util.find_opt (function RecordType _ -> true | _ -> false) ind.qualifiers with 
             | Some (RecordType ids) -> 
               assert (List.length tyb = 1);
               let _, c_ty = List.hd tyb in 
               assert (List.length ids = List.length c_ty);
               let fields = List.map2 (fun lid ty -> (lid.ident.idText, ty)) ids c_ty in
-              MLTD_Record fields
-            | _ -> MLTD_DType tyb in
+              MLTD_Record fields ,[]
+            | _ -> MLTD_DType tyb , projectors in
         nc, ((lident2mlsymbol ind.tyName,  mlbs , Some tbody), projectors)
 
 let mfst x = List.map fst x
