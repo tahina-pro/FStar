@@ -1880,5 +1880,7 @@ let check_module env m =
       end
     in 
     if Options.should_dump m.name.str then Util.fprint1 "%s\n" (Print.modul_to_string m);
-    [m], env 
+    (if !Options.codegen = Some "OCaml" && m.is_interface
+    then [], env
+    else [m], env)
     
