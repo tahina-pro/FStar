@@ -9,11 +9,22 @@ ALLOCATOR_FILES = $(ALLOCATOR_DIR)/camlstack.o $(ALLOCATOR_DIR)/stack.o $(ALLOCA
 
 OPT_FLAGS=-strict-sequence -w @1..2+3@8@10..12@14..21@23..40-41@43
 FLAGS=-I $(ALLOCATOR_DIR) -g -ccopt -g $(OPT_FLAGS)
-OCAMLC=ocamlfind ocamlopt
-OCAMLLINK=ocamlfind ocamlopt
+OCAMLC=ocamlfind ocamlopt -package batteries -linkpkg
+OCAMLLINK=ocamlfind ocamlopt -package batteries -linkpkg
 CMO=cmx
 
 all: allocator kamregions$(EXE) kamgc$(EXE)
+
+depend: kamgc.ml kamregions.ml parser.ml lex.ml syntax.ml
+	ocamldep $^ > .depend
+
+parser.ml: parse.mly
+	ocamlyacc parse.mly
+	cp parse.ml parser.ml
+	rm parse.ml
+
+lex.ml: lex.mll
+	ocamllex lex.mll -o lex.ml
 
 kamregions.ml: kam.ml
 	cpp -P -C -DCAMLSTACK kam.ml > $@ 2>/dev/null
@@ -21,7 +32,7 @@ kamregions.ml: kam.ml
 kamgc.ml: kam.ml
 	cpp -P -C kam.ml > $@ 2>/dev/null
 
-%$(EXE): %.$(CMO)
+%$(EXE): lex.$(CMO) syntax.$(CMO) parser.$(CMO) %.$(CMO)
 	$(OCAMLLINK) -o $@ $^ $(ALLOCATOR_FILES)
 
 allocator:
@@ -40,3 +51,5 @@ endif
 clean:
 	$(MAKE) -C $(ALLOCATOR_DIR) clean
 	$(RM) kamregions$(EXE) kamgc$(EXE) *.o *.cm*
+
+-include .depend

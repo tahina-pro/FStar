@@ -707,6 +707,7 @@ let norm_kind steps tcenv k =
   Util.compress_kind c.code
 
 let norm_typ steps tcenv t =
+  Recheck.log tcenv t;
   let c = sn tcenv (t_config t empty_env steps) in
   c.code
 
@@ -781,3 +782,4 @@ let normalize_refinement env t0 =
             end
        | _ -> t in
    aux t
+

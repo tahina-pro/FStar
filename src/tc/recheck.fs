@@ -21,7 +21,6 @@ open FStar
 open FStar.Absyn
 open FStar.Absyn.Syntax
 open FStar.Absyn.Util
-open FStar.Absyn.Const
 open FStar.Util
 open FStar.Absyn.Util
 
@@ -120,3 +119,102 @@ let rec recompute_typ (e:exp) : typ =
         | Some t -> t
         | None -> let t = recompute e in e.tk := Some t; t
 
+
+type db = 
+ | Var of int
+ | Name of string
+ | Abs of db * db
+ | App of db * db
+ | Binder of db * db
+
+let rec db_to_string = function 
+    | Var x -> "(Var " ^ string_of_int x ^ ")"
+    | Name s -> "(Name " ^ s ^ ")"
+    | Abs(t1, t2) -> "(Abs " ^ db_to_string t1 ^ " " ^ db_to_string t2 ^ ")"
+    | App(t1, t2) -> "(App " ^ db_to_string t1 ^ " " ^ db_to_string t2 ^ ")"
+    | Binder(t1, t2) -> "(Binder " ^ db_to_string t1 ^ " " ^ db_to_string t2 ^ ")"
+
+let close x db = 
+    let rec aux index db = match db with 
+        | Name y when y=x -> Var index
+        | Abs (db, db') -> Abs (aux index db, aux (index + 1) db')
+        | Binder (db, db') -> Binder (aux index db, aux (index + 1) db')
+        | App (db1, db2) -> App(aux index db1, aux index db2)
+        | _ -> db in
+    aux 0 db
+
+let abs (x:string) (t:db) (body:db) = 
+    Abs (t, close x body)
+
+let binder (x:string) (t:db) (body:db) = 
+    Binder (t, close x body)
+
+let app head args = List.fold_left (fun h a -> App(h, a)) head args
+
+let rec db_of_typ (t:typ) : db = match (unmeta_typ t).n with
+ | Typ_btvar x -> Name (x.v.realname.idText)
+ | Typ_const f -> Name (f.v.str)
+ | Typ_fun([], c) -> failwith "Impossible"
+ | Typ_fun([b], c) -> let x, t = db_of_binder b in binder x t (db_of_comp c)
+ | Typ_fun(b::bs, c) -> db_of_typ (mk_Typ_fun([b], mk_Total (mk_Typ_fun(bs, c) None dummyRange)) None dummyRange)
+ | Typ_refine(x, t) -> binder x.v.realname.idText (db_of_typ x.sort) (db_of_typ t)
+ | Typ_app(t, []) -> failwith "Impossible"
+ | Typ_app(t, [Inl s, _]) -> App(db_of_typ t, db_of_typ s)
+ | Typ_app(t, [Inr s, _]) -> App(db_of_typ t, db_of_exp s)
+ | Typ_app(t, s::args) -> db_of_typ (mk_Typ_app(mk_Typ_app(t, [s]) None dummyRange, args) None dummyRange)  
+ | Typ_lam([], t) -> failwith "Impossible"
+ | Typ_lam([b], t) -> let x, t0 = db_of_binder b in abs x t0 (db_of_typ t)
+ | Typ_lam(b::bs, t) -> db_of_typ (mk_Typ_lam([b], mk_Typ_lam(bs, t) None dummyRange) None dummyRange)
+ | Typ_uvar (u, _) -> Name "uvar"
+ | Typ_ascribed _
+ | Typ_meta    _
+ | Typ_delayed _ 
+ | Typ_unknown _ -> failwith "Impossbile"
+
+and db_of_arg = function 
+ | Inl t, _ -> db_of_typ t
+ | Inr e, _ -> db_of_exp e
+
+and db_of_comp (c:comp) : db = match c.n with 
+ | Total t -> db_of_typ t
+ | Comp c -> app (Name c.effect_name.str) (List.map db_of_arg ((Inl c.result_typ, None)::c.effect_args))
+
+and db_of_binder (b, _) = match b with 
+ | Inl a -> a.v.realname.idText, db_of_kind a.sort
+ | Inr a -> a.v.realname.idText, db_of_typ a.sort
+
+and db_of_kind k = match (compress_kind k).n with 
+ | Kind_type -> Name "Type"
+ | Kind_effect -> Name "Effect"
+ | Kind_abbrev(_, k) -> db_of_kind k
+ | Kind_arrow([], _) -> failwith "Imposssible"
+ | Kind_arrow([b], k) -> let x, t = db_of_binder b in binder x t (db_of_kind k)
+ | Kind_uvar _ -> Name "uvar"
+ | _ -> Name "kind_const"
+     
+and db_of_exp e = match (compress_exp e).n with
+ | Exp_bvar x -> Name x.v.realname.idText
+ | Exp_fvar (f, _) -> Name f.v.str
+ | Exp_constant s -> Name "constant"
+ | _ -> Name "Some_exp"
+
+let log = 
+    let ts = System.DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss") in
+    let f = FStar.Util.open_file_for_writing ("norm" ^ts^ ".log") in
+    let logged_prims = ref false in 
+    fun (env:Tc.Env.env) (t:typ) -> 
+        if not !logged_prims && env.curmodule.str <> "Prims"
+        then begin 
+             let tab = List.hd env.sigtab in
+             let mappings = Util.smap_fold tab (fun k v out -> match v with 
+                    | Sig_typ_abbrev (lid, tps, _, t, quals, _)->
+                      let t = Util.close_with_lam tps t in
+                      let mapping = Printf.sprintf "%s -> %s" lid.str (db_of_typ t |> db_to_string) in
+                      mapping::out
+                    | _ -> out) [] in
+             logged_prims := true;
+             FStar.Util.append_to_file f (Printf.sprintf "Prims=[%s]" (String.concat "; " mappings))
+        end;
+        if env.curmodule.str <> "Prims"
+        then FStar.Util.append_to_file f (db_of_typ t |> db_to_string)
+    
