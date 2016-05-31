@@ -85,12 +85,12 @@ logic type mutator_inv gc_state =
 new_effect GC_STATE = STATE_h gc_state
 let gc_post (a:Type) = a -> gc_state -> Type0
 sub_effect
-  DIV   ~> GC_STATE = fun (a:Type) (wp:pure_wp a) (p:gc_post a) (gc:gc_state) -> wp (fun a -> p a gc)
+  DIV   ~> GC_STATE = fun (a:Type) (wp:pure_wp a) (is_wlp:bool) (p:gc_post a) (gc:gc_state) -> wp is_wlp (fun a -> p a gc)
 
 effect GC (a:Type) (pre:gc_state -> Type0) (post: gc_state -> Tot (gc_post a)) =
        GC_STATE a
-             (fun (p:gc_post a) (gc:gc_state) ->
-                  pre gc /\ (forall a gc'. (pre gc /\ post gc a gc') ==> p a gc')) (* WP *)
+             (fun (is_wlp:bool) (p:gc_post a) (gc:gc_state) ->
+                (is_wlp \/ pre gc) /\ (forall a gc'. (pre gc /\ post gc a gc') ==> p a gc')) (* WP *)
 
 effect GCMut (res:Type) (req:gc_state -> Type0) (ens:gc_state -> Tot (gc_post res)) =
        GC res (fun gc -> req gc /\ mutator_inv gc)

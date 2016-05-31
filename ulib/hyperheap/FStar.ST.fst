@@ -25,11 +25,11 @@ effect State (a:Type) (wp:st_wp a) =
        STATE a wp
 effect ST (a:Type) (pre:st_pre) (post: (t -> Tot (st_post a))) =
        STATE a
-             (fun (p:st_post a) (h:t) -> pre h /\ (forall a h1. pre h /\ post h a h1 ==> p a h1)) (* WP *)
+             (fun (is_wlp:bool) (p:st_post a) (h:t) -> (is_wlp \/ pre h) /\ (forall a h1. pre h /\ post h a h1 ==> p a h1)) (* WP *)
 effect St (a:Type) =
        ST a (fun h -> True) (fun h0 r h1 -> True)
 sub_effect
-  DIV   ~> STATE = fun (a:Type) (wp:pure_wp a) (p:st_post a) (h:t) -> wp (fun a -> p a h)
+  DIV   ~> STATE = fun (a:Type) (wp:pure_wp a) (is_wlp:bool) (p:st_post a) (h:t) -> wp is_wlp (fun a -> p a h)
 
 
 assume val color : rid -> GTot int
@@ -87,7 +87,7 @@ assume val get: unit -> ST t
   (ensures (fun m0 x m1 -> m0=x /\ m1=m0 /\ map_invariant m1))
 
 assume val recall: #a:Type -> #i:rid -> r:rref i a -> STATE unit
-   (fun 'p m0 -> Map.contains m0 i /\ Heap.contains (Map.sel m0 i) (as_ref r) ==> 'p () m0)
+   (fun (is_wlp:bool) p m0 -> Map.contains m0 i /\ Heap.contains (Map.sel m0 i) (as_ref r) ==> p () m0)
 
 assume val recall_region: i:rid -> STATE unit
-   (fun 'p m0 -> Map.contains m0 i /\ map_invariant m0  ==> 'p () m0)
+   (fun (is_wlp:bool) p m0 -> Map.contains m0 i /\ map_invariant m0  ==> p () m0)

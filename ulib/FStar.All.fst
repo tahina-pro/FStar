@@ -22,15 +22,15 @@ let all_post (a:Type) = all_post_h heap a
 let all_wp (a:Type) = all_wp_h heap a
 new_effect ALL = ALL_h heap
 
-inline let lift_state_all (a:Type) (wp:st_wp a) (p:all_post a) =  wp (fun a -> p (V a))
+inline let lift_state_all (a:Type) (wp:st_wp a) (is_wlp:bool) (p:all_post a) =  wp is_wlp (fun a -> p (V a))
 sub_effect STATE ~> ALL = lift_state_all
 
-inline let lift_exn_all (a:Type) (wp:ex_wp a)   (p:all_post a) (h:heap) = wp (fun ra -> p ra h)
+inline let lift_exn_all (a:Type) (wp:ex_wp a) (is_wlp:bool) (p:all_post a) (h:heap) = wp is_wlp (fun ra -> p ra h)
 sub_effect EXN   ~> ALL = lift_exn_all
 
 effect All (a:Type) (pre:all_pre) (post: (heap -> Tot (all_post a))) =
        ALL a
-           (fun (p:all_post a) (h:heap) -> pre h /\ (forall ra h1. pre h /\ post h ra h1 ==> p ra h1)) (* WP  *)
+           (fun (is_wlp:bool) (p:all_post a) (h:heap) -> (is_wlp \/ pre h) /\ (forall ra h1. pre h /\ post h ra h1 ==> p ra h1)) (* WP  *)
 effect ML (a:Type) =
   ALL a (all_null_wp heap a)
 

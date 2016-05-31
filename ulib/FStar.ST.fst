@@ -25,27 +25,27 @@ let st_pre = st_pre_h heap
 let st_post a = st_post_h heap a
 let st_wp a = st_wp_h heap a
 new_effect STATE = STATE_h heap
-inline let lift_div_state (a:Type) (wp:pure_wp a) (p:st_post a) (h:heap) = wp (fun a -> p a h)
+inline let lift_div_state (a:Type) (wp:pure_wp a) (is_wlp:bool) (p:st_post a) (h:heap) = wp is_wlp (fun a -> p a h)
 sub_effect DIV ~> STATE = lift_div_state
 
 effect State (a:Type) (wp:st_wp a) =
        STATE a wp
 effect ST (a:Type) (pre:st_pre) (post: (heap -> Tot (st_post a))) =
        STATE a
-             (fun (p:st_post a) (h:heap) -> pre h /\ (forall a h1. pre h /\ post h a h1 ==> p a h1))
+             (fun (is_wlp:bool) (p:st_post a) (h:heap) -> (is_wlp \/ pre h) /\ (forall a h1. pre h /\ post h a h1 ==> p a h1))
 effect St (a:Type) =
        ST a (fun h -> True) (fun h0 r h1 -> True)
 
 (* signatures WITHOUT permissions *)
 assume val recall: #a:Type -> r:ref a -> STATE unit
-                                         (fun 'p h -> Heap.contains h r ==> 'p () h)
+                                             (fun (is_wlp:bool) 'p h -> Heap.contains h r ==> 'p () h)
 
 assume val alloc:  #a:Type -> init:a -> ST (ref a)
                                            (fun h -> True)
                                            (fun h0 r h1 -> not(contains h0 r) /\ contains h1 r /\ h1==upd h0 r init)
 
 assume val read:  #a:Type -> r:ref a -> STATE a
-                                         (fun 'p h -> 'p (sel h r) h)
+                                         (fun (is_wlp:bool) 'p h -> 'p (sel h r) h)
 
 assume val write:  #a:Type -> r:ref a -> v:a -> ST unit
                                                  (fun h -> True)
