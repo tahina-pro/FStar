@@ -4,21 +4,21 @@ Dijkstra Monads for Free
 A basic, complete example:
 
 ```
-fstar FStar.DM4F.Test.Fst
+fstar.exe FStar.DM4F.Test.Fst
 ```
 
 To see the generated combinators (look for top-level definitions starting with
 `FStar.DM4F.Test.STINT_`):
 
 ```
-fstar --dump_module FStar.DM4F.Test FStar.DM4F.Test.fst
+fstar.exe --dump_module FStar.DM4F.Test FStar.DM4F.Test.fst
 ```
 
 To see more debug output related to the DMFF elaboration and star
 transformations:
 
 ```
-fstar --trace_error --debug_level ED --debug FStar.DM4F.Test FStar.DM4F.Test.fst --prn --print_implicits --print_universes --print_bound_var_types
+fstar.exe --trace_error --debug_level ED --debug FStar.DM4F.Test FStar.DM4F.Test.fst --prn --print_implicits --print_universes --print_bound_var_types
 ```
 
 Current status:
