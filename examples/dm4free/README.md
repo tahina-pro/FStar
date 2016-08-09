@@ -1,6 +1,8 @@
 Dijkstra Monads for Free
 ------------------------
 
+**Future developments will happen on `master`!**
+
 A basic, complete example:
 
 ```
