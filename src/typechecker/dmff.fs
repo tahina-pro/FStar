@@ -573,12 +573,10 @@ and star_type env t =
   | Tm_abs (binders, repr, something) ->
       // For parameterized data types... TODO: check that this only appears at
       // top-level
-      let subst = SS.opening_of_binders binders in
-      let repr = SS.subst subst repr in
+      let binders, repr = SS.open_term binders repr in
       let env = { env with env = push_binders env.env binders } in
       let repr = star_type env repr in
-      let repr = SS.close binders repr in
-      mk (Tm_abs (binders, repr, something))
+      U.abs binders repr something
 
   | Tm_abs _
   | Tm_uinst _
@@ -974,7 +972,13 @@ and mk_match env e0 branches f =
   ) nms branches) in
   let s_branches = List.map close_branch s_branches in
   let u_branches = List.map close_branch u_branches in
-  (if has_m then M t1 else N t1), mk (Tm_match (s_e0, s_branches)), mk (Tm_match (u_e0, u_branches))
+  let t1_star = 
+    if has_m 
+    then U.arrow [S.mk_binder <| S.new_bv None (mk_star_to_type mk env t1)] (S.mk_Total U.ktype0)
+    else t1 in
+  (if has_m then M t1 else N t1), 
+  mk (Tm_ascribed (mk (Tm_match (s_e0, s_branches)), Inl t1_star, None)),
+  mk (Tm_match (u_e0, u_branches))
 
 
 and mk_let (env: env_) (binding: letbinding) (e2: term)
@@ -1095,7 +1099,7 @@ and trans_G (env: env_) (h: typ) (is_monadic: bool) (wp: typ): comp =
 
 
 let star_expr_definition env t =
-  star_definition env t (fun env e -> let t, s_e, s_u = check_n env e in t, (s_e, s_u))
+  star_definition env t (fun env e -> let t, s_e, s_u = check_n env e in t, (t, s_e, s_u))
 
 // Same thing as [trans_F_], but normalizes its argument, so that it can be
 // called from [tc.fs]. The name is different to make F# happy.
