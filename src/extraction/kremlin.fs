@@ -408,6 +408,26 @@ and translate_type env t: typ =
       TInt Int64
   | MLTY_Named ([arg], p) when (Syntax.string_of_mlpath p = "FStar.Buffer.buffer") ->
       TBuf (translate_type env arg)
+      // Hacl equivalent --------------------------------------------------
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.UInt8.t") ->
+      TInt UInt8
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.UInt16.t") ->
+      TInt UInt16
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.UInt32.t") ->
+      TInt UInt32
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.UInt64.t") ->
+      TInt UInt64
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.Int8.t") ->
+      TInt Int8
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.Int16.t") ->
+      TInt Int16
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.Int32.t") ->
+      TInt Int32
+  | MLTY_Named ([], p) when (Syntax.string_of_mlpath p = "Hacl.Int64.t") ->
+      TInt Int64
+  | MLTY_Named ([arg], p) when (Syntax.string_of_mlpath p = "Hacl.SBuffer.buffer") ->
+      TBuf (translate_type env arg)
+      // ------------------------------------------------------------------
   | MLTY_Named ([_], p) when (Syntax.string_of_mlpath p = "FStar.Ghost.erased") ->
       TAny
   | MLTY_Named (_, (path, type_name)) ->
@@ -435,6 +455,10 @@ and translate_expr env e: expr =
 
   // Some of these may not appear beneath an [EApp] node because of partial applications
   | MLE_Name ([ "FStar"; m ], op) when (is_machine_int m && is_op op) ->
+      EOp (must (mk_op op), must (mk_width m))
+
+  // Same for Hacl integers
+  | MLE_Name ([ "Hacl"; m ], op) when (is_machine_int m && is_op op) ->
       EOp (must (mk_op op), must (mk_width m))
 
   | MLE_Name ([ "Prims" ], op) when (is_bool_op op) ->
@@ -488,11 +512,24 @@ and translate_expr env e: expr =
       EBufSub (translate_expr env e1, translate_expr env e2)
   | MLE_App ({ expr = MLE_Name p }, [ e1; e2; e3 ]) when (string_of_mlpath p = "FStar.Buffer.upd") ->
       EBufWrite (translate_expr env e1, translate_expr env e2, translate_expr env e3)
+  // Same for Hacl specific functions
+  | MLE_App ({ expr = MLE_Name p }, [ e1; e2 ]) when (string_of_mlpath p = "Hacl.SBuffer.index") ->
+      EBufRead (translate_expr env e1, translate_expr env e2)
+  | MLE_App ({ expr = MLE_Name p }, [ e1; e2 ]) when (string_of_mlpath p = "Hacl.SBuffer.create") ->
+      EBufCreate (translate_expr env e1, translate_expr env e2)
+  | MLE_App ({ expr = MLE_Name p }, [ e1; e2; _e3 ]) when (string_of_mlpath p = "Hacl.SBuffer.sub") ->
+      EBufSub (translate_expr env e1, translate_expr env e2)
+  | MLE_App ({ expr = MLE_Name p }, [ e1; e2 ]) when (string_of_mlpath p = "Hacl.SBuffer.offset") ->
+      EBufSub (translate_expr env e1, translate_expr env e2)
+  | MLE_App ({ expr = MLE_Name p }, [ e1; e2; e3 ]) when (string_of_mlpath p = "Hacl.SBuffer.upd") ->
+      EBufWrite (translate_expr env e1, translate_expr env e2, translate_expr env e3)
   | MLE_App ({ expr = MLE_Name p }, [ _ ]) when (string_of_mlpath p = "FStar.HST.push_frame") ->
       EPushFrame
   | MLE_App ({ expr = MLE_Name p }, [ _ ]) when (string_of_mlpath p = "FStar.HST.pop_frame") ->
       EPopFrame
   | MLE_App ({ expr = MLE_Name p }, [ e1; e2; e3; e4; e5 ]) when (string_of_mlpath p = "FStar.Buffer.blit") ->
+      EBufBlit (translate_expr env e1, translate_expr env e2, translate_expr env e3, translate_expr env e4, translate_expr env e5)
+  | MLE_App ({ expr = MLE_Name p }, [ e1; e2; e3; e4; e5 ]) when (string_of_mlpath p = "Hacl.SBuffer.blit") ->
       EBufBlit (translate_expr env e1, translate_expr env e2, translate_expr env e3, translate_expr env e4, translate_expr env e5)
   | MLE_App ({ expr = MLE_Name p }, [ _ ]) when (string_of_mlpath p = "FStar.HST.get") ->
       // HACK ALERT HACK ALERT we shouldn't even be extracting this!
@@ -500,6 +537,9 @@ and translate_expr env e: expr =
 
   // Operators from fixed-width integer modules, e.g. [FStar.Int32.addw].
   | MLE_App ({ expr = MLE_Name ([ "FStar"; m ], op) }, args) when (is_machine_int m && is_op op) ->
+      mk_op_app env (must (mk_width m)) (must (mk_op op)) args
+
+  | MLE_App ({ expr = MLE_Name ([ "Hacl"; m ], op) }, args) when (is_machine_int m && is_op op) ->
       mk_op_app env (must (mk_width m)) (must (mk_op op)) args
 
   | MLE_App ({ expr = MLE_Name ([ "Prims" ], op) }, args) when (is_bool_op op) ->
@@ -511,6 +551,26 @@ and translate_expr env e: expr =
       EConstant (must (mk_width m), c)
 
   | MLE_App ({ expr = MLE_Name ([ "FStar"; "Int"; "Cast" ], c) }, [ arg ]) ->
+      if ends_with c "uint64" then
+        ECast (translate_expr env arg, TInt UInt64)
+      else if ends_with c "uint32" then
+        ECast (translate_expr env arg, TInt UInt32)
+      else if ends_with c "uint16" then
+        ECast (translate_expr env arg, TInt UInt16)
+      else if ends_with c "uint8" then
+        ECast (translate_expr env arg, TInt UInt8)
+      else if ends_with c "int64" then
+        ECast (translate_expr env arg, TInt Int64)
+      else if ends_with c "int32" then
+        ECast (translate_expr env arg, TInt Int32)
+      else if ends_with c "int16" then
+        ECast (translate_expr env arg, TInt Int16)
+      else if ends_with c "int8" then
+        ECast (translate_expr env arg, TInt Int8)
+      else
+        failwith (Util.format1 "Unrecognized function from Cast module: %s\n" c)
+
+  | MLE_App ({ expr = MLE_Name ([ "Hacl"; "Cast" ], c) }, [ arg ]) ->
       if ends_with c "uint64" then
         ECast (translate_expr env arg, TInt UInt64)
       else if ends_with c "uint32" then
@@ -547,8 +607,46 @@ and translate_expr env e: expr =
       (* Things not supported (yet): let-bindings for functions; meaning, rec flags are not
        * supported, and quantified type schemes are not supported either *)
       failwith "todo: translate_expr [MLE_Let]"
-  | MLE_App _ ->
-      failwith "todo: translate_expr [MLE_App]"
+  | MLE_App ({expr = e}, _) ->
+      // begin
+      // match e with
+      //     | MLE_Tuple _ -> failwith "Tuple"
+      //     | MLE_Const _ -> failwith "Const"
+      //     | MLE_Var _ -> failwith "Var"
+      //     | MLE_Name _-> failwith "Name"
+      //     | MLE_Let _ -> failwith "Let"
+      //     | MLE_Match _ -> failwith "Match"
+      //     | MLE_App ({expr = e}, _) ->
+      //         begin
+      //         match e with
+      //             | MLE_Tuple _ -> failwith "App -> Tuple"
+      //             | MLE_Const _ -> failwith "App -> Const"
+      //             | MLE_Var _ -> failwith "App -> Var"
+      //             | MLE_Name p-> failwith ("App -> " ^ string_of_mlpath p)
+      //             | MLE_Let _ -> failwith "App -> Let"
+      //             | MLE_Match _ -> failwith "App -> Match"
+      //             | MLE_App ({expr = e}, _) -> failwith "App -> App"
+      //             | MLE_Coerce _ -> failwith "App -> Coerce"
+      //             | MLE_Fun _ -> failwith "App -> Fun"
+      //             | MLE_CTor _ -> failwith "App -> CTor"
+      //             | MLE_Seq _ -> failwith "App -> Seq"
+      //             | MLE_Record _ -> failwith "App -> Record"
+      //             | MLE_Proj _ -> failwith "App -> Proj"
+      //             | MLE_If _ -> failwith "App -> If"
+      //             | MLE_Raise _ -> failwith "App -> Rise"
+      //             | MLE_Try _ -> failwith "App -> Try"
+      //         end
+      //     | MLE_Coerce _ -> failwith "Coerce"
+      //     | MLE_Fun _ -> failwith "Fun"
+      //     | MLE_CTor _ -> failwith "CTor"
+      //     | MLE_Seq _ -> failwith "Seq"
+      //     | MLE_Record _ -> failwith "Record"
+      //     | MLE_Proj _ -> failwith "Proj"
+      //     | MLE_If _ -> failwith "If"
+      //     | MLE_Raise _ -> failwith "Rise"
+      //     | MLE_Try _ -> failwith "Try"
+      //     end
+     failwith "todo: translate_expr [MLE_App]"
   | MLE_Fun _ ->
       failwith "todo: translate_expr [MLE_Fun]"
   | MLE_CTor _ ->

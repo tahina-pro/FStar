@@ -4,11 +4,11 @@ module Make = functor (X: sig
   val ( - ): int -> int -> int
   val ( * ): int -> int -> int
   val ( / ): int -> int -> int
-  val ( % ): int -> int -> int
   val ( <= ): int -> int -> bool
   val ( >= ): int -> int -> bool
   val ( < ): int -> int -> bool
   val ( < ): int -> int -> bool
+  val ( mod ): int -> int -> int
   val op_Minus: int -> int
   val parse_int: string -> int
   val to_string: int -> string
