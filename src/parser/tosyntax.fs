@@ -1558,6 +1558,21 @@ and desugar_decl env (d:decl) : (env_t * sigelts) =
     let env = Env.push_namespace env lid in
     env, []
 
+  | Export lid ->
+    (* We require that lid be a module, not just a namespace. We also
+       (implicitly) require that the module name be already fully
+       resolved. *)
+    if Util.for_some (fun (m, _) -> Ident.lid_equals m lid) env.modules
+    then
+     (* TODO: we still consider that, seen from the current module,
+     `export M' opens the whole namespace M and all its derived
+     namespaces M.* in the current module, just like `open M' . *)
+     let env1 = Env.push_namespace env lid in
+     let env2 = Env.push_export_decl env1 lid in
+     (env2, [])
+    else
+     raise (Error ("export: module " ^ text_of_lid lid ^ " does not exist", range_of_lid lid))
+
   | ModuleAbbrev(x, l) ->
     Env.push_module_abbrev env x l, []
 

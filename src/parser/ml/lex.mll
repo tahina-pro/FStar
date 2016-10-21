@@ -50,6 +50,7 @@
     Hashtbl.add keywords "ensures"       ENSURES     ;
     Hashtbl.add keywords "exception"     EXCEPTION   ;
     Hashtbl.add keywords "exists"        EXISTS      ;
+    Hashtbl.add keywords "export"        EXPORT      ;
     Hashtbl.add keywords "false"         FALSE       ;
     Hashtbl.add keywords "False"         L_FALSE     ;
     Hashtbl.add keywords "forall"        FORALL      ;

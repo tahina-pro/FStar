@@ -35,6 +35,12 @@ type env = {
   curmodule:            option<lident>;                   (* name of the module being desugared *)
   modules:              list<(lident * modul)>;           (* previously desugared modules *)
   open_namespaces:      list<lident>;                     (* fully qualified names, in order of precedence *)
+  export_decls:         list<(lident * list<lident>)>;    (* export declarations with fully qualified names,
+                                                             in order of precedence. If (i, l) is in the list,
+                                                             then for any j in l, `export j' is declared in i *)
+  curexports:           list<lident>;                     (* export declarations of the current module.
+                                                             Must not be used for export resolution until the module
+                                                             is finished. *)
   modul_abbrevs:        list<(ident * lident)>;           (* module X = A.B.C *)
   sigaccum:             sigelts;                          (* type declarations being accumulated for the current module *)
   localbindings:        list<(ident * bv * bool)>;        (* local name bindings for name resolution, paired with an env-generated unique name and a boolean that is true when the variable has been introduced with let-mutable *)
@@ -86,6 +92,7 @@ val push_bv_mutable: env -> ident -> env * bv
 val push_top_level_rec_binding: env -> ident -> S.delta_depth -> env
 val push_sigelt: env -> sigelt -> env
 val push_namespace: env -> lident -> env
+val push_export_decl: env -> lident -> env
 val push_module_abbrev : env -> ident -> lident -> env
 val expand_module_abbrev: env -> lident -> lident
 

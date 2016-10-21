@@ -111,6 +111,7 @@ let as_frag d ds =
 %token EXCEPTION FALSE L_FALSE FUN FUNCTION IF IN MODULE DEFAULT
 %token MATCH OF
 %token OPEN REC MUTABLE THEN TRUE L_TRUE TRY TYPE EFFECT VAL
+%token EXPORT
 %token WHEN WITH HASH AMP LPAREN RPAREN LPAREN_RPAREN COMMA LARROW RARROW
 %token IFF IMPLIES CONJUNCTION DISJUNCTION
 %token DOT COLON COLON_COLON SEMICOLON
@@ -190,6 +191,8 @@ decl:
 decl2:
   | OPEN qname
       { Open $2 }
+  | EXPORT qname
+      { Export $2 }
   | MODULE name EQUALS qname
       {  ModuleAbbrev($2, $4) }
   | MODULE qname

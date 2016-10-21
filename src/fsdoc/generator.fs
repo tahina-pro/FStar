@@ -106,6 +106,7 @@ let string_of_tycon tycon =
 let string_of_decl' d = 
   match d with 
   | TopLevelModule l -> "module " ^ l.str // SI: should never get here
+  | Export l -> "export " ^ l.str
   | Open l -> "open " ^ l.str
   | ModuleAbbrev (i, l) -> "module " ^ i.idText ^ " = " ^ l.str
   | KindAbbrev(i, _, _) -> "kind " ^ i.idText

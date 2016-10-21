@@ -35,6 +35,12 @@ type env = {
   curmodule:            option<lident>;                   (* name of the module being desugared *)
   modules:              list<(lident * modul)>;           (* previously desugared modules *)
   open_namespaces:      list<lident>;                     (* fully qualified names, in order of precedence *)
+  export_decls:         list<(lident * list<lident>)>;    (* export declarations with fully qualified names,
+                                                             in order of precedence. If (i, l) is in the list,
+                                                             then for any j in l, `export j' is declared in i *)
+  curexports:           list<lident>;                     (* export declarations of the current module.
+                                                             Must not be used for export resolution until the module
+                                                             is finished. *)
   modul_abbrevs:        list<(ident * lident)>;           (* module X = A.B.C *)
   sigaccum:             sigelts;                          (* type declarations being accumulated for the current module *)
   localbindings:        list<(ident * bv * bool)>;        (* local name bindings for name resolution, paired with an env-generated unique name and a boolean that is true when the variable has been introduced with let-mutable *)
@@ -73,6 +79,8 @@ let new_sigmap () = Util.smap_create 100
 let empty_env () = {curmodule=None;
                     modules=[];
                     open_namespaces=[];
+                    export_decls=[];
+                    curexports=[];
                     modul_abbrevs=[];
                     sigaccum=[];
                     localbindings=[];
@@ -117,16 +125,43 @@ let try_lookup_id env (id:ident) =
       | id', x, mut when (id'.idText=id.idText) -> Some (bv_to_name x id.idRange, mut)
       | _ -> None)
 
+
 let resolve_in_open_namespaces' env lid (finder:lident -> option<'a>) : option<'a> =
-  let aux (namespaces:list<lident>) : option<'a> =
-    match finder lid with
-        | Some r -> Some r
-        | _ ->
-            let ids = ids_of_lid lid in
-            find_map namespaces (fun (ns:lident) ->
-                let full_name = lid_of_ids (ids_of_lid ns @ ids) in
-                finder full_name) in
-  aux (current_module env::env.open_namespaces)
+      let rec find_fully_qualified export_was_used full_name_ls =
+          let full_name = lid_of_ids full_name_ls in
+          match finder full_name with
+          | Some r ->
+            let () = if export_was_used then Util.print3_warning "export: %s: %s -> %s\n" (Range.string_of_range (range_of_lid lid)) (text_of_lid lid) (text_of_lid full_name) else () in
+            Some r
+          | _ ->
+            (* If the name is qualified by some module name M, then we
+               replace M with M' if M' can be reached from M by a
+               chain of `export's.  *)
+            let qualifier = full_name.ns in
+            begin match qualifier with
+            | _ :: _ ->
+              let modul = lid_of_ids qualifier in
+              begin match find_opt (fun x -> lid_equals (fst x) modul) env.export_decls with
+              | Some (_, expo) ->
+                let find_in_replaced (ns: lident) =
+                    find_fully_qualified true (ids_of_lid ns @ [full_name.ident])
+                in
+                find_map expo find_in_replaced
+              | _ -> None
+              end
+            | _ -> None
+            end
+      in
+      let ids = ids_of_lid lid in
+      (* first try direct lookup, with empty namespace *)
+      match find_fully_qualified false ids with
+      | Some r -> Some r
+      | _ ->
+        (* then, iterate over open namespaces *)
+        let namespaces = current_module env::env.open_namespaces in
+        find_map namespaces (fun (ns:lident) -> 
+                             let full_name_ls = ids_of_lid ns @ ids in
+                             find_fully_qualified false full_name_ls)
 
 let expand_module_abbrev env lid =
   match lid.ns with
@@ -468,6 +503,11 @@ let push_namespace env ns =
   then {env with open_namespaces = ns::env.open_namespaces}
   else raise (Error(Util.format1 "Namespace %s cannot be found" (Ident.text_of_lid ns), Ident.range_of_lid ns))
 
+let push_export_decl env ns =
+  {env with
+   curexports = ns :: env.curexports
+  }
+
 let push_module_abbrev env x l = 
   if env.modul_abbrevs |> Util.for_some (fun (y, _) -> x.idText=y.idText)
   then raise (Error(Util.format1 "Module %s is already defined" x.idText, x.idRange))
@@ -517,6 +557,8 @@ let finish env modul =
   {env with
     curmodule=None;
     modules=(modul.name, modul)::env.modules;
+    export_decls=(modul.name, env.curexports) :: env.export_decls;
+    curexports=[];
     modul_abbrevs=[];
     open_namespaces=[];
     sigaccum=[];

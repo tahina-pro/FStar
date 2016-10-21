@@ -1517,6 +1517,9 @@ let rec desugar_decl env (d:decl) : (env_t * sigelts) =
 
   | TopLevelModule id -> env,[]
 
+  | Export lid ->
+    failwith "`export' not supported by legacy desugaring"
+
   | Open lid ->
     let env = DesugarEnv.push_namespace env lid in
     env, []

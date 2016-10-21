@@ -148,6 +148,7 @@ let keywords =
     ALWAYS, "ensures"    ,ENSURES;
     ALWAYS, "exception"  ,EXCEPTION;
     ALWAYS, "exists"     ,EXISTS;
+    ALWAYS, "export"     ,EXPORT;
     ALWAYS, "false"      ,FALSE;
     ALWAYS, "False"      ,L_FALSE;
     ALWAYS, "forall"     ,FORALL;

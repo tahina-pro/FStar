@@ -64,6 +64,7 @@ type token =
   | COMMA
   | LARROW
   | RARROW
+  | EXPORT
   | OPEN
   | REC
   | MUTABLE
@@ -195,6 +196,7 @@ type tokenId =
     | TOKEN_COMMA
     | TOKEN_LARROW
     | TOKEN_RARROW
+    | TOKEN_EXPORT
     | TOKEN_OPEN
     | TOKEN_REC
     | TOKEN_MUTABLE
