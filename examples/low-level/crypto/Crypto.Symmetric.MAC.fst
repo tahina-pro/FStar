@@ -9,13 +9,15 @@ open Crypto.Symmetric.Bytes
 open Flag
 
 module GF = Crypto.Symmetric.GF128
-module PS = Crypto.Symmetric.Poly1305.Spec
-module PL = Crypto.Symmetric.Poly1305
+module PS = Crypto.Symmetric.Poly1305_64.Spec
+module PL = Crypto.Symmetric.Poly1305_64
 
 module HH = FStar.HyperHeap
 module HS = FStar.HyperStack
 
-let alg i = Flag.mac_of_id i 
+let lbuffer (l:nat) = b:Buffer.buffer PS.byte
+
+let alg i = Flag.mac_of_id i
 
 (** Field element *)
 let elem i =
@@ -90,7 +92,7 @@ val encode_r: #i:id -> b:elemB i -> raw:lbuffer 16{Buffer.disjoint b raw} -> Sta
   (ensures  (fun h0 _ h1 -> live h1 b))
 let encode_r #i b raw =
   match alg i with 
-  | POLY1305 -> PL.clamp raw; PL.toField b raw
+  | POLY1305 -> PL.poly1305_encode_r b raw//PL.clamp raw; PL.toField b raw
   | GHASH    -> Buffer.blit raw 0ul b 0ul 16ul
 
 // TODO: generalize to word
@@ -98,7 +100,7 @@ let encode_r #i b raw =
 val encode: i:id -> w:word_16 -> GTot (elem i)
 let encode i w =
   match alg i with 
-  | POLY1305 -> PS.encode w
+  | POLY1305 -> PL.encode w
   | GHASH    -> w //PS.pad_0 w (16 - Seq.length w)
 
 (** Encode a word of a message as a field element in a buffer *)
@@ -109,11 +111,12 @@ private val encodeB: i:id -> w:wordB_16 -> StackInline (elemB i)
     /\ ~(live h0 b)
     /\ sel_elem h1 b == encode i (sel_word h1 w)))
 let encodeB i w =
-  match alg i with 
+  match alg i with
   | POLY1305 ->
     begin
-    let b = Buffer.create 0UL 5ul in
-    PL.toField_plus_2_128 b w;
+    let b = Buffer.create (Hacl.Cast.uint64_to_sint64 0uL) 3ul in
+    PL.poly1305_encode_b b w;
+    (* PL.toField_plus_2_128 b w; *)
     b
     end
   | GHASH ->
@@ -130,7 +133,7 @@ let encodeB i w =
 (** Polynomial evaluation *)
 val poly: #i:id -> cs:Seq.seq (elem i) -> r:elem i -> GTot (elem i)
 let poly #i cs r =
-  match alg i with 
+  match alg i with
   | POLY1305 -> PS.poly cs r
   | GHASH    -> admit ()
 
@@ -185,7 +188,10 @@ let update #i r a w =
     Crypto.Symmetric.Poly1305.Bigint.norm_eq_lemma h0 h1 a a;
     Crypto.Symmetric.Poly1305.Bigint.norm_eq_lemma h0 h1 r r;
     //assert (sel_elem h1 e == encode i (sel_word h0 w));
-    PL.add_and_multiply a e r;
+    let st = Hacl.Symmetric.Poly1305_64.FC ({h = a; r = r}) in
+    (* PL.add_and_multiply a e r; *)
+    let dummy_log = Seq.createEmpty #Hacl.Symmetric.Poly1305_64.FC.Spec.elem in
+    PL.poly1305_update dummy_log w st;
     let h2 = ST.get () in
     //assert (sel_elem h2 a == (sel_elem h1 a +@ sel_elem h1 e) *@ sel_elem h1 r);
     Crypto.Symmetric.Poly1305.Bigint.eval_eq_lemma h0 h1 r r 5;
@@ -205,7 +211,13 @@ val finish: #i:id -> s:lbuffer 16 -> a:elemB i -> tag:lbuffer 16 -> Stack unit
     Buffer.disjoint s a /\ Buffer.disjoint s tag /\ Buffer.disjoint a tag))
   (ensures  (fun h0 _ h1 -> True))
 let finish #i s a tag =
-  match alg i with 
-  | POLY1305 -> PL.poly1305_finish tag a s
-  | GHASH    -> GF.gf128_add a s; 
+  match alg i with
+  | POLY1305 ->
+    begin
+      let dummy_r = Buffer.create (Hacl.Cast.uint64_to_sint64 0uL) 3ul in
+      let dummy_log = Seq.createEmpty #Hacl.Symmetric.Poly1305_64.FC.Spec.elem in
+      let dummy_st = Hacl.Symmetric.Poly1305_64.FC ({h = a; r = dummy_r}) in
+      PL.poly1305_finish dummy_log tag dummy_st s
+    end
+  | GHASH    -> GF.gf128_add a s;
                Buffer.blit a 0ul tag 0ul 16ul
