@@ -1,7 +1,7 @@
 FSTAR_HOME=../..
 include $(FSTAR_HOME)/src/gmake/fstar.mk
 
-TESTDIRS=$(wildcard test*.dir)
+TESTDIRS=$(wildcard *.dir)
 TESTS=$(patsubst %.dir,%.test,$(TESTDIRS))
 
 .PHONY: all
