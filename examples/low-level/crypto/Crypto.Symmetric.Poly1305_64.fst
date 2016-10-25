@@ -45,7 +45,7 @@ module HS  = FStar.HyperStack
 (* * *********************************************)
 
 (** Mutable big integer representation (5 64-bit limbs) *)
-type elemB = elemB //b:Buffer.buffer u64{length b == norm_length}
+let elemB = elemB
 
 (** Concrete (mutable) representation of words *)
 let wordB : Type0 = if mac_log then b:uint8_p{length b <= 16} else wordB

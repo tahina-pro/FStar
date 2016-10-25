@@ -42,7 +42,7 @@ val pow2_64_lemma: n:nat ->
     [SMTPat (pow2 n)]
 let pow2_64_lemma n = assert_norm(pow2 64 = 18446744073709551616)
 
-let elemB = b:bigint
+let elemB : Type0 = b:bigint
 
 let wordB = b:uint8_p{length b <= 16}
 let wordB_16 = b:uint8_p{length b = 16}
@@ -206,6 +206,77 @@ let poly1305_encode_b b m =
   b.(2ul) <- t_2
 
 
+val poly1305_core:
+  acc:bigint ->
+  block:bigint ->
+  r:bigint ->
+  Stack unit
+    (requires (fun _ -> True))
+    (ensures  (fun _ _ _ -> True))
+let poly1305_core acc block r =
+  let mask_2_44 = mk_mask 44ul in
+  let mask_2_42 = mk_mask 42ul in
+  let five = uint64_to_sint64 5uL in
+  let r0 = r.(0ul) in
+  let r1 = r.(1ul) in
+  let r2 = r.(2ul) in
+  let s1 = H64 (r1 *^ (five <<^ 2ul)) in
+  let s2 = H64 (r2 *^ (five <<^ 2ul)) in
+  let h0 = acc.(0ul) in
+  let h1 = acc.(1ul) in
+  let h2 = acc.(2ul) in
+  let t_0 = block.(0ul) in
+  let t_1 = block.(1ul) in
+  let t_2 = block.(2ul) in
+  let open Hacl.UInt64 in
+  let h0 = h0 +^ t_0 in
+  assume (v h1 + v t_1 < pow2 64);
+  let h1 = h1 +^ t_1 in
+  assume (v h2 + v t_2 < pow2 64);
+  let h2 = h2 +^ t_2 in
+  let open Hacl.UInt128 in
+  let d0 = h0 *^ r0 in
+  let d  = h1 *^ s2 in
+  assume (v d0 + v d < pow2 128);
+  let d0 = d0 +^ d  in
+  let d  = h2 *^ s1 in
+  assume (v d0 + v d < pow2 128);
+  let d0 = d0 +^ d  in
+  let d1 = h0 *^ r1 in
+  let d  = h1 *^ r0 in
+  assume (v d1 + v d < pow2 128);
+  let d1 = d1 +^ d  in
+  let d  = h2 *^ s2 in
+  assume (v d1 + v d < pow2 128);
+  let d1 = d1 +^ d  in
+  let d2 = h0 *^ r2 in
+  let d  = h1 *^ r1 in
+  assume (v d2 + v d < pow2 128);
+  let d2 = d2 +^ d  in
+  let d  = h2 *^ r0 in
+  assume (v d2 + v d < pow2 128);
+  let d2 = d2 +^ d  in
+  let c  = sint128_to_sint64 (d0 >>^ 44ul) in
+  let h0 = H64 (sint128_to_sint64 d0 &^ mask_2_44) in
+  let d1 = d1 +^ sint64_to_sint128 c in
+  let c  = sint128_to_sint64 (d1 >>^ 44ul) in
+  let h1 = H64 (sint128_to_sint64 d1 &^ mask_2_44) in
+  assume (v d2 + H64.v c < pow2 128);
+  let d2 = d2 +^ sint64_to_sint128 c in
+  let c  = sint128_to_sint64 (d2 >>^ 42ul) in
+  let h2 = H64 (sint128_to_sint64 d2 &^ mask_2_42) in
+  let open Hacl.UInt64 in
+  assume (v c * 5 < pow2 64 /\ v h0 + v c * 5 < pow2 64);
+  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  assume (v h0 + v c < pow2 64);
+  let h1 = h1 +^ c in
+  acc.(0ul) <- h0;
+  acc.(1ul) <- h1;
+  acc.(2ul) <- h2
+
+
 val poly1305_update:
   current_log:log_t ->
   st:poly1305_state ->
@@ -215,9 +286,6 @@ val poly1305_update:
   r2:limb_44 ->
   s1:limb_44_20{H64 (v s1 = 20 * v r1)} ->
   s2:limb_44_20{H64 (v s2 = 20 * v r2)} ->
-  (* h0:limb_45 -> *)
-  (* h1:limb_45 -> *)
-  (* h2:limb_45 -> *)
   Stack log_t
     (requires (fun h -> live_st h st /\ live h m))
     (ensures  (fun h0 updated_log h1 -> modifies_1 st.h h0 h1 /\ live_st h1 st
@@ -578,6 +646,63 @@ let poly1305_finish log st mac m len key_s =
   store64_le (offset mac 8ul) h1;
   pop_frame();
   log // TODO
+
+
+val poly1305_finish_:
+  mac:uint8_p ->
+  acc:bigint ->
+  key_s:uint8_p{length key_s = 16} ->
+  Stack unit
+    (requires (fun _ -> True))
+    (ensures  (fun _ _ _ -> True))
+let poly1305_finish_ mac acc key_s =
+  push_frame();
+  let mask_2_44 = uint64_to_sint64 0xfffffffffffuL in
+  let mask_2_42 = uint64_to_sint64 0x3ffffffffffuL in
+  let h0 = acc.(0ul) in
+  let h1 = acc.(1ul) in
+  let h2 = acc.(2ul) in
+  let open Hacl.UInt64 in
+  let c  = h1 >>^ 44ul in
+  let h1 = h1 &^ mask_2_44 in
+  let h2 = h2 +^ c in
+  let c  = h2 >>^ 42ul in
+  let h2 = h2 &^ mask_2_42 in
+  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  let h1 = h1 +^ c in
+  let c  = h1 >>^ 44ul in
+  let h1 = h1 &^ mask_2_44 in
+  let h2 = h2 +^ c in
+  let c  = h2 >>^ 42ul in
+  let h2 = h2 &^ mask_2_42 in
+  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  let h1 = h1 +^ c in
+  let mask = (eq_mask h0 mask_2_44)
+             &^ (eq_mask h1 mask_2_44)
+             &^ (gte_mask h2 (uint64_to_sint64 0x3fffffffffbuL)) in
+  let h0 = h0 &^ lognot mask in
+  let h1 = h1 &^ lognot mask in
+  let h2 = h2 -^ ((uint64_to_sint64 0x3fffffffffbuL) &^ mask) in
+  let t0 = load64_le (offset key_s 0ul) in
+  let t1 = load64_le (offset key_s 8ul) in
+  let h0 = h0 +^ (t0 &^ mask_2_44) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  let h1 = h1 +^ (((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44) +^ c in
+  let c  = h1 >>^ 44ul in
+  let h1 = h1 &^ mask_2_44 in
+  let h2 = h2 +^ ((t1 >>^ 24ul) &^ mask_2_42) +^ c in
+  let h2 = h2 &^ mask_2_42 in
+  let h0 = h0 |^ (h1 <<^ 44ul) in
+  let h1 = (h1 >>^ 20ul) |^ (h2 <<^ 24ul) in
+  store64_le mac h0;
+  store64_le (offset mac 8ul) h1;
+  pop_frame()
+
 
 val poly1305_last:
   log:log_t ->
