@@ -1564,11 +1564,9 @@ and desugar_decl env (d:decl) : (env_t * sigelts) =
        resolved. *)
     if Util.for_some (fun (m, _) -> Ident.lid_equals m lid) env.modules
     then
-     (* TODO: we still consider that, seen from the current module,
-     `export M' opens the whole namespace M and all its derived
-     namespaces M.* in the current module, just like `open M' . *)
-     let env1 = Env.push_namespace env lid in
-     let env2 = Env.push_export_decl env1 lid in
+     (* We do not open the namespace associated to the module. We only
+     register the `export' declaration. *)
+     let env2 = Env.push_export_decl env lid in
      (env2, [])
     else
      raise (Error ("export: module " ^ text_of_lid lid ^ " does not exist", range_of_lid lid))

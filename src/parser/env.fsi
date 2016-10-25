@@ -38,9 +38,7 @@ type env = {
   export_decls:         list<(lident * list<lident>)>;    (* export declarations with fully qualified names,
                                                              in order of precedence. If (i, l) is in the list,
                                                              then for any j in l, `export j' is declared in i *)
-  curexports:           list<lident>;                     (* export declarations of the current module.
-                                                             Must not be used for export resolution until the module
-                                                             is finished. *)
+  curexports:           list<lident>;                     (* export declarations of the current module. *)
   modul_abbrevs:        list<(ident * lident)>;           (* module X = A.B.C *)
   sigaccum:             sigelts;                          (* type declarations being accumulated for the current module *)
   localbindings:        list<(ident * bv * bool)>;        (* local name bindings for name resolution, paired with an env-generated unique name and a boolean that is true when the variable has been introduced with let-mutable *)

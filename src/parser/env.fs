@@ -38,9 +38,7 @@ type env = {
   export_decls:         list<(lident * list<lident>)>;    (* export declarations with fully qualified names,
                                                              in order of precedence. If (i, l) is in the list,
                                                              then for any j in l, `export j' is declared in i *)
-  curexports:           list<lident>;                     (* export declarations of the current module.
-                                                             Must not be used for export resolution until the module
-                                                             is finished. *)
+  curexports:           list<lident>;                     (* export declarations of the current module. *)
   modul_abbrevs:        list<(ident * lident)>;           (* module X = A.B.C *)
   sigaccum:             sigelts;                          (* type declarations being accumulated for the current module *)
   localbindings:        list<(ident * bv * bool)>;        (* local name bindings for name resolution, paired with an env-generated unique name and a boolean that is true when the variable has been introduced with let-mutable *)
@@ -127,6 +125,7 @@ let try_lookup_id env (id:ident) =
 
 
 let resolve_in_open_namespaces' env lid (finder:lident -> option<'a>) : option<'a> =
+      let all_export_decls = (current_module env, env.curexports) :: env.export_decls in
       let rec find_fully_qualified export_was_used full_name_ls =
           let full_name = lid_of_ids full_name_ls in
           match finder full_name with
@@ -138,18 +137,26 @@ let resolve_in_open_namespaces' env lid (finder:lident -> option<'a>) : option<'
                replace M with M' if M' can be reached from M by a
                chain of `export's.  *)
             let qualifier = full_name.ns in
-            begin match qualifier with
-            | _ :: _ ->
-              let modul = lid_of_ids qualifier in
-              begin match find_opt (fun x -> lid_equals (fst x) modul) env.export_decls with
-              | Some (_, expo) ->
+            let selected_export_decls =
+              match qualifier with
+              | _ :: _ ->
+                let modul = lid_of_ids qualifier in
+                begin match find_opt (fun x -> lid_equals (fst x) modul) all_export_decls with
+                | Some (_, expo) -> Some expo
+                | _ -> None
+                end
+              | _ ->
+                (* For unqualified names, treat `export' as `open' in
+                   the current export declarations. *)
+                Some env.curexports
+            in
+            begin match selected_export_decls with
+              | Some expo ->
                 let find_in_replaced (ns: lident) =
                     find_fully_qualified true (ids_of_lid ns @ [full_name.ident])
                 in
                 find_map expo find_in_replaced
               | _ -> None
-              end
-            | _ -> None
             end
       in
       let ids = ids_of_lid lid in
@@ -446,8 +453,11 @@ let qualify_field_to_record env (recd:record_or_dc) (f:lident) =
   resolve_in_open_namespaces env f qualify
 
 let unique any_val exclude_if env lid =
-  let this_env = {env with open_namespaces=[]} in
-  match try_lookup_lid' any_val exclude_if env lid with
+  (* When finally checking for duplicate definitions, clear out
+     namespaces and `export' declarations for unqualified names, to
+     allow shadowing in those cases. *)
+  let this_env = {env with open_namespaces=[]; curexports=[]; } in
+  match try_lookup_lid' any_val exclude_if this_env lid with
     | None -> true
     | Some _ -> false
 

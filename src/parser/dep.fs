@@ -302,14 +302,10 @@ let collect_one (verify_flags: list<(string * ref<bool>)>) (verify_mode: verify_
     List.iter (fun x -> collect_decl x.d) decls
 
   and collect_decl = function
-    (* TODO 2016-10-21: currently, we consider that `export M' has the
-       same semantics as `open M' in a given module, and so opens the
-       namespace M as well as all derived namespaces M.* in the
-       current module, but only exports the definitions of M (not
-       those of the derived namespaces M.* ) to other modules. *)
-    | Export lid
     | Open lid ->
         record_open false lid
+    | Export lid ->
+        add_dep (lowercase_join_longident lid true)
     | ModuleAbbrev (ident, lid) ->
         add_dep (lowercase_join_longident lid true);
         record_module_alias ident lid
