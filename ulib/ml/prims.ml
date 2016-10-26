@@ -25,6 +25,7 @@ type nonrec 'a option = 'a option
 type range     = unit
 type nat       = int
 type pos       = int
+type nonzero   = int
 type 'd b2t    = unit
 
 type (' p, ' q) c_or =

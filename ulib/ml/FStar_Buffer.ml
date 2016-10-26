@@ -16,6 +16,7 @@ type 'a buffer = {
     idx:int;
     length:int;
   }
+type 'a _buffer = 'a buffer
 
 type uint32 = int
 
