@@ -9,8 +9,10 @@ open Crypto.Symmetric.Chacha20
 //16-10-02 THIS FILE IS USED ONLY BY AEAD-TEST; use Crypto.AEAD instead.
 
 // now hiding the 1-time MAC state & implementation
-module Spec = Crypto.Symmetric.Poly1305_64.Spec
-module MAC = Crypto.Symmetric.Poly1305_64.MAC
+(* module Spec = Crypto.Symmetric.Poly1305_64.Spec *)
+(* module MAC = Crypto.Symmetric.Poly1305_64.MAC *)
+module Spec = Crypto.Symmetric.Poly1305.Spec
+module MAC = Crypto.Symmetric.Poly1305.MAC
 module Bytes = Crypto.Symmetric.Bytes
 
 
@@ -108,7 +110,7 @@ val chacha20_aead_encrypt:
   STL unit
   (requires (fun h -> 
     live h key /\ live h aadtext /\ live h plaintext /\ 
-    live h ciphertext /\ live #Spec.byte h tag /\
+    live h ciphertext /\ live #MAC.byte h tag /\
     disjoint plaintext ciphertext (* /\ *)
     (* disjoint plaintext tag /\ *)
     (* disjoint ciphertext tag /\ *)
@@ -118,7 +120,7 @@ val chacha20_aead_encrypt:
     ))
   (ensures (fun h0 _ h1 -> 
     (* modifies_2 ciphertext tag h0 h1 /\  *)
-    live h1 ciphertext /\ live #Spec.byte h1 tag ))
+    live h1 ciphertext /\ live #MAC.byte h1 tag ))
   
 val chacha20_aead_decrypt: 
   key:Bytes.lbuffer 32 -> n:iv CHACHA20 ->
@@ -127,7 +129,7 @@ val chacha20_aead_decrypt:
   ciphertext:Bytes.lbuffer (v plainlen) -> tag:MAC.tagB ->
   STL UInt32.t
   (requires (fun h -> 
-    live h key /\ live h aadtext /\ live h plaintext /\ live h ciphertext /\ live #Spec.byte h tag /\ 
+    live h key /\ live h aadtext /\ live h plaintext /\ live h ciphertext /\ live #MAC.byte h tag /\ 
     disjoint plaintext ciphertext (* /\ *)
     (* disjoint plaintext tag /\ *)
     (* disjoint ciphertext tag /\ *)
@@ -215,5 +217,3 @@ let chacha20_aead_decrypt key n aadlen aadtext plainlen plaintext ciphertext tag
 
   pop_frame();
   if verified then 0ul else 1ul //TODO pick and enforce error convention.
-
-

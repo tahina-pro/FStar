@@ -1,8 +1,10 @@
 open Crypto_AEAD_Chacha20Poly1305
 open Char
 open FStar_Buffer
-open Crypto_Symmetric_Poly1305_Bigint
-       
+open Hacl_Symmetric_Poly1305_64_Bigint
+
+type bytes = int buffer
+
 let from_string s : bytes =
   let b = create 0 (String.length s) in
   for i = 0 to (String.length s - 1) do
@@ -23,7 +25,7 @@ let print (s:bytes) (len:int) : unit =
     if i < len - 1 then print_string ":"
   done;
   print_string "\n"
-    
+
 let time f x s =
   let t = Sys.time() in
   let _ = f x in

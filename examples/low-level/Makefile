@@ -25,7 +25,8 @@ FSTAR_EXTRACT=$(FSTAR) $(CODEGEN_ARGS) --include $(FSTAR_HOME)/ulib/hyperstack -
 
 CHACHA_EXTRACTED=Buffer_Utils.ml Crypto_Symmetric_Chacha20.ml
 POLY_EXTRACTED=FStar_List_Tot.ml FStar_Ghost.ml FStar_Seq.ml FStar_SeqProperties.ml Buffer_Utils.ml Crypto_Symmetric_Bytes.ml Crypto_Symmetric_Chacha20.ml Crypto_Symmetric_AES.ml Crypto_Symmetric_Cipher.ml Crypto_Symmetric_Poly1305_Parameters.ml Crypto_Symmetric_Poly1305_Bigint.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part1.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part2.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part3.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part4.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part5.ml Crypto_Symmetric_Poly1305_Bignum.ml Crypto_Symmetric_Poly1305_Spec.ml Flag.ml Crypto_Symmetric_Poly1305.ml
-AEAD_EXTRACTED=FStar_List_Tot.ml FStar_Seq.ml FStar_SeqProperties.ml Buffer_Utils.ml Crypto_Symmetric_Bytes.ml Crypto_Symmetric_Chacha20.ml Crypto_Symmetric_AES.ml Crypto_Symmetric_Cipher.ml FStar_Ghost.ml Crypto_Symmetric_Poly1305_Spec.ml Crypto_Symmetric_Poly1305_Parameters.ml Crypto_Symmetric_Poly1305_Bigint.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part1.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part2.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part3.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part4.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part5.ml Crypto_Symmetric_Poly1305_Bignum.ml Flag.ml Crypto_Symmetric_Poly1305.ml FStar_Monotonic_RRef.ml Crypto_Symmetric_Poly1305_MAC.ml Crypto_AEAD_Chacha20Poly1305.ml
+# AEAD_EXTRACTED=FStar_List_Tot.ml FStar_Seq.ml FStar_SeqProperties.ml Buffer_Utils.ml Crypto_Symmetric_Bytes.ml Crypto_Symmetric_Chacha20.ml Crypto_Symmetric_AES.ml Crypto_Symmetric_Cipher.ml FStar_Ghost.ml Crypto_Symmetric_Poly1305_Spec.ml Crypto_Symmetric_Poly1305_Parameters.ml Crypto_Symmetric_Poly1305_Bigint.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part1.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part2.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part3.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part4.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part5.ml Crypto_Symmetric_Poly1305_Bignum.ml Flag.ml Crypto_Symmetric_Poly1305.ml FStar_Monotonic_RRef.ml Crypto_Symmetric_Poly1305_MAC.ml Crypto_AEAD_Chacha20Poly1305.ml
+AEAD_EXTRACTED=FStar_List_Tot.ml FStar_Seq.ml FStar_SeqProperties.ml Buffer_Utils.ml Crypto_Symmetric_Bytes.ml Crypto_Symmetric_Chacha20.ml Crypto_Symmetric_AES.ml Crypto_Symmetric_Cipher.ml FStar_Ghost.ml Hacl_Symmetric_Poly1305_64_FC_Spec.ml Hacl_Symmetric_Poly1305_64_Parameters.ml Hacl_Symmetric_Poly1305_64_Bigint.ml Hacl_Symmetric_Poly1305_64_FC.ml Flag.ml Crypto_Symmetric_Poly1305_Spec.ml Crypto_Symmetric_Poly1305.ml FStar_Monotonic_RRef.ml Crypto_Symmetric_Poly1305_MAC.ml Crypto_AEAD_Chacha20Poly1305.ml
 AEAD64_EXTRACTED=FStar_List_Tot.ml FStar_Seq.ml FStar_SeqProperties.ml Buffer_Utils.ml Crypto_Symmetric_Bytes.ml Crypto_Symmetric_Chacha20.ml Crypto_Symmetric_AES.ml Crypto_Symmetric_Cipher.ml FStar_Ghost.ml Hacl_Symmetric_Poly1305_64_FC_Spec.ml Hacl_Symmetric_Poly1305_64_Parameters.ml Hacl_Symmetric_Poly1305_64_Bigint.ml Hacl_Symmetric_Poly1305_64_FC.ml Flag.ml Crypto_Symmetric_Poly1305_64_Spec.ml Crypto_Symmetric_Poly1305_64.ml FStar_Monotonic_RRef.ml Crypto_Symmetric_Poly1305_64_MAC.ml Crypto_AEAD_Chacha20Poly1305_64.ml
 # TODO: temove FStar_BitVector below once it's no longer needed
 CHACHA_AEAD_EXTRACTED=FStar_List_Tot.ml FStar_Seq.ml FStar_SeqProperties.ml FStar_BitVector.ml FStar_UInt.ml Buffer_Utils.ml Crypto_Symmetric_Bytes.ml Crypto_Symmetric_Chacha20.ml Crypto_Symmetric_AES.ml Crypto_Symmetric_Cipher.ml FStar_Ghost.ml Flag.ml Plain.ml Crypto_Symmetric_Poly1305_Spec.ml Crypto_Symmetric_Poly1305_Parameters.ml Crypto_Symmetric_Poly1305_Bigint.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part1.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part2.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part3.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part4.ml Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part5.ml Crypto_Symmetric_Poly1305_Bignum.ml Crypto_Symmetric_Poly1305.ml FStar_Monotonic_RRef.ml Crypto_Symmetric_Poly1305_MAC.ml Crypto_Symmetric_PRF.ml Crypto_AEAD_Encoding.ml Crypto_AEAD_Invariant.ml Crypto_AEAD_Lemmas.ml Crypto_AEAD_Lemmas_Part2.ml Crypto_AEAD.ml
@@ -93,24 +94,25 @@ ideal-compile: ideal-extract
 ideal-test: ideal-compile
 	./test_ideal.exe
 
-aead-extract: ulib
-	mkdir -p $(AEAD_ODIR)
-	$(FSTAR_EXTRACT) crypto/Crypto.AEAD.Chacha20Poly1305.fst --odir $(AEAD_ODIR)
-	@sed -i.bak 's/Obj.magic ((fun log msg/ ((fun log msg/g' $(AEAD_ODIR)/Crypto_Symmetric_Poly1305.ml
-
-aead-compile: aead-extract
-	$(OCAMLOPT) -I crypto/ml -I $(AEAD_ODIR) \
-	  $(addprefix $(AEAD_ODIR)/,$(AEAD_EXTRACTED)) \
-	  crypto/ml/test_aead.ml -o test_aead.exe
-
-aead-test: aead-compile
-	./test_aead.exe
-
-
 HACL_LIB=../../../hacl-star/lib/hyperstack
 HACL_OCAML_ML=$(addprefix $(HACL_LIB)/ml/Hacl_, Cast.ml)
 HACL_OCAML_MLI=$(addprefix $(HACL_LIB)/ml/Hacl_, UInt8.ml UInt32.ml UInt64.ml UInt128.ml)
 HACL_OCAML_LIB=$(addsuffix i, $(HACL_OCAML_MLI)) $(HACL_OCAML_MLI) $(HACL_OCAML_ML)
+
+
+aead-extract: ulib
+	mkdir -p $(AEAD_ODIR)
+	$(FSTAR_EXTRACT) crypto/Crypto.AEAD.Chacha20Poly1305.fst --odir $(AEAD_ODIR) \
+		--include $(HACL_LIB)
+	@sed -i.bak 's/Obj.magic ((fun log msg/ ((fun log msg/g' $(AEAD_ODIR)/Crypto_Symmetric_Poly1305.ml
+
+aead-compile: aead-extract
+	$(OCAMLOPT) -I crypto/ml -I $(AEAD_ODIR) -I $(HACL_LIB)/ml \
+	  $(HACL_OCAML_LIB) $(addprefix $(AEAD_ODIR)/,$(AEAD_EXTRACTED)) \
+	  crypto/ml/test_aead.ml -o test_aead.exe
+
+aead-test: aead-compile
+	./test_aead.exe
 
 aead64-extract: ulib
 	mkdir -p $(AEAD64_ODIR)

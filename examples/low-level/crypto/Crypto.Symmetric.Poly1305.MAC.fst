@@ -21,6 +21,8 @@ module HH = FStar.HyperHeap
 module HS = FStar.HyperStack
 // library stuff
 
+let byte = byte
+
 type alg = Flag.mac_alg
 let alg_of_id = Flag.cipher_of_id
 
@@ -293,8 +295,8 @@ let update #i st l a v =
   let h1 = ST.get () in
   //lemma_reveal_modifies_1 a h0 h1;
 
-  Hacl.Symmetric.Poly1305_64.Bigint.eval_eq_lemma h0 h1 st.r st.r Parameters.norm_length;
-  Hacl.Symmetric.Poly1305_64.Bigint.eval_eq_lemma h0 h1 v v Parameters.norm_length;
+  Hacl.Symmetric.Poly1305_64.Bigint.eval_eq_lemma h0 h1 st.r st.r Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
+  Hacl.Symmetric.Poly1305_64.Bigint.eval_eq_lemma h0 h1 v v Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
   
   (* Bigint.norm_eq_lemma h0 h1 st.r st.r; *)
   (* Bigint.norm_eq_lemma h0 h1 v v; *)
