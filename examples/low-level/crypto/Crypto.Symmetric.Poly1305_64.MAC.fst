@@ -193,6 +193,7 @@ let alloc i region key =
   let h0 = ST.get() in
   (* poly1305_init r s key; *)
   PL.poly1305_encode_r r key;
+  blit key 16ul s 0ul 16ul;
   let h1 = ST.get() in
   lemma_reveal_modifies_2 r s h0 h1;
   if mac_log then
@@ -297,8 +298,6 @@ val update: #i:id -> st:state i -> l:itext -> a:accB i -> v:elemB -> Stack itext
     acc_inv st l1 a h1))
 let update #i st l a v =
   let h0 = ST.get () in
-  let dummy_log = hide (Seq.createEmpty #PS.elem) in
-  let poly_st =  ({Hacl.Symmetric.Poly1305_64.FC.r = st.r; Hacl.Symmetric.Poly1305_64.FC.h = a}) in
   Hacl.Symmetric.Poly1305_64.FC.poly1305_core a v st.r;
   (* add_and_multiply a v st.r; *)
   let h1 = ST.get () in
@@ -457,7 +456,7 @@ let add #i st l0 a w =
   push_frame();
   (* TODO: re-use the elem buffer rather that create a fresh one, maybe in the accumulator *)
   let zero_64 = Hacl.Cast.uint64_to_sint64 0uL in
-  let e = Buffer.create zero_64 Crypto.Symmetric.Poly1305.Parameters.nlength in
+  let e = Buffer.create zero_64 Hacl.Symmetric.Poly1305_64.Parameters.nlength in
   PL.poly1305_encode_b e w;
   (* toField_plus_2_128 e w; *)
   let l1 = update st l0 a e in
