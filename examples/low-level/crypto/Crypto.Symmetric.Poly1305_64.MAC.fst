@@ -298,7 +298,7 @@ val update: #i:id -> st:state i -> l:itext -> a:accB i -> v:elemB -> Stack itext
     acc_inv st l1 a h1))
 let update #i st l a v =
   let h0 = ST.get () in
-  Hacl.Symmetric.Poly1305_64.FC.poly1305_core a v st.r;
+  Hacl.Symmetric.Poly1305_64.FC.add_and_multiply a v st.r;
   (* add_and_multiply a v st.r; *)
   let h1 = ST.get () in
   //lemma_reveal_modifies_1 a h0 h1;
@@ -377,7 +377,7 @@ val mac: #i:id -> st:state i -> l:itext -> acc:accB i -> tag:tagB -> ST unit
 
 let mac #i st l acc tag =
   let h0 = ST.get () in
-  Hacl.Symmetric.Poly1305_64.FC.poly1305_finish_ tag acc st.s;
+  Hacl.Symmetric.Poly1305_64.FC.poly1305_finish tag acc st.s;
   let h1 = ST.get () in
   if mac_log then
     begin
@@ -408,7 +408,7 @@ val verify: #i:id -> st:state i -> l:itext -> computed:accB i -> tag:tagB ->
 let verify #i st l acc received =
   let zero:PS.byte = if mac_log then 0uy else Hacl.Cast.uint8_to_sint8 0uy in
   let tag = Buffer.create zero 16ul in
-  Hacl.Symmetric.Poly1305_64.FC.poly1305_finish_ tag acc st.s;
+  Hacl.Symmetric.Poly1305_64.FC.poly1305_finish tag acc st.s;
   let verified = Buffer.eqb tag received 16ul in
   if mac_log && authId i then
     let st = !st.log in

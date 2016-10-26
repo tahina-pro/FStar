@@ -137,7 +137,7 @@ val poly1305_encode_b:
     (requires (fun h -> live h b /\ live h m /\ disjoint #H64.t #byte b m))
     (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
 let poly1305_encode_b b m =
-  poly1305_encode_b b m
+  toField_plus_2_128 b m
 
 
 val poly1305_init:
@@ -150,7 +150,7 @@ val poly1305_init:
       (* /\ (if mac_log then modifies_2 #H64.t #U8.t r s h0 h1 else modifies_2 #H64.t #H8.t r s h0 h1) *)
       /\ sel_int h1 st.r == Spec.clamp (sel_word h0 (sub key 0ul 16ul))))
 let poly1305_init st key =
-  poly1305_init st key
+  poly1305_init_ st key
 
 
 (* val poly1305_start: acc:elemB -> Stack unit *)

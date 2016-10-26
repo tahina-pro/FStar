@@ -13,6 +13,7 @@ open FStar.Monotonic.RRef
 
 open Crypto.Symmetric.Poly1305.Spec
 open Crypto.Symmetric.Poly1305 // avoid?
+
 open Crypto.Symmetric.Bytes
 open Flag 
 
@@ -23,7 +24,10 @@ module HS = FStar.HyperStack
 type alg = Flag.mac_alg
 let alg_of_id = Flag.cipher_of_id
 
-let norm h b = Crypto.Symmetric.Poly1305.Bigint.norm h b
+let norm h b =
+  live h b /\ (let open Hacl.UInt64 in
+              let c = 35184372088832 in v (get h b 0) < c /\ v (get h b 1) < c /\ v (get h b 2) < c)
+
 
  
 // TOWARDS AGILITY 
@@ -145,16 +149,16 @@ noeq type state (i:id) =
   | State:
       #region: rid ->
       r: elemB {frameOf r = region} -> 
-      s: wordB_16 {frameOf s = region} ->
+      s: wordB_16 {frameOf #byte s = region} ->
       log: log_ref region ->
       state i
 
 let genPost0 (i:id) (region:rid{is_eternal_region region}) m0 (st: state i) m1 =
     ~(contains m0 st.r) /\
-    ~(contains m0 st.s) /\
+    ~(contains #byte m0 st.s) /\
     st.region == region /\
     norm m1 st.r /\
-    Buffer.live m1 st.s /\
+    Buffer.live #byte m1 st.s /\
     (mac_log ==> 
         ~ (m_contains (ilog st.log) m0) /\ 
 	   m_contains (ilog st.log) m1 /\ 
@@ -174,8 +178,10 @@ val alloc: i:id
 
 #reset-options "--z3timeout 1000"
 let alloc i region key =
-  let r = FStar.Buffer.rcreate region 0UL 5ul in
-  let s = FStar.Buffer.rcreate region 0uy 16ul in
+  let zero_64 = Hacl.Cast.uint64_to_sint64 0uL in
+  let zero_8:byte = if mac_log then 0uy else Hacl.Cast.uint8_to_sint8 0uy in  
+  let r = FStar.Buffer.rcreate region zero_64 5ul in
+  let s = FStar.Buffer.rcreate region zero_8 16ul in
   cut (disjoint r key /\ disjoint s key);
   let h0 = ST.get() in
   poly1305_init r s key;
@@ -244,7 +250,8 @@ val start: #i:id -> st:state i -> StackInline (accB i)
   (ensures  (fun h0 a h1 -> acc_inv st text_0 a h1 /\ modifies_0 h0 h1))
 let start #i st =
   let h0 = ST.get () in
-  let a = Buffer.create 0UL 5ul in
+  let zero_64 = Hacl.Cast.uint64_to_sint64 0uL in
+  let a = Buffer.create zero_64 5ul in
   let h1 = ST.get () in
   //lemma_reveal_modifies_0 h0 h1;
   assert (equal h0 st.r h1 st.r);
@@ -252,7 +259,7 @@ let start #i st =
   let h2 = ST.get () in
   //lemma_reveal_modifies_1 a h1 h2;
   assert (equal h1 st.r h2 st.r);
-  Bigint.norm_eq_lemma h0 h2 st.r st.r;
+  (* Bigint.norm_eq_lemma h0 h2 st.r st.r; *)
   a
 
 
@@ -285,8 +292,10 @@ let update #i st l a v =
   add_and_multiply a v st.r;
   let h1 = ST.get () in
   //lemma_reveal_modifies_1 a h0 h1;
-  Bigint.eval_eq_lemma h0 h1 st.r st.r Parameters.norm_length;
-  Bigint.eval_eq_lemma h0 h1 v v Parameters.norm_length;
+
+  Hacl.Symmetric.Poly1305_64.Bigint.eval_eq_lemma h0 h1 st.r st.r Parameters.norm_length;
+  Hacl.Symmetric.Poly1305_64.Bigint.eval_eq_lemma h0 h1 v v Parameters.norm_length;
+  
   (* Bigint.norm_eq_lemma h0 h1 st.r st.r; *)
   (* Bigint.norm_eq_lemma h0 h1 v v; *)
   //assert (sel_elem h1 a == (sel_elem h0 a +@ sel_elem h0 v) *@ sel_elem h0 st.r);
@@ -345,7 +354,7 @@ let acc_inv (#i:id) (st:state i) (l:itext) (a:accB i) h =
 val mac: #i:id -> st:state i -> l:itext -> acc:accB i -> tag:tagB -> ST unit
   (requires (fun h0 ->
     live h0 tag /\ live h0 st.s /\
-    disjoint acc st.s /\ disjoint tag acc /\ disjoint tag st.r /\ disjoint tag st.s /\
+    disjoint #Hacl.UInt64.t #byte acc st.s /\ disjoint #byte tag acc /\ disjoint #byte tag st.r /\ disjoint #byte #byte tag st.s /\
     acc_inv st l acc h0 /\
     (mac_log ==> m_sel h0 (ilog st.log) == None)))
   (ensures (fun h0 _ h1 ->
@@ -435,7 +444,8 @@ val add:
 let add #i st l0 a w =
   push_frame();
   (* TODO: re-use the elem buffer rather that create a fresh one, maybe in the accumulator *)
-  let e = Buffer.create 0UL Crypto.Symmetric.Poly1305.Parameters.nlength in
+  let zero_64 = Hacl.Cast.uint64_to_sint64 0uL in  
+  let e = Buffer.create zero_64 Hacl.Symmetric.Poly1305_64.Parameters.nlength in
   toField_plus_2_128 e w;
   let l1 = update st l0 a e in
   let h = ST.get() in

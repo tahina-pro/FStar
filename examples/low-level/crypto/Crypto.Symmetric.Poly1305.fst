@@ -21,14 +21,22 @@ open Crypto.Symmetric.Bytes
 open FStar.Buffer.Quantifiers
 
 open Crypto.Symmetric.Poly1305.Spec
-open Crypto.Symmetric.Poly1305.Parameters
-open Crypto.Symmetric.Poly1305.Bigint
-open Crypto.Symmetric.Poly1305.Bignum
+(* open Crypto.Symmetric.Poly1305.Parameters *)
+(* open Crypto.Symmetric.Poly1305.Bigint *)
+(* open Crypto.Symmetric.Poly1305.Bignum *)
+open Hacl.Symmetric.Poly1305_64.Parameters
+open Hacl.Symmetric.Poly1305_64.Bigint
+open Hacl.Symmetric.Poly1305_64.FC
+
 open Flag
 
 module U8  = FStar.UInt8
 module U32 = FStar.UInt32
 module U64 = FStar.UInt64
+module H8  = Hacl.UInt8
+module H32 = Hacl.UInt32
+module H64 = Hacl.UInt64
+
 module HS  = FStar.HyperStack
 
 #set-options "--initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0 --z3timeout 20"
@@ -41,22 +49,28 @@ module HS  = FStar.HyperStack
 (* * *********************************************)
 
 (** Mutable big integer representation (5 64-bit limbs) *)
-type elemB = b:Buffer.buffer u64{length b == norm_length}
+type elemB = elemB
 
 (** Concrete (mutable) representation of words *)
-type wordB = b:bytes{length b <= 16}
-type wordB_16 = b:bytes{length b == 16}
+let wordB : Type0 = if mac_log then b:uint8_p{length b <= 16} else wordB
+let wordB_16 : Type0 = if mac_log then b:uint8_p{length b == 16} else wordB_16
+let bytes : Type0 = if mac_log then Buffer.buffer U8.t else uint8_p
+let byte : Type0 = if mac_log then U8.t else H8.t
 
 (* * *********************************************)
 (* *  Mappings from stateful types to pure types *)
 (* * *********************************************)
 
+let live h (b:wordB) : Type0 = if mac_log then live #U8.t h b else live #H8.t h b
+
 (** From the current memory state, returns the word corresponding to a wordB *)
 val sel_word: h:mem -> b:wordB{live h b} -> GTot word
 let sel_word h b = as_seq h b
 
+let w (x:U32.t) : Tot nat = U32.v x
+
 (** Only used when mac_log is true *)
-private val _read_word: len:u32 -> b:wordB{length b == w len} 
+private val _read_word: len:u32 -> b:wordB{length #byte b == w len} 
   -> s:seq byte -> i:u32{w i <= w len} -> ST word
   (requires (fun h -> live h b /\ Seq.slice (sel_word h b) 0 (w i) == s))
   (ensures  (fun h0 s h1 -> h0 == h1 /\ live h1 b /\ s == sel_word h1 b))
@@ -75,7 +89,7 @@ let rec _read_word len b s i =
     _read_word len b s' (U32 (i +^ 1ul))
     end
 
-val read_word: len:u32 -> b:wordB{length b == w len} -> ST word
+val read_word: len:u32 -> b:wordB{length #byte b == w len} -> ST word
   (requires (fun h0 -> live h0 b))
   (ensures (fun h0 r h1 -> h0 == h1 /\ live h1 b /\ r == (sel_word h1 b)))
 let read_word len b =
@@ -122,10 +136,10 @@ let rec lemma_eval_norm_is_bounded ha a len =
     lemma_eval_norm_is_bounded ha a (len-1);
     assert(eval ha a (len-1) < pow2 (26 * (len-1)));
     assert(pow2 (bitweight templ (len-1)) = pow2 (26 * (len-1)));
-    lemma_eucl_div_bound (eval ha a (len-1)) (v (get ha a (len-1))) 
+    lemma_eucl_div_bound (eval ha a (len-1)) (H64.v (get ha a (len-1))) 
       (pow2 (bitweight templ (len-1)));
-    assert(eval ha a len < pow2 (26 * (len-1)) * (v (get ha a (len-1)) + 1));
-    lemma_mult_le_left (pow2 (26 * (len-1))) (v (get ha a (len-1))+1) (pow2 26);
+    assert(eval ha a len < pow2 (26 * (len-1)) * (H64.v (get ha a (len-1)) + 1));
+    lemma_mult_le_left (pow2 (26 * (len-1))) (H64.v (get ha a (len-1))+1) (pow2 26);
     assert(eval ha a len < pow2 (26 * (len-1)) * pow2 26);
     Math.Lemmas.pow2_plus (26 * (len-1)) 26
     end
@@ -165,8 +179,8 @@ let rec lemma_toField_is_injective_0 ha hb a b len =
     let z = pow2 (26 * (len-1)) in
     let r = eval ha a (len-1) in
     let r' = eval hb b (len-1) in
-    let q = v (get ha a (len-1)) in
-    let q' = v (get hb b (len-1)) in
+    let q = H64.v (get ha a (len-1)) in
+    let q' = H64.v (get hb b (len-1)) in
     lemma_bitweight_templ_values (len-1);
     lemma_little_endian_is_injective_1 z q r q' r';
     assert(r = r' /\ q = q');
@@ -193,26 +207,28 @@ let lemma_toField_is_injective ha hb a b =
 (* * ******************************************** *)
 
 (* TODO: move *)
-val print_elem: e:elemB -> i:UInt32.t{UInt32.v i <= length e} 
-  -> len:UInt32.t{UInt32.v len <= length e} -> Stack bool
-  (requires (fun h -> live h e))
-  (ensures (fun h0 _ h1 -> h0 == h1))
-let rec print_elem e i len =
-  let open FStar.UInt32 in
-  if v i < v len then
-    let _ = IO.debug_print_string (UInt64.to_string (index e i) ^ ":") in
-    print_elem e (i +^ 1ul) len
-  else
-    IO.debug_print_string "\n"
+(* val print_elem: e:elemB -> i:UInt32.t{UInt32.v i <= length e}  *)
+(*   -> len:UInt32.t{UInt32.v len <= length e} -> Stack bool *)
+(*   (requires (fun h -> live h e)) *)
+(*   (ensures (fun h0 _ h1 -> h0 == h1)) *)
+(* let rec print_elem e i len = *)
+(*   let open FStar.UInt32 in *)
+(*   if v i < v len then *)
+(*     let _ = IO.debug_print_string (UInt64.to_string (index e i) ^ ":") in *)
+(*     print_elem e (i +^ 1ul) len *)
+(*   else *)
+(*     IO.debug_print_string "\n" *)
 
-val bound27_isSum: h0:mem -> h1:mem -> a:bigint -> b:bigint
-  -> Lemma
-    (requires (norm h0 a /\ norm h0 b /\ isSum h0 h1 a b))
-    (ensures  (bound27 h1 a))
-let bound27_isSum h0 h1 a b =
-  // The (i+0) is there on purpuose to trigger the pattern in isSum
-  cut (forall (i:nat). {:pattern (v (get h1 a i))} i < norm_length ==> v (get h1 a (i+0)) < pow2 26 + pow2 26);
-  pow2_double_sum 26
+(* val bound27_isSum: h0:mem -> h1:mem -> a:bigint -> b:bigint *)
+(*   -> Lemma *)
+(*     (requires (norm h0 a /\ norm h0 b /\ isSum h0 h1 a b)) *)
+(*     (ensures  (bound27 h1 a)) *)
+(* let bound27_isSum h0 h1 a b = *)
+(*   // The (i+0) is there on purpuose to trigger the pattern in isSum *)
+(*   cut (forall (i:nat). {:pattern (v (get h1 a i))} i < norm_length ==> v (get h1 a (i+0)) < pow2 26 + pow2 26); *)
+(*   pow2_double_sum 26 *)
+
+let prime = hide prime
 
 val lemma_sel_elem: h0:mem -> h1:mem -> acc:elemB -> block:elemB -> r:elemB -> Lemma
   (requires (norm h1 acc /\ norm h0 acc /\ norm h0 block /\ norm h0 r
@@ -244,48 +260,50 @@ val add_and_multiply: acc:elemB -> block:elemB{disjoint acc block}
 #set-options "--z3timeout 60"
 //NS: hint fails to replay
 let add_and_multiply acc block r =
-  let h0 = ST.get () in
-  fsum' acc block; // acc1 = acc0 + block
-  let h1 = ST.get () in
-  cut (eval h1 acc 5 == eval h0 acc 5 + eval h0 block 5);
-  bound27_isSum h0 h1 acc block;
-  push_frame();
-  let tmp = create 0UL (U32 (2ul *^ nlength -^ 1ul)) in
-  let h2 = ST.get () in
-  eval_eq_lemma h1 h2 acc acc norm_length;
-  eval_eq_lemma h0 h2 r r norm_length;
-  multiplication tmp acc r; // tmp = acc1 * r = (acc0 + block) * r
-  let h3 = ST.get () in
-  assert (maxValue h3 tmp (2*norm_length-1) <= norm_length * pow2 53);
-  lemma_mult_le_right 6 (maxValue h3 tmp (2*norm_length-1)) (norm_length * pow2 53);
-  assert_norm ((norm_length * pow2 53) * 6 < pow2 63);
-  cut (satisfiesModuloConstraints h3 tmp);
-  modulo tmp; // tmp = tmp % p
-  let h4 = ST.get() in
-  //cut (sel_elem h4 tmp == ((eval h0 acc 5 + eval h0 block 5) * eval h0 r 5) % reveal prime);
-  blit tmp 0ul acc 0ul nlength; // acc2 = tmp = (acc0 + block) * r % p
-  let h5 = ST.get() in
-  //assert(modifies_2 acc tmp h0 h4);
-  lemma_blit_quantifiers h4 h5 tmp 0ul acc 0ul nlength;
-  assert(forall (i:nat). {:pattern (v (get h5 acc i))} i < 5 ==> v (get h5 acc (0+i)) == v (get h4 tmp (0+i)));
-  eval_eq_lemma h4 h5 tmp acc 5;
-  lemma_sel_elem h0 h5 acc block r;
-  pop_frame ();
-  let h6 = ST.get () in
-  eval_eq_lemma h5 h6 acc acc norm_length
+  add_and_multiply acc block r
 
-(** Sets an element to the value '0' *)
-val zeroB: a:elemB -> Stack unit
-  (requires (fun h -> live h a))
-  (ensures  (fun h0 _ h1 -> norm h1 a /\ modifies_1 a h0 h1 /\ sel_elem h1 a == 0))
-let zeroB a =
-  a.(0ul) <- 0UL;
-  a.(1ul) <- 0UL;
-  a.(2ul) <- 0UL;
-  a.(3ul) <- 0UL;
-  a.(4ul) <- 0UL;
-  let h = ST.get() in
-  Crypto.Symmetric.Poly1305.Bigint.eval_null h a norm_length
+  (* let h0 = ST.get () in *)
+  (* fsum' acc block; // acc1 = acc0 + block *)
+  (* let h1 = ST.get () in *)
+  (* cut (eval h1 acc 5 == eval h0 acc 5 + eval h0 block 5); *)
+  (* bound27_isSum h0 h1 acc block; *)
+  (* push_frame(); *)
+  (* let tmp = create 0UL (U32 (2ul *^ nlength -^ 1ul)) in *)
+  (* let h2 = ST.get () in *)
+  (* eval_eq_lemma h1 h2 acc acc norm_length; *)
+  (* eval_eq_lemma h0 h2 r r norm_length; *)
+  (* multiplication tmp acc r; // tmp = acc1 * r = (acc0 + block) * r *)
+  (* let h3 = ST.get () in *)
+  (* assert (maxValue h3 tmp (2*norm_length-1) <= norm_length * pow2 53); *)
+  (* lemma_mult_le_right 6 (maxValue h3 tmp (2*norm_length-1)) (norm_length * pow2 53); *)
+  (* assert_norm ((norm_length * pow2 53) * 6 < pow2 63); *)
+  (* cut (satisfiesModuloConstraints h3 tmp); *)
+  (* modulo tmp; // tmp = tmp % p *)
+  (* let h4 = ST.get() in *)
+  (* //cut (sel_elem h4 tmp == ((eval h0 acc 5 + eval h0 block 5) * eval h0 r 5) % reveal prime); *)
+  (* blit tmp 0ul acc 0ul nlength; // acc2 = tmp = (acc0 + block) * r % p *)
+  (* let h5 = ST.get() in *)
+  (* //assert(modifies_2 acc tmp h0 h4); *)
+  (* lemma_blit_quantifiers h4 h5 tmp 0ul acc 0ul nlength; *)
+  (* assert(forall (i:nat). {:pattern (v (get h5 acc i))} i < 5 ==> v (get h5 acc (0+i)) == v (get h4 tmp (0+i))); *)
+  (* eval_eq_lemma h4 h5 tmp acc 5; *)
+  (* lemma_sel_elem h0 h5 acc block r; *)
+  (* pop_frame (); *)
+  (* let h6 = ST.get () in *)
+  (* eval_eq_lemma h5 h6 acc acc norm_length *)
+
+(* (\** Sets an element to the value '0' *\) *)
+(* val zeroB: a:elemB -> Stack unit *)
+(*   (requires (fun h -> live h a)) *)
+(*   (ensures  (fun h0 _ h1 -> norm h1 a /\ modifies_1 a h0 h1 /\ sel_elem h1 a == 0)) *)
+(* let zeroB a = *)
+(*   a.(0ul) <- 0UL; *)
+(*   a.(1ul) <- 0UL; *)
+(*   a.(2ul) <- 0UL; *)
+(*   a.(3ul) <- 0UL; *)
+(*   a.(4ul) <- 0UL; *)
+(*   let h = ST.get() in *)
+(*   Crypto.Symmetric.Poly1305.Bigint.eval_null h a norm_length *)
 
 
 (* * *********************************************)
@@ -293,10 +311,11 @@ let zeroB a =
 (* * *********************************************)
 
 private val mk_mask: nbits:FStar.UInt32.t{FStar.UInt32.v nbits < 64} ->
-  Tot (z:U64.t{v z == pow2 (FStar.UInt32.v nbits) - 1})
+  Tot (z:H64.t{H64.v z == pow2 (FStar.UInt32.v nbits) - 1})
 let mk_mask nbits =
   Math.Lemmas.pow2_lt_compat 64 (FStar.UInt32.v nbits);
-  U64 ((1uL <<^ nbits) -^ 1uL)
+  let one_64 = Hacl.Cast.uint64_to_sint64 1uL in
+  H64 ((one_64 <<^ nbits) -^ one_64)
 
 (* TODO *)
 let lemma_toField_1 (b:elemB) (s:wordB_16{disjoint b s}) h n0 n1 n2 n3 : Lemma
@@ -309,14 +328,14 @@ let lemma_toField_1 (b:elemB) (s:wordB_16{disjoint b s}) h n0 n1 n2 n3 : Lemma
   (ensures  (live h b /\ live h s /\ v n0 + pow2 32 * v n1 + pow2 64 * v n2 + pow2 96 * v n3 == little_endian (sel_word h s)))
   = admit()
 
-val upd_elemB: b:elemB{length b == norm_length} -> n0:U64.t -> n1:U64.t -> n2:U64.t -> n3:U64.t -> n4:U64.t -> Stack unit
+val upd_elemB: b:elemB{length b == norm_length} -> n0:H64.t -> n1:H64.t -> n2:H64.t -> n3:H64.t -> n4:H64.t -> Stack unit
   (requires (fun h -> live h b
-    /\ U64.v n0 < pow2 26 /\ U64.v n1 < pow2 26 /\ U64.v n2 < pow2 26 /\ U64.v n3 < pow2 26
-    /\ U64.v n4 < pow2 24))
-  (ensures  (fun h0 _ h1 -> live h1 b /\ modifies_1 b h0 h1
+    /\ H64.v n0 < pow2 26 /\ H64.v n1 < pow2 26 /\ H64.v n2 < pow2 26 /\ H64.v n3 < pow2 26
+    /\ H64.v n4 < pow2 24))
+  (ensures  (fun h0 _ h1 -> H64 (live h1 b /\ modifies_1 b h0 h1
     /\ get h1 b 0 == n0 /\ get h1 b 1 == n1 /\ get h1 b 2 == n2 /\ get h1 b 3 == n3 /\  get h1 b 4 == n4
     /\ sel_int h1 b == v n0 + pow2 26 * v n1 + pow2 52 * v n2 + pow2 78 * v n3 + pow2 104 * v n4
-    /\ norm h1 b))
+    /\ norm h1 b)))
 let upd_elemB b n0 n1 n2 n3 n4 =
   b.(0ul) <- n0;
   b.(1ul) <- n1;
@@ -340,25 +359,25 @@ let upd_elemB b n0 n1 n2 n3 n4 =
 (* TODO *)
 let lemma_toField_2 n0 n1 n2 n3 n0' n1' n2' n3' n4': Lemma
   (requires (let mask_26 = mk_mask 26ul in
-    n0' == (n0 &^ mask_26) 
+    H64 (n0' == (n0 &^ mask_26) 
     /\ n1' == ((n0 >>^ 26ul) |^ ((n1 <<^ 6ul) &^ mask_26))
     /\ n2' == ((n1 >>^ 20ul) |^ ((n2 <<^ 12ul) &^ mask_26))
     /\ n3' == ((n2 >>^ 14ul) |^ ((n3 <<^ 18ul) &^ mask_26)) 
-    /\ n4' == (n3 >>^ 8ul) ))
-  (ensures  (v n0' + pow2 26 * v n1' + pow2 52 * v n2' + pow2 78 * v n3' + pow2 104 * v n4'
-    == v n0 + pow2 32 * v n1 + pow2 64 * v n2 + pow2 96 * v n3 ))
+    /\ n4' == (n3 >>^ 8ul)) ))
+  (ensures  (H64 (v n0' + pow2 26 * v n1' + pow2 52 * v n2' + pow2 78 * v n3' + pow2 104 * v n4'
+    == v n0 + pow2 32 * v n1 + pow2 64 * v n2 + pow2 96 * v n3 )))
   = admit()
 
 (* TODO (requires the BitVector module *)
-let lemma_toField_3 n0 n1 n2 n3 n0' n1' n2' n3' n4' : Lemma
+let lemma_toField_3 (n0:H64.t) (n1:H64.t) (n2:H64.t) (n3:H64.t) (n0':H64.t) (n1':H64.t) (n2':H64.t) (n3':H64.t) (n4':H64.t) : Lemma
   (requires (let mask_26 = mk_mask 26ul in
-    n0' == (n0 &^ mask_26)
+    H64 (n0' == (n0 &^ mask_26)
     /\ n1' == ((n0 >>^ 26ul) |^ ((n1 <<^ 6ul) &^ mask_26))
     /\ n2' == ((n1 >>^ 20ul) |^ ((n2 <<^ 12ul) &^ mask_26))
     /\ n3' == ((n2 >>^ 14ul) |^ ((n3 <<^ 18ul) &^ mask_26))
-    /\ n4' == ((n3 >>^ 8ul)) ))
-  (ensures  (U64.v n4' < pow2 24
-    /\ U64.v n3' < pow2 26 /\ U64.v n2' < pow2 26 /\ U64.v n1' < pow2 26 /\ U64.v n0' < pow2 26))
+    /\ n4' == ((n3 >>^ 8ul))) ))
+  (ensures  (H64.v n4' < pow2 24
+    /\ H64.v n3' < pow2 26 /\ H64.v n2' < pow2 26 /\ H64.v n1' < pow2 26 /\ H64.v n0' < pow2 26))
   = admit()
 
 val sel_int_sel_elem: h:mem -> a:elemB{live h a} -> w:word -> Lemma
@@ -369,7 +388,7 @@ let sel_int_sel_elem h a w =
   modulo_lemma (little_endian w) p_1305
 
 (* Formats a wordB into an elemB *)
-val toField: a:elemB{length a == norm_length} -> b:wordB_16{disjoint a b} -> Stack unit
+val toField: a:elemB{length a == norm_length} -> b:wordB_16{disjoint #H64.t #byte a b} -> Stack unit
   (requires (fun h -> live h a /\ live h b))
   (ensures  (fun h0 _ h1 ->
     live h0 b /\         // initial post condition
@@ -377,37 +396,40 @@ val toField: a:elemB{length a == norm_length} -> b:wordB_16{disjoint a b} -> Sta
     norm h1 a /\         // a is in a 'workable' state
     sel_int h1 a == little_endian (sel_word h0 b) /\ // functional correctnes
     //sel_int h1 a == sel_elem h1 a /\
-    v (get h1 a 4) < pow2 24 // necessary for adding 2^128 with no overflow
+    H64.v (get h1 a 4) < pow2 24 // necessary for adding 2^128 with no overflow
   ))
 
 let toField b s =
-  //DEBUG: let _ = print_bytes s 0ul 16ul in
-  let h0 = ST.get() in
-  let mask_26 = mk_mask 26ul in
-  let s0 = sub s 0ul  4ul in
-  let s1 = sub s 4ul  4ul in
-  let s2 = sub s 8ul  4ul in
-  let s3 = sub s 12ul 4ul in
-  let n0 = (uint32_of_bytes s0) in
-  let n1 = (uint32_of_bytes s1) in
-  let n2 = (uint32_of_bytes s2) in
-  let n3 = (uint32_of_bytes s3) in
-  let n0 = Int.Cast.uint32_to_uint64 n0 in
-  let n1 = Int.Cast.uint32_to_uint64 n1 in
-  let n2 = Int.Cast.uint32_to_uint64 n2 in
-  let n3 = Int.Cast.uint32_to_uint64 n3 in
-  lemma_toField_1 b s h0 n0 n1 n2 n3;
-  cut (v n0 + pow2 32 * v n1 + pow2 64 * v n2 + pow2 96 * v n3 == little_endian (sel_word h0 s));
-  let n0' = n0 &^ mask_26 in
-  let n1' = (n0 >>^ 26ul) |^ ((n1 <<^ 6ul) &^ mask_26) in
-  let n2' = (n1 >>^ 20ul) |^ ((n2 <<^ 12ul) &^ mask_26) in
-  let n3' = (n2 >>^ 14ul) |^ ((n3 <<^ 18ul) &^ mask_26) in
-  let n4' = (n3 >>^ 8ul) in
-  lemma_toField_2 n0 n1 n2 n3 n0' n1' n2' n3' n4';
-  lemma_toField_3 n0 n1 n2 n3 n0' n1' n2' n3' n4';
-  cut (v n0' + pow2 26 * v n1' + pow2 52 * v n2' + pow2 78 * v n3' + pow2 104 * v n4'
-    == little_endian (sel_word h0 s));
-  upd_elemB b n0' n1' n2' n3' n4'
+  toField b s
+
+  (* //DEBUG: let _ = print_bytes s 0ul 16ul in *)
+  (* let h0 = ST.get() in *)
+  (* let open Hacl.UInt64 in *)
+  (* let mask_26 = mk_mask 26ul in *)
+  (* let s0 = sub s 0ul  4ul in *)
+  (* let s1 = sub s 4ul  4ul in *)
+  (* let s2 = sub s 8ul  4ul in *)
+  (* let s3 = sub s 12ul 4ul in *)
+  (* let n0 = (uint32_of_bytes s0) in *)
+  (* let n1 = (uint32_of_bytes s1) in *)
+  (* let n2 = (uint32_of_bytes s2) in *)
+  (* let n3 = (uint32_of_bytes s3) in *)
+  (* let n0 = Int.Cast.uint32_to_uint64 n0 in *)
+  (* let n1 = Int.Cast.uint32_to_uint64 n1 in *)
+  (* let n2 = Int.Cast.uint32_to_uint64 n2 in *)
+  (* let n3 = Int.Cast.uint32_to_uint64 n3 in *)
+  (* lemma_toField_1 b s h0 n0 n1 n2 n3; *)
+  (* cut (v n0 + pow2 32 * v n1 + pow2 64 * v n2 + pow2 96 * v n3 == little_endian (sel_word h0 s)); *)
+  (* let n0' = n0 &^ mask_26 in *)
+  (* let n1' = (n0 >>^ 26ul) |^ ((n1 <<^ 6ul) &^ mask_26) in *)
+  (* let n2' = (n1 >>^ 20ul) |^ ((n2 <<^ 12ul) &^ mask_26) in *)
+  (* let n3' = (n2 >>^ 14ul) |^ ((n3 <<^ 18ul) &^ mask_26) in *)
+  (* let n4' = (n3 >>^ 8ul) in *)
+  (* lemma_toField_2 n0 n1 n2 n3 n0' n1' n2' n3' n4'; *)
+  (* lemma_toField_3 n0 n1 n2 n3 n0' n1' n2' n3' n4'; *)
+  (* cut (v n0' + pow2 26 * v n1' + pow2 52 * v n2' + pow2 78 * v n3' + pow2 104 * v n4' *)
+  (*   == little_endian (sel_word h0 s)); *)
+  (* upd_elemB b n0' n1' n2' n3' n4' *)
 
 
 #set-options "--initial_fuel 1 --max_fuel 1"
@@ -415,9 +437,10 @@ let toField b s =
 val lemma_toField_plus_2_128_0: ha:mem -> a:elemB{live ha a} -> Lemma
   (requires True)
   (ensures  (sel_int ha a =
-    v (get ha a 0) + pow2 26 * v (get ha a 1) + pow2 52 * v (get ha a 2) + pow2 78 * v (get ha a 3)
-    + pow2 104 * v (get ha a 4)))
+    H64 (v (get ha a 0) + pow2 26 * v (get ha a 1) + pow2 52 * v (get ha a 2) + pow2 78 * v (get ha a 3)
+    + pow2 104 * v (get ha a 4))))
 let lemma_toField_plus_2_128_0 ha a =
+  let open Hacl.UInt64 in
   lemma_bitweight_templ_values 4;
   lemma_bitweight_templ_values 3;
   lemma_bitweight_templ_values 2;
@@ -437,50 +460,52 @@ let lemma_toField_plus_2_128_1 () =
   Math.Lemmas.pow2_lt_compat 64 24
 
 val lemma_toField_plus_2_128: ha:mem -> a:elemB -> hb:mem -> b:elemB -> Lemma
-  (requires (norm ha a /\ norm hb b /\ v (get hb b 4) < pow2 24
+  (requires (H64 (norm ha a /\ norm hb b /\ v (get hb b 4) < pow2 24
     /\ v (get ha a 4) == v (get hb b 4) + pow2 24
     /\ v (get ha a 3) == v (get hb b 3) /\ v (get ha a 2) == v (get hb b 2)
-    /\ v (get ha a 1) == v (get hb b 1) /\ v (get ha a 0) == v (get hb b 0) ))
+    /\ v (get ha a 1) == v (get hb b 1) /\ v (get ha a 0) == v (get hb b 0) )))
   (ensures  (norm ha a /\ norm hb b /\ sel_int ha a == pow2 128 + sel_int hb b))
 let lemma_toField_plus_2_128 ha a hb b =
   lemma_toField_plus_2_128_0 ha a;
   lemma_toField_plus_2_128_0 hb b;
-  Math.Lemmas.distributivity_add_right (pow2 104) (v (get hb b 4)) (pow2 24);
+  Math.Lemmas.distributivity_add_right (pow2 104) (H64.v (get hb b 4)) (pow2 24);
   Math.Lemmas.pow2_plus 104 24
 
-let add_2_24 (x:t{v x < pow2 24}) : Tot (z:t{v z == v x + pow2 24 /\ v z < pow2 26})
-  = lemma_toField_plus_2_128_1 ();
-    Math.Lemmas.pow2_double_sum 24;
-    Math.Lemmas.pow2_double_sum 25;
-    Math.Lemmas.pow2_lt_compat 64 25;
-    x +^ (1uL <<^ 24ul)
+(* let add_2_24 (x:H64.t{v x < pow2 24}) : Tot (z:t{v z == v x + pow2 24 /\ v z < pow2 26}) *)
+(*   = lemma_toField_plus_2_128_1 (); *)
+(*     Math.Lemmas.pow2_double_sum 24; *)
+(*     Math.Lemmas.pow2_double_sum 25; *)
+(*     Math.Lemmas.pow2_lt_compat 64 25; *)
+(*     x +^ (1uL <<^ 24ul) *)
 
 (* Formats a wordB_16 into an elemB *)
 val toField_plus_2_128: a:elemB{length a == norm_length} -> b:wordB_16 -> Stack unit
-  (requires (fun h -> live h a /\ live h b /\ disjoint a b))
+  (requires (fun h -> live h a /\ live h b /\ disjoint #H64.t #byte a b))
   (ensures  (fun h0 _ h1 ->
     live h0 b /\ // Initial post condition
     norm h1 a /\ // the elemB 'a' is in a 'workable' state
     modifies_1 a h0 h1 /\ // Only a was modified
     sel_int h1 a == pow2 128 + little_endian (sel_word h0 b) ))
 let toField_plus_2_128 b s =
-  toField b s;
-  let h0 = ST.get() in
-  let b4 = b.(4ul) in
-  let b4' = add_2_24 b4 in
-  b.(4ul) <- b4';
-  let h1 = ST.get() in
-  lemma_upd_quantifiers h0 h1 b 4ul b4';
-  lemma_toField_plus_2_128 h1 b h0 b
+  toField_plus_2_128 b s
+
+  (* toField b s; *)
+  (* let h0 = ST.get() in *)
+  (* let b4 = b.(4ul) in *)
+  (* let b4' = add_2_24 b4 in *)
+  (* b.(4ul) <- b4'; *)
+  (* let h1 = ST.get() in *)
+  (* lemma_upd_quantifiers h0 h1 b 4ul b4'; *)
+  (* lemma_toField_plus_2_128 h1 b h0 b *)
 
 
 (* Formats a wordB into an elemB *)
 val toField_plus: 
     len:u32 
   -> a:elemB{length a == norm_length} 
-  -> b:wordB{length b == w len /\ w len < 16}
+  -> b:wordB{length #byte b == w len /\ w len < 16}
   -> Stack unit
-  (requires (fun h -> live h a /\ live h b /\ disjoint a b))
+  (requires (fun h -> live h a /\ live h b /\ disjoint #H64.t #byte a b))
   (ensures  (fun h0 _ h1 ->
     live h0 b /\ // Initial post condition
     norm h1 a /\ // the elemB 'a' is in a 'workable' state
@@ -490,48 +515,50 @@ val toField_plus:
 #set-options "--z3timeout 50 --initial_fuel 0 --max_fuel 0"
 
 let toField_plus len a b =
-  let h0 = ST.get() in
-  push_frame();
-  let n = create 0uy 16ul in
-  blit b 0ul n 0ul len;
-  let h1 = ST.get() in
-  n.(len) <- 1uy;
-  let h2 = ST.get() in
-  toField a n;
-  let h3 = ST.get() in
-  pop_frame ();
-  let h4 = ST.get() in
-  eval_eq_lemma h3 h4 a a norm_length;
-  let n1, n2 = SeqProperties.split_eq (sel_word h2 n) (w len) in
-  let n3, n4 = SeqProperties.split_eq n2 1 in
-  Seq.lemma_eq_intro (sel_word h2 n) (Seq.append n1 (Seq.append n3 n4));
-  little_endian_append n1 (Seq.append n3 n4);
-  little_endian_append n3 n4;
-  cut (little_endian (sel_word h2 n) ==
-    little_endian n1 + 
-    pow2 (8 * w len) * (little_endian n3 + pow2 (8 * 1) * little_endian n4));
-  //assert (sel_int h4 a == little_endian (sel_word h2 n));
-  assert (n1 == Seq.slice (sel_word h0 b) 0 (w len));
-  Seq.lemma_eq_intro (sel_word h0 b) (Seq.slice (sel_word h0 b) 0 (w len));
-  //assert (little_endian n1 == little_endian (sel_word h0 b));
-  let _, n2' = SeqProperties.split_eq (sel_word h1 n) (w len) in
-  let _, n4' = SeqProperties.split_eq n2' 1 in
-  Seq.lemma_eq_intro n4 (Seq.create (Seq.length n4) 0uy);
-  little_endian_null (Seq.length n4);
-  //assert (little_endian n4 == 0);
-  Seq.lemma_eq_intro n3 (Seq.create 1 1uy);
-  little_endian_singleton 1uy;
-  //assert (little_endian n3 == 1);
-  assert_norm ((1 + pow2 (8 * 1) * 0) == 1);
-  assert (pow2 (8 * w len) * (1 + pow2 (8 * 1) * 0) == pow2 (8 * w len))
+  toField_plus len a b
+
+  (* let h0 = ST.get() in *)
+  (* push_frame(); *)
+  (* let n = create 0uy 16ul in *)
+  (* blit b 0ul n 0ul len; *)
+  (* let h1 = ST.get() in *)
+  (* n.(len) <- 1uy; *)
+  (* let h2 = ST.get() in *)
+  (* toField a n; *)
+  (* let h3 = ST.get() in *)
+  (* pop_frame (); *)
+  (* let h4 = ST.get() in *)
+  (* eval_eq_lemma h3 h4 a a norm_length; *)
+  (* let n1, n2 = SeqProperties.split_eq (sel_word h2 n) (w len) in *)
+  (* let n3, n4 = SeqProperties.split_eq n2 1 in *)
+  (* Seq.lemma_eq_intro (sel_word h2 n) (Seq.append n1 (Seq.append n3 n4)); *)
+  (* little_endian_append n1 (Seq.append n3 n4); *)
+  (* little_endian_append n3 n4; *)
+  (* cut (little_endian (sel_word h2 n) == *)
+  (*   little_endian n1 +  *)
+  (*   pow2 (8 * w len) * (little_endian n3 + pow2 (8 * 1) * little_endian n4)); *)
+  (* //assert (sel_int h4 a == little_endian (sel_word h2 n)); *)
+  (* assert (n1 == Seq.slice (sel_word h0 b) 0 (w len)); *)
+  (* Seq.lemma_eq_intro (sel_word h0 b) (Seq.slice (sel_word h0 b) 0 (w len)); *)
+  (* //assert (little_endian n1 == little_endian (sel_word h0 b)); *)
+  (* let _, n2' = SeqProperties.split_eq (sel_word h1 n) (w len) in *)
+  (* let _, n4' = SeqProperties.split_eq n2' 1 in *)
+  (* Seq.lemma_eq_intro n4 (Seq.create (Seq.length n4) 0uy); *)
+  (* little_endian_null (Seq.length n4); *)
+  (* //assert (little_endian n4 == 0); *)
+  (* Seq.lemma_eq_intro n3 (Seq.create 1 1uy); *)
+  (* little_endian_singleton 1uy; *)
+  (* //assert (little_endian n3 == 1); *)
+  (* assert_norm ((1 + pow2 (8 * 1) * 0) == 1); *)
+  (* assert (pow2 (8 * w len) * (1 + pow2 (8 * 1) * 0) == pow2 (8 * w len)) *)
 
 
 val upd_wordB_16: b:wordB_16 -> 
-  s0:U8.t -> s1:U8.t -> s2:U8.t -> s3:U8.t -> s4:U8.t -> 
-  s5:U8.t -> s6:U8.t -> s7:U8.t -> s8:U8.t -> s9:U8.t -> 
-  s10:U8.t -> s11:U8.t -> s12:U8.t -> s13:U8.t -> s14:U8.t -> s15:U8.t -> Stack unit
+  s0:byte -> s1:byte -> s2:byte -> s3:byte -> s4:byte -> 
+  s5:byte -> s6:byte -> s7:byte -> s8:byte -> s9:byte -> 
+  s10:byte -> s11:byte -> s12:byte -> s13:byte -> s14:byte -> s15:byte -> Stack unit
     (requires (fun h -> live h b))
-    (ensures  (fun h0 _ h1 -> live h1 b /\ modifies_1 b h0 h1))
+    (ensures  (fun h0 _ h1 -> live h1 b /\ modifies_1 #byte b h0 h1))
 let upd_wordB_16 s s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13 s14 s15 =
   s.(0ul) <- s0;
   s.(1ul) <- s1;
@@ -551,48 +578,48 @@ let upd_wordB_16 s s0 s1 s2 s3 s4 s5 s6 s7 s8 s9 s10 s11 s12 s13 s14 s15 =
   s.(15ul) <- s15
 
 
-val trunc1305: a:elemB -> b:wordB_16{disjoint a b} -> ST unit
-  (requires (fun h -> norm h a /\ live h b /\ disjoint a b))
-  (ensures  (fun h0 _ h1 -> norm h0 a /\ live h1 a /\ live h1 b
-    /\ modifies_2 a b h0 h1
-    /\ sel_elem h0 a % pow2 128 == little_endian (sel_word h1 b) ))
-let trunc1305 a b =
-  let h0 = ST.get() in
-  (* Full reduction of a:
-     - before finalization sel_int h a < pow2 130
-     - after finalization sel_int h a = sel_elem h a *)
-  finalize a;
-  let h1 = ST.get() in
-  assert (modifies_1 a h0 h1);
-  lemma_mod_mod (eval h1 a norm_length) (eval h0 a norm_length) (reveal prime);
-  cut (sel_elem h1 a == sel_elem h0 a /\ sel_elem h1 a == sel_int h1 a);
-  (* Copy of the 128 first bits of a into b *)
-  let a0 = index a 0ul in
-  let a1 = index a 1ul in
-  let a2 = index a 2ul in
-  let a3 = index a 3ul in
-  let a4 = index a 4ul in
-  (* JK: some bitvector theory would simplify a lot the rest of the proof *)
-  let b0 = uint64_to_uint8 a0 in
-  let b1 = uint64_to_uint8 (a0 >>^ 8ul) in
-  let b2 = uint64_to_uint8 (a0 >>^ 16ul) in
-  let b3 = uint64_to_uint8 ((a0 >>^ 24ul) +%^ (a1 <<^ 2ul)) in
-  let b4 = uint64_to_uint8 (a1 >>^ 6ul) in
-  let b5 = uint64_to_uint8 (a1 >>^ 14ul) in
-  let b6 = uint64_to_uint8 ((a1 >>^ 22ul) +%^ (a2 <<^ 4ul)) in
-  let b7 = uint64_to_uint8 (a2 >>^ 4ul) in
-  let b8 = uint64_to_uint8 (a2 >>^ 12ul) in
-  let b9 = uint64_to_uint8 ((a2 >>^ 20ul) +%^ (a3 <<^ 6ul)) in
-  let b10 = uint64_to_uint8 (a3 >>^ 2ul) in
-  let b11 = uint64_to_uint8 (a3 >>^ 10ul) in
-  let b12 = uint64_to_uint8 (a3 >>^ 18ul) in
-  let b13 = uint64_to_uint8 a4 in
-  let b14 = uint64_to_uint8 (a4 >>^ 8ul) in
-  let b15 = uint64_to_uint8 (a4 >>^ 16ul) in
-  upd_wordB_16 b b0 b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15;
-  let h2 = ST.get() in
-  assert (modifies_1 b h1 h2);
-  assume (sel_elem h0 a % pow2 128 == little_endian (sel_word h2 b))
+(* val trunc1305: a:elemB -> b:wordB_16{disjoint a b} -> ST unit *)
+(*   (requires (fun h -> norm h a /\ live h b /\ disjoint a b)) *)
+(*   (ensures  (fun h0 _ h1 -> norm h0 a /\ live h1 a /\ live h1 b *)
+(*     /\ modifies_2 a b h0 h1 *)
+(*     /\ sel_elem h0 a % pow2 128 == little_endian (sel_word h1 b) )) *)
+(* let trunc1305 a b = *)
+(*   let h0 = ST.get() in *)
+(*   (\* Full reduction of a: *)
+(*      - before finalization sel_int h a < pow2 130 *)
+(*      - after finalization sel_int h a = sel_elem h a *\) *)
+(*   finalize a; *)
+(*   let h1 = ST.get() in *)
+(*   assert (modifies_1 a h0 h1); *)
+(*   lemma_mod_mod (eval h1 a norm_length) (eval h0 a norm_length) (reveal prime); *)
+(*   cut (sel_elem h1 a == sel_elem h0 a /\ sel_elem h1 a == sel_int h1 a); *)
+(*   (\* Copy of the 128 first bits of a into b *\) *)
+(*   let a0 = index a 0ul in *)
+(*   let a1 = index a 1ul in *)
+(*   let a2 = index a 2ul in *)
+(*   let a3 = index a 3ul in *)
+(*   let a4 = index a 4ul in *)
+(*   (\* JK: some bitvector theory would simplify a lot the rest of the proof *\) *)
+(*   let b0 = uint64_to_uint8 a0 in *)
+(*   let b1 = uint64_to_uint8 (a0 >>^ 8ul) in *)
+(*   let b2 = uint64_to_uint8 (a0 >>^ 16ul) in *)
+(*   let b3 = uint64_to_uint8 ((a0 >>^ 24ul) +%^ (a1 <<^ 2ul)) in *)
+(*   let b4 = uint64_to_uint8 (a1 >>^ 6ul) in *)
+(*   let b5 = uint64_to_uint8 (a1 >>^ 14ul) in *)
+(*   let b6 = uint64_to_uint8 ((a1 >>^ 22ul) +%^ (a2 <<^ 4ul)) in *)
+(*   let b7 = uint64_to_uint8 (a2 >>^ 4ul) in *)
+(*   let b8 = uint64_to_uint8 (a2 >>^ 12ul) in *)
+(*   let b9 = uint64_to_uint8 ((a2 >>^ 20ul) +%^ (a3 <<^ 6ul)) in *)
+(*   let b10 = uint64_to_uint8 (a3 >>^ 2ul) in *)
+(*   let b11 = uint64_to_uint8 (a3 >>^ 10ul) in *)
+(*   let b12 = uint64_to_uint8 (a3 >>^ 18ul) in *)
+(*   let b13 = uint64_to_uint8 a4 in *)
+(*   let b14 = uint64_to_uint8 (a4 >>^ 8ul) in *)
+(*   let b15 = uint64_to_uint8 (a4 >>^ 16ul) in *)
+(*   upd_wordB_16 b b0 b1 b2 b3 b4 b5 b6 b7 b8 b9 b10 b11 b12 b13 b14 b15; *)
+(*   let h2 = ST.get() in *)
+(*   assert (modifies_1 b h1 h2); *)
+(*   assume (sel_elem h0 a % pow2 128 == little_endian (sel_word h2 b)) *)
 
 
 (* Clamps the key, see RFC
@@ -600,10 +627,10 @@ let trunc1305 a b =
 *)
 private let fix r i mask = r.(i) <- U8(r.(i) &^ mask)
 
-val clamp: r:wordB{length r == 16} -> Stack unit
+val clamp: r:wordB{length #byte r == 16} -> Stack unit
   (requires (fun h -> live h r))
   (ensures  (fun h0 _ h1 -> live h0 r /\ live h1 r 
-    /\ modifies_1 r h0 h1
+    /\ modifies_1 #byte r h0 h1
     /\ little_endian (sel_word h1 r) == Spec.clamp (sel_word h0 r)))
 let clamp r =
   fix r  3ul  15uy; // 0000****
@@ -624,38 +651,40 @@ let clamp r =
 
 val poly1305_init:
     r:elemB //out: first half of the key, ready for polynomial evaluation
-  -> s:wordB_16{disjoint r s} //out: second half of the key, ready for masking
-  -> key:bytes{length key >= 32 /\ disjoint r key /\ disjoint s key} //in: raw key
+  -> s:wordB_16{disjoint #H64.t #byte r s} //out: second half of the key, ready for masking
+  -> key:bytes{length #byte key >= 32 /\ disjoint #H64.t #byte r key /\ disjoint #byte #byte s key} //in: raw key
   -> Stack unit
   (requires (fun h -> live h r /\ live h s /\ live h key /\ length r == norm_length))
   (ensures  (fun h0 log h1 -> live h0 r /\ live h0 s /\ live h0 key 
     /\ norm h1 r /\ live h1 s
-    /\ modifies_2 r s h0 h1 
-    /\ sel_int h1 r == Spec.clamp (sel_word h0 (sub key 0ul 16ul))
-    /\ sel_word h1 s == sel_word h0 (sub key 16ul 16ul)))
+    /\ modifies_2 #H64.t #byte r s h0 h1 
+    /\ sel_int h1 r == Spec.clamp (sel_word h0 (sub #byte key 0ul 16ul))
+    /\ sel_word h1 s == sel_word h0 (sub #byte key 16ul 16ul)))
 let poly1305_init r s key =
-  let h0 = ST.get() in
-  push_frame();
-  (* Format the keys *)
-  (* Make a copy of the first half of the key to clamp it *)
-  let r_16 = create 0uy 16ul in
-  blit key 0ul r_16 0ul 16ul;
-  blit key 16ul s 0ul 16ul;  
-  let h1 = ST.get() in
-  assert (Seq.equal (sel_word h1 r_16) (sel_word h0 (sub key 0ul 16ul)));
-  assert (Seq.equal (sel_word h1 s) (sel_word h0 (sub key 16ul 16ul)));
-  (* Clamp r *)
-  clamp r_16;
-  let h2 = ST.get() in
-  assert (little_endian (sel_word h2 r_16) == Spec.clamp (sel_word h1 r_16));
-  (* Format r to elemB *)
-  toField r r_16;
-  let h3 = ST.get() in
-  assert (sel_int h3 r == little_endian (sel_word h2 r_16));
-  pop_frame();
-  let h4 = ST.get() in
-  norm_eq_lemma h3 h4 r r;
-  eval_eq_lemma h3 h4 r r norm_length
+  poly1305_init r s key
+  
+  (* let h0 = ST.get() in *)
+  (* push_frame(); *)
+  (* (\* Format the keys *\) *)
+  (* (\* Make a copy of the first half of the key to clamp it *\) *)
+  (* let r_16 = create 0uy 16ul in *)
+  (* blit key 0ul r_16 0ul 16ul; *)
+  (* blit key 16ul s 0ul 16ul;   *)
+  (* let h1 = ST.get() in *)
+  (* assert (Seq.equal (sel_word h1 r_16) (sel_word h0 (sub key 0ul 16ul))); *)
+  (* assert (Seq.equal (sel_word h1 s) (sel_word h0 (sub key 16ul 16ul))); *)
+  (* (\* Clamp r *\) *)
+  (* clamp r_16; *)
+  (* let h2 = ST.get() in *)
+  (* assert (little_endian (sel_word h2 r_16) == Spec.clamp (sel_word h1 r_16)); *)
+  (* (\* Format r to elemB *\) *)
+  (* toField r r_16; *)
+  (* let h3 = ST.get() in *)
+  (* assert (sel_int h3 r == little_endian (sel_word h2 r_16)); *)
+  (* pop_frame(); *)
+  (* let h4 = ST.get() in *)
+  (* norm_eq_lemma h3 h4 r r; *)
+  (* eval_eq_lemma h3 h4 r r norm_length *)
 
 
 val poly1305_start: acc:elemB -> Stack unit
@@ -663,7 +692,10 @@ val poly1305_start: acc:elemB -> Stack unit
   (ensures  (fun h0 _ h1 -> modifies_1 acc h0 h1
     /\ norm h1 acc
     /\ sel_elem h1 acc == 0))
-let poly1305_start a = zeroB a
+let poly1305_start a =
+  poly1305_start a
+  
+(* zeroB a *)
 
 
 (**
@@ -691,8 +723,8 @@ let ilog l = l
 val poly1305_update:
   current_log:log_t -> 
   msg:wordB_16 ->
-  acc:elemB{disjoint msg acc} -> 
-  r:elemB{disjoint msg r /\ disjoint acc r} -> 
+  acc:elemB{disjoint #byte msg acc} -> 
+  r:elemB{disjoint #byte msg r /\ disjoint acc r} -> 
   Stack log_t
   (requires (fun h -> live h msg /\ norm h acc /\ norm h r
     /\ (mac_log ==> sel_elem h acc == poly (ilog current_log) (sel_elem h r)) ))
@@ -708,16 +740,17 @@ val poly1305_update:
 let poly1305_update log msgB acc r =
   let h0 = ST.get () in
   push_frame();
-  let block = create 0UL nlength in // TODO: pass buffer, don't create one
+  let zero_64 = Hacl.Cast.uint64_to_sint64 0uL in
+  let block = create zero_64 nlength in // TODO: pass buffer, don't create one
   toField_plus_2_128 block msgB;
   let h1 = ST.get () in
   norm_eq_lemma h0 h1 acc acc;
   norm_eq_lemma h0 h1 r r;
-  eval_eq_lemma h0 h1 acc acc Parameters.norm_length;
-  eval_eq_lemma h0 h1 r r Parameters.norm_length;
+  eval_eq_lemma h0 h1 acc acc Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
+  eval_eq_lemma h0 h1 r r Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
   add_and_multiply acc block r;
   let h2 = ST.get () in
-  eval_eq_lemma h1 h2 block block Parameters.norm_length;
+  eval_eq_lemma h1 h2 block block Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
   assert (modifies_1 acc h1 h2);
   let updated_log:log_t =
     if mac_log then
@@ -731,7 +764,7 @@ let poly1305_update log msgB acc r =
     else () in
   pop_frame();
   let h3 = ST.get () in
-  eval_eq_lemma h2 h3 acc acc Parameters.norm_length;
+  eval_eq_lemma h2 h3 acc acc Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
   assert (norm h3 acc);
   assert (modifies_1 acc h0 h3);
   updated_log
@@ -739,19 +772,19 @@ let poly1305_update log msgB acc r =
 
 #set-options "--z3timeout 40 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 
-val append_as_seq_sub: h:mem -> n:UInt32.t -> m:UInt32.t -> msg:bytes{live h msg /\ w m <= w n /\ w n <= length msg} -> Lemma
-  (append (as_seq h (Buffer.sub msg 0ul m))
+val append_as_seq_sub: h:mem -> n:UInt32.t -> m:UInt32.t -> msg:bytes{live h msg /\ w m <= w n /\ w n <= length #byte msg} -> Lemma
+  (append #byte (as_seq h (Buffer.sub msg 0ul m))
           (as_seq h (Buffer.sub (Buffer.offset msg m) 0ul (U32 (n -^ m)))) ==
    as_seq h (Buffer.sub msg 0ul n))
 let append_as_seq_sub h n m msg =
-  Seq.lemma_eq_intro
+  Seq.lemma_eq_intro #byte
     (append (as_seq h (Buffer.sub msg 0ul m))
             (as_seq h (Buffer.sub (Buffer.offset msg m) 0ul (U32 (n -^ m)))))
      (as_seq h (Buffer.sub msg 0ul n))
 
 (* Loop over Poly1305_update; could go below MAC *)
-val poly1305_loop: current_log:log_t -> msg:bytes -> acc:elemB{disjoint msg acc} ->
-  r:elemB{disjoint msg r /\ disjoint acc r} -> ctr:u32{length msg >= 16 * w ctr} ->
+val poly1305_loop: current_log:log_t -> msg:bytes -> acc:elemB{disjoint #byte msg acc} ->
+  r:elemB{disjoint #byte msg r /\ disjoint acc r} -> ctr:u32{length #byte msg >= 16 * w ctr} ->
   ST log_t
   (requires (fun h -> live h msg /\ norm h acc /\ norm h r /\
       (mac_log ==>
@@ -811,9 +844,9 @@ let rec poly1305_loop log msg acc r ctr =
 val poly1305_last: 
   current_log:log_t ->
   msg:wordB -> 
-  acc:elemB{disjoint msg acc} ->
-  r:elemB{disjoint msg r /\ disjoint acc r} -> 
-  len:u32{w len == length msg /\ 0 < w len /\ w len < 16} ->
+  acc:elemB{disjoint #byte msg acc} ->
+  r:elemB{disjoint #byte msg r /\ disjoint acc r} -> 
+  len:u32{w len == length #byte msg /\ 0 < w len /\ w len < 16} ->
   Stack log_t
     (requires (fun h -> live h msg /\ norm h acc /\ norm h r
       /\ (mac_log ==> sel_elem h acc == poly (ilog current_log) (sel_elem h r)) ))
@@ -829,16 +862,17 @@ val poly1305_last:
 let poly1305_last log msg acc r len =
   let h0 = ST.get() in
   push_frame ();
-  let block = create 0UL nlength in
+  let zero_64 = Hacl.Cast.uint64_to_sint64 0uL in
+  let block = create zero_64 nlength in
   toField_plus len block msg;
   let h1 = ST.get () in
   norm_eq_lemma h0 h1 acc acc;
   norm_eq_lemma h0 h1 r r;
-  eval_eq_lemma h0 h1 acc acc Parameters.norm_length;
-  eval_eq_lemma h0 h1 r r Parameters.norm_length;
+  eval_eq_lemma h0 h1 acc acc Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
+  eval_eq_lemma h0 h1 r r Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
   add_and_multiply acc block r;
   let h2 = ST.get () in
-  eval_eq_lemma h1 h2 block block Parameters.norm_length;
+  eval_eq_lemma h1 h2 block block Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
   assert (modifies_1 acc h1 h2);
   let updated_log:log_t =
     if mac_log then
@@ -852,52 +886,53 @@ let poly1305_last log msg acc r len =
     else () in
   pop_frame ();
   let h3 = ST.get() in
-  eval_eq_lemma h2 h3 acc acc Parameters.norm_length;
+  eval_eq_lemma h2 h3 acc acc Hacl.Symmetric.Poly1305_64.Parameters.norm_length;
   assert (norm h3 acc);
   assert (modifies_1 acc h0 h3);
   updated_log
 
 
-(* TODO: certainly a more efficient, better implementation of that *)
-private val add_word: a:wordB_16 -> b:wordB_16 -> Stack unit
-  (requires (fun h -> live h a /\ live h b))
-  (ensures  (fun h0 _ h1 -> live h0 a /\ live h0 b /\ live h1 a /\ modifies_1 a h0 h1 /\
-     little_endian (sel_word h1 a) ==
-     (little_endian (sel_word h0 a) + little_endian (sel_word h0 b)) % pow2 128 ))
-let add_word a b =
-  let carry = 0ul in
-  let a04:u64 = let (x:u32) = uint32_of_bytes a in uint32_to_uint64 x  in
-  let a48:u64 = let (x:u32) = uint32_of_bytes (offset a 4ul) in uint32_to_uint64 x in
-  let a812:u64 = let (x:u32) = uint32_of_bytes (offset a 8ul) in uint32_to_uint64 x in
-  let a1216:u64 = let (x:u32) = uint32_of_bytes (offset a 12ul) in uint32_to_uint64 x in
-  let b04:u64 = let (x:u32) = uint32_of_bytes b in uint32_to_uint64 x  in
-  let b48:u64 = let (x:u32) = uint32_of_bytes (offset b 4ul) in uint32_to_uint64 x in
-  let b812:u64 = let (x:u32) = uint32_of_bytes (offset b 8ul) in uint32_to_uint64 x in
-  let b1216:u64 = let (x:u32) = uint32_of_bytes (offset b 12ul) in uint32_to_uint64 x in
-  let open FStar.UInt64 in
-  let z0 = a04 +^ b04 in
-  let z1 = a48 +^ b48 +^ (z0 >>^ 32ul) in
-  let z2 = a812 +^ b812 +^ (z1 >>^ 32ul) in
-  let z3 = a1216 +^ b1216 +^ (z2 >>^ 32ul) in
-  bytes_of_uint32 (Buffer.sub a 0ul 4ul) (uint64_to_uint32 z0);
-  bytes_of_uint32 (Buffer.sub a 4ul 4ul) (uint64_to_uint32 z1);
-  bytes_of_uint32 (Buffer.sub a 8ul 4ul) (uint64_to_uint32 z2);
-  bytes_of_uint32 (Buffer.sub a 12ul 4ul) (uint64_to_uint32 z3);
-  admit ()
+(* (\* TODO: certainly a more efficient, better implementation of that *\) *)
+(* private val add_word: a:wordB_16 -> b:wordB_16 -> Stack unit *)
+(*   (requires (fun h -> live h a /\ live h b)) *)
+(*   (ensures  (fun h0 _ h1 -> live h0 a /\ live h0 b /\ live h1 a /\ modifies_1 a h0 h1 /\ *)
+(*      little_endian (sel_word h1 a) == *)
+(*      (little_endian (sel_word h0 a) + little_endian (sel_word h0 b)) % pow2 128 )) *)
+(* let add_word a b = *)
+(*   let carry = 0ul in *)
+(*   let a04:u64 = let (x:u32) = uint32_of_bytes a in uint32_to_uint64 x  in *)
+(*   let a48:u64 = let (x:u32) = uint32_of_bytes (offset a 4ul) in uint32_to_uint64 x in *)
+(*   let a812:u64 = let (x:u32) = uint32_of_bytes (offset a 8ul) in uint32_to_uint64 x in *)
+(*   let a1216:u64 = let (x:u32) = uint32_of_bytes (offset a 12ul) in uint32_to_uint64 x in *)
+(*   let b04:u64 = let (x:u32) = uint32_of_bytes b in uint32_to_uint64 x  in *)
+(*   let b48:u64 = let (x:u32) = uint32_of_bytes (offset b 4ul) in uint32_to_uint64 x in *)
+(*   let b812:u64 = let (x:u32) = uint32_of_bytes (offset b 8ul) in uint32_to_uint64 x in *)
+(*   let b1216:u64 = let (x:u32) = uint32_of_bytes (offset b 12ul) in uint32_to_uint64 x in *)
+(*   let open FStar.UInt64 in *)
+(*   let z0 = a04 +^ b04 in *)
+(*   let z1 = a48 +^ b48 +^ (z0 >>^ 32ul) in *)
+(*   let z2 = a812 +^ b812 +^ (z1 >>^ 32ul) in *)
+(*   let z3 = a1216 +^ b1216 +^ (z2 >>^ 32ul) in *)
+(*   bytes_of_uint32 (Buffer.sub a 0ul 4ul) (uint64_to_uint32 z0); *)
+(*   bytes_of_uint32 (Buffer.sub a 4ul 4ul) (uint64_to_uint32 z1); *)
+(*   bytes_of_uint32 (Buffer.sub a 8ul 4ul) (uint64_to_uint32 z2); *)
+(*   bytes_of_uint32 (Buffer.sub a 12ul 4ul) (uint64_to_uint32 z3); *)
+(*   admit () *)
 
 (* Finish function, with final accumulator value *)
 val poly1305_finish:
   tag:wordB_16 -> acc:elemB -> s:wordB_16 -> ST unit
   (requires (fun h -> live h tag /\ live h acc /\ live h s
     /\ norm h acc
-    /\ disjoint tag acc /\ disjoint tag s /\ disjoint acc s))
+    /\ disjoint #byte tag acc /\ disjoint #byte #byte tag s /\ disjoint #H64.t #byte acc s))
   (ensures  (fun h0 _ h1 -> live h0 acc /\ live h0 s
-    /\ modifies_2 tag acc h0 h1 /\ live h1 acc /\ live h1 tag
+    /\ modifies_2 #byte tag acc h0 h1 /\ live h1 acc /\ live h1 tag
     /\ little_endian (sel_word h1 tag) ==
       (trunc_1305 (sel_elem h0 acc) + little_endian (sel_word h0 s)) % pow2 128))
 let poly1305_finish tag acc s =
-  trunc1305 acc tag;
-  add_word tag s
+  poly1305_finish tag acc s
+  (* trunc1305 acc tag; *)
+  (* add_word tag s *)
 
 val div_aux: a:UInt32.t -> b:UInt32.t{w b <> 0} -> Lemma
   (requires True)
@@ -907,31 +942,33 @@ let div_aux a b = ()
 
 (** Computes the Poly1305 MAC on a buffer *)
 val poly1305_mac:
-  tag:wordB{length tag == 16} ->
-  msg:bytes{disjoint tag msg} ->
-  len:u32{w len == length msg} ->
-  key:bytes{length key == 32 /\ disjoint msg key /\ disjoint tag key} ->
+  tag:wordB{length #byte tag == 16} ->
+  msg:bytes{disjoint #byte #byte tag msg} ->
+  len:u32{w len == length #byte msg} ->
+  key:bytes{length #byte key == 32 /\ disjoint #byte #byte msg key /\ disjoint #byte #byte tag key} ->
   Stack unit
     (requires (fun h -> live h msg /\ live h key /\ live h tag))
     (ensures (fun h0 _ h1 -> live h0 msg /\ live h0 key /\ live h1 tag
-      /\ modifies_1 tag h0 h1
-      /\ (let r = Spec.clamp (sel_word h0 (sub key 0ul 16ul)) in
-         let s = sel_word h0 (sub key 16ul 16ul) in
+      /\ modifies_1 #byte tag h0 h1
+      /\ (let r = Spec.clamp (sel_word h0 (sub #byte key 0ul 16ul)) in
+         let s = sel_word h0 (sub #byte key 16ul 16ul) in
          little_endian (sel_word h1 tag) ==
          mac_1305 (encode_pad Seq.createEmpty (Buffer.as_seq h0 msg)) r s)))
 let poly1305_mac tag msg len key =
   let h0 = ST.get () in
   push_frame();
   (* Create buffers for the 2 parts of the key and the accumulator *)
-  let tmp = create 0UL 10ul in
+  let zero_64 = Hacl.Cast.uint64_to_sint64 0uL in
+  let zero_8:byte = if mac_log then 0uy else Hacl.Cast.uint8_to_sint8 0uy in
+  let tmp = create zero_64 10ul in
   let acc = sub tmp 0ul 5ul in
   let r   = sub tmp 5ul 5ul in
-  let s   = create 0uy 16ul in
+  let s   = create zero_8 16ul in
   (* Initializes the accumulator and the keys values *)
   poly1305_init r s key;
   let h1 = ST.get () in
-  assert (sel_int h1 r == Spec.clamp (sel_word h0 (sub key 0ul 16ul)));
-  assert (sel_word h1 s == sel_word h0 (sub key 16ul 16ul));
+  assert (sel_int h1 r == Spec.clamp (sel_word h0 (sub #byte key 0ul 16ul)));
+  assert (sel_word h1 s == sel_word h0 (sub #byte key 16ul 16ul));
   poly1305_start acc; // zeroes acc redundantly
   (* Compute the number of 'plain' blocks *)
   let ctr = U32.div len 16ul in
@@ -943,9 +980,8 @@ let poly1305_mac tag msg len key =
   let l = poly1305_loop l msg acc r ctr in
   assume False; // TODO: REMOVE ME
   (* Run the poly1305_update function one more time on the last incomplete block *)
-  let last_block = sub msg (FStar.UInt32 (ctr *^ 16ul)) rest in
+  let last_block = sub #byte msg (FStar.UInt32 (ctr *^ 16ul)) rest in
   poly1305_last l last_block acc r rest;
   (* Finish *)
-  poly1305_finish tag acc (sub key 16ul 16ul); // should be s
+  poly1305_finish tag acc (sub #byte key 16ul 16ul); // should be s
   pop_frame()
-
