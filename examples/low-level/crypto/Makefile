@@ -1,26 +1,17 @@
 FSTAR_HOME=../../..
-
+HACL_HOME=$(FSTAR_HOME)/../hacl-star
 FSTAR=$(FSTAR_HOME)/bin/fstar.exe
 
 HINTS_ENABLED?=--use_hints
 
 OPTIONS=--fstar_home $(FSTAR_HOME) --max_fuel 4 --initial_fuel 0 --max_ifuel 2 --initial_ifuel 1 --z3timeout 20  $(HINTS_ENABLED) $(OTHERFLAGS)
 
-FSTAR_INCLUDE_PATHS=--include $(FSTAR_HOME)/ulib/hyperstack --include $(FSTAR_HOME)/ucontrib/Platform/fst
+FSTAR_INCLUDE_PATHS=--include $(FSTAR_HOME)/ulib/hyperstack --include $(FSTAR_HOME)/ucontrib/Platform/fst --include $(HACL_HOME)/lib/hyperstack
 
 # Files that should fully typecheck
 # Files commented out are broken, uncomment once fixed
 VERIFY= \
   Buffer.Utils \
-  Crypto.Symmetric.Chacha20 \
-  Crypto.Symmetric.Poly1305.Bigint \
-  Crypto.Symmetric.Poly1305.Parameters \
-  Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part1 \
-  Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part2 \
-  Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part3 \
-  Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part4 \
-  Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part5 \
-  Crypto.Symmetric.Poly1305.Bignum \
   Crypto.Symmetric.Poly1305.Spec \
   Crypto.Symmetric.Poly1305 \
   Crypto.Symmetric.Poly1305.MAC \
@@ -39,6 +30,16 @@ VERIFY= \
   Plain \
   Crypto.Test \
   TestMonotonic
+  # Crypto.Symmetric.Chacha20 \
+  # Crypto.Symmetric.Poly1305.Bigint \
+  # Crypto.Symmetric.Poly1305.Parameters \
+  # Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part1 \
+  # Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part2 \
+  # Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part3 \
+  # Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part4 \
+  # Crypto.Symmetric.Poly1305.Bignum.Lemmas.Part5 \
+  # Crypto.Symmetric.Poly1305.Bignum \
+
 
 # Files that should fully typecheck, but not part of regression
 # because verification is too slow
