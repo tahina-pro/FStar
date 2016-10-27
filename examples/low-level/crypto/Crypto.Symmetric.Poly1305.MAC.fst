@@ -355,12 +355,12 @@ let acc_inv (#i:id) (st:state i) (l:itext) (a:accB i) h =
 
 val mac: #i:id -> st:state i -> l:itext -> acc:accB i -> tag:tagB -> ST unit
   (requires (fun h0 ->
-    live h0 tag /\ live h0 st.s /\
+    live #byte h0 tag /\ live #byte h0 st.s /\
     disjoint #Hacl.UInt64.t #byte acc st.s /\ disjoint #byte tag acc /\ disjoint #byte tag st.r /\ disjoint #byte #byte tag st.s /\
     acc_inv st l acc h0 /\
     (mac_log ==> m_sel h0 (ilog st.log) == None)))
   (ensures (fun h0 _ h1 ->
-    live h0 st.s /\ live h0 st.r /\ live h1 tag /\
+    live #byte h0 st.s /\ live h0 st.r /\ live #byte h1 tag /\
     // modifies h0 h1 "the tag buffer and st.log" /\
     (mac_log ==>
       (let mac = mac_1305 l (sel_elem h0 st.r) (sel_word h0 st.s) in

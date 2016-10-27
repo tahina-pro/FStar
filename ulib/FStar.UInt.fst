@@ -482,6 +482,11 @@ val logor_lemma_2: #n:pos -> a:uint_t n ->
   Lemma (requires True) (ensures (logor #n a (ones n) = ones n))
 let logor_lemma_2 #n a = nth_lemma (logor #n a (ones n)) (ones n)
 
+(* JK: TODO *)
+assume val lemma_logor_dijoint: #n:pos -> a:uint_t n -> b:uint_t n -> m:nat{m < n} ->
+  Lemma (requires (a % pow2 m = 0 /\ b < pow2 m))
+        (ensures  (logor #n a b = a + b))
+
 (* Bitwise NOT operator *)
 val lognot_self: #n:pos -> a:uint_t n ->
   Lemma (requires True) (ensures (lognot #n (lognot #n a) = a))

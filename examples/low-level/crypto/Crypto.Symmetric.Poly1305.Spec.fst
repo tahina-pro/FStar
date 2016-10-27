@@ -21,6 +21,10 @@ open Crypto.Symmetric.Bytes
 module U8  = FStar.UInt8
 module U32 = FStar.UInt32
 module U64 = FStar.UInt64
+module H8  = Hacl.UInt8
+module H32 = Hacl.UInt32
+module H64 = Hacl.UInt64
+module F   = Flag
 
 #reset-options "--initial_fuel 4 --max_fuel 4"
 
@@ -32,6 +36,8 @@ let p_1305: p:nat{pow2 128 < p} =
 #reset-options
 
 type elem = n:nat{n < p_1305} // elements of the field Z / p_1305 Z
+
+let byte : Type0 = if F.mac_log then U8.t else H8.t
 
 type word = b:seq byte {Seq.length b <= 16}
 type word_16 = b:seq byte {Seq.length b = 16}

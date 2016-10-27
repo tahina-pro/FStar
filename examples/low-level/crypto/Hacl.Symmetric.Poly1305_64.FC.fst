@@ -19,29 +19,6 @@ module U8   = FStar.UInt8
 module U32  = FStar.UInt32
 module U64  = FStar.UInt64
 
-#reset-options "--initial_fuel 0 --max_fuel 0 --z3timeout 5"
-
-val pow2_8_lemma: n:nat ->
-  Lemma
-    (requires (n = 8))
-    (ensures  (pow2 n = 256))
-    [SMTPat (pow2 n)]
-let pow2_8_lemma n = assert_norm(pow2 8 = 256)
-
-val pow2_32_lemma: n:nat ->
-  Lemma
-    (requires (n = 32))
-    (ensures  (pow2 n = 4294967296))
-    [SMTPat (pow2 n)]
-let pow2_32_lemma n = assert_norm(pow2 32 = 4294967296)
-
-val pow2_64_lemma: n:nat ->
-  Lemma
-    (requires (n = 64))
-    (ensures  (pow2 n = 18446744073709551616))
-    [SMTPat (pow2 n)]
-let pow2_64_lemma n = assert_norm(pow2 64 = 18446744073709551616)
-
 let elemB : Type0 = b:bigint
 
 let wordB = b:uint8_p{length b <= 16}
@@ -52,11 +29,14 @@ noeq type poly1305_state = {
   h:bigint;
   }
 
+open FStar.SeqProperties
+
 val load64_le:
-  b:uint8_p{length b >= 8} ->
+  b:uint8_p{length b = 8} ->
   Stack h64
     (requires (fun h -> live h b))
-    (ensures  (fun h0 _ h1 -> h0 == h1))
+    (ensures  (fun h0 r h1 -> h0 == h1
+      /\ H64.v r = little_endian (as_seq h0 b)))
 let load64_le b =
   let b0 = b.(0ul) in
   let b1 = b.(1ul) in
@@ -83,7 +63,8 @@ val store64_le:
   z:H64.t ->
   Stack unit
     (requires (fun h -> live h b))
-    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
+    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b
+      /\ H64.v z = little_endian (as_seq h1 b)))
 let store64_le b z =
   let open Hacl.UInt64 in
   b.(0ul) <- sint64_to_sint8 z;
@@ -95,9 +76,31 @@ let store64_le b z =
   b.(6ul) <- sint64_to_sint8 (z >>^ 48ul);
   b.(7ul) <- sint64_to_sint8 (z >>^ 56ul)
 
+open FStar.HyperStack
+
+val sel_word:
+  h:mem ->
+  b:wordB{live h b} ->
+  GTot (s:Seq.seq H8.t{Seq.length s = length b
+    /\ (forall (i:nat). {:pattern (Seq.index s i)}
+      i < Seq.length s ==> H8.v (Seq.index s i) == H8.v (get h b i))})
+let sel_word h b = as_seq h b
+
+(** From the current memory state, returns the field element corresponding to a elemB *)
+val sel_elem: h:mem -> b:elemB{live h b} -> GTot elem
+let sel_elem h b = eval h b norm_length % p_1305
+
+(** From the current memory state, returns the integer corresponding to a elemB, (before
+   computing the modulo) *)
+val sel_int: h:mem -> b:elemB{live h b} -> GTot nat
+let sel_int h b = eval h b norm_length
+
 
 let live_st h (st:poly1305_state) : Type0 =
   live h st.h /\ live h st.r /\ disjoint st.h st.r
+
+let acc_inv h (log:log_t) (st:poly1305_state) : Type0 =
+  live_st h st /\ sel_elem h st.h == poly' (Ghost.reveal log) (sel_elem h st.r)
 
 
 val poly1305_init_:
@@ -105,7 +108,8 @@ val poly1305_init_:
   key:uint8_p{length key = 32} ->
   Stack log_t
     (requires (fun h -> live_st h st /\ live h key))
-    (ensures  (fun h0 _ h1 -> modifies_2 st.r st.h h0 h1 /\ live_st h1 st))
+    (ensures  (fun h0 log h1 -> modifies_2 st.r st.h h0 h1 /\
+      acc_inv h1 log st))
 let poly1305_init_ st key =
   let t0 = load64_le(key) in
   let t1 = load64_le(offset key 8ul) in
@@ -142,28 +146,10 @@ let mk_mask nbits =
 
 open FStar.HyperStack
 
-val sel_word:
-  h:mem ->
-  b:wordB{live h b} ->
-  GTot (s:Seq.seq H8.t{Seq.length s = length b
-    /\ (forall (i:nat). {:pattern (Seq.index s i)}
-      i < Seq.length s ==> H8.v (Seq.index s i) == H8.v (get h b i))})
-let sel_word h b = as_seq h b
-
-(** From the current memory state, returns the field element corresponding to a elemB *)
-val sel_elem: h:mem -> b:elemB{live h b} -> GTot elem
-let sel_elem h b = eval h b norm_length % p_1305
-
-(** From the current memory state, returns the integer corresponding to a elemB, (before
-   computing the modulo) *)
-val sel_int: h:mem -> b:elemB{live h b} -> GTot nat
-let sel_int h b = eval h b norm_length
-
 #reset-options "--z3timeout 20 --initial_fuel 0 --max_fuel 0"
 
 
 open FStar.Ghost
-
 
 
 val poly1305_update:
@@ -176,8 +162,9 @@ val poly1305_update:
   s1:limb_44_20{H64 (v s1 = 20 * v r1)} ->
   s2:limb_44_20{H64 (v s2 = 20 * v r2)} ->
   Stack log_t
-    (requires (fun h -> live_st h st /\ live h m))
+    (requires (fun h -> live_st h st /\ live h m /\ acc_inv h current_log st))
     (ensures  (fun h0 updated_log h1 -> modifies_1 st.h h0 h1 /\ live_st h1 st
+      /\ acc_inv h1 updated_log st
       /\ (reveal updated_log) ==
           SeqProperties.snoc (reveal current_log) (encode (sel_word h1 (Buffer.sub m 0ul 16ul)))
       /\ sel_elem h1 st.h == poly (reveal updated_log) (sel_elem h0 st.r)))
@@ -280,10 +267,11 @@ val poly1305_blocks_loop:
   h1:limb_45 ->
   h2:limb_45 ->
   Stack log_t
-    (requires (fun h -> live_st h st /\ live h m))
+    (requires (fun h -> live_st h st /\ live h m /\ acc_inv h current_log st))
     (ensures  (fun h0 updated_log h1 -> modifies_1 st.h h0 h1 /\ live_st h1 st
+      /\ acc_inv h1 updated_log st
       /\ (reveal updated_log) ==
-          encode_pad (reveal current_log) (as_seq h0 (Buffer.sub m 0ul (U32 (16ul *^ (Int.Cast.uint64_to_uint32 len)))))
+          encode_pad (reveal current_log) (as_seq h0 (Buffer.sub m 0ul (Int.Cast.uint64_to_uint32 len)))
       /\ sel_elem h1 st.h == poly (reveal updated_log) (sel_elem h0 st.r)))
 let rec poly1305_blocks_loop log st m len r0 r1 r2 s1 s2 h0 h1 h2 =
   let m0 = ST.get() in
@@ -379,10 +367,14 @@ val poly1305_blocks:
   log:log_t ->
   st:poly1305_state ->
   m:uint8_p ->
-  len:FStar.UInt64.t ->
+  len:FStar.UInt64.t{U64.v len <= length m} ->
   Stack log_t
-    (requires (fun h -> True))
-    (ensures  (fun h0 _ h1 -> True))
+    (requires (fun h -> acc_inv h log st /\ live h m /\ disjoint m st.h))
+    (ensures  (fun h0 updated_log h1 -> modifies_1 st.h h0 h1
+      /\ acc_inv h1 updated_log st
+      /\ (reveal updated_log) ==
+          encode_pad (reveal log) (as_seq h0 (Buffer.sub m 0ul (Int.Cast.uint64_to_uint32 len)))
+      /\ sel_elem h1 st.h == poly (reveal updated_log) (sel_elem h0 st.r)))
 let poly1305_blocks log st m len =
   let r0 = st.r.(0ul) in
   let r1 = st.r.(1ul) in
@@ -390,11 +382,9 @@ let poly1305_blocks log st m len =
   let h0 = st.h.(0ul) in
   let h1 = st.h.(1ul) in
   let h2 = st.h.(2ul) in
-
   let five = uint64_to_sint64 5uL in
   let s1 = H64 (r1 *^ (five <<^ 2ul)) in
   let s2 = H64 (r2 *^ (five <<^ 2ul)) in
-
   poly1305_blocks_loop log st m len r0 r1 r2 s1 s2 h0 h1 h2
 
 
@@ -406,16 +396,14 @@ val poly1305_finish_:
   len:U64.t ->
   key_s:uint8_p{length key_s = 16} ->
   Stack log_t
-    (requires (fun _ -> True))
-    (ensures  (fun _ _ _ -> True))
+    (requires (fun h -> acc_inv h log st))
+    (ensures  (fun h0 updated_log h1 -> modifies_2 st.h mac h0 h1
+      /\ acc_inv h1 updated_log st))
 let poly1305_finish_ log st mac m len key_s =
   push_frame();
-
   let mask_2_44 = uint64_to_sint64 0xfffffffffffuL in
   let mask_2_42 = uint64_to_sint64 0x3ffffffffffuL in
-
   let rem = U64 (len &^ 0xfuL) in
-
   let h0 = st.h.(0ul) in
   let h1 = st.h.(1ul) in
   let h2 = st.h.(2ul) in
@@ -541,16 +529,15 @@ val poly1305_last:
   log:log_t ->
   st:poly1305_state ->
   m:uint8_p ->
-  len:U64.t ->
+  len:U64.t{U64.v len <= length m} ->
   Stack log_t
-    (requires (fun _ -> True))
-    (ensures  (fun _ _ _ -> True))
+    (requires (fun h -> acc_inv h log st /\ live h m /\ disjoint m st.h))
+    (ensures  (fun h0 updated_log h1 -> modifies_1 st.h h0 h1
+      /\ acc_inv h1 updated_log st))
 let poly1305_last log st m len =
   push_frame();
-
   let mask_2_44 = uint64_to_sint64 0xfffffffffffuL in
   let mask_2_42 = uint64_to_sint64 0x3ffffffffffuL in
-
   let h0 = st.h.(0ul) in
   let h1 = st.h.(1ul) in
   let h2 = st.h.(2ul) in
@@ -962,4 +949,3 @@ let poly1305_init r s key =
   r.(1ul) <- ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ uint64_to_sint64 0xfffffc0ffffuL;
   r.(2ul) <- ((t1 >>^ 24ul)                 ) &^ uint64_to_sint64 0x00ffffffc0fuL;
   blit key 16ul s 0ul 16ul
-
