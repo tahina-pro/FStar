@@ -10,6 +10,7 @@ open Hacl.Symmetric.Poly1305_64.Parameters
 open Hacl.Symmetric.Poly1305_64.Bigint
 
 open Hacl.Symmetric.Poly1305_64.FC.Lemmas
+open Hacl.Symmetric.Poly1305_64.FC.Lemmas2
 open Hacl.Symmetric.Poly1305_64.FC.Spec
 
 
@@ -34,6 +35,7 @@ noeq type poly1305_state = {
 
 open FStar.SeqProperties
 
+#reset-options "--initial_fuel 0 --max_fuel 0 --z3timeout 20"
 
 (* JK: living those functions here because packing them in one file gives better performance *)
 
@@ -140,6 +142,282 @@ let acc_inv h (log:log_t) (st:poly1305_state) : Type0 =
   live_st h st /\ sel_elem h st.h == poly' (Ghost.reveal log) (sel_elem h st.r)
 
 
+let limb_44 = x:h64{H64.v x < pow2 44}
+let limb_45 = x:h64{H64.v x < pow2 45}
+let limb_44_20 = x:h64{H64.v x < 20 * pow2 44}
+
+
+#reset-options "--z3timeout 20 --initial_fuel 0 --max_fuel 0"
+
+val mk_mask: nbits:U32.t{U32.v nbits < 64} -> Tot (z:h64{H64.v z = pow2 (U32.v nbits) - 1})
+let mk_mask nbits =
+  Math.Lemmas.pow2_lt_compat 64 (U32.v nbits);
+  cut( (1*pow2 (U32.v nbits)) % pow2 64 = pow2 (U32.v nbits));
+  let one = uint64_to_sint64 1uL in
+  H64 ((one <<^ nbits) -^ one)
+
+open FStar.HyperStack
+open FStar.Ghost
+
+
+(* ############################################################################# *)
+(*                              API FOR THE RECORD LAYER                         *)
+(* ############################################################################# *)
+
+
+val poly1305_encode_r:
+  r:bigint ->
+  key:uint8_p{length key = 16} ->
+  Stack unit
+    (requires (fun h -> live h r /\ live h key /\ disjoint key r))
+    (ensures  (fun h0 _ h1 -> modifies_1 r h0 h1 /\ live h1 r /\ live h0 key
+      /\ sel_elem h1 r = Hacl.Symmetric.Poly1305_64.FC.Spec.clamp (sel_word h0 (sub key 0ul 16ul))
+    ))
+let poly1305_encode_r r key =
+  let t0 = load64_le(sub key 0ul 8ul) in
+  let t1 = load64_le(sub key 8ul 8ul) in
+  let open Hacl.UInt64 in
+  let r0 = ( t0                           ) &^ uint64_to_sint64 0xffc0fffffffuL in
+  let r1 = ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ uint64_to_sint64 0xfffffc0ffffuL in
+  let r2 = ((t1 >>^ 24ul)                 ) &^ uint64_to_sint64 0x00ffffffc0fuL in
+  r.(0ul) <- r0;
+  r.(1ul) <- r1;
+  r.(2ul) <- r2;
+  let h1 = ST.get() in
+  cut (get h1 r 0 == r0 /\ get h1 r 1 == r1 /\ get h1 r 2 == r2);
+  admit() // WIP
+
+
+val toField_plus_2_128:
+  b:bigint ->
+  m:wordB_16 ->
+  Stack unit
+    (requires (fun h -> live h b /\ live h m /\ disjoint b m))
+    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
+let toField_plus_2_128 b m =
+  (* Load block values *)
+  let t0 = load64_le m in
+  let t1 = load64_le (offset m 8ul) in
+  (* Useful masks *)
+  let mask_2_44 = mk_mask 44ul in
+  let mask_2_42 = mk_mask 42ul in
+  let open Hacl.UInt64 in
+  let t_0 = t0 &^ mask_2_44 in
+  let t_1 = ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44 in
+  let t_2 = ((t1 >>^ 24ul) &^ mask_2_42) |^ (uint64_to_sint64 1uL <<^ 40ul) in
+  b.(0ul) <- t_0;
+  b.(1ul) <- t_1;
+  b.(2ul) <- t_2
+
+
+val toField_plus:
+  len:U32.t ->
+  b:bigint ->
+  m:wordB ->
+  Stack unit
+    (requires (fun h -> live h b /\ live h m /\ disjoint b m))
+    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
+let toField_plus len b m' =
+  (* Load block values *)
+  let m = create (uint8_to_sint8 0uy) 16ul in
+  blit m' 0ul m 0ul len;
+  let t0 = load64_le m in
+  let t1 = load64_le (offset m 8ul) in
+  (* Useful masks *)
+  let mask_2_44 = mk_mask 44ul in
+  let mask_2_42 = mk_mask 42ul in
+  let open Hacl.UInt64 in
+  let t_0 = t0 &^ mask_2_44 in
+  let t_1 = ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44 in
+  let t_2 = ((t1 >>^ 24ul) &^ mask_2_42) |^ (uint64_to_sint64 1uL <<^ (U32 (24ul+^ len))) in
+  b.(0ul) <- t_0;
+  b.(1ul) <- t_1;
+  b.(2ul) <- t_2
+
+
+val toField:
+  b:bigint ->
+  m:wordB_16 ->
+  Stack unit
+    (requires (fun h -> live h b /\ live h m /\ disjoint b m))
+    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
+let toField b m =
+  (* Load block values *)
+  let t0 = load64_le m in
+  let t1 = load64_le (offset m 8ul) in
+  (* Useful masks *)
+  let mask_2_44 = mk_mask 44ul in
+  let mask_2_42 = mk_mask 42ul in
+  let open Hacl.UInt64 in
+  let t_0 = t0 &^ mask_2_44 in
+  let t_1 = ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44 in
+  let t_2 = ((t1 >>^ 24ul) &^ mask_2_42) in
+  b.(0ul) <- t_0;
+  b.(1ul) <- t_1;
+  b.(2ul) <- t_2
+
+
+val add_and_multiply:
+  acc:bigint ->
+  block:bigint ->
+  r:bigint ->
+  Stack unit
+    (requires (fun _ -> True))
+    (ensures  (fun _ _ _ -> True))
+let add_and_multiply acc block r =
+  let mask_2_44 = mk_mask 44ul in
+  let mask_2_42 = mk_mask 42ul in
+  let five = uint64_to_sint64 5uL in
+  let r0 = r.(0ul) in
+  let r1 = r.(1ul) in
+  let r2 = r.(2ul) in
+  let s1 = H64 (r1 *^ (five <<^ 2ul)) in
+  let s2 = H64 (r2 *^ (five <<^ 2ul)) in
+  let h0 = acc.(0ul) in
+  let h1 = acc.(1ul) in
+  let h2 = acc.(2ul) in
+  let t_0 = block.(0ul) in
+  let t_1 = block.(1ul) in
+  let t_2 = block.(2ul) in
+  let open Hacl.UInt64 in
+  let h0 = h0 +^ t_0 in
+  assume (v h1 + v t_1 < pow2 64);
+  let h1 = h1 +^ t_1 in
+  assume (v h2 + v t_2 < pow2 64);
+  let h2 = h2 +^ t_2 in
+  let open Hacl.UInt128 in
+  let d0 = h0 *^ r0 in
+  let d  = h1 *^ s2 in
+  assume (v d0 + v d < pow2 128);
+  let d0 = d0 +^ d  in
+  let d  = h2 *^ s1 in
+  assume (v d0 + v d < pow2 128);
+  let d0 = d0 +^ d  in
+  let d1 = h0 *^ r1 in
+  let d  = h1 *^ r0 in
+  assume (v d1 + v d < pow2 128);
+  let d1 = d1 +^ d  in
+  let d  = h2 *^ s2 in
+  assume (v d1 + v d < pow2 128);
+  let d1 = d1 +^ d  in
+  let d2 = h0 *^ r2 in
+  let d  = h1 *^ r1 in
+  assume (v d2 + v d < pow2 128);
+  let d2 = d2 +^ d  in
+  let d  = h2 *^ r0 in
+  assume (v d2 + v d < pow2 128);
+  let d2 = d2 +^ d  in
+  let c  = sint128_to_sint64 (d0 >>^ 44ul) in
+  let h0 = H64 (sint128_to_sint64 d0 &^ mask_2_44) in
+  let d1 = d1 +^ sint64_to_sint128 c in
+  let c  = sint128_to_sint64 (d1 >>^ 44ul) in
+  let h1 = H64 (sint128_to_sint64 d1 &^ mask_2_44) in
+  assume (v d2 + H64.v c < pow2 128);
+  let d2 = d2 +^ sint64_to_sint128 c in
+  let c  = sint128_to_sint64 (d2 >>^ 42ul) in
+  let h2 = H64 (sint128_to_sint64 d2 &^ mask_2_42) in
+  let open Hacl.UInt64 in
+  assume (v c * 5 < pow2 64 /\ v h0 + v c * 5 < pow2 64);
+  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  assume (v h0 + v c < pow2 64);
+  let h1 = h1 +^ c in
+  acc.(0ul) <- h0;
+  acc.(1ul) <- h1;
+  acc.(2ul) <- h2
+
+
+val poly1305_finish:
+  mac:uint8_p ->
+  acc:bigint ->
+  key_s:uint8_p{length key_s = 16} ->
+  Stack unit
+    (requires (fun _ -> True))
+    (ensures  (fun _ _ _ -> True))
+let poly1305_finish mac acc key_s =
+  push_frame();
+  let mask_2_44 = uint64_to_sint64 0xfffffffffffuL in
+  let mask_2_42 = uint64_to_sint64 0x3ffffffffffuL in
+  let h0 = acc.(0ul) in
+  let h1 = acc.(1ul) in
+  let h2 = acc.(2ul) in
+  let open Hacl.UInt64 in
+  let c  = h1 >>^ 44ul in
+  let h1 = h1 &^ mask_2_44 in
+  let h2 = h2 +^ c in
+  let c  = h2 >>^ 42ul in
+  let h2 = h2 &^ mask_2_42 in
+  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  let h1 = h1 +^ c in
+  let c  = h1 >>^ 44ul in
+  let h1 = h1 &^ mask_2_44 in
+  let h2 = h2 +^ c in
+  let c  = h2 >>^ 42ul in
+  let h2 = h2 &^ mask_2_42 in
+  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  let h1 = h1 +^ c in
+  let mask = (eq_mask h0 mask_2_44)
+             &^ (eq_mask h1 mask_2_44)
+             &^ (gte_mask h2 (uint64_to_sint64 0x3fffffffffbuL)) in
+  let h0 = h0 &^ lognot mask in
+  let h1 = h1 &^ lognot mask in
+  let h2 = h2 -^ ((uint64_to_sint64 0x3fffffffffbuL) &^ mask) in
+  let t0 = load64_le (offset key_s 0ul) in
+  let t1 = load64_le (offset key_s 8ul) in
+  let h0 = h0 +^ (t0 &^ mask_2_44) in
+  let c  = h0 >>^ 44ul in
+  let h0 = h0 &^ mask_2_44 in
+  let h1 = h1 +^ (((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44) +^ c in
+  let c  = h1 >>^ 44ul in
+  let h1 = h1 &^ mask_2_44 in
+  let h2 = h2 +^ ((t1 >>^ 24ul) &^ mask_2_42) +^ c in
+  let h2 = h2 &^ mask_2_42 in
+  let h0 = h0 |^ (h1 <<^ 44ul) in
+  let h1 = (h1 >>^ 20ul) |^ (h2 <<^ 24ul) in
+  store64_le mac h0;
+  store64_le (offset mac 8ul) h1;
+  pop_frame()
+
+
+val poly1305_start:
+  a:elemB ->
+  Stack unit
+    (requires (fun h -> live h a))
+    (ensures  (fun h0 _ h1 -> live h1 a /\ modifies_1 a h0 h1 /\ sel_elem h1 a = 0))
+let poly1305_start a =
+  let zero_64 = uint64_to_sint64 0uL in
+  a.(0ul) <- zero_64;
+  a.(1ul) <- zero_64;
+  a.(2ul) <- zero_64
+
+
+val poly1305_init:
+  r:elemB ->
+  s:wordB_16 ->
+  key:uint8_p{length key = 32} ->
+  Stack unit
+    (requires (fun h -> live h r /\ live h s /\ live h key))
+    (ensures  (fun h0 _ h1 -> modifies_2 r s h0 h1 /\ live h1 r /\ live h1 s))
+let poly1305_init r s key =
+  let t0 = load64_le(key) in
+  let t1 = load64_le(offset key 8ul) in
+  let open Hacl.UInt64 in
+  r.(0ul) <- ( t0                           ) &^ uint64_to_sint64 0xffc0fffffffuL;
+  r.(1ul) <- ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ uint64_to_sint64 0xfffffc0ffffuL;
+  r.(2ul) <- ((t1 >>^ 24ul)                 ) &^ uint64_to_sint64 0x00ffffffc0fuL;
+  blit key 16ul s 0ul 16ul
+
+
+(* ******************* *)
+(* Fast implementation *)
+(* ******************* *)
+
+
 val poly1305_init_:
   st:poly1305_state ->
   key:uint8_p{length key = 32} ->
@@ -161,32 +439,6 @@ let poly1305_init_ st key =
   st.h.(1ul) <- zero;
   st.h.(2ul) <- zero;
   Ghost.hide (Seq.createEmpty #elem)
-
-
-let eval_3_limbs (h0:H64.t) (h1:H64.t) (h2:H64.t) : GTot nat =
-  let open Hacl.UInt64 in
-  Math.Lemmas.nat_times_nat_is_nat (pow2 44) (v h1);
-  Math.Lemmas.nat_times_nat_is_nat (pow2 88) (v h2);
-  (v h0 + pow2 44 * v h1 + pow2 88 * v h2) % prime
-
-
-let limb_44 = x:h64{H64.v x < pow2 44}
-let limb_45 = x:h64{H64.v x < pow2 45}
-let limb_44_20 = x:h64{H64.v x < 20 * pow2 44}
-
-
-val mk_mask: nbits:U32.t{U32.v nbits < 64} -> Tot (z:h64{H64.v z = pow2 (U32.v nbits) - 1})
-let mk_mask nbits =
-  admit();
-  let one = uint64_to_sint64 1uL in
-  H64 ((one <<^ nbits) -^ one)
-
-open FStar.HyperStack
-
-#reset-options "--z3timeout 20 --initial_fuel 0 --max_fuel 0"
-
-
-open FStar.Ghost
 
 
 val poly1305_update:
@@ -740,249 +992,3 @@ let crypto_onetimeauth output input len k =
   let partial_log = poly1305_blocks init_log st input len in
   let final_log = poly1305_finish_ partial_log st output input len key_s in
   pop_frame()
-
-(* ############################################################################# *)
-(*                              API FOR THE RECORD LAYER                         *)
-(* ############################################################################# *)
-
-
-val poly1305_encode_r:
-  r:bigint ->
-  key:uint8_p{length key = 16} ->
-  Stack unit
-    (requires (fun h -> live h r /\ live h key /\ disjoint key r))
-    (ensures  (fun h0 _ h1 -> modifies_1 r h0 h1 /\ live h1 r /\ live h0 key
-      /\ sel_elem h1 r = Hacl.Symmetric.Poly1305_64.FC.Spec.clamp (sel_word h0 (sub key 0ul 16ul))
-    ))
-let poly1305_encode_r r key =
-  let t0 = load64_le(key) in
-  let t1 = load64_le(offset key 8ul) in
-  let open Hacl.UInt64 in
-  r.(0ul) <- ( t0                           ) &^ uint64_to_sint64 0xffc0fffffffuL;
-  r.(1ul) <- ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ uint64_to_sint64 0xfffffc0ffffuL;
-  r.(2ul) <- ((t1 >>^ 24ul)                 ) &^ uint64_to_sint64 0x00ffffffc0fuL
-
-
-val toField_plus_2_128:
-  b:bigint ->
-  m:wordB_16 ->
-  Stack unit
-    (requires (fun h -> live h b /\ live h m /\ disjoint b m))
-    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
-let toField_plus_2_128 b m =
-  (* Load block values *)
-  let t0 = load64_le m in
-  let t1 = load64_le (offset m 8ul) in
-  (* Useful masks *)
-  let mask_2_44 = mk_mask 44ul in
-  let mask_2_42 = mk_mask 42ul in
-  let open Hacl.UInt64 in
-  let t_0 = t0 &^ mask_2_44 in
-  let t_1 = ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44 in
-  let t_2 = ((t1 >>^ 24ul) &^ mask_2_42) |^ (uint64_to_sint64 1uL <<^ 40ul) in
-  b.(0ul) <- t_0;
-  b.(1ul) <- t_1;
-  b.(2ul) <- t_2
-
-
-val toField_plus:
-  len:U32.t ->
-  b:bigint ->
-  m:wordB ->
-  Stack unit
-    (requires (fun h -> live h b /\ live h m /\ disjoint b m))
-    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
-let toField_plus len b m' =
-  (* Load block values *)
-  let m = create (uint8_to_sint8 0uy) 16ul in
-  blit m' 0ul m 0ul len;
-  let t0 = load64_le m in
-  let t1 = load64_le (offset m 8ul) in
-  (* Useful masks *)
-  let mask_2_44 = mk_mask 44ul in
-  let mask_2_42 = mk_mask 42ul in
-  let open Hacl.UInt64 in
-  let t_0 = t0 &^ mask_2_44 in
-  let t_1 = ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44 in
-  let t_2 = ((t1 >>^ 24ul) &^ mask_2_42) |^ (uint64_to_sint64 1uL <<^ (U32 (24ul+^ len))) in
-  b.(0ul) <- t_0;
-  b.(1ul) <- t_1;
-  b.(2ul) <- t_2
-
-
-val toField:
-  b:bigint ->
-  m:wordB_16 ->
-  Stack unit
-    (requires (fun h -> live h b /\ live h m /\ disjoint b m))
-    (ensures  (fun h0 _ h1 -> modifies_1 b h0 h1 /\ live h1 b))
-let toField b m =
-  (* Load block values *)
-  let t0 = load64_le m in
-  let t1 = load64_le (offset m 8ul) in
-  (* Useful masks *)
-  let mask_2_44 = mk_mask 44ul in
-  let mask_2_42 = mk_mask 42ul in
-  let open Hacl.UInt64 in
-  let t_0 = t0 &^ mask_2_44 in
-  let t_1 = ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44 in
-  let t_2 = ((t1 >>^ 24ul) &^ mask_2_42) in
-  b.(0ul) <- t_0;
-  b.(1ul) <- t_1;
-  b.(2ul) <- t_2
-
-
-val add_and_multiply:
-  acc:bigint ->
-  block:bigint ->
-  r:bigint ->
-  Stack unit
-    (requires (fun _ -> True))
-    (ensures  (fun _ _ _ -> True))
-let add_and_multiply acc block r =
-  let mask_2_44 = mk_mask 44ul in
-  let mask_2_42 = mk_mask 42ul in
-  let five = uint64_to_sint64 5uL in
-  let r0 = r.(0ul) in
-  let r1 = r.(1ul) in
-  let r2 = r.(2ul) in
-  let s1 = H64 (r1 *^ (five <<^ 2ul)) in
-  let s2 = H64 (r2 *^ (five <<^ 2ul)) in
-  let h0 = acc.(0ul) in
-  let h1 = acc.(1ul) in
-  let h2 = acc.(2ul) in
-  let t_0 = block.(0ul) in
-  let t_1 = block.(1ul) in
-  let t_2 = block.(2ul) in
-  let open Hacl.UInt64 in
-  let h0 = h0 +^ t_0 in
-  assume (v h1 + v t_1 < pow2 64);
-  let h1 = h1 +^ t_1 in
-  assume (v h2 + v t_2 < pow2 64);
-  let h2 = h2 +^ t_2 in
-  let open Hacl.UInt128 in
-  let d0 = h0 *^ r0 in
-  let d  = h1 *^ s2 in
-  assume (v d0 + v d < pow2 128);
-  let d0 = d0 +^ d  in
-  let d  = h2 *^ s1 in
-  assume (v d0 + v d < pow2 128);
-  let d0 = d0 +^ d  in
-  let d1 = h0 *^ r1 in
-  let d  = h1 *^ r0 in
-  assume (v d1 + v d < pow2 128);
-  let d1 = d1 +^ d  in
-  let d  = h2 *^ s2 in
-  assume (v d1 + v d < pow2 128);
-  let d1 = d1 +^ d  in
-  let d2 = h0 *^ r2 in
-  let d  = h1 *^ r1 in
-  assume (v d2 + v d < pow2 128);
-  let d2 = d2 +^ d  in
-  let d  = h2 *^ r0 in
-  assume (v d2 + v d < pow2 128);
-  let d2 = d2 +^ d  in
-  let c  = sint128_to_sint64 (d0 >>^ 44ul) in
-  let h0 = H64 (sint128_to_sint64 d0 &^ mask_2_44) in
-  let d1 = d1 +^ sint64_to_sint128 c in
-  let c  = sint128_to_sint64 (d1 >>^ 44ul) in
-  let h1 = H64 (sint128_to_sint64 d1 &^ mask_2_44) in
-  assume (v d2 + H64.v c < pow2 128);
-  let d2 = d2 +^ sint64_to_sint128 c in
-  let c  = sint128_to_sint64 (d2 >>^ 42ul) in
-  let h2 = H64 (sint128_to_sint64 d2 &^ mask_2_42) in
-  let open Hacl.UInt64 in
-  assume (v c * 5 < pow2 64 /\ v h0 + v c * 5 < pow2 64);
-  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
-  let c  = h0 >>^ 44ul in
-  let h0 = h0 &^ mask_2_44 in
-  assume (v h0 + v c < pow2 64);
-  let h1 = h1 +^ c in
-  acc.(0ul) <- h0;
-  acc.(1ul) <- h1;
-  acc.(2ul) <- h2
-
-
-val poly1305_finish:
-  mac:uint8_p ->
-  acc:bigint ->
-  key_s:uint8_p{length key_s = 16} ->
-  Stack unit
-    (requires (fun _ -> True))
-    (ensures  (fun _ _ _ -> True))
-let poly1305_finish mac acc key_s =
-  push_frame();
-  let mask_2_44 = uint64_to_sint64 0xfffffffffffuL in
-  let mask_2_42 = uint64_to_sint64 0x3ffffffffffuL in
-  let h0 = acc.(0ul) in
-  let h1 = acc.(1ul) in
-  let h2 = acc.(2ul) in
-  let open Hacl.UInt64 in
-  let c  = h1 >>^ 44ul in
-  let h1 = h1 &^ mask_2_44 in
-  let h2 = h2 +^ c in
-  let c  = h2 >>^ 42ul in
-  let h2 = h2 &^ mask_2_42 in
-  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
-  let c  = h0 >>^ 44ul in
-  let h0 = h0 &^ mask_2_44 in
-  let h1 = h1 +^ c in
-  let c  = h1 >>^ 44ul in
-  let h1 = h1 &^ mask_2_44 in
-  let h2 = h2 +^ c in
-  let c  = h2 >>^ 42ul in
-  let h2 = h2 &^ mask_2_42 in
-  let h0 = h0 +^ (c *^ uint64_to_sint64 5uL) in
-  let c  = h0 >>^ 44ul in
-  let h0 = h0 &^ mask_2_44 in
-  let h1 = h1 +^ c in
-  let mask = (eq_mask h0 mask_2_44)
-             &^ (eq_mask h1 mask_2_44)
-             &^ (gte_mask h2 (uint64_to_sint64 0x3fffffffffbuL)) in
-  let h0 = h0 &^ lognot mask in
-  let h1 = h1 &^ lognot mask in
-  let h2 = h2 -^ ((uint64_to_sint64 0x3fffffffffbuL) &^ mask) in
-  let t0 = load64_le (offset key_s 0ul) in
-  let t1 = load64_le (offset key_s 8ul) in
-  let h0 = h0 +^ (t0 &^ mask_2_44) in
-  let c  = h0 >>^ 44ul in
-  let h0 = h0 &^ mask_2_44 in
-  let h1 = h1 +^ (((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ mask_2_44) +^ c in
-  let c  = h1 >>^ 44ul in
-  let h1 = h1 &^ mask_2_44 in
-  let h2 = h2 +^ ((t1 >>^ 24ul) &^ mask_2_42) +^ c in
-  let h2 = h2 &^ mask_2_42 in
-  let h0 = h0 |^ (h1 <<^ 44ul) in
-  let h1 = (h1 >>^ 20ul) |^ (h2 <<^ 24ul) in
-  store64_le mac h0;
-  store64_le (offset mac 8ul) h1;
-  pop_frame()
-
-
-val poly1305_start:
-  a:elemB ->
-  Stack unit
-    (requires (fun h -> live h a))
-    (ensures  (fun h0 _ h1 -> live h1 a /\ modifies_1 a h0 h1 /\ sel_elem h1 a = 0))
-let poly1305_start a =
-  let zero_64 = uint64_to_sint64 0uL in
-  a.(0ul) <- zero_64;
-  a.(1ul) <- zero_64;
-  a.(2ul) <- zero_64
-
-
-val poly1305_init:
-  r:elemB ->
-  s:wordB_16 ->
-  key:uint8_p{length key = 32} ->
-  Stack unit
-    (requires (fun h -> live h r /\ live h s /\ live h key))
-    (ensures  (fun h0 _ h1 -> modifies_2 r s h0 h1 /\ live h1 r /\ live h1 s))
-let poly1305_init r s key =
-  let t0 = load64_le(key) in
-  let t1 = load64_le(offset key 8ul) in
-  let open Hacl.UInt64 in
-  r.(0ul) <- ( t0                           ) &^ uint64_to_sint64 0xffc0fffffffuL;
-  r.(1ul) <- ((t0 >>^ 44ul) |^ (t1 <<^ 20ul)) &^ uint64_to_sint64 0xfffffc0ffffuL;
-  r.(2ul) <- ((t1 >>^ 24ul)                 ) &^ uint64_to_sint64 0x00ffffffc0fuL;
-  blit key 16ul s 0ul 16ul
