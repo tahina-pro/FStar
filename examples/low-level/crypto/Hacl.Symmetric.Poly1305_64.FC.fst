@@ -9,6 +9,7 @@ open Hacl.Cast
 open Hacl.Symmetric.Poly1305_64.Parameters
 open Hacl.Symmetric.Poly1305_64.Bigint
 
+open Hacl.Symmetric.Poly1305_64.FC.Lemmas
 open Hacl.Symmetric.Poly1305_64.FC.Spec
 
 
@@ -18,6 +19,7 @@ module H128 = Hacl.UInt128
 module U8   = FStar.UInt8
 module U32  = FStar.UInt32
 module U64  = FStar.UInt64
+
 
 let elemB : Type0 = b:bigint
 
@@ -29,15 +31,20 @@ noeq type poly1305_state = {
   h:bigint;
   }
 
+
 open FStar.SeqProperties
+
+
+(* JK: living those functions here because packing them in one file gives better performance *)
 
 val load64_le:
   b:uint8_p{length b = 8} ->
   Stack h64
     (requires (fun h -> live h b))
-    (ensures  (fun h0 r h1 -> h0 == h1
+    (ensures  (fun h0 r h1 -> h0 == h1 /\ live h0 b
       /\ H64.v r = little_endian (as_seq h0 b)))
 let load64_le b =
+  let h = ST.get() in
   let b0 = b.(0ul) in
   let b1 = b.(1ul) in
   let b2 = b.(2ul) in
@@ -46,6 +53,16 @@ let load64_le b =
   let b5 = b.(5ul) in
   let b6 = b.(6ul) in
   let b7 = b.(7ul) in
+  cut (b0 == get h b 0);
+  cut (b1 == get h b 1);
+  cut (b2 == get h b 2);
+  cut (b3 == get h b 3);
+  cut (b4 == get h b 4);
+  cut (b5 == get h b 5);
+  cut (b6 == get h b 6);
+  cut (b7 == get h b 7);
+  lemma_little_endian_8 h b;
+  lemma_load64_le b0 b1 b2 b3 b4 b5 b6 b7;
   H64 (
     sint8_to_sint64 b0
     |^ (sint8_to_sint64 b1 <<^ 8ul)
@@ -59,7 +76,7 @@ let load64_le b =
 
 
 val store64_le:
-  b:uint8_p{length b >= 8} ->
+  b:uint8_p{length b = 8} ->
   z:H64.t ->
   Stack unit
     (requires (fun h -> live h b))
@@ -67,14 +84,34 @@ val store64_le:
       /\ H64.v z = little_endian (as_seq h1 b)))
 let store64_le b z =
   let open Hacl.UInt64 in
-  b.(0ul) <- sint64_to_sint8 z;
-  b.(1ul) <- sint64_to_sint8 (z >>^ 8ul);
-  b.(2ul) <- sint64_to_sint8 (z >>^ 16ul);
-  b.(3ul) <- sint64_to_sint8 (z >>^ 24ul);
-  b.(4ul) <- sint64_to_sint8 (z >>^ 32ul);
-  b.(5ul) <- sint64_to_sint8 (z >>^ 40ul);
-  b.(6ul) <- sint64_to_sint8 (z >>^ 48ul);
-  b.(7ul) <- sint64_to_sint8 (z >>^ 56ul)
+  let b0 = sint64_to_sint8 z in
+  let b1 = sint64_to_sint8 (z >>^ 8ul) in
+  let b2 = sint64_to_sint8 (z >>^ 16ul) in
+  let b3 = sint64_to_sint8 (z >>^ 24ul) in
+  let b4 = sint64_to_sint8 (z >>^ 32ul) in
+  let b5 = sint64_to_sint8 (z >>^ 40ul) in
+  let b6 = sint64_to_sint8 (z >>^ 48ul) in
+  let b7 = sint64_to_sint8 (z >>^ 56ul) in
+  b.(0ul) <- b0;
+  b.(1ul) <- b1;
+  b.(2ul) <- b2;
+  b.(3ul) <- b3;
+  b.(4ul) <- b4;
+  b.(5ul) <- b5;
+  b.(6ul) <- b6;
+  b.(7ul) <- b7;
+  let h1 = ST.get() in
+  cut (b0 == get h1 b 0);
+  cut (b1 == get h1 b 1);
+  cut (b2 == get h1 b 2);
+  cut (b3 == get h1 b 3);
+  cut (b4 == get h1 b 4);
+  cut (b5 == get h1 b 5);
+  cut (b6 == get h1 b 6);
+  cut (b7 == get h1 b 7);
+  lemma_little_endian_8 h1 b;
+  lemma_store64_le_ z
+
 
 open FStar.HyperStack
 
@@ -714,9 +751,9 @@ val poly1305_encode_r:
   key:uint8_p{length key = 16} ->
   Stack unit
     (requires (fun h -> live h r /\ live h key /\ disjoint key r))
-    (ensures  (fun h0 _ h1 -> modifies_1 r h0 h1 /\ live h1 r
-      // TODO: function correctness
-      ))
+    (ensures  (fun h0 _ h1 -> modifies_1 r h0 h1 /\ live h1 r /\ live h0 key
+      /\ sel_elem h1 r = Hacl.Symmetric.Poly1305_64.FC.Spec.clamp (sel_word h0 (sub key 0ul 16ul))
+    ))
 let poly1305_encode_r r key =
   let t0 = load64_le(key) in
   let t1 = load64_le(offset key 8ul) in
