@@ -247,6 +247,7 @@ let prf_mac i t x =
       assume (MAC (norm h0 mac.r)); //TODO: replace this using monotonicity
       assume (HS (Buffer (MAC (not ((Buffer.content mac.s).mm))))); //TODO: mark this as not manually managed
       Buffer.recall (MAC mac.s);
+      if mac_log then m_recall (MAC (ilog mac.log));
       mac
     | None ->
       let mac = MAC.gen macId t.mac_rgn in
