@@ -247,7 +247,26 @@ let mac_ensures (i:MAC.id) (st:MAC.state i) (l:MAC.itext) (acc:MAC.accB i) (tag:
       mac == little_endian (sel_word h1 tag) /\
       m_sel h1 (ilog st.log) == Some (l, sel_word h1 tag))
     else Buffer.modifies_1 tag h0 h1)
-    
+
+let encrypt_ensures (i:id) (st:state i Writer)
+		    (n: Cipher.iv (alg i))
+		    (aadlen: UInt32.t {aadlen <=^ aadmax})
+		    (aad: lbuffer (v aadlen))
+		    (plainlen: UInt32.t {plainlen <> 0ul /\ safelen i (v plainlen) 1ul})
+		    (plain: plainBuffer i (v plainlen))
+		    (cipher_tagged:lbuffer (v plainlen + v (Spec.taglen i)))
+		    (h0:mem) (h5:mem) = 
+     Buffer.live h5 aad /\
+     Buffer.live h5 cipher_tagged /\
+     Plain.live h5 plain /\
+     my_inv st h5 /\
+     HS.modifies_transitively (as_set [st.log_region; Buffer.frameOf cipher_tagged]) h0 h5 /\ (
+     safeId i ==>  (
+       let aad = Buffer.as_seq h5 aad in
+       let p = Plain.sel_plain h5 plainlen plain in
+       let c = Buffer.as_seq h5 cipher_tagged in
+       HS.sel h5 st.log == SeqProperties.snoc (HS.sel h0 st.log) (Entry n aad (v plainlen) p c)))
+
 val finish_after_mac: h0:mem -> h3:mem -> i:id -> st:state i Writer -> 
 		      n: Cipher.iv (alg i) ->
 		      aadlen: UInt32.t {aadlen <=^ aadmax} -> 
@@ -282,18 +301,8 @@ val finish_after_mac: h0:mem -> h3:mem -> i:id -> st:state i Writer ->
 	match PRF.find_mac tab x0 with
 	| None -> False
 	| Some mac_st -> mac_st == ak))))
-   (ensures (fun h4 _ h5 -> 
-	           Buffer.live h5 aad /\
-		   Buffer.live h5 cipher_tagged /\
-		   Plain.live h5 plain /\
-		   my_inv st h5 /\
-		   HS.modifies_transitively (as_set [st.log_region; Buffer.frameOf cipher_tagged]) h0 h5 /\ (
-		   safeId i ==>  (
-		     let aad = Buffer.as_seq h5 aad in
-		     let p = Plain.sel_plain h5 plainlen plain in
-		     let c = Buffer.as_seq h5 cipher_tagged in
-		     HS.sel h5 st.log == SeqProperties.snoc (HS.sel h0 st.log) (Entry n aad (v plainlen) p c)))))
-
+   (ensures (fun _ _ h5 -> 
+	      encrypt_ensures i st n aadlen aad plainlen plain cipher_tagged h0 h5))
 let finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag = 
   if prf i then recall (itable i st.prf);
   if safeId i then recall st.log;
@@ -337,16 +346,7 @@ val encrypt:
     (prf i ==> none_above ({iv=n; ctr=0ul}) st.prf h) // The nonce must be fresh!
    ))
   (ensures (fun h0 _ h5 ->
-  	           Buffer.live h5 aad /\
-		   Buffer.live h5 cipher_tagged /\
-		   Plain.live h5 plain /\
-		   my_inv st h5 /\
-		   HS.modifies_transitively (as_set [st.log_region; Buffer.frameOf cipher_tagged]) h0 h5 /\ (
-		   safeId i ==>  (
-		     let aad = Buffer.as_seq h5 aad in
-		     let p = Plain.sel_plain h5 plainlen plain in
-		     let c = Buffer.as_seq h5 cipher_tagged in
-		     HS.sel h5 st.log == SeqProperties.snoc (HS.sel h0 st.log) (Entry n aad (v plainlen) p c)))))
+    encrypt_ensures i st n aadlen aad plainlen plain cipher_tagged h0 h5))
     (* Buffer.m_ref (Buffer.frameOf cipher) !{Buffer.modifies_1 cipher h0 h1 /\  *) 
 unfold let mac_ensures_2 (i:MAC.id) (st:MAC.state i) (l:MAC.itext) (acc:MAC.accB i) (tag:MAC.tagB) 
 		(h0:mem) (h1:mem) = 
@@ -426,5 +426,5 @@ let encrypt i st n aadlen aad plainlen plain cipher_tagged =
   //MAC
   mac_wrapper #(i,n) ak l acc tag;
   //Some ideal and proof steps, to finish up
-  finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag;
-  admit()
+  finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag
+

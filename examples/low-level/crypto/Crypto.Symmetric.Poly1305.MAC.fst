@@ -362,7 +362,7 @@ val mac: #i:id -> st:state i -> l:itext -> acc:accB i -> tag:tagB -> ST unit
     live h0 st.r /\ 
     live h1 tag /\ (
     if mac_log then
-      HS.modifies (as_set [st.region; Buffer.frameOf tag]) h0 h1 /\
+      HS.modifies (Set.union (Set.singleton st.region) (Set.singleton (Buffer.frameOf tag))) h0 h1 /\
       mods_2 [Ref (as_hsref (ilog st.log)); Ref (Buffer.content tag)] h0 h1 /\
       Buffer.modifies_buf_1 (Buffer.frameOf tag) tag h0 h1 /\
       HS.modifies_ref st.region !{HS.as_ref (as_hsref (ilog st.log))} h0 h1 /\
