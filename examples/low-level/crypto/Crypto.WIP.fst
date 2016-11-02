@@ -30,7 +30,6 @@ module MAC = Crypto.Symmetric.Poly1305.MAC
 module Cipher = Crypto.Symmetric.Cipher
 module PRF = Crypto.Symmetric.PRF
 
-#set-options "--lax"
 (* #reset-options "--z3timeout 200 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0" *)
 (* let test (h0:HS.mem) (h1:HS.mem) (r:rid) =  *)
 (*   let open FStar.HyperStack in  *)
@@ -90,7 +89,7 @@ let modifies_fresh_empty (i:id) (n: Cipher.iv (alg i)) (r:rid) (m:MAC.state (i,n
   = assert (safeId i ==> prf i /\ mac_log);
     ()
   
-(* #reset-options "--z3timeout 400 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0 --log_queries" *)
+#reset-options "--z3timeout 400 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 
 val extend_refines_aux: (i:id) -> (st:state i Writer) -> (nonce:Cipher.iv (alg i)) ->
 		       (aadlen: UInt32.t {aadlen <=^ aadmax}) ->
@@ -145,7 +144,7 @@ assume val to_seq_temp: #a:Type -> b:Buffer.buffer a -> l:UInt32.t{v l <= Buffer
   (requires (fun h -> Buffer.live h b))
   (ensures  (fun h0 r h1 -> h0 == h1 /\ Buffer.live h1 b /\ r == Buffer.as_seq h1 b))
 
-(* #reset-options "--z3timeout 400 --initial_fuel 1 --max_fuel 1 --initial_ifuel 0 --max_ifuel 0" *)
+#reset-options "--z3timeout 400 --initial_fuel 1 --max_fuel 1 --initial_ifuel 0 --max_ifuel 0"
 let rec frame_refines (i:id{safeId i}) (mac_rgn:region) 
 		      (entries:Seq.seq (entry i)) (blocks:Seq.seq (PRF.entry mac_rgn i))
 		      (h:mem) (h':mem)
@@ -164,7 +163,7 @@ let rec frame_refines (i:id{safeId i}) (mac_rgn:region)
 	  frame_refines i mac_rgn entries_tl blocks_tl h h';
 	  frame_refines_one_entry h i mac_rgn e blocks_for_e h')
 
-(* #reset-options "--z3timeout 400 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0" *)
+#reset-options "--z3timeout 400 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0"
 val refines_to_inv: (i:id) -> (st:state i Writer) -> (nonce:Cipher.iv (alg i)) ->
 		       (aadlen: UInt32.t {aadlen <=^ aadmax}) ->
 		       (aad: lbuffer (v aadlen)) ->
@@ -428,5 +427,5 @@ let encrypt i st n aadlen aad plainlen plain cipher_tagged =
   mac_wrapper #(i,n) ak l acc tag;
   //Some ideal and proof steps, to finish up
   finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag;
-  admit() //TODO: post-condition still failing for some bizarre reason, despite it seemingly matching up exactly
+  admit() //TODO: post-condition still failing for some bizarre reason, despite it seemingly matching up exact
 
