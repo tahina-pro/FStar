@@ -30,22 +30,6 @@ module MAC = Crypto.Symmetric.Poly1305.MAC
 module Cipher = Crypto.Symmetric.Cipher
 module PRF = Crypto.Symmetric.PRF
 
-(* #reset-options "--z3timeout 200 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0" *)
-(* let test (h0:HS.mem) (h1:HS.mem) (r:rid) =  *)
-(*   let open FStar.HyperStack in  *)
-(*   assume (r `HS.is_in` h0.h); *)
-(*   assume (Buffer.modifies_0 h0 h1); *)
-(*   Buffer.lemma_reveal_modifies_0 h0 h1; *)
-(*   assume (r <> h0.tip); *)
-(*   assert (Map.sel h1.h r == Map.sel h0.h r) *)
-  
-(* assume val temp_to_seq: #a:Type -> b:Buffer.buffer a -> ST (Seq.seq a) *)
-(*   (requires (fun h -> Buffer.live h b)) *)
-(*   (ensures  (fun h0 r h1 -> h0 == h1 /\ Buffer.live h1 b /\r == Buffer.as_seq #a h1 b)) *)
-
-(* assume val temp_get_plain: #i:id -> #l:UInt32.t -> buf:plainBuffer i (v l) -> ST (plain i (v l)) *)
-(*   (requires (fun h -> Plain.live h buf)) *)
-(*   (ensures (fun h0 p h1 -> h0==h1 /\ Plain.live h0 buf /\p == Plain.sel_plain h1 l buf)) *)
 
 let lemma_frame_find_mac (#i:PRF.id) (#l:nat) (st:PRF.state i) 
 			 (x:PRF.domain i{x.ctr <> 0ul}) (b:lbuffer l)
@@ -427,5 +411,6 @@ let encrypt i st n aadlen aad plainlen plain cipher_tagged =
   mac_wrapper #(i,n) ak l acc tag;
   //Some ideal and proof steps, to finish up
   finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag;
-  admit() //TODO: post-condition still failing for some bizarre reason, despite it seemingly matching up exact
+  let h5 = get () in
+  assume (HS.equal_domains h0 h5)
 
