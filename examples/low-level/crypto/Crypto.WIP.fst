@@ -30,7 +30,6 @@ module MAC = Crypto.Symmetric.Poly1305.MAC
 module Cipher = Crypto.Symmetric.Cipher
 module PRF = Crypto.Symmetric.PRF
 
-
 (* #reset-options "--z3timeout 200 --initial_fuel 0 --max_fuel 0 --initial_ifuel 0 --max_ifuel 0" *)
 (* let test (h0:HS.mem) (h1:HS.mem) (r:rid) =  *)
 (*   let open FStar.HyperStack in  *)
@@ -228,6 +227,101 @@ let my_inv (#i:id) (#rw:_) (st:state i rw) (h:mem) =
   (prf i ==> (h `HS.contains` (itable i st.prf) /\
 	     ~ (st.log === (itable i st.prf))))
 
+let mac_ensures (i:MAC.id) (st:MAC.state i) (l:MAC.itext) (acc:MAC.accB i) (tag:MAC.tagB) 
+		(h0:mem) (h1:mem) = 
+    let open FStar.Buffer in
+    let open Crypto.Symmetric.Bytes in
+    let open Crypto.Symmetric.Poly1305 in
+    let open Crypto.Symmetric.Poly1305.Spec in
+    let open Crypto.Symmetric.Poly1305.MAC in
+    live h0 st.s /\ 
+    live h0 st.r /\ 
+    live h1 tag /\ (
+    if mac_log then
+      HS.modifies (as_set [st.region; Buffer.frameOf tag]) h0 h1 /\
+      mods_2 [HS.Ref (as_hsref (ilog st.log)); HS.Ref (Buffer.content tag)] h0 h1 /\
+      Buffer.modifies_buf_1 (Buffer.frameOf tag) tag h0 h1 /\
+      HS.modifies_ref st.region !{HS.as_ref (as_hsref (ilog st.log))} h0 h1 /\
+      m_contains (ilog st.log) h1 /\ (
+      let mac = mac_1305 l (sel_elem h0 st.r) (sel_word h0 st.s) in
+      mac == little_endian (sel_word h1 tag) /\
+      m_sel h1 (ilog st.log) == Some (l, sel_word h1 tag))
+    else Buffer.modifies_1 tag h0 h1)
+    
+val finish_after_mac: h_init:mem -> h0:mem -> i:id -> st:state i Writer -> 
+		      nonce: Cipher.iv (alg i) ->
+		      aadlen: UInt32.t {aadlen <=^ aadmax} -> 
+		      aad: lbuffer (v aadlen) -> 
+		      plainlen: UInt32.t {plainlen <> 0ul /\ safelen i (v plainlen) 1ul} -> 
+		      plain: plainBuffer i (v plainlen) -> 
+		      cipher:lbuffer (v plainlen + v (Spec.taglen i)) ->
+		      ak:MAC.state (i, nonce) -> l:MAC.itext -> acc:MAC.accB (i, nonce) -> tag:MAC.tagB -> ST unit 
+  (requires (fun h1 -> 
+    HS.modifies_ref st.prf.mac_rgn TSet.empty h_init h0 /\
+    pre_refines_one_entry i st nonce (v plainlen) plain cipher h_init h0 /\
+    mac_ensures (i, nonce) ak l acc tag h0 h1))
+  (ensures (fun h0 _ h1 -> True))
+
+let carry_liveness (#a:Type) (b:Buffer.buffer a) (h0:mem) (h1:mem) (s:Set.set HH.rid)
+    : Lemma (requires (Buffer.live h0 b /\
+		       HS.modifies s h0 h1 /\
+		       not (Buffer.frameOf b `Set.mem` s)))
+            (ensures (Buffer.live h1 b))
+    = ()
+    
+let finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag = 
+  let h4 = get () in
+  let cipher = Buffer.sub cipher_tagged 0ul plainlen in
+  let x0 = {iv=n; ctr=0ul} in
+  assume (my_inv st h0);
+  assume (MAC (ak.region = st.prf.mac_rgn));
+  assume (safeId i ==> ~ (m_contains (MAC (ilog ak.log)) h0));
+  assume (prf i ==> HS.frameOf (PRF.itable i st.prf) <> Buffer.frameOf cipher_tagged);
+  assume (Buffer.disjoint (Plain.as_buffer plain) cipher_tagged);
+  assume (Buffer.disjoint aad cipher_tagged);
+  assume (HH.disjoint (Buffer.frameOf (Plain.as_buffer plain)) st.log_region);
+  assume (HH.disjoint (Buffer.frameOf cipher_tagged) st.log_region);  
+  assume (Buffer.live h3 cipher_tagged);
+  assume (Plain.live h3 plain);
+  assume (Buffer.live h3 aad);
+  assume (tag == Buffer.sub cipher_tagged plainlen (Spec.taglen i));
+  assume (mac_log ==> l == encode_both aadlen (Buffer.as_seq h3 aad) plainlen (Buffer.as_seq h3 cipher)); //from accumulate
+  assume (safeId i ==>
+  		   (let tab = HS.sel h3 (PRF.itable i st.prf) in
+  		    match PRF.find_mac tab x0 with
+  		    | None -> False
+  		    | Some mac_st -> mac_st == ak));
+  assume (safeId i); //FStar.Classical.move_requires (Buffer.lemma_reveal_modifies_1 tag h3) h4;
+  intro_mac_refines i st n aad plain cipher_tagged h4;
+  modifies_fresh_empty i n st.prf.mac_rgn ak h0 h3 h4;
+  frame_pre_refines i st n (v plainlen) plain cipher_tagged h0 h3 h4;
+  pre_refines_to_refines i st n aadlen aad (v plainlen) plain cipher_tagged h0 h4;
+  extend_refines_aux i st n aadlen aad (v plainlen) plain cipher_tagged h0 h4
+  
+  refines_to_inv i st n aadlen aad plainlen plain cipher_tagged
+
+  carry_liveness (Plain.as_buffer plain) h3 h4 (as_set [st.prf.mac_rgn; Buffer.frameOf tag])
+       ()
+
+(* bad error message ()
+(* let finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag =  *)
+(*   let h4 = get () in *)
+(*   assume (my_inv st h0); *)
+(*   assume (MAC (ak.region = st.prf.mac_rgn)); *)
+(*   assume (safeId i ==> ~ (m_contains (MAC (ilog ak.log)) h0)); *)
+(*   assume (prf i ==> HS.frameOf (PRF.itable i st.prf) <> Buffer.frameOf cipher_tagged); *)
+(*   assume (Buffer.disjoint (Plain.as_buffer plain) cipher_tagged); *)
+(*   assume (Buffer.frameOf (Plain.as_buffer plain) <> st.prf.mac_rgn); *)
+(*   assume (Buffer.live h3 cipher_tagged); *)
+(*   assume (Plain.live h3 plain); *)
+(*   assume (tag == Buffer.sub cipher_tagged plainlen (Spec.taglen i)); *)
+(*   assume (safeId i); *)
+(*   carry_liveness (Plain.as_buffer plain) h3 h4 (as_set [st.prf.mac_rgn; Buffer.frameOf tag]) *)
+
+  
+  
+  admit()
+
   
 val encrypt: 
   i: id -> st:state i Writer -> 
@@ -316,68 +410,27 @@ let encrypt i st n aadlen aad plainlen plain cipher_tagged =
   (* assert (my_inv st h4); *)
   admit()
   
-#set-options "--prn"
-val finish_after_mac: h_init:mem -> h0:mem -> i:id -> st:state i Writer -> 
-		      nonce: Cipher.iv (alg i) ->
-		      aadlen: UInt32.t {aadlen <=^ aadmax} -> 
-		      aad: lbuffer (v aadlen) -> 
-		      plainlen: UInt32.t {plainlen <> 0ul /\ safelen i (v plainlen) 1ul} -> 
-		      plain: plainBuffer i (v plainlen) -> 
-		      cipher:lbuffer (v plainlen + v (Spec.taglen i)) ->
-		      ak:MAC.state (i, nonce) -> l:MAC.itext -> acc:MAC.accB (i, nonce) -> tag:MAC.tagB -> ST unit 
-  (requires (fun h1 -> 
-    HS.modifies_ref st.prf.mac_rgn TSet.empty h_init h0 /\
-    pre_refines_one_entry i st nonce (v plainlen) plain cipher h_init h0 /\ (
-    let open FStar.Buffer in
-    let open Crypto.Symmetric.Bytes in
-    let open Crypto.Symmetric.Poly1305 in
-    let open Crypto.Symmetric.Poly1305.Spec in
-    let open Crypto.Symmetric.Poly1305.MAC in
-    live h0 ak.s /\ 
-    live h0 ak.r /\ 
-    live h1 tag /\ (
-    if mac_log then
-      mods_2 [HS.Ref (as_hsref (ilog ak.log)); HS.Ref (Buffer.content tag)] h0 h1 /\
-      Buffer.modifies_buf_1 (Buffer.frameOf tag) tag h0 h1 /\
-      HS.modifies_ref ak.region !{HS.as_ref (as_hsref (ilog ak.log))} h0 h1 /\
-      m_contains (ilog ak.log) h1 /\ (
-      let mac = mac_1305 l (sel_elem h0 ak.r) (sel_word h0 ak.s) in
-      mac == little_endian (sel_word h1 tag) /\
-      m_sel h1 (ilog ak.log) == Some (l, sel_word h1 tag))
-    else Buffer.modifies_1 tag h0 h1))))
-  (ensures (fun h0 _ h1 -> True))
-let finish_after_mac h0 h3 i st n aadlen aad plainlen plain cipher_tagged ak l acc tag = 
-  let h4 = get () in
-  FStar.Classical.move_requires (Buffer.lemma_reveal_modifies_1 tag h3) h4;
-  modifies_fresh_empty i n st.prf.mac_rgn ak h0 h3 h4;
-  assert (safeId i ==> HS.modifies_ref st.prf.mac_rgn TSet.empty h0 h4);
-  frame_pre_refines i st n (v plainlen) plain cipher_tagged h0 h3 h4;
-  intro_mac_refines i st n aad plain cipher_tagged h4;
-  pre_refines_to_refines i st n aadlen aad (v plainlen) plain cipher_tagged h0 h4;
-  extend_refines_aux i st n aadlen aad (v plainlen) plain cipher_tagged h0 h4;
-  refines_to_inv i st n aadlen aad plainlen plain cipher_tagged;
-  admit()
 
 
 
-    live h0 tag /\ live h0 st.s /\
-    disjoint acc st.s /\ disjoint tag acc /\ disjoint tag st.r /\ disjoint tag st.s /\
-    acc_inv st l acc h0 /\
-    (mac_log ==> m_contains (ilog st.log) h0) /\
-    (mac_log /\ safeId (fst i) ==> m_sel h0 (ilog st.log) == None)))
-  (ensures (fun h0 _ h1 ->
-    live h0 st.s /\ 
-    live h0 st.r /\ 
-    live h1 tag /\ (
-    if mac_log then
-      mods_2 [Ref (as_hsref (ilog st.log)); Ref (Buffer.content tag)] h0 h1 /\
-      Buffer.modifies_buf_1 (Buffer.frameOf tag) tag h0 h1 /\
-      HS.modifies_ref st.region !{HS.as_ref (as_hsref (ilog st.log))} h0 h1 /\
-      m_contains (ilog st.log) h1 /\ (
-      let mac = mac_1305 l (sel_elem h0 st.r) (sel_word h0 st.s) in
-      mac == little_endian (sel_word h1 tag) /\
-      m_sel h1 (ilog st.log) == Some (l, sel_word h1 tag))
-    else Buffer.modifies_1 tag h0 h1)))
+  (*   live h0 tag /\ live h0 st.s /\ *)
+  (*   disjoint acc st.s /\ disjoint tag acc /\ disjoint tag st.r /\ disjoint tag st.s /\ *)
+  (*   acc_inv st l acc h0 /\ *)
+  (*   (mac_log ==> m_contains (ilog st.log) h0) /\ *)
+  (*   (mac_log /\ safeId (fst i) ==> m_sel h0 (ilog st.log) == None))) *)
+  (* (ensures (fun h0 _ h1 -> *)
+  (*   live h0 st.s /\  *)
+  (*   live h0 st.r /\  *)
+  (*   live h1 tag /\ ( *)
+  (*   if mac_log then *)
+  (*     mods_2 [Ref (as_hsref (ilog st.log)); Ref (Buffer.content tag)] h0 h1 /\ *)
+  (*     Buffer.modifies_buf_1 (Buffer.frameOf tag) tag h0 h1 /\ *)
+  (*     HS.modifies_ref st.region !{HS.as_ref (as_hsref (ilog st.log))} h0 h1 /\ *)
+  (*     m_contains (ilog st.log) h1 /\ ( *)
+  (*     let mac = mac_1305 l (sel_elem h0 st.r) (sel_word h0 st.s) in *)
+  (*     mac == little_endian (sel_word h1 tag) /\ *)
+  (*     m_sel h1 (ilog st.log) == Some (l, sel_word h1 tag)) *)
+  (*   else Buffer.modifies_1 tag h0 h1))) *)
 
   
   (* let _ = *)
