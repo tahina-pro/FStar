@@ -281,6 +281,45 @@ OBJ_FILES=$(addprefix tmp/, \
 		Crypto_AEAD_Lemmas.o \
 		Crypto_AEAD.o )
 
+
+C_FILES=$(addprefix tmp/, \
+	FStar_Mul.c \
+	FStar_Squash.c FStar_StrongExcludedMiddle.c FStar_List_Tot.c \
+		FStar_Classical.c FStar_ListProperties.c FStar_SeqProperties.c \
+		FStar_Math_Lemmas.c FStar_BitVector.c \
+		FStar_FunctionalExtensionality.c \
+		FStar_PropositionalExtensionality.c FStar_PredicateExtensionality.c \
+		FStar_TSet.c FStar_Ghost.c \
+		FStar_Bytes.c Buffer_Utils.c Crypto_Symmetric_Bytes.c \
+		Crypto_Symmetric_Poly1305_Spec.c Crypto_Symmetric_Poly1305_Parameters.c \
+		Crypto_Symmetric_Poly1305_Bigint.c Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part1.c \
+		Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part2.c \
+		Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part3.c \
+		Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part4.c \
+		Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part5.c \
+		FStar_Buffer_Quantifiers.c \
+		Crypto_Symmetric_AES.c \
+		Crypto_Symmetric_AES128.c \
+		Crypto_Symmetric_Chacha20.c \
+		Crypto_Indexing.c \
+		Crypto_Symmetric_Cipher.c \
+		Crypto_Symmetric_GF128_Spec.c \
+		Crypto_Symmetric_Poly1305_Lemmas.c \
+		Flag.c \
+		Crypto_Symmetric_Poly1305_Bignum_Lemmas_Part6.c \
+		Crypto_Symmetric_Poly1305_Bignum.c \
+		Crypto_Symmetric_Poly1305.c \
+		Crypto_Symmetric_GF128.c \
+		Crypto_Symmetric_MAC.c \
+		Crypto_Symmetric_UF1CMA.c \
+		Crypto_Plain.c \
+		Crypto_Symmetric_PRF.c \
+		Crypto_AEAD_Encoding.c \
+		Crypto_AEAD_Invariant.c \
+		Crypto_AEAD_Lemmas_Part2.c \
+		Crypto_AEAD_Lemmas.c \
+		Crypto_AEAD.c )
+
 ocaml-test-extract: ulib
 	mkdir -p tmp
 	$(FSTAR_EXTRACT) --include $(KREMLIN_HOME)/kremlib --include $(KREMLIN_HOME)/test/ \
@@ -291,14 +330,52 @@ ocaml-test.exe: ocaml-test-extract
 	$(OCAMLOPT) -I tmp -I crypto/ml -I $(AEAD_ODIR) $(OCAML_FILES) -o ocaml-test.exe
 	./ocaml-test.exe
 
-OPENSSL_HOME=../../ucontrib/CoreCrypto/ml/openssl
+OPENSSL_HOME=~/tools/openssl64
+#../../ucontrib/CoreCrypto/ml/openssl
+
+test-perf32.exe: krml-test.exe crypto/test_perf.c
+	$(CC) -O3 -o test-perf32.exe $(C_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
+		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
+		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
+		 $(CFLAGS) -m32
+	./test-perf32.exe
+
+test-compcert.exe: krml-test.exe crypto/test_perf.c
+	$(CC) -O3 -o test-perf32.exe $(C_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
+		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
+		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
+		 $(CFLAGS) -m32
+	./test-perf32.exe
+
+test-perf64.exe: krml-test.exe crypto/test_perf.c
+	$(CC) -O3 -o test-perf64.exe $(C_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
+		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
+		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
+		 $(CFLAGS)
+	./test-perf64.exe
 
 test-perf.exe: krml-test.exe crypto/test_perf.c
 	$(CC) -O3 -o test-perf.exe $(OBJ_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
 		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
 		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
 		-I $(OPENSSL_HOME)/include -L $(OPENSSL_HOME) -lcrypto $(CFLAGS)
-	DYLD_LIBRARY_PATH=$(OPENSSL_HOME) ./test-perf.exe
+	./test-perf.exe
+
+
+SODIUM_HOME=~/tools/libsodium64
+
+test-crypto-libs64.exe:
+	$(CC) -O3 -o test-crypto-libs.exe crypto/test_openssl_crypto.c \
+		-I $(OPENSSL_HOME)/include -L $(OPENSSL_HOME) -lcrypto -lsodium $(CFLAGS)
+	LD_LIBRARY_PATH=$(OPENSSL_HOME):/usr/local/lib ./test-crypto-libs.exe
+
+OPENSSL_HOME32=~/tools/openssl32
+
+test-crypto-libs32.exe:
+	$(CC) -O3 -o test-crypto-libs.exe crypto/test_openssl_crypto.c \
+		-I $(OPENSSL_HOME)/include -L $(OPENSSL_HOME) -lcrypto -lsodium $(CFLAGS) -m32
+	LD_LIBRARY_PATH=$(OPENSSL_HOME32):/usr/local/lib ./test-crypto-libs.exe
+
 
 # Cleaning
 clean:

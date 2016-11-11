@@ -2,7 +2,8 @@
 #include <time.h>
 #include "testutils.h"
 #include "Crypto_AEAD.h"
-#include <openssl/evp.h>
+/* #include <openssl/evp.h> */
+/* #include <sodium.h> */
 
 #define PLAINLEN (16*1024)
 #define AADLEN (12)
@@ -64,64 +65,6 @@ void print_results(char *txt, double t1, unsigned long long d1, int rounds, int 
   printf("Cycles for %d 2^14 bytes: %llu (%.2fcycles/byte)\n", rounds, d1, (double)d1/plainlen/rounds);
   printf("User time for %d 2^14 bytes: %f (%fns/byte)\n", rounds, t1, t1*1000000/plainlen/rounds);
 }
-
-int openssl_aead_encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *aad,
-                         int aad_len, unsigned char *key, unsigned char *iv,
-                         unsigned char *ciphertext, unsigned char *tag, int cipher){
-  EVP_CIPHER_CTX *ctx;
-  int len;
-  int ciphertext_len;
-  /* Create and initialise the context */
-  if(!(ctx = EVP_CIPHER_CTX_new())) return EXIT_FAILURE;
-  /* Initialise the encryption operation. */
-  if (cipher == AES_GCM) {
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL))
-      return EXIT_FAILURE;
-  } else {
-    if(1 != EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, NULL, NULL))
-      return EXIT_FAILURE;
-  }
-
-  clock_t c1, c2;
-  double t1, t2;
-  unsigned long long a,b,d1,d2;
-  c1 = clock();
-  a = rdtsc();
-  for (int j = 0; j < ROUNDS; j++){
-    /* Set IV length if default 12 bytes (96 bits) is not appropriate */
-    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL))
-      return EXIT_FAILURE;
-    /* Initialise key and IV */
-    if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) return EXIT_FAILURE;
-    /* Provide any AAD data. This can be called zero or more times as
-     * required
-     */
-    if(1 != EVP_EncryptUpdate(ctx, NULL, &len, aad, aad_len))
-      return EXIT_FAILURE;
-    /* Provide the message to be encrypted, and obtain the encrypted output.
-     * EVP_EncryptUpdate can be called multiple times if necessary
-     */
-    if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len))
-      return EXIT_FAILURE;
-    ciphertext_len = len;
-    /* Finalise the encryption. Normally ciphertext bytes may be written at
-     * this stage, but this does not occur in GCM mode
-     */
-    if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) return EXIT_FAILURE;
-    ciphertext_len += len;
-    /* Get the tag */
-    if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag))
-      return EXIT_FAILURE;
-  }
-  b = rdtsc();
-  c2 = clock();
-  d1 = b - a;
-  t1 = ((double)c2 - c1)/CLOCKS_PER_SEC;
-  print_results(cipher == AES_GCM ? "openssl-aes-256-gcm" : "openssl-chacha20-poly1305", t1, d1, ROUNDS, PLAINLEN);
-  EVP_CIPHER_CTX_free(ctx);
-  return ciphertext_len;
-}
-
 
 void test_kremlin_aead(void *plain, void*cipher, int alg){
   clock_t c1, c2;
@@ -441,13 +384,11 @@ void test_kremlin_mac(void *plain, void*cipher, int alg){
   print_results(alg == AES_GCM ? "Kremlin-C-gcm" : "Kremlin-C-poly1305", t1, d1, rounds, PLAINLEN);
 }
 
+
 void test_crypto_aead(){
   void *plain = malloc(PLAINLEN), *cipher = malloc(PLAINLEN+16);
-  uint8_t mac[16];
   test_kremlin_aead(plain, cipher, AES_GCM);
   test_kremlin_aead(plain, cipher, CHACHA_POLY);
-  openssl_aead_encrypt(plain, PLAINLEN, aad, AADLEN, key, ivBuffer, cipher, mac, AES_GCM);
-  openssl_aead_encrypt(plain, PLAINLEN, aad, AADLEN, key, ivBuffer, cipher, mac, CHACHA_POLY);
   test_kremlin_prf(plain, cipher, AES_GCM);
   test_kremlin_prf(plain, cipher, CHACHA_POLY);
   test_kremlin_mac(plain, cipher, AES_GCM);
@@ -459,3 +400,120 @@ int main(){
   test_crypto_aead();
   return EXIT_SUCCESS;
 }
+
+
+/* int openssl_aead_encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *aad, */
+/*                          int aad_len, unsigned char *key, unsigned char *iv, */
+/*                          unsigned char *ciphertext, unsigned char *tag, int cipher){ */
+/*   EVP_CIPHER_CTX *ctx; */
+/*   int len; */
+/*   int ciphertext_len; */
+/*   /\* Create and initialise the context *\/ */
+/*   if(!(ctx = EVP_CIPHER_CTX_new())) return EXIT_FAILURE; */
+/*   /\* Initialise the encryption operation. *\/ */
+/*   if (cipher == AES_GCM) { */
+/*     if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) */
+/*       return EXIT_FAILURE; */
+/*   } else { */
+/*     if(1 != EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, NULL, NULL)) */
+/*       return EXIT_FAILURE; */
+/*   } */
+
+/*   clock_t c1, c2; */
+/*   double t1, t2; */
+/*   unsigned long long a,b,d1,d2; */
+/*   c1 = clock(); */
+/*   a = rdtsc(); */
+/*   for (int j = 0; j < ROUNDS; j++){ */
+/*     /\* Set IV length if default 12 bytes (96 bits) is not appropriate *\/ */
+/*     if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL)) */
+/*       return EXIT_FAILURE; */
+/*     /\* Initialise key and IV *\/ */
+/*     if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) return EXIT_FAILURE; */
+/*     /\* Provide any AAD data. This can be called zero or more times as */
+/*      * required */
+/*      *\/ */
+/*     if(1 != EVP_EncryptUpdate(ctx, NULL, &len, aad, aad_len)) */
+/*       return EXIT_FAILURE; */
+/*     /\* Provide the message to be encrypted, and obtain the encrypted output. */
+/*      * EVP_EncryptUpdate can be called multiple times if necessary */
+/*      *\/ */
+/*     if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len)) */
+/*       return EXIT_FAILURE; */
+/*     ciphertext_len = len; */
+/*     /\* Finalise the encryption. Normally ciphertext bytes may be written at */
+/*      * this stage, but this does not occur in GCM mode */
+/*      *\/ */
+/*     if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) return EXIT_FAILURE; */
+/*     ciphertext_len += len; */
+/*     /\* Get the tag *\/ */
+/*     if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag)) */
+/*       return EXIT_FAILURE; */
+/*   } */
+/*   b = rdtsc(); */
+/*   c2 = clock(); */
+/*   d1 = b - a; */
+/*   t1 = ((double)c2 - c1)/CLOCKS_PER_SEC; */
+/*   print_results(cipher == AES_GCM ? "openssl-aes-256-gcm" : "openssl-chacha20-poly1305", t1, d1, ROUNDS, PLAINLEN); */
+/*   EVP_CIPHER_CTX_free(ctx); */
+/*   return ciphertext_len; */
+/* } */
+
+
+/* int openssl_aead_encrypt(unsigned char *plaintext, int plaintext_len, unsigned char *aad, */
+/*                          int aad_len, unsigned char *key, unsigned char *iv, */
+/*                          unsigned char *ciphertext, unsigned char *tag, int cipher){ */
+/*   EVP_CIPHER_CTX *ctx; */
+/*   int len; */
+/*   int ciphertext_len; */
+/*   /\* Create and initialise the context *\/ */
+/*   if(!(ctx = EVP_CIPHER_CTX_new())) return EXIT_FAILURE; */
+/*   /\* Initialise the encryption operation. *\/ */
+/*   if (cipher == AES_GCM) { */
+/*     if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL)) */
+/*       return EXIT_FAILURE; */
+/*   } else { */
+/*     if(1 != EVP_EncryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL, NULL, NULL)) */
+/*       return EXIT_FAILURE; */
+/*   } */
+
+/*   clock_t c1, c2; */
+/*   double t1, t2; */
+/*   unsigned long long a,b,d1,d2; */
+/*   c1 = clock(); */
+/*   a = rdtsc(); */
+/*   for (int j = 0; j < ROUNDS; j++){ */
+/*     /\* Set IV length if default 12 bytes (96 bits) is not appropriate *\/ */
+/*     if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, 16, NULL)) */
+/*       return EXIT_FAILURE; */
+/*     /\* Initialise key and IV *\/ */
+/*     if(1 != EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv)) return EXIT_FAILURE; */
+/*     /\* Provide any AAD data. This can be called zero or more times as */
+/*      * required */
+/*      *\/ */
+/*     if(1 != EVP_EncryptUpdate(ctx, NULL, &len, aad, aad_len)) */
+/*       return EXIT_FAILURE; */
+/*     /\* Provide the message to be encrypted, and obtain the encrypted output. */
+/*      * EVP_EncryptUpdate can be called multiple times if necessary */
+/*      *\/ */
+/*     if(1 != EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len)) */
+/*       return EXIT_FAILURE; */
+/*     ciphertext_len = len; */
+/*     /\* Finalise the encryption. Normally ciphertext bytes may be written at */
+/*      * this stage, but this does not occur in GCM mode */
+/*      *\/ */
+/*     if(1 != EVP_EncryptFinal_ex(ctx, ciphertext + len, &len)) return EXIT_FAILURE; */
+/*     ciphertext_len += len; */
+/*     /\* Get the tag *\/ */
+/*     if(1 != EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, 16, tag)) */
+/*       return EXIT_FAILURE; */
+/*   } */
+/*   b = rdtsc(); */
+/*   c2 = clock(); */
+/*   d1 = b - a; */
+/*   t1 = ((double)c2 - c1)/CLOCKS_PER_SEC; */
+/*   print_results(cipher == AES_GCM ? "openssl-aes-256-gcm" : "openssl-chacha20-poly1305", t1, d1, ROUNDS, PLAINLEN); */
+/*   EVP_CIPHER_CTX_free(ctx); */
+/*   return ciphertext_len; */
+/* } */
+
