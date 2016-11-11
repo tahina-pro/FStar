@@ -201,6 +201,11 @@ krml-test.exe:
 		crypto/test_hacks.c
 	./krml-test.exe
 
+krml-extract:
+	$(KRML) crypto/real/Flag.fst crypto/Crypto.KrmlTest.fst -no-prefix Crypto.KrmlTest $(KREMLIN_HOME)/test/testlib.c \
+		-tmpdir tmp -o krml-test.exe -add-include '"testlib.h"' \
+		crypto/test_hacks.c -skip-compilation
+
 OCAML_FILES=tmp/FStar_Squash.ml tmp/FStar_StrongExcludedMiddle.ml tmp/FStar_List_Tot.ml \
 		tmp/FStar_Seq.ml \
 		tmp/FStar_Classical.ml tmp/FStar_ListProperties.ml tmp/FStar_SeqProperties.ml \

@@ -385,6 +385,70 @@ void *Crypto_Symmetric_Poly1305_ilog()
   return (uint8_t )0;
 }
 
+void
+Crypto_Symmetric_Poly1305_poly1305_update(void *log, uint8_t *msgB, uint64_t *acc, uint64_t *r)
+{
+  uint64_t block[5] = { 0 };
+  Crypto_Symmetric_Poly1305_toField_plus_2_128(block, msgB);
+  Crypto_Symmetric_Poly1305_add_and_multiply(acc, block, r);
+  void *updated_log = (uint8_t )0;
+}
+
+void
+Crypto_Symmetric_Poly1305_append_as_seq_sub(
+  FStar_HyperStack_mem h,
+  uint32_t n,
+  uint32_t m,
+  uint8_t *msg
+)
+{
+  return;
+}
+
+void
+Crypto_Symmetric_Poly1305_poly1305_loop(
+  void *log,
+  uint8_t *msg,
+  uint64_t *acc,
+  uint64_t *r,
+  uint32_t ctr
+)
+{
+  if (ctr <= (uint32_t )0)
+    return;
+  else
+  {
+    uint8_t *msg0 = msg + (uint32_t )0;
+    void
+    *log1 = (Crypto_Symmetric_Poly1305_poly1305_update((uint8_t )0, msg0, acc, r) , (void *)0);
+    uint8_t *msg1 = msg + (uint32_t )16;
+    void
+    *log2 =
+      (Crypto_Symmetric_Poly1305_poly1305_loop((uint8_t )0,
+        msg1,
+        acc,
+        r,
+        ctr - (uint32_t )1)
+      , (void *)0);
+    return;
+  }
+}
+
+void
+Crypto_Symmetric_Poly1305_poly1305_last(
+  void *log,
+  uint8_t *msg,
+  uint64_t *acc,
+  uint64_t *r,
+  uint32_t len
+)
+{
+  uint64_t block[5] = { 0 };
+  Crypto_Symmetric_Poly1305_toField_plus(len, block, msg);
+  Crypto_Symmetric_Poly1305_add_and_multiply(acc, block, r);
+  void *updated_log = (uint8_t )0;
+}
+
 void Crypto_Symmetric_Poly1305_add_word(uint8_t *a, uint8_t *b)
 {
   uint32_t x0 = Buffer_Utils_uint32_of_bytes(a + (uint32_t )0);
@@ -423,5 +487,29 @@ void Crypto_Symmetric_Poly1305_poly1305_finish(uint8_t *tag, uint64_t *acc, uint
   Crypto_Symmetric_Poly1305_trunc1305(acc, tag);
   Crypto_Symmetric_Poly1305_add_word(tag, s);
   return;
+}
+
+void Crypto_Symmetric_Poly1305_div_aux(uint32_t a, uint32_t b)
+{
+  return;
+}
+
+void
+Crypto_Symmetric_Poly1305_poly1305_mac(uint8_t *tag, uint8_t *msg, uint32_t len, uint8_t *key)
+{
+  uint64_t tmp[10] = { 0 };
+  uint64_t *acc = tmp + (uint32_t )0;
+  uint64_t *r = tmp + (uint32_t )5;
+  uint8_t s[16] = { 0 };
+  Crypto_Symmetric_Poly1305_poly1305_init(r, s, key);
+  Crypto_Symmetric_Poly1305_poly1305_start(acc);
+  uint32_t ctr = len / (uint32_t )16;
+  uint32_t rest = len % (uint32_t )16;
+  void *l = (uint8_t )0;
+  void
+  *l0 = (Crypto_Symmetric_Poly1305_poly1305_loop((uint8_t )0, msg, acc, r, ctr) , (void *)0);
+  uint8_t *last_block = msg + ctr * (uint32_t )16;
+  Crypto_Symmetric_Poly1305_poly1305_last((uint8_t )0, last_block, acc, r, rest);
+  Crypto_Symmetric_Poly1305_poly1305_finish(tag, acc, key + (uint32_t )16);
 }
 

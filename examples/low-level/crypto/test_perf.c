@@ -385,6 +385,22 @@ void test_kremlin_mac(void *plain, void*cipher, int alg){
 }
 
 
+void test_kremlin_mac_bypass(void *plain, void*cipher){
+  clock_t c1, c2;
+  double t1, t2;
+  unsigned long long a,b,d1,d2;
+  uint8_t tag[16];
+  c1 = clock();
+  a = rdtsc();
+  for (int j = 0; j < ROUNDS; j++) Crypto_Symmetric_Poly1305_poly1305_mac(tag, plain, PLAINLEN, key);
+  b = rdtsc();
+  c2 = clock();
+  d1 = b - a;
+  t1 = ((double)c2 - c1)/CLOCKS_PER_SEC;
+  print_results("Kremlin-C-poly1305-alone", t1, d1, ROUNDS, PLAINLEN);
+}
+
+
 void test_crypto_aead(){
   void *plain = malloc(PLAINLEN), *cipher = malloc(PLAINLEN+16);
   test_kremlin_aead(plain, cipher, AES_GCM);
@@ -393,6 +409,7 @@ void test_crypto_aead(){
   test_kremlin_prf(plain, cipher, CHACHA_POLY);
   test_kremlin_mac(plain, cipher, AES_GCM);
   test_kremlin_mac(plain, cipher, CHACHA_POLY);
+  test_kremlin_mac_bypass(plain, cipher);
 }
 
 

@@ -229,7 +229,41 @@ typedef void *Crypto_Symmetric_Poly1305_log_t;
 
 void *Crypto_Symmetric_Poly1305_ilog();
 
+void
+Crypto_Symmetric_Poly1305_poly1305_update(void *log, uint8_t *msgB, uint64_t *acc, uint64_t *r);
+
+void
+Crypto_Symmetric_Poly1305_append_as_seq_sub(
+  FStar_HyperStack_mem h,
+  uint32_t n,
+  uint32_t m,
+  uint8_t *msg
+);
+
+void
+Crypto_Symmetric_Poly1305_poly1305_loop(
+  void *log,
+  uint8_t *msg,
+  uint64_t *acc,
+  uint64_t *r,
+  uint32_t ctr
+);
+
+void
+Crypto_Symmetric_Poly1305_poly1305_last(
+  void *log,
+  uint8_t *msg,
+  uint64_t *acc,
+  uint64_t *r,
+  uint32_t len
+);
+
 void Crypto_Symmetric_Poly1305_add_word(uint8_t *a, uint8_t *b);
 
 void Crypto_Symmetric_Poly1305_poly1305_finish(uint8_t *tag, uint64_t *acc, uint8_t *s);
+
+void Crypto_Symmetric_Poly1305_div_aux(uint32_t a, uint32_t b);
+
+void
+Crypto_Symmetric_Poly1305_poly1305_mac(uint8_t *tag, uint8_t *msg, uint32_t len, uint8_t *key);
 #endif
