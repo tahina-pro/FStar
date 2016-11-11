@@ -3,12 +3,21 @@
 
 #if defined(__i386__)
 
+#if defined(__COMPCERT__)
+static __inline__ unsigned long long rdtsc(void)
+{
+  printf("[Warning] Cycle count not implemented for CompCert.\n");
+  return 0;
+}
+#else
 static __inline__ unsigned long long rdtsc(void)
 {
   unsigned long long int x;
   __asm__ volatile (".byte 0x0f, 0x31" : "=A" (x));
   return x;
 }
+#endif
+
 #elif defined(__x86_64__)
 
 

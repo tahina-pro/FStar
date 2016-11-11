@@ -1,0 +1,102 @@
+##############
+### 32bits ###
+##############
+
+[Openssl-AES256GCM] Testing 2^14 bytes block computations
+[Openssl-AES256GCM] 49.17cycles/byte
+[Openssl-AES256GCM] user time: 0.299068 (0.018254ns/byte)
+[Openssl-CHACHA20POLY1305] Testing 2^14 bytes block computations
+[Openssl-CHACHA20POLY1305] 12.31cycles/byte
+[Openssl-CHACHA20POLY1305] user time: 0.074841 (0.004568ns/byte)
+[Libsodium-POLY1305] Testing 2^14 bytes block computations
+[Libsodium-POLY1305] 12.52cycles/byte
+[Libsodium-POLY1305] user time: 0.075157 (0.004587ns/byte)
+[Libsodium-CHACHA20] Testing 2^14 bytes block computations
+[Libsodium-CHACHA20] 26.17cycles/byte
+[Libsodium-CHACHA20] user time: 0.159162 (0.009714ns/byte)
+[Libsodium-CHACHA20POLY1305] Testing 2^14 bytes block computations
+[Libsodium-CHACHA20POLY1305] 40.04cycles/byte
+[Libsodium-CHACHA20POLY1305] user time: 0.242305 (0.014789ns/byte)
+
+##############
+### 64bits ###
+##############
+
+[Openssl-AES256GCM] Testing 2^14 bytes block computations
+[Openssl-AES256GCM] 24.41cycles/byte
+[Openssl-AES256GCM] user time: 0.148489 (0.009063ns/byte)
+[Openssl-CHACHA20POLY1305] Testing 2^14 bytes block computations
+[Openssl-CHACHA20POLY1305] 7.21cycles/byte
+[Openssl-CHACHA20POLY1305] user time: 0.043826 (0.002675ns/byte)
+[Libsodium-POLY1305] Testing 2^14 bytes block computations
+[Libsodium-POLY1305] 2.16cycles/byte
+[Libsodium-POLY1305] user time: 0.013154 (0.000803ns/byte)
+[Libsodium-CHACHA20] Testing 2^14 bytes block computations
+[Libsodium-CHACHA20] 5.67cycles/byte
+[Libsodium-CHACHA20] user time: 0.034510 (0.002106ns/byte)
+[Libsodium-CHACHA20POLY1305] Testing 2^14 bytes block computations
+[Libsodium-CHACHA20POLY1305] 7.91cycles/byte
+[Libsodium-CHACHA20POLY1305] user time: 0.048100 (0.002936ns/byte)
+
+####################
+### 32bits (GCC) ###
+####################
+
+Testing: Kremlin-C-aes256-gcm
+Cycles for 10 2^14 bytes: 247152468 (1508.50cycles/byte)
+User time for 10 2^14 bytes: 0.091751 (0.560004ns/byte)
+Testing: Kremlin-C-chacha20-poly1305
+Cycles for 1000 2^14 bytes: 1205701815 (73.59cycles/byte)
+User time for 1000 2^14 bytes: 0.447587 (0.027319ns/byte)
+Testing: Kremlin-C-aes256
+Cycles for 1 2^14 bytes: 6832179 (417.00cycles/byte)
+User time for 1 2^14 bytes: 0.002537 (0.154846ns/byte)
+Testing: Kremlin-C-chacha20
+Cycles for 1000 2^14 bytes: 850976706 (51.94cycles/byte)
+User time for 1000 2^14 bytes: 0.315909 (0.019282ns/byte)
+Testing: Kremlin-C-gcm
+Cycles for 1 2^14 bytes: 17638965 (1076.60cycles/byte)
+User time for 1 2^14 bytes: 0.006548 (0.399658ns/byte)
+Testing: Kremlin-C-poly1305
+Cycles for 1000 2^14 bytes: 348792423 (21.29cycles/byte)
+User time for 1000 2^14 bytes: 0.129482 (0.007903ns/byte)
+
+##############
+### 64bits ###
+##############
+
+Testing: Kremlin-C-aes256-gcm
+Cycles for 10 2^14 bytes: 214955133 (1311.98cycles/byte)
+User time for 10 2^14 bytes: 0.079775 (0.486908ns/byte)
+Testing: Kremlin-C-chacha20-poly1305
+Cycles for 1000 2^14 bytes: 580669077 (35.44cycles/byte)
+User time for 1000 2^14 bytes: 0.215559 (0.013157ns/byte)
+Testing: Kremlin-C-aes256
+Cycles for 1 2^14 bytes: 5167134 (315.38cycles/byte)
+User time for 1 2^14 bytes: 0.001919 (0.117126ns/byte)
+Testing: Kremlin-C-chacha20
+Cycles for 1000 2^14 bytes: 452223930 (27.60cycles/byte)
+User time for 1000 2^14 bytes: 0.167880 (0.010247ns/byte)
+Testing: Kremlin-C-gcm
+Cycles for 1 2^14 bytes: 15657282 (955.64cycles/byte)
+User time for 1 2^14 bytes: 0.005813 (0.354797ns/byte)
+Testing: Kremlin-C-poly1305
+Cycles for 1000 2^14 bytes: 148162293 (9.04cycles/byte)
+User time for 1000 2^14 bytes: 0.055003 (0.003357ns/byte)
+
+################
+### COMPCERT ###
+################
+
+Testing: Kremlin-C-aes256-gcm
+User time for 10 2^14 bytes: 0.553232 (3.376660ns/byte)
+Testing: Kremlin-C-chacha20-poly1305
+User time for 1000 2^14 bytes: 1.343534 (0.082003ns/byte)
+Testing: Kremlin-C-aes256
+User time for 1 2^14 bytes: 0.030000 (1.831055ns/byte)
+Testing: Kremlin-C-chacha20
+User time for 1000 2^14 bytes: 0.919283 (0.056109ns/byte)
+Testing: Kremlin-C-gcm
+User time for 1 2^14 bytes: 0.026272 (1.603516ns/byte)
+Testing: Kremlin-C-poly1305
+User time for 1000 2^14 bytes: 0.417434 (0.025478ns/byte)

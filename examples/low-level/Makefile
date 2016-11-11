@@ -282,7 +282,7 @@ OBJ_FILES=$(addprefix tmp/, \
 		Crypto_AEAD.o )
 
 
-C_FILES=$(addprefix tmp/, \
+C_FILES=$(addprefix extracted_c/, \
 	FStar_Mul.c \
 	FStar_Squash.c FStar_StrongExcludedMiddle.c FStar_List_Tot.c \
 		FStar_Classical.c FStar_ListProperties.c FStar_SeqProperties.c \
@@ -333,28 +333,28 @@ ocaml-test.exe: ocaml-test-extract
 OPENSSL_HOME=~/tools/openssl64
 #../../ucontrib/CoreCrypto/ml/openssl
 
-test-perf32.exe: krml-test.exe crypto/test_perf.c
+test-perf32.exe: #krml-test.exe crypto/test_perf.c
 	$(CC) -O3 -o test-perf32.exe $(C_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
 		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
 		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
 		 $(CFLAGS) -m32
 	./test-perf32.exe
 
-test-compcert.exe: krml-test.exe crypto/test_perf.c
-	$(CC) -O3 -o test-perf32.exe $(C_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
-		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
+test-compcert.exe: #krml-test.exe crypto/test_perf.c
+	ccomp -O -o test-compcert.exe $(C_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
+		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I extracted_c \
 		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
-		 $(CFLAGS) -m32
-	./test-perf32.exe
+		 $(CFLAGS) -fall
+	./test-compcert.exe
 
-test-perf64.exe: krml-test.exe crypto/test_perf.c
+test-perf64.exe: #krml-test.exe crypto/test_perf.c
 	$(CC) -O3 -o test-perf64.exe $(C_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
 		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
 		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
 		 $(CFLAGS)
 	./test-perf64.exe
 
-test-perf.exe: krml-test.exe crypto/test_perf.c
+test-perf.exe: #krml-test.exe crypto/test_perf.c
 	$(CC) -O3 -o test-perf.exe $(OBJ_FILES) $(KREMLIN_HOME)/kremlib/kremlib.c \
 		$(KREMLIN_HOME)/test/testlib.c crypto/test_hacks.c crypto/test_perf.c -I tmp \
 		-I $(KREMLIN_HOME)/kremlib -I $(KREMLIN_HOME)/test \
