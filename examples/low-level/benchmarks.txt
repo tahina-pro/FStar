@@ -100,3 +100,42 @@ Testing: Kremlin-C-gcm
 User time for 1 2^14 bytes: 0.026272 (1.603516ns/byte)
 Testing: Kremlin-C-poly1305
 User time for 1000 2^14 bytes: 0.417434 (0.025478ns/byte)
+
+################################
+### New Chacha 32 bit version ##
+################################
+
+Testing: Kremlin-C-aes256-gcm
+Cycles for 10 2^14 bytes: 273991215 (1672.31cycles/byte)
+User time for 10 2^14 bytes: 0.101160 (0.617432ns/byte)
+Testing: Kremlin-C-chacha20-poly1305
+Cycles for 1000 2^14 bytes: 18965499453 (1157.56cycles/byte)
+User time for 1000 2^14 bytes: 7.034969 (0.429380ns/byte)
+Testing: Kremlin-C-chacha20-poly1305
+Cycles for 1000 2^14 bytes: 679687482 (41.48cycles/byte)
+User time for 1000 2^14 bytes: 0.252321 (0.015400ns/byte)
+Testing: openssl-aes-256-gcm
+Cycles for 1000 2^14 bytes: 771631470 (47.10cycles/byte)
+User time for 1000 2^14 bytes: 0.286453 (0.017484ns/byte)
+Testing: openssl-chacha20-poly1305
+Cycles for 1000 2^14 bytes: 198163755 (12.09cycles/byte)
+User time for 1000 2^14 bytes: 0.073562 (0.004490ns/byte)
+Testing: Kremlin-C-aes256
+Cycles for 1 2^14 bytes: 6856566 (418.49cycles/byte)
+User time for 1 2^14 bytes: 0.002545 (0.155334ns/byte)
+Testing: Kremlin-C-aes128
+Cycles for 1000 2^14 bytes: 789628296 (48.20cycles/byte)
+User time for 1000 2^14 bytes: 0.293134 (0.017891ns/byte)
+Testing: Kremlin-C-chacha20
+Cycles for 1000 2^14 bytes: 330511761 (20.17cycles/byte)
+User time for 1000 2^14 bytes: 0.122697 (0.007489ns/byte)
+Chacha20 is a failure
+Testing: Kremlin-C-gcm
+Cycles for 1 2^14 bytes: 17945190 (1095.29cycles/byte)
+User time for 1 2^14 bytes: 0.006662 (0.406616ns/byte)
+Testing: Kremlin-C-poly1305
+Cycles for 1000 2^14 bytes: 361971693 (22.09cycles/byte)
+User time for 1000 2^14 bytes: 0.134376 (0.008202ns/byte)
+Testing: Kremlin-CHACHA20-alone
+Cycles for 1000 2^14 bytes: 127231254 (7.77cycles/byte)
+User time for 1000 2^14 bytes: 0.047233 (0.002883ns/byte)
