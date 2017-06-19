@@ -241,7 +241,7 @@ let struct_sel (#l: struct_typ) (s: struct l) (f: struct_field l) : Tot (type_of
 let struct_upd (#l: struct_typ) (s: struct l) (f: struct_field l) (v: type_of_struct_field l f) : Tot (struct l) =
   DM.upd s f v
 
-let struct_create (#l: struct_typ) (f: ((fd: struct_field l) -> Tot (type_of_struct_field l fd))) : Tot (struct l) =
+let struct_create (l: struct_typ) (f: ((fd: struct_field l) -> Tot (type_of_struct_field l fd))) : Tot (struct l) =
   DM.create #(struct_field l) #(type_of_struct_field l) f
 
 private
@@ -266,7 +266,7 @@ let rec dummy_val
     | TUnit -> ()
     end
   | TStruct l ->
-    struct_create (fun f -> (
+    struct_create l (fun f -> (
       dummy_val (typ_of_struct_field l f)
     ))
   | TArray length t -> Seq.create (UInt32.v length) (dummy_val t)
@@ -2398,7 +2398,7 @@ let modifies_0_1 (#a:typ) (b:pointer a) h0 h1 h2 : Lemma
 (** Concrete allocators, getters and setters *)
 
 abstract let screate
-  (#value:typ)
+  (value:typ)
   (s: type_of_typ value)
 : StackInline (pointer value)
   (requires (fun h -> True))
@@ -2423,7 +2423,7 @@ private let domain_upd (#a:Type) (h:HS.mem) (x:HS.reference a{HS.live_region h x
     Set.lemma_equal_intro (Map.domain m) (Map.domain m')
 
 abstract let ecreate
-  (#t:typ)
+  (t:typ)
   (r:HH.rid)
   (s: type_of_typ t)
 : ST (pointer t)
