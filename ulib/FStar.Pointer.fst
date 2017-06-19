@@ -244,7 +244,7 @@ let struct_upd (#l: struct_typ) (s: struct l) (f: struct_field l) (v: type_of_st
 let struct_create (l: struct_typ) (f: ((fd: struct_field l) -> Tot (type_of_struct_field l fd))) : Tot (struct l) =
   DM.create #(struct_field l) #(type_of_struct_field l) f
 
-private
+abstract
 let rec dummy_val
   (t: typ)
 : Tot (type_of_typ t)
