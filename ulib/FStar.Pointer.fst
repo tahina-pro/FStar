@@ -44,19 +44,35 @@ type typ =
   typ
 and struct_typ = (l: list (string * typ) { List.Tot.noRepeats (List.Tot.map fst l) })
 
+let is_struct_field_of
+  (s: string)
+  (l: struct_typ)
+: Tot bool
+= List.Tot.mem s (List.Tot.map fst l)
+
 let struct_field
   (l: struct_typ)
 : Tot eqtype
-= (s: string { List.Tot.mem s (List.Tot.map fst l) } )
+= (s: string { s `is_struct_field_of` l } )
 
 let typ_of_struct_field
   (l: struct_typ)
-  (f: struct_field l)
-: Tot (t: typ {t << l})
-= List.Tot.assoc_mem f l;
-  let y = Some?.v (List.Tot.assoc f l) in
-  List.Tot.assoc_precedes f l y;
-  y
+  (f: string)
+: Pure (t: typ)
+  (requires True)
+  (ensures (fun t ->
+    if f `is_struct_field_of` l
+    then t << l
+    else True
+  ))
+= if f `is_struct_field_of` l
+  then begin
+    List.Tot.assoc_mem f l;
+    let y = Some?.v (List.Tot.assoc f l) in
+    List.Tot.assoc_precedes f l y;
+    y
+  end else
+    TBase TUnit
 
 let rec typ_depth
   (t: typ)
@@ -77,15 +93,15 @@ and struct_typ_depth
 
 let rec typ_depth_typ_of_struct_field
   (l: struct_typ)
-  (f: struct_field l)
+  (f: string)
 : Lemma
-  (ensures (typ_depth (typ_of_struct_field l f) <= struct_typ_depth l))
+  (requires (f `is_struct_field_of` l))
+  (ensures (f `is_struct_field_of` l /\ typ_depth (typ_of_struct_field l f) <= struct_typ_depth l))
   (decreases l)
 = let ((f', _) :: l') = l in
   if f = f'
   then ()
   else begin
-    let f: string = f in
     assert (List.Tot.mem f (List.Tot.map fst l'));
     List.Tot.assoc_mem f l';
     typ_depth_typ_of_struct_field l' f
@@ -227,12 +243,16 @@ let type_of_struct_field'
     (t: typ { t << l } ) ->
     Tot Type0
   ))
-  (f: struct_field l)
-: Tot Type0 =
-  List.Tot.assoc_mem f l;
-  let y = typ_of_struct_field l f in
-  List.Tot.assoc_precedes f l y;
-  type_of_typ y
+  (f: string)
+: Tot Type0
+= if (f `is_struct_field_of` l)
+  then begin
+    List.Tot.assoc_mem f l;
+    let y = typ_of_struct_field l f in
+    List.Tot.assoc_precedes f l y;
+    type_of_typ y
+  end else
+    unit
 
 let rec type_of_typ
   (t: typ)
@@ -240,7 +260,7 @@ let rec type_of_typ
 = match t with
   | TBase b -> type_of_base_typ b
   | TStruct l ->
-    DM.t (struct_field l) (type_of_struct_field' l type_of_typ)
+    DM.t (struct_field l) (fun (s: struct_field l) -> type_of_struct_field' l type_of_typ s)
   | TArray length t ->
     array length (type_of_typ t)
   | TPointer t ->
@@ -250,10 +270,11 @@ let rec type_of_typ
 
 let type_of_struct_field
   (l: struct_typ)
-: Tot (struct_field l -> Tot Type0)
-= type_of_struct_field' l type_of_typ
+  (s: string)
+: Tot Type0
+= type_of_struct_field' l type_of_typ s
 
-let struct (l: struct_typ) = DM.t (struct_field l) (type_of_struct_field l)
+let struct (l: struct_typ) = DM.t (struct_field l) (fun (s: struct_field l) -> type_of_struct_field l s)
 
 let type_of_typ_struct
   (l: struct_typ)
@@ -264,20 +285,33 @@ let type_of_typ_struct
 
 let typ_of_type_type_of_struct_field
   (l: struct_typ)
-  (f: struct_field l)
+  (f: string)
 : Lemma
   (type_of_typ (typ_of_struct_field l f) == type_of_struct_field l f)
   [SMTPat (type_of_typ (typ_of_struct_field l f))]
 = ()
 
-let struct_sel (#l: struct_typ) (s: struct l) (f: struct_field l) : Tot (type_of_struct_field l f) =
-  DM.sel s f
+let struct_sel
+  (#l: struct_typ)
+  (s: struct l)
+  (f: string)
+: Pure (type_of_struct_field l f)
+  (requires (f `is_struct_field_of` l))
+  (ensures (fun _ -> True))
+= DM.sel s f
 
-let struct_upd (#l: struct_typ) (s: struct l) (f: struct_field l) (v: type_of_struct_field l f) : Tot (struct l) =
-  DM.upd s f v
+let struct_upd
+  (#l: struct_typ)
+  (s: struct l)
+  (f: string)
+  (v: type_of_struct_field l f)
+: Pure (struct l)
+  (requires (f `is_struct_field_of` l))
+  (ensures (fun _ -> True))
+= DM.upd s f v
 
 let struct_create (l: struct_typ) (f: ((fd: struct_field l) -> Tot (type_of_struct_field l fd))) : Tot (struct l) =
-  DM.create #(struct_field l) #(type_of_struct_field l) f
+  DM.create #(struct_field l) #(fun (s: struct_field l) -> type_of_struct_field l s) f
 
 private
 let rec dummy_val
@@ -1217,8 +1251,10 @@ abstract let as_addr (#t: typ) (p: pointer t): GTot nat =
 private let _field
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
-: Tot (pointer (typ_of_struct_field l fd))
+  (fd: string)
+: Pure (pointer (typ_of_struct_field l fd))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fun _ -> True))
 = let (Pointer from contents p') = p in
   let p' : path from (TStruct l) = p' in
   let p'' : path from (typ_of_struct_field l fd) = PathStep _ _ p' (StepField _ fd) in
@@ -1386,28 +1422,30 @@ abstract let includes
 abstract let gfield
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
-: GTot (p' : pointer (typ_of_struct_field l fd) { includes p p' } )
+  (fd: string)
+: Ghost (pointer (typ_of_struct_field l fd))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fun p' ->  fd `is_struct_field_of` l /\ includes p p'))
 = _field p fd
 
 abstract let as_addr_gfield
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
 : Lemma
-  (requires True)
-  (ensures (as_addr (gfield p fd) == as_addr p))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of` l /\ as_addr (gfield p fd) == as_addr p))
   [SMTPat (as_addr (gfield p fd))]
 = ()
 
 abstract let unused_in_gfield
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
   (h: HS.mem)
 : Lemma
-  (requires True)
-  (ensures (unused_in (gfield p fd) h <==> unused_in p h))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of` l /\ (unused_in (gfield p fd) h <==> unused_in p h)))
   [SMTPat (unused_in (gfield p fd) h)]
 = ()
 
@@ -1415,10 +1453,10 @@ abstract let live_gfield
   (h: HS.mem)
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
 : Lemma
-  (requires True)
-  (ensures (live h (gfield p fd) <==> live h p))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of` l /\ (live h (gfield p fd) <==> live h p)))
   [SMTPat (live h (gfield p fd))]
 = ()
 
@@ -1426,40 +1464,40 @@ abstract let gread_gfield
   (h: HS.mem)
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
 : Lemma
-  (requires True)
-  (ensures (gread h (gfield p fd) == struct_sel (gread h p) fd))
-  [SMTPatOr [[SMTPat (gread h (gfield p fd))]; [SMTPat (struct_sel (gread h p) fd)]]]
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of` l /\ gread h (gfield p fd) == struct_sel #l (gread h p) fd))
+  [SMTPatOr [[SMTPat (gread h (gfield p fd))]; [SMTPat (struct_sel #l (gread h p) fd)]]]
 = ()
 
 abstract let frameOf_gfield
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
 : Lemma
-  (requires True)
-  (ensures (frameOf (gfield p fd) == frameOf p))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of` l /\ frameOf (gfield p fd) == frameOf p))
   [SMTPat (frameOf (gfield p fd))]
 = ()
 
 abstract let is_mm_gfield
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
 : Lemma
-  (requires True)
-  (ensures (is_mm (gfield p fd) <==> is_mm p))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of` l /\ (is_mm (gfield p fd) <==> is_mm p)))
   [SMTPat (is_mm (gfield p fd))]
 = ()
 
 abstract let includes_gfield
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
 : Lemma
-  (requires True)
-  (ensures (includes p (gfield p fd)))
+  (requires (fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of`l /\ includes p (gfield p fd)))
   [SMTPat (includes p (gfield p fd))]
 = ()
 
@@ -1685,10 +1723,10 @@ abstract let disjoint_root
 abstract let disjoint_gfield
   (#l: struct_typ)
   (p: pointer (TStruct l))
-  (fd1 fd2: struct_field l)
+  (fd1 fd2: string)
 : Lemma
-  (requires (fd1 <> fd2))
-  (ensures (disjoint (gfield p fd1) (gfield p fd2)))
+  (requires (fd1 `is_struct_field_of` l /\ fd2 `is_struct_field_of` l /\ fd1 <> fd2))
+  (ensures (fd1 `is_struct_field_of` l /\ fd2 `is_struct_field_of` l /\ disjoint (gfield p fd1) (gfield p fd2)))
   [SMTPat (disjoint (gfield p fd1) (gfield p fd2))]
 = ()
 
@@ -1910,10 +1948,10 @@ let readable_gfield
   (#l: struct_typ)
   (h: HS.mem)
   (p: pointer (TStruct l))
-  (fd: struct_field l)
+  (fd: string)
 : Lemma
-  (requires (readable h p))
-  (ensures (readable h (gfield p fd)))
+  (requires (readable h p /\ fd `is_struct_field_of` l))
+  (ensures (fd `is_struct_field_of` l /\ readable h (gfield p fd)))
   [SMTPat (readable h (gfield p fd))]
 = ()
 
@@ -2476,10 +2514,10 @@ abstract let ecreate
 abstract let field
  (#l: struct_typ)
  (p: pointer (TStruct l))
- (fd: struct_field l)
+ (fd: string)
 : HST.ST (pointer (typ_of_struct_field l fd))
-  (requires (fun h -> live h p))
-  (ensures (fun h0 p' h1 -> h0 == h1 /\ p' == gfield p fd))
+  (requires (fun h -> live h p /\ fd `is_struct_field_of` l))
+  (ensures (fun h0 p' h1 -> h0 == h1 /\ fd `is_struct_field_of` l /\ p' == gfield p fd))
 = _field p fd
 
 abstract let cell
