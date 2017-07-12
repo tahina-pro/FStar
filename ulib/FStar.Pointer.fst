@@ -2581,6 +2581,28 @@ let live_includes
   (fun #v1 #v2 #v3 p1 p2 p3 -> ())
   p1 p2
 
+abstract
+let frameOf_includes
+  (#value1: typ)
+  (#value2: typ)
+  (p1: pointer value1)
+  (p2: pointer value2)
+: Lemma
+  (requires (includes p1 p2))
+  (ensures (frameOf p1 == frameOf p2))
+= ()
+
+abstract
+let as_addr_includes
+  (#value1: typ)
+  (#value2: typ)
+  (p1: pointer value1)
+  (p2: pointer value2)
+: Lemma
+  (requires (includes p1 p2))
+  (ensures (as_addr p1 == as_addr p2))
+= ()
+
 abstract let disjoint
   (#value1: typ)
   (#value2: typ)
@@ -4010,16 +4032,16 @@ noeq type loc_includes_t : loc -> loc -> Type =
     loc_includes_t (LAddress i a) (LAddress i a)
   )
 | LocIncludesRegion: (
-    (l: loc) ->
     (r: HH.rid) ->
+    (l: loc) ->
     squash (Set.subset (framesOf_loc l) (Set.singleton r)) ->
-    loc_includes_t l (LRegion r)
+    loc_includes_t (LRegion r) l
   )
 | LocIncludesTransRegion: (
-    (l: loc) ->
     (r: HH.rid) ->
+    (l: loc) ->
     squash (Set.subset (framesOf_loc l) (HH.mod_set (Set.singleton r))) ->
-    loc_includes_t l (LTransRegion r)
+    loc_includes_t (LTransRegion r) l
   )
 | LocIncludesTrans:
     (l1: loc) ->
@@ -4037,8 +4059,8 @@ let loc_includes_t_refl
   | LPointer _ p -> LocIncludesPointerPointer _ _ p p ()
   | LBuffer _ b -> LocIncludesBufferBuffer _ b b 0ul (buffer_length b) ()
   | LAddress i r -> LocIncludesAddress i r
-  | LRegion r -> LocIncludesRegion (LRegion r) r ()
-  | LTransRegion r -> LocIncludesTransRegion (LTransRegion r) r ()
+  | LRegion r -> LocIncludesRegion r (LRegion r) ()
+  | LTransRegion r -> LocIncludesTransRegion r (LTransRegion r) ()
 
 abstract
 let loc_includes
@@ -4110,23 +4132,23 @@ let loc_includes_buffer_pointer
 
 abstract
 let loc_includes_region
-  (l: loc)
   (r: HH.rid)
+  (l: loc)
 : Lemma
   (requires (Set.subset (framesOf_loc l) (Set.singleton r)))
-  (ensures (loc_includes l (LRegion r)))
-  [SMTPat (loc_includes l (LRegion r))]
-= Squash.return_squash (LocIncludesRegion l r ())
+  (ensures (loc_includes (LRegion r) l))
+  [SMTPat (loc_includes (LRegion r) l)]
+= Squash.return_squash (LocIncludesRegion r l ())
 
 abstract
 let loc_includes_trans_region
-  (l: loc)
   (r: HH.rid)
+  (l: loc)
 : Lemma
   (requires (Set.subset (framesOf_loc l) (HH.mod_set (Set.singleton r))))
-  (ensures (loc_includes l (LTransRegion r)))
-  [SMTPat (loc_includes l (LTransRegion r))]
-= Squash.return_squash (LocIncludesTransRegion l r ())
+  (ensures (loc_includes (LTransRegion r) l))
+  [SMTPat (loc_includes (LTransRegion r) l)]
+= Squash.return_squash (LocIncludesTransRegion r l ())
 
 abstract
 let loc_includes_trans
@@ -4266,23 +4288,35 @@ noeq type loc_disjoint_t : loc -> loc -> Type =
   (l: loc) ->
   (i: HH.rid) ->
   (a: nat) ->
-  squash (Set.mem i (framesOf_loc l) == false \/ loc_as_addr l <> Some a) ->
+  squash ((* Set.mem i (framesOf_loc l) == false \/ // taken over by LocDisjointRegion *) Some? (loc_as_addr l) /\  loc_as_addr l <> Some a) ->
   loc_disjoint_t l (LAddress i a)
 | LocDisjointRegion:
-  (l: loc) ->
-  (r: HH.rid) ->
-  squash (Set.mem r (framesOf_loc l) == false) ->
-  loc_disjoint_t l (LRegion r)
-| LocDisjointTransRegion:
-  (l: loc) ->
-  (r: HH.rid) ->
-  squash (Set.disjoint (framesOf_loc l) (HH.mod_set (Set.singleton r))) ->
-  loc_disjoint_t l (LTransRegion r)
+  (l1: loc) ->
+  (l2: loc) ->
+  squash (Set.disjoint (framesOf_loc l1) (framesOf_loc l2)) ->
+  loc_disjoint_t l1 l2
 | LocDisjointSym:
   (l1: loc) ->
   (l2: loc) ->
   loc_disjoint_t l1 l2 ->
   loc_disjoint_t l2 l1
+
+(** TODO: move to FStar.Set *)
+let fstar_set_disjoint_subset
+  (#t: eqtype)
+  (s1 s2 s3: FStar.Set.set t)
+: Lemma
+  (requires (Set.disjoint s1 s2 /\ Set.subset s3 s2))
+  (ensures (Set.disjoint s1 s3))
+= Set.lemma_equal_elim (Set.intersect s1 s3) Set.empty
+
+let fstar_intersect_comm
+  (#t: eqtype)
+  (s1 s2: FStar.Set.set t)
+: Lemma
+  (Set.intersect s1 s2 == Set.intersect s2 s1)
+  [SMTPat (Set.intersect s1 s2)]
+= Set.lemma_equal_elim (Set.intersect s1 s2) (Set.intersect s2 s1)
 
 private
 let loc_disjoint_t_loc_includes_t_r_aux
@@ -4290,7 +4324,40 @@ let loc_disjoint_t_loc_includes_t_r_aux
   (h12: loc_disjoint_t l1 l2 { LocDisjointSym? h12 == false } )
   (h23 : loc_includes_t l2 l3 { LocIncludesTrans? h23 == false } )
 : GTot (loc_disjoint_t l1 l3)
-= admit ()
+= if LocDisjointRegion? h12
+  then begin
+    fstar_set_disjoint_subset (framesOf_loc l1) (framesOf_loc l2) (framesOf_loc l3);
+    LocDisjointRegion l1 l3 ()
+  end else
+  match h23 with
+  | LocIncludesPointerPointer t2 t3 p2 p3 h23 ->
+    begin match h12 with
+    | LocDisjointPointerPointer t1 _ p1 _ h12 ->
+      LocDisjointPointerPointer t1 t3 p1 p3 ()
+    | LocDisjointBufferPointer t1 _ b1 _ h12 ->
+      LocDisjointBufferPointer t1 t3 b1 p3 ()
+    end
+  | LocIncludesPointerBufferSingleton _ _ b3 h23 ->
+    begin match h12 with
+    | LocDisjointPointerPointer t1 _ p1 _ h12 ->
+      LocDisjointSym _ _ (LocDisjointBufferPointer _ _ b3 p1 ())
+    | LocDisjointBufferPointer t1 _ b1 _ h12 ->
+      LocDisjointBufferBuffer _ _ b1 b3 ()
+    end
+  | LocIncludesPointerBufferArray len t2 p2 b3 h23 ->
+    begin match h12 with
+    | LocDisjointPointerPointer t1 _ p1 _ h12 ->
+      LocDisjointSym _ _ (LocDisjointBufferPointer _ _ b3 p1 ())
+    | LocDisjointBufferPointer t1 _ b1 _ h12 ->
+      LocDisjointBufferBuffer _ _ b1 b3 ()
+    end
+  | LocIncludesBufferBuffer t2 b2 b3 i len h23 ->
+    let (LocDisjointBufferBuffer t1 _ b1 _ h12) = h12 in
+    LocDisjointBufferBuffer _ _ b1 b3 ()
+  | LocIncludesBufferPointer t2 b2 i p3 h23 ->
+    let (LocDisjointBufferBuffer t1 _ b1 _ h12) = h12 in
+    LocDisjointBufferPointer _ _ b1 p3 ()
+  | LocIncludesAddress r2 a2 -> h12
 
 private
 let loc_disjoint_t_loc_includes_t_l_aux
@@ -4298,7 +4365,45 @@ let loc_disjoint_t_loc_includes_t_l_aux
   (h10 : loc_includes_t l1 l0 { LocIncludesTrans? h10 == false } )
   (h12: loc_disjoint_t l1 l2 { LocDisjointSym? h12 == false } )
 : GTot (loc_disjoint_t l0 l2)
-= admit ()
+= if LocDisjointRegion? h12
+  then begin
+    fstar_set_disjoint_subset (framesOf_loc l2) (framesOf_loc l1) (framesOf_loc l0);
+    LocDisjointRegion l0 l2 ()
+  end else if LocDisjointAddress? h12
+  then
+    let (LocDisjointAddress _ r2 a2 h12) = h12 in
+    LocDisjointAddress l0 r2 a2 ()
+  else
+  match h10 with
+  | LocIncludesPointerPointer t1 t0 p1 p0 h10 ->
+    begin match h12 with
+    | LocDisjointPointerPointer _ t2 _ p2 h12 ->
+      LocDisjointPointerPointer _ _ p0 p2 ()
+    end
+  | LocIncludesPointerBufferSingleton t1 p1 b0 h10 ->
+    begin match h12 with
+    | LocDisjointPointerPointer _ t2 _ p2 h12 ->
+      LocDisjointBufferPointer _ _ b0 p2 ()
+    end
+  | LocIncludesPointerBufferArray len t0 p1 b0 h10 ->
+    begin match h12 with
+    | LocDisjointPointerPointer _ t2 _ p2 h12 ->
+      LocDisjointBufferPointer _ _ b0 p2 ()
+    end
+  | LocIncludesBufferBuffer t1 b1 b0 i len h10 ->
+    begin match h12 with
+    | LocDisjointBufferPointer _ t2 _ p2 h12 ->
+      LocDisjointBufferPointer _ _ b0 p2 ()
+    | LocDisjointBufferBuffer _ t2 _ b2 h12 ->
+      LocDisjointBufferBuffer _ _ b0 b2 ()
+    end
+  | LocIncludesBufferPointer t1 b1 i p0 h10 ->
+    begin match h12 with
+    | LocDisjointBufferPointer _ t2 _ p2 h12 ->
+      LocDisjointPointerPointer _ _ p0 p2 ()
+    | LocDisjointBufferBuffer _ t2 _ b2 h12 ->
+      LocDisjointSym _ _ (LocDisjointBufferPointer _ _ b2 p0 ())
+    end
 
 private
 let rec loc_disjoint_t_loc_includes_t_aux
