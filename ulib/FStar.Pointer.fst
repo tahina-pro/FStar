@@ -3686,7 +3686,7 @@ let equal_buffer_values #a h (b:buffer a) h' (b':buffer a) : GTot Type0 =
 (*** The modifies clause *)
 
 (* Memory locations *)
-noeq type loc : Type =
+noeq type loc : Type0 =
 | LPointer:
   (a: typ) ->
   (p: pointer a) ->
@@ -3695,9 +3695,9 @@ noeq type loc : Type =
   (a: typ) ->
   (b: buffer a) ->
   loc
-| LReference:
-  (a: Type0) ->
-  (r: HS.reference a) ->
+| LAddress:
+  (i: HH.rid) ->
+  (a: nat) ->
   loc
 | LRegion:
   (i: HH.rid) ->
@@ -3719,7 +3719,9 @@ let loc_preserved
 = match l with
   | LPointer a p -> equal_values h p h' p
   | LBuffer a b -> equal_buffer_values h b h' b
-  | LReference a r -> (h `HS.contains` r ==> (h' `HS.contains` r /\ HS.sel h r == HS.sel h' r))
+  | LAddress i a -> (
+    forall (t: Type0) (r: HS.reference t) .
+    (h `HS.contains` r /\ HS.frameOf r == i /\ HS.as_addr r == a)  ==> (h' `HS.contains` r /\ HS.sel h r == HS.sel h' r))
   | LRegion r -> region_preserved r h h'
   | LTransRegion r -> (forall r' . HH.includes r r' ==> region_preserved r' h h')
 
@@ -3729,7 +3731,7 @@ let framesOf_loc
 = match l with
   | LPointer _ p -> Set.singleton (frameOf p)
   | LBuffer _ p -> Set.singleton (frameOf_buffer p)
-  | LReference _ r -> Set.singleton (HS.frameOf r)
+  | LAddress i r -> Set.singleton i
   | LRegion i -> Set.singleton i
   | LTransRegion i -> HH.mod_set (Set.singleton i)
 
@@ -3739,7 +3741,7 @@ let loc_as_addr
 = match l with
   | LPointer _ p -> Some (as_addr p)
   | LBuffer _ b -> Some (buffer_as_addr b)
-  | LReference _ a -> Some (HS.as_addr a)
+  | LAddress _ a -> Some a
   | _ -> None
 
 (** Sets of pointers. The set tracks not only the set of pointers, but
@@ -4001,11 +4003,11 @@ noeq type loc_includes_t : loc -> loc -> Type =
     squash (p == gpointer_of_buffer_cell b i) ->
     loc_includes_t (LBuffer t b) (LPointer t p)
   )
-| LocIncludesReference: (
-    (t: Type0) ->
-    (r: HS.reference t) ->
+| LocIncludesAddress: (
+    (i: HH.rid) ->
+    (a: nat) ->
     (* since we do not expose any link between pointers/buffers and references, there should be no way of shoing that either are included in the other *)
-    loc_includes_t (LReference _ r) (LReference _ r)
+    loc_includes_t (LAddress i a) (LAddress i a)
   )
 | LocIncludesRegion: (
     (l: loc) ->
@@ -4034,7 +4036,7 @@ let loc_includes_t_refl
 = match l with
   | LPointer _ p -> LocIncludesPointerPointer _ _ p p ()
   | LBuffer _ b -> LocIncludesBufferBuffer _ b b 0ul (buffer_length b) ()
-  | LReference _ r -> LocIncludesReference _ r
+  | LAddress i r -> LocIncludesAddress i r
   | LRegion r -> LocIncludesRegion (LRegion r) r ()
   | LTransRegion r -> LocIncludesTransRegion (LTransRegion r) r ()
 
@@ -4260,12 +4262,12 @@ noeq type loc_disjoint_t : loc -> loc -> Type =
   (b2: buffer t2) ->
   squash (disjoint_buffer_vs_buffer b1 b2) ->
   loc_disjoint_t (LBuffer _ b1) (LBuffer _ b2)
-| LocDisjointReference:
+| LocDisjointAddress:
   (l: loc) ->
-  (t: Type0) ->
-  (r: HS.reference t) ->
-  squash (Set.mem (HS.frameOf r) (framesOf_loc l) == false \/ loc_as_addr l <> Some (HS.as_addr r)) ->
-  loc_disjoint_t l (LReference _ r)
+  (i: HH.rid) ->
+  (a: nat) ->
+  squash (Set.mem i (framesOf_loc l) == false \/ loc_as_addr l <> Some a) ->
+  loc_disjoint_t l (LAddress i a)
 | LocDisjointRegion:
   (l: loc) ->
   (r: HH.rid) ->
@@ -4361,13 +4363,20 @@ let loc_disjoint
 
 (** The modifies clause proper *)
 
-(*
 abstract
 let modifies
   (s: set)
   (h1 h2: HS.mem)
 : GTot Type0
-= HH.modifies
+= HH.modifies_just (Set?.regs s) h1.HS.h h2.HS.h /\
+  (forall (r: HH.rid { fine_grained_region_in r (Set?.locs s) (Set?.regs s) } ) .
+   HH.modifies_rref r (Set?.addrs s r) h1.HS.h h2.HS.h ) /\
+  (forall l . (forall l' . set_mem l' s ==> loc_disjoint l l') ==>
+   loc_preserved l h1 h2
+  )
+
+
+(*
 
 HS.modifies_ref r (Ghost.reveal (Set?.addrs s)) h1 h2 /\ (
     forall (a': apointer { frameOf (APointer?.p a') == r /\ live h1 (APointer?.p a') } ) . (
