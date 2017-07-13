@@ -2963,11 +2963,11 @@ let readable_gufield
 
 (* Equality predicate on struct contents, without quantifiers *)
 let equal_values #a h (b:pointer a) h' (b':pointer a) : GTot Type0 =
-  live h b /\ live h' b' /\ (
+  live h b ==> (live h' b' /\ (
     readable h b ==> (
       readable h' b' /\
       gread h b == gread h' b'
-  ))
+  )))
 
 (* Stateful read-only operators *)
 
@@ -3698,11 +3698,11 @@ let disjoint_buffer_vs_buffer_elim
 
 (* Equality predicate on buffer contents, without quantifiers *)
 let equal_buffer_values #a h (b:buffer a) h' (b':buffer a) : GTot Type0 =
-  buffer_live h b /\ buffer_live h' b' /\ (
+  buffer_live h b ==> (buffer_live h' b' /\ (
     buffer_readable h b ==> (
       buffer_readable h' b' /\
       buffer_as_seq h b == buffer_as_seq h' b'
-  ))
+  )))
 
 
 (*** The modifies clause *)
@@ -3790,14 +3790,20 @@ let set_addrs_p (locs : TSet.set loc) (r: HH.rid) (addrs: Set.set nat) =
   )
 
 private
+let set_regions_p
+  (locs: TSet.set loc)
+  (regs: Set.set HH.rid)
+: GTot Type0
+= forall (r: HH.rid) .
+    Set.mem r regs <==> (
+      exists (x: loc) .
+      TSet.mem x locs /\
+      Set.mem r (framesOf_loc x)
+  )
+
+private
 let set_regions_t (locs: TSet.set loc) =
-  rs: Set.set HH.rid {
-    forall (r: HH.rid) .
-      Set.mem r rs <==> (
-        exists (x: loc) .
-        TSet.mem x locs /\
-        Set.mem r (framesOf_loc x)
-  ) }
+  (regs: Set.set HH.rid { set_regions_p locs regs } )
 
 private
 let fine_grained_region_in
@@ -4262,44 +4268,73 @@ let set_includes_elim
 (** Disjointness *)
 
 private
-noeq type loc_disjoint_t : loc -> loc -> Type =
+noeq type loc_disjoint_t' : loc -> loc -> Type =
 | LocDisjointPointerPointer:
   (t1: typ) ->
   (t2: typ) ->
   (p1: pointer t1) ->
   (p2: pointer t2) ->
   squash (disjoint p1 p2) ->
-  loc_disjoint_t (LPointer _ p1) (LPointer _ p2)
+  loc_disjoint_t' (LPointer _ p1) (LPointer _ p2)
 | LocDisjointBufferPointer:
   (t1: typ) ->
   (t2: typ) ->
   (b1: buffer t1) ->
   (p2: pointer t2) ->
   squash (disjoint_buffer_vs_pointer b1 p2) ->
-  loc_disjoint_t (LBuffer _ b1) (LPointer _ p2)
+  loc_disjoint_t' (LBuffer _ b1) (LPointer _ p2)
 | LocDisjointBufferBuffer:
   (t1: typ) ->
   (t2: typ) ->
   (b1: buffer t1) ->
   (b2: buffer t2) ->
   squash (disjoint_buffer_vs_buffer b1 b2) ->
-  loc_disjoint_t (LBuffer _ b1) (LBuffer _ b2)
+  loc_disjoint_t' (LBuffer _ b1) (LBuffer _ b2)
 | LocDisjointAddress:
   (l: loc) ->
   (i: HH.rid) ->
   (a: nat) ->
   squash ((* Set.mem i (framesOf_loc l) == false \/ // taken over by LocDisjointRegion *) Some? (loc_as_addr l) /\  loc_as_addr l <> Some a) ->
-  loc_disjoint_t l (LAddress i a)
+  loc_disjoint_t' l (LAddress i a)
 | LocDisjointRegion:
   (l1: loc) ->
   (l2: loc) ->
   squash (Set.disjoint (framesOf_loc l1) (framesOf_loc l2)) ->
-  loc_disjoint_t l1 l2
+  loc_disjoint_t' l1 l2
 | LocDisjointSym:
   (l1: loc) ->
   (l2: loc) ->
-  loc_disjoint_t l1 l2 ->
-  loc_disjoint_t l2 l1
+  loc_disjoint_t' l1 l2 ->
+  loc_disjoint_t' l2 l1
+
+private
+let loc_disjoint_t_not_symmetric_case
+  (#l1 #l2: loc)
+  (h: loc_disjoint_t' l2 l1)
+: GTot bool
+= (* eliminate symmetric cases *)
+  not (
+    LocDisjointPointerPointer? h ||
+    LocDisjointBufferBuffer? h ||
+    LocDisjointRegion? h ||
+    LocDisjointSym? h ||
+    false
+  )
+
+private
+let loc_disjoint_p
+  (#l1 #l2: loc)
+  (h: loc_disjoint_t' l1 l2)
+: GTot bool
+= match h with
+  | LocDisjointSym _ _ h' -> loc_disjoint_t_not_symmetric_case h'
+  | _ -> true
+
+private
+let loc_disjoint_t
+  (l1 l2: loc)
+: Tot Type
+= (h: loc_disjoint_t' l1 l2 { loc_disjoint_p h == true } )
 
 (** TODO: move to FStar.Set *)
 let fstar_set_disjoint_subset
@@ -4317,6 +4352,18 @@ let fstar_intersect_comm
   (Set.intersect s1 s2 == Set.intersect s2 s1)
   [SMTPat (Set.intersect s1 s2)]
 = Set.lemma_equal_elim (Set.intersect s1 s2) (Set.intersect s2 s1)
+
+private
+let loc_disjoint_t_sym
+  (#l1 #l2: loc)
+  (h: loc_disjoint_t l1 l2)
+: GTot (loc_disjoint_t l2 l1)
+= match h with
+  | LocDisjointSym _ _ h' -> h'
+  | LocDisjointPointerPointer _ _ p1 p2 _ -> LocDisjointPointerPointer _ _ p2 p1 ()
+  | LocDisjointBufferBuffer _ _ b1 b2 _ -> LocDisjointBufferBuffer _ _ b2 b1 ()
+  | LocDisjointRegion _ _ _ -> LocDisjointRegion l2 l1 ()
+  | _ -> LocDisjointSym _ _ h
 
 private
 let loc_disjoint_t_loc_includes_t_r_aux
@@ -4340,14 +4387,14 @@ let loc_disjoint_t_loc_includes_t_r_aux
   | LocIncludesPointerBufferSingleton _ _ b3 h23 ->
     begin match h12 with
     | LocDisjointPointerPointer t1 _ p1 _ h12 ->
-      LocDisjointSym _ _ (LocDisjointBufferPointer _ _ b3 p1 ())
+      loc_disjoint_t_sym (LocDisjointBufferPointer _ _ b3 p1 ())
     | LocDisjointBufferPointer t1 _ b1 _ h12 ->
       LocDisjointBufferBuffer _ _ b1 b3 ()
     end
   | LocIncludesPointerBufferArray len t2 p2 b3 h23 ->
     begin match h12 with
     | LocDisjointPointerPointer t1 _ p1 _ h12 ->
-      LocDisjointSym _ _ (LocDisjointBufferPointer _ _ b3 p1 ())
+      loc_disjoint_t_sym (LocDisjointBufferPointer _ _ b3 p1 ())
     | LocDisjointBufferPointer t1 _ b1 _ h12 ->
       LocDisjointBufferBuffer _ _ b1 b3 ()
     end
@@ -4402,7 +4449,7 @@ let loc_disjoint_t_loc_includes_t_l_aux
     | LocDisjointBufferPointer _ t2 _ p2 h12 ->
       LocDisjointPointerPointer _ _ p0 p2 ()
     | LocDisjointBufferBuffer _ t2 _ b2 h12 ->
-      LocDisjointSym _ _ (LocDisjointBufferPointer _ _ b2 p0 ())
+      loc_disjoint_t_sym (LocDisjointBufferPointer _ _ b2 p0 ())
     end
 
 private
@@ -4416,7 +4463,7 @@ let rec loc_disjoint_t_loc_includes_t_aux
   | LocDisjointSym _ _ h21 ->
     begin match h21 with
     | LocDisjointSym _ _ h12 -> loc_disjoint_t_loc_includes_t_aux l0 l1 l2 h10 h12
-    | _ -> LocDisjointSym _ _ (loc_disjoint_t_loc_includes_t_r_aux l2 l1 l0 h21 h10)
+    | _ -> loc_disjoint_t_sym (loc_disjoint_t_loc_includes_t_r_aux l2 l1 l0 h21 h10)
     end
   | _ -> loc_disjoint_t_loc_includes_t_l_aux l0 l1 l2 h10 h12
 
@@ -4457,7 +4504,7 @@ let rec loc_disjoint_t_loc_includes_t
       let h02 : loc_disjoint_t l0 l2 =
         loc_disjoint_t_loc_includes_t_aux l0 l1 l2 h10 h12
       in
-      LocDisjointSym _ _ (loc_disjoint_t_loc_includes_t_aux _ _ _ h23 (LocDisjointSym _ _ h02))
+      loc_disjoint_t_sym (loc_disjoint_t_loc_includes_t_aux _ _ _ h23 (loc_disjoint_t_sym h02))
     end
 
 abstract
@@ -4479,6 +4526,103 @@ let modifies
   (forall l . (forall l' . set_mem l' s ==> loc_disjoint l l') ==>
    loc_preserved l h1 h2
   )
+
+private
+let modifies_intro
+  (s: set)
+  (h1 h2: HS.mem)
+  (hregs: squash (HH.modifies_just (Set?.regs s) h1.HS.h h2.HS.h))
+  (hrefs: (
+    (r: HH.rid { fine_grained_region_in r (Set?.locs s) (Set?.regs s) } ) ->
+    Lemma
+    (HH.modifies_rref r (Set?.addrs s r) h1.HS.h h2.HS.h)
+  ))
+  (hlocs: (
+    (l: loc) ->
+    (phi: (
+      (l' : loc) ->
+      Ghost (loc_disjoint_t l l')
+      (requires (set_mem l' s))
+      (ensures (fun _ -> True))
+    )) ->
+    Lemma
+    (loc_preserved l h1 h2)
+  ))
+: Lemma
+  (modifies s h1 h2)
+= admit ()
+
+(* HH.modifies_just to modifies *)
+
+(* TODO: move to FStar.TSet *)
+assume
+val fstar_tset_map
+  (#a #b: Type)
+  (f: (a -> GTot b))
+  (sa: TSet.set a)
+: GTot (TSet.set b)
+
+assume
+val fstar_tset_map_mem
+  (#a #b: Type)
+  (f: (a -> GTot b))
+  (sa: TSet.set a)
+  (y: b)
+: Lemma
+  (TSet.mem y (fstar_tset_map f sa) <==> (exists x . TSet.mem x sa /\ f x == y))
+  [SMTPat (TSet.mem y (fstar_tset_map f sa))]
+
+abstract
+let set_of_set_rid
+  (regs: Set.set HH.rid)
+: Ghost set
+  (requires True)
+  (ensures (fun s -> forall l . set_mem l s <==> (exists r . l == LRegion r /\ Set.mem r regs)))
+= let locs = fstar_tset_map LRegion (TSet.tset_of_set regs) in
+  assert (forall (r: HH.rid) . Set.mem r regs <==> TSet.mem (LRegion r) locs);
+  Set locs regs (fun _ -> Set.empty) ()
+
+#reset-options "--z3rlimit 64"
+
+abstract
+let modifies_just_modifies
+  (regs: Set.set HH.rid)
+  (h h' : HS.mem)
+: Lemma
+  (requires (HH.modifies_just regs h.HS.h h'.HS.h))
+  (ensures (modifies (set_of_set_rid regs) h h'))
+= let prf
+    (l: loc)
+    (phi: (
+      (l': loc) ->
+      Ghost (loc_disjoint_t l l')
+      (requires (set_mem l' (set_of_set_rid regs)))
+      (ensures (fun _ -> True))
+    ))
+  : Lemma
+    (loc_preserved l h h')
+  = let g
+      (r: HH.rid)
+    : Lemma
+      (requires (Set.mem r regs))
+      (ensures (~ (Set.mem r (framesOf_loc l))))
+    = assert (set_mem (LRegion r) (set_of_set_rid regs));
+      let hd : loc_disjoint_t l (LRegion r) = phi (LRegion r) in
+      match hd with
+      | LocDisjointRegion _ _ hdisj -> assert (~ (Set.mem r (framesOf_loc l)))
+      | _ -> assert False // FIXME: WHY WHY WHY is this necessary? It seems that branches are excluded for different reasons and F* cannot figure out why
+    in
+    Classical.forall_intro (Classical.move_requires g);
+    assert (forall (t: typ) (p: pointer t) . (~ (Set.mem (frameOf p) regs)) ==> equal_values h p h' p);
+    match l with
+    | LBuffer a b ->
+      begin match b.broot with
+      | BufferRootSingleton p -> assert (equal_values h p h' p)
+      | BufferRootArray #maxl p -> assert (equal_values h p h' p)
+      end
+    | _ -> ()
+  in
+  modifies_intro (set_of_set_rid regs) h h' () (fun r -> ()) prf
 
 
 (*
