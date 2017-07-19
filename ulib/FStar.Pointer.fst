@@ -4610,7 +4610,7 @@ let set_of_set_rid
   assert (forall (r: HH.rid) . Set.mem r regs <==> TSet.mem (LRegion r) locs);
   Set locs regs (fun _ -> Set.empty) ()
 
-#reset-options "--z3rlimit 64"
+#reset-options "--z3rlimit 128"
 
 abstract
 let modifies_just_modifies
@@ -4652,6 +4652,25 @@ let modifies_just_modifies
   in
   modifies_intro (set_of_set_rid regs) h h' () (fun r -> ()) prf
 
+(* Addresses to sets *)
+
+abstract
+let set_of_set_addr
+  (regs: Set.set HH.rid)
+  (addrs: (
+    (r: HH.rid { Set.mem r regs } ) ->
+    GTot (Set.set nat)
+  ))
+: Ghost set
+  (requires True)
+  (ensures (fun s ->
+    forall l .
+    set_mem l s <==> (
+    exists r a . l == LAddress r a /\
+    Set.mem r regs /\
+    Set.mem a (addrs r)
+  )))
+= admit ()
 
 (*
 
