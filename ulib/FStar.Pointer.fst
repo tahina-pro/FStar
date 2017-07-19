@@ -4550,8 +4550,36 @@ let modifies_intro
   ))
 : Lemma
   (modifies s h1 h2)
-= admit ()
-
+= let g
+    (l: loc)
+  : Lemma
+    (requires (forall l' . set_mem l' s ==> loc_disjoint l l'))
+    (ensures (loc_preserved l h1 h2))
+  = let phi'
+      (l': loc { set_mem l' s } )
+    : GTot
+      (squash (loc_disjoint_t l l'))
+    = let s : squash (loc_disjoint l l') = () in
+      Squash.join_squash s
+    in
+    let squash_phi =
+      Squash.squash_double_arrow #(l': loc { set_mem l' s}) #(fun l' -> loc_disjoint_t l l') (Squash.return_squash phi')
+    in
+    Squash.bind_squash #((l': loc {set_mem l' s} ) -> GTot (loc_disjoint_t l l')) #(loc_preserved l h1 h2) squash_phi (fun phi_ -> 
+      let phi
+        (l': loc)
+      : Ghost (loc_disjoint_t l l')
+        (requires (set_mem l' s))
+        (ensures (fun _ -> True))
+      = phi_ l'
+      in
+      hlocs l phi
+    )
+  in
+  Classical.forall_intro (Classical.move_requires g);
+  Classical.forall_intro hrefs
+  
+  
 (* HH.modifies_just to modifies *)
 
 (* TODO: move to FStar.TSet *)
