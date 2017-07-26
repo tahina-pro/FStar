@@ -2228,9 +2228,10 @@ abstract let live
   (h: HS.mem)
   (p: pointer value)
 : GTot Type0
-= let (Pointer from contents _) = p in (
-    HS.aref_live_at h contents pointer_ref_contents /\ (
-      let untyped_contents = HS.greference_of contents pointer_ref_contents in (
+= let rel = Heap.trivial_preorder pointer_ref_contents in
+  let (Pointer from contents _) = p in (
+    HS.aref_live_at h contents pointer_ref_contents rel /\ (
+      let untyped_contents = HS.greference_of contents pointer_ref_contents rel in (
       dfst (HS.sel h untyped_contents) == from
   )))
 
@@ -2270,18 +2271,8 @@ private let greference_of
   (p: pointer value)
 : Ghost (HS.reference pointer_ref_contents)
   (requires (exists h . live h p))
-  (ensures (fun x -> (exists h . live h p) /\ x == HS.greference_of (Pointer?.contents p) pointer_ref_contents /\ HS.aref_of x == Pointer?.contents p))
-= HS.greference_of (Pointer?.contents p) pointer_ref_contents
-
-private
-let reference_of
-  (h: HS.mem)
-  (#value: typ)
-  (p: pointer value)
-: Pure (HS.reference pointer_ref_contents)
-  (requires (live h p))
-  (ensures (fun x -> live h p /\ x == greference_of p))
-= HS.reference_of h (Pointer?.contents p) pointer_ref_contents
+  (ensures (fun x -> (exists h . live h p) /\ x == HS.greference_of (Pointer?.contents p) pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents) /\ HS.aref_of x == Pointer?.contents p))
+= HS.greference_of (Pointer?.contents p) pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents)
 
 private
 let unused_in_greference_of
@@ -3651,14 +3642,24 @@ abstract let screate
        | _ -> True
        end
   ))
-= let s = match s with
+= let h0 = HST.get () in
+  let s = match s with
   | Some s -> ovalue_of_value value s
   | _ -> none_ovalue value
   in
   let content: HS.reference pointer_ref_contents =
      HST.salloc (| value, s |)
   in
-  Pointer value (HS.aref_of content) PathBase
+  let aref = HS.aref_of content in
+  let p = Pointer value aref PathBase in
+  let h1 = HST.get () in
+  assert (HS.aref_live_at h1 aref pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents));
+  assert (
+    let gref = HS.greference_of aref pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents) in
+    HS.sel h1 gref == HS.sel h1 content
+  );
+  assume (modifies_0 h0 h1);
+  p
 
 // TODO: move to HyperStack?
 private let domain_upd (#a:Type) (h:HS.mem) (x:HS.reference a{HS.live_region h x.HS.id}) (v:a) : Lemma
