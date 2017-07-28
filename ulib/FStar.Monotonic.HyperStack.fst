@@ -251,17 +251,27 @@ let above_tip_is_live (#a:Type) (#rel:preorder a) (m:mem) (x:mreference a rel) :
 let lemma_sel_same_addr (#a:Type0) (#rel:preorder a) (h:mem) (r1:mreference a rel) (r2:mreference a rel)
   :Lemma (requires (h `contains` r1 /\ frameOf r1 == frameOf r2 /\ as_addr r1 = as_addr r2))
          (ensures  (h `contains` r2 /\ sel h r1 == sel h r2))
+= ()
+
+let lemma_sel_same_addr' (#a:Type0) (#rel:preorder a) (h:mem) (r1:mreference a rel) (r2:mreference a rel)
+  :Lemma (requires (h `contains` r1 /\ frameOf r1 == frameOf r2 /\ as_addr r1 = as_addr r2))
+         (ensures  (h `contains` r2 /\ sel h r1 == sel h r2))
 	 [SMTPatOr [
            [SMTPat (sel h r1); SMTPat (sel h r2)];
            [SMTPat (frameOf r1); SMTPat (frameOf r2); SMTPat (as_addr r1); SMTPat (as_addr r2)]
          ]]
-= ()
+= lemma_sel_same_addr h r1 r2
 
 let lemma_upd_same_addr (#a: Type0) (#rel: preorder a) (h: mem) (r1 r2: mreference a rel) (x: a)
   :Lemma (requires ((h `contains` r1 \/ h `contains` r2) /\ frameOf r1 == frameOf r2 /\ as_addr r1 = as_addr r2))
          (ensures (h `contains` r1 /\ h `contains` r2 /\ upd h r1 x == upd h r2 x))
-         [SMTPat (upd h r1 x); SMTPat (upd h r2 x)]
 = lemma_sel_same_addr h r1 r2
+
+let lemma_upd_same_addr' (#a: Type0) (#rel: preorder a) (h: mem) (r1 r2: mreference a rel) (x: a)
+  :Lemma (requires ((h `contains` r1 \/ h `contains` r2) /\ frameOf r1 == frameOf r2 /\ as_addr r1 = as_addr r2))
+         (ensures (h `contains` r1 /\ h `contains` r2 /\ upd h r1 x == upd h r2 x))
+         [SMTPat (upd h r1 x); SMTPat (upd h r2 x)]
+= lemma_upd_same_addr h r1 r2 x
 
 (*
  * AR: relating contains and weak_contains.

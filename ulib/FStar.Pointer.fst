@@ -3752,16 +3752,38 @@ private let reference_of
   (p: pointer value)
 : Pure (HS.reference pointer_ref_contents)
   (requires (live h p))
-  (ensures (fun x -> live h p /\ x == HS.reference_of h (Pointer?.contents p) pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents) /\ HS.frameOf x == HS.frameOf (greference_of p) /\ HS.as_addr x == HS.as_addr (greference_of p) /\ (
-    forall h' . 
-    (h' `HS.contains` x <==> h' `HS.contains` (greference_of p)) /\
-    ((h' `HS.contains` x \/ h' `HS.contains` (greference_of p)) ==> HS.sel h x == HS.sel h (greference_of p)) /\
-    True // (forall y . (h' `HS.contains` x \/ h' `HS.contains` (greference_of p)) ==> HS.upd h' x y == HS.upd h' (greference_of p) y)
+  (ensures (fun x -> 
+    live h p /\
+    x == HS.reference_of h (Pointer?.contents p) pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents) /\
+    HS.frameOf x == HS.frameOf (greference_of p) /\
+    HS.as_addr x == HS.as_addr (greference_of p) /\
+    (forall h' . h' `HS.contains` x <==> h' `HS.contains` (greference_of p)) /\
+    (forall h' . (h' `HS.contains` x \/ h' `HS.contains` (greference_of p)) ==> (h' `HS.contains` x /\ h' `HS.contains` (greference_of p) /\ HS.sel h' x == HS.sel h' (greference_of p))) /\
+    (forall h' z .
+      (h' `HS.contains` x \/ h' `HS.contains` (greference_of p)) ==>
+      (h' `HS.contains` x /\ h' `HS.contains` (greference_of p) /\ HS.upd h' x z == HS.upd h' (greference_of p) z)
   )))
 = let x =
     HS.reference_of h (Pointer?.contents p) pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents)
   in
-  Classical.forall_intro (fun h' -> Classical.move_requires (HS.sel_reference_of (Pointer?.contents p) pointer_ref_contents (Heap.trivial_preorder pointer_ref_contents) h') h);
+  let f (h' : HS.mem) : Lemma
+    ( (exists h' . live h' p) /\ // necessary to typecheck Classical.forall_intro
+      (h' `HS.contains` x <==> h' `HS.contains` (greference_of p)) /\
+    ((h' `HS.contains` x \/ h' `HS.contains` (greference_of p)) ==> HS.sel h' x == HS.sel h' (greference_of p)))
+  = let y = greference_of p in
+    Classical.move_requires (HS.lemma_sel_same_addr h' y) x;
+    Classical.move_requires (HS.lemma_sel_same_addr h' x) y
+  in
+  let g (z: pointer_ref_contents) (h' : HS.mem) : Lemma (
+    (exists h' . live h' p) /\
+    ((h' `HS.contains` x \/ h' `HS.contains` (greference_of p)) ==> (h' `HS.contains` x /\ h' `HS.contains` (greference_of p) /\ HS.upd h' x z == HS.upd h' (greference_of p) z))
+  )
+  = let y = greference_of p in
+    Classical.move_requires (HS.lemma_upd_same_addr h' y x) z;
+    Classical.move_requires (HS.lemma_upd_same_addr h' x y) z
+  in
+  Classical.forall_intro f ;
+  Classical.forall_intro_2 g;
   x
 
 abstract let read
@@ -3772,7 +3794,6 @@ abstract let read
   (ensures (fun h0 v h1 -> readable h0 p /\ h0 == h1 /\ v == gread h0 p))
 = let h = HST.get () in
   let r = reference_of h p in
-  assert (h `HS.contains` r /\ HS.sel h r == HS.sel h (greference_of p));
   let (| _ , c |) = !r in
   value_of_ovalue value (path_sel c (Pointer?.p p))
 
@@ -3787,6 +3808,8 @@ let is_null
   | NullPtr -> true
   | _ -> false
 
+#reset-options "--z3rlimit 1024"
+
 abstract val write: #a:typ -> b:pointer a -> z:type_of_typ a -> HST.Stack unit
   (requires (fun h -> live h b))
   (ensures (fun h0 _ h1 -> live h0 b /\ live h1 b
@@ -3798,7 +3821,10 @@ let write #a b z =
   let r = reference_of h0 b in
   let (| t , c0 |) = !r in
   let c1 = path_upd c0 (Pointer?.p b) (ovalue_of_value a z) in
-  r := (| t, c1 |)
+  let v = (| t, c1 |) in
+  r := v;
+  let h1 = HST.get () in
+  assert (h1 == HS.upd h0 (greference_of b) v)
 
 (** Lemmas and patterns *)
 
@@ -3881,7 +3907,7 @@ let modifies_poppable_1 #t h0 h1 (b:pointer t) : Lemma
 (* `modifies` and the readable permission *)
 
 (** NOTE: we historically used to have this lemma for arbitrary
-pointer inclusion, but it will become wrong for unions. *)
+pointer inclusion, but that became wrong for unions. *)
 
 let modifies_1_readable_struct
   (#l: struct_typ)
