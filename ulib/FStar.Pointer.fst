@@ -4578,8 +4578,81 @@ let modifies_intro
   in
   Classical.forall_intro (Classical.move_requires g);
   Classical.forall_intro hrefs
+
+#reset-options "--z3rlimit 128"
+
+private
+let legacy_modifies_to_modifies
+  (s: set)
+  (h1 h2: HS.mem)
+: Lemma
+  (requires (
+    HH.modifies_just (Set?.regs s) h1.HS.h h2.HS.h /\ (
+      forall (r: HH.rid { fine_grained_region_in r (Set?.locs s) (Set?.regs s) } ) . 
+      HH.modifies_rref r (Set?.addrs s r) h1.HS.h h2.HS.h
+    ) /\ (
+      forall (l: loc) .
+      TSet.mem l (Set?.locs s) ==> (
+      LPointer? l == false /\
+      LBuffer? l == false
+  ))))
+  (ensures (modifies s h1 h2))
+= assume (forall (t: typ) (p: pointer t) . (forall l . set_mem l s ==> loc_disjoint (LPointer t p) l) ==> equal_values h1 p h2 p);
+  let prf
+    (l: loc)
+  : Lemma
+    (requires (forall (l' : loc) . set_mem l' s ==> loc_disjoint l l'))
+    (ensures (loc_preserved l h1 h2))
+  = match l with
+    | LBuffer a b ->
+      begin match b.broot with
+      | BufferRootSingleton p -> 
+        assume (forall (l' : loc) . set_mem l' s ==> loc_disjoint (LPointer a p) l');
+        assert (equal_values h1 p h2 p); assert (loc_preserved l h1 h2)
+      | BufferRootArray #_ #maxl p ->
+        assume (forall (l' : loc) . set_mem l' s ==> loc_disjoint (LPointer (TArray maxl a) p) l');
+        assert (equal_values h1 p h2 p); assert (loc_preserved l h1 h2)
+      end
+    | LPointer t p -> assert (loc_preserved l h1 h2)
+    | _ -> assume (loc_preserved l h1 h2)
+  in
+  Classical.forall_intro (Classical.move_requires prf)
   
-  
+
+  let prf
+    (l: loc)
+    (phi: (
+      (l': loc) ->
+      Ghost (loc_disjoint_t l l')
+      (requires (set_mem l' s))
+      (ensures (fun _ -> True))
+    ))
+  : Lemma
+    (loc_preserved l h h')
+  = let g
+      (r: HH.rid)
+    : Lemma
+      (requires (Set.mem r regs))
+      (ensures (~ (Set.mem r (framesOf_loc l))))
+    = assert (set_mem (LRegion r) (set_of_set_rid regs));
+      let hd : loc_disjoint_t l (LRegion r) = phi (LRegion r) in
+      match hd with
+      | LocDisjointRegion _ _ hdisj -> assert (~ (Set.mem r (framesOf_loc l)))
+      | _ -> assert False // FIXME: WHY WHY WHY is this necessary? It seems that branches are excluded for different reasons and F* cannot figure out why
+    in
+    Classical.forall_intro (Classical.move_requires g);
+    assert (forall (t: typ) (p: pointer t) . (~ (Set.mem (frameOf p) regs)) ==> equal_values h p h' p);
+    match l with
+    | LBuffer a b ->
+      begin match b.broot with
+      | BufferRootSingleton p -> assert (equal_values h p h' p)
+      | BufferRootArray #maxl p -> assert (equal_values h p h' p)
+      end
+    | _ -> ()
+  in
+
+
+
 (* HH.modifies_just to modifies *)
 
 (* TODO: move to FStar.TSet *)
@@ -4654,6 +4727,25 @@ let modifies_just_modifies
 
 (* Addresses to sets *)
 
+private
+assume val set_loc_of_set_addr
+  (regs: Set.set HH.rid)
+  (addrs: (
+    (r: HH.rid { Set.mem r regs } ) ->
+    GTot (Set.set nat)
+  ))
+: Ghost (TSet.set loc)
+  (requires (
+    forall (r: HH.rid) . Set.mem r regs ==> (exists a . Set.mem a (addrs r))
+  ))
+  (ensures (fun s ->
+    forall l .
+    TSet.mem l s <==> (
+    exists r a . l == LAddress r a /\
+    Set.mem r regs /\
+    Set.mem a (addrs r)
+  )))
+
 abstract
 let set_of_set_addr
   (regs: Set.set HH.rid)
@@ -4662,7 +4754,9 @@ let set_of_set_addr
     GTot (Set.set nat)
   ))
 : Ghost set
-  (requires True)
+  (requires (
+    forall (r: HH.rid) . Set.mem r regs ==> (exists a . Set.mem a (addrs r))
+  ))
   (ensures (fun s ->
     forall l .
     set_mem l s <==> (
@@ -4670,7 +4764,11 @@ let set_of_set_addr
     Set.mem r regs /\
     Set.mem a (addrs r)
   )))
-= admit ()
+= let locs = set_loc_of_set_addr regs addrs in
+  assert (forall r . Set.mem r regs ==> (exists a . TSet.mem (LAddress r a) locs));
+  let regs : set_regions_t locs = regs in
+  assert (forall (r: HH.rid { fine_grained_region_in r locs regs } ) n . Set.mem n (addrs r) ==> TSet.mem (LAddress r n) locs);
+  Set locs regs addrs ()
 
 (*
 
