@@ -3,12 +3,12 @@ module Test
 module S  = FStar.Pointer
 module HST = FStar.HyperStack.ST
 
-let struct : S.struct_typ = [
+let struct_ : S.struct_typ = [
   ("I", S.TBase S.TInt);
   ("B", S.TBase S.TBool);
 ]
 
-let struct_t = S.TStruct struct
+let struct_t = S.TStruct struct_
 
 let obj = S.pointer struct_t
 
@@ -43,8 +43,8 @@ let caller
   (requires (fun _ -> True))
   (ensures (fun _ z _ -> z == 18))
 = HST.push_frame();
-  let ofrom : obj = S.screate _ (Some (S.struct_create struct [(|"I",18|); (|"B",true|)])) in
-  let moto : more_obj = S.screate _ (Some (S.struct_create more_struct [(|"Less",S.struct_create struct [(|"I",1729|); (|"B",false|)]|); (|"ThisMore", ()|)])) in
+  let ofrom : obj = S.screate _ (Some (S.struct_create struct_ [(|"I",18|); (|"B",true|)])) in
+  let moto : more_obj = S.screate _ (Some (S.struct_create more_struct [(|"Less",S.struct_create struct_ [(|"I",1729|); (|"B",false|)]|); (|"ThisMore", ()|)])) in
   let pfrom : obj = ofrom in
   let pto : obj = S.field moto "Less" in
   let z = callee pfrom pto in

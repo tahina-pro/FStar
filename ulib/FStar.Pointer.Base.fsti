@@ -284,14 +284,14 @@ let type_of_struct_field
 = type_of_struct_field' l type_of_typ
 
 (** Interpretation of structs, as dependent maps. *)
-let struct (l: struct_typ) = DM.t (struct_field l) (type_of_struct_field l)
+let struct_ (l: struct_typ) = DM.t (struct_field l) (type_of_struct_field l)
 
 let type_of_typ_struct
   (l: struct_typ)
 : Lemma
-  (type_of_typ (TStruct l) == struct l)
+  (type_of_typ (TStruct l) == struct_ l)
   [SMTPat (type_of_typ (TStruct l))]
-= assert_norm (type_of_typ (TStruct l) == struct l)
+= assert_norm (type_of_typ (TStruct l) == struct_ l)
 
 let type_of_typ_type_of_struct_field
   (l: struct_typ)
@@ -301,10 +301,10 @@ let type_of_typ_type_of_struct_field
   [SMTPat (type_of_typ (typ_of_struct_field l f))]
 = ()
 
-let struct_sel (#l: struct_typ) (s: struct l) (f: struct_field l) : Tot (type_of_struct_field l f) =
+let struct_sel (#l: struct_typ) (s: struct_ l) (f: struct_field l) : Tot (type_of_struct_field l f) =
   DM.sel s f
 
-let struct_upd (#l: struct_typ) (s: struct l) (f: struct_field l) (v: type_of_struct_field l f) : Tot (struct l) =
+let struct_upd (#l: struct_typ) (s: struct_ l) (f: struct_field l) (v: type_of_struct_field l f) : Tot (struct_ l) =
   DM.upd s f v
 
 let dfst_struct_field
@@ -347,13 +347,13 @@ let fun_of_list
     Classical.forall_intro (Classical.move_requires (List.Tot.find_none phi l));
     false_elim ()
 
-let struct_create_fun (l: struct_typ) (f: ((fd: struct_field l) -> Tot (type_of_struct_field l fd))) : Tot (struct l) =
+let struct_create_fun (l: struct_typ) (f: ((fd: struct_field l) -> Tot (type_of_struct_field l fd))) : Tot (struct_ l) =
   DM.create #(struct_field l) #(type_of_struct_field l) f
 
 let struct_create
   (s: struct_typ)
   (l: struct_literal s)
-: Pure (struct s)
+: Pure (struct_ s)
   (requires (normalize_term (struct_literal_wf s l) == true))
   (ensures (fun _ -> True))
 = struct_create_fun s (fun_of_list s l)

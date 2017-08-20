@@ -5,14 +5,14 @@ module HST = FStar.HyperStack.ST
 
 #set-options "--initial_fuel 3"
 
-let struct : S.struct_typ = [
+let struct_ : S.struct_typ = [
   ("I", S.TBase S.TInt);
   ("B", S.TBase S.TBool);
 ]
 
 #reset-options "--initial_fuel 2"
 
-let struct_t = S.TStruct struct
+let struct_t = S.TStruct struct_
 
 let obj = S.pointer struct_t
 
@@ -38,7 +38,7 @@ let caller
   (requires (fun _ -> True))
   (ensures (fun _ z _ -> z == 18))
 = HST.push_frame();
-  let dm : S.struct struct = S.struct_create struct [(|"I", 18|); (|"B", true|)] in
+  let dm : S.struct_ struct_ = S.struct_create struct_ [(|"I", 18|); (|"B", true|)] in
   let b = S.buffer_of_array_pointer (S.screate (S.TArray 2ul struct_t) (Some (Seq.create 2 dm))) in
   let pfrom : obj = S.pointer_of_buffer_cell b (UInt32.uint_to_t 0) in
   let pto : obj = S.pointer_of_buffer_cell b (UInt32.uint_to_t 1) in

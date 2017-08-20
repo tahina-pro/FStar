@@ -517,7 +517,7 @@ let ostruct_field_of_struct_field
     (requires (t << l))
     (ensures (fun _ -> True))
   ))
-  (v: struct l)
+  (v: struct_ l)
   (f: struct_field l)
 : Tot (otype_of_struct_field l f)
 = ovalue_of_value (typ_of_struct_field l f) (struct_sel #l v f)
@@ -573,11 +573,13 @@ let ovalue_is_readable_ostruct_field_of_struct_field
     (requires (t << l))
     (ensures (ovalue_is_readable t (ovalue_of_value t v)))
   ))
-  (v: struct l)
+  (v: struct_ l)
   (f: struct_field l)
 : Lemma
   (ovalue_is_readable (typ_of_struct_field l f) (ostruct_field_of_struct_field l ovalue_of_value v f))
 = ih (typ_of_struct_field l f) (struct_sel #l v f)
+
+#reset-options "--z3rlimit 16"
 
 let rec ovalue_is_readable_ovalue_of_value
   (t: typ)
@@ -589,7 +591,7 @@ let rec ovalue_is_readable_ovalue_of_value
   [SMTPat (ovalue_is_readable t (ovalue_of_value t v))]
 = match t with
   | TStruct l ->
-    let (v: struct l) = v in
+    let (v: struct_ l) = v in
     let (v': ostruct l) = ovalue_of_value (TStruct l) v in
     let phi
       (t: typ)
@@ -699,8 +701,6 @@ let value_of_ovalue_array_index
   (ensures (forall (i: nat) . i < UInt32.v len ==> Seq.index (value_of_ovalue (TArray len t') (Some sv)) i == value_of_ovalue t' (Seq.index sv i)))
 = ()
 
-#reset-options "--z3rlimit 16"
-
 let rec value_of_ovalue_of_value
   (t: typ)
   (v: type_of_typ t)
@@ -709,8 +709,8 @@ let rec value_of_ovalue_of_value
   [SMTPat (value_of_ovalue t (ovalue_of_value t v))]
 = match t with
   | TStruct l ->
-    let v : struct l = v in
-    let v' : struct l = value_of_ovalue t (ovalue_of_value t v) in
+    let v : struct_ l = v in
+    let v' : struct_ l = value_of_ovalue t (ovalue_of_value t v) in
     let phi
       (f: struct_field l)
     : Lemma
