@@ -1,8 +1,6 @@
 [
   "È\fhÛÙù\u0001€Ï\u0014å\\Å\u0006Ø^",
   [
-    null,
-    null,
     [
       "Test.point_struct",
       1,
@@ -60,8 +58,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       1,
@@ -364,8 +360,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       8,
@@ -413,8 +407,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       9,
@@ -443,8 +435,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       10,
@@ -676,8 +666,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       17,
@@ -718,8 +706,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       18,
@@ -759,8 +745,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       19,
@@ -859,8 +843,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       22,
@@ -969,8 +951,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip",
       25,
@@ -1011,8 +991,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       1,
@@ -1336,8 +1314,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       8,
@@ -1377,8 +1353,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       9,
@@ -1428,8 +1402,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       10,
@@ -1653,8 +1625,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       17,
@@ -1695,8 +1665,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       18,
@@ -1736,8 +1704,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       19,
@@ -1901,8 +1867,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       24,
@@ -1944,8 +1908,6 @@
       ],
       0
     ],
-    null,
-    null,
     [
       "Test.flip'",
       25,

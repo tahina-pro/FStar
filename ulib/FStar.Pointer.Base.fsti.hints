@@ -1,5 +1,5 @@
 [
-  "\u0007Û,,Ž¸È0L³à&Ó1\u001a‡",
+  "\u001aQïÝV\u0013º¤ðR›c‘\u001fV\u0013",
   [
     [ "FStar.Pointer.Base.uu___is_TUInt", 1, 2, 1, [ "@query" ], 0 ],
     [ "FStar.Pointer.Base.uu___is_TUInt8", 1, 2, 1, [ "@query" ], 0 ],
@@ -298,7 +298,6 @@
       ],
       0
     ],
-    null,
     [
       "FStar.Pointer.Base.typ_depth",
       2,
