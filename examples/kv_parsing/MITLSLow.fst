@@ -198,34 +198,105 @@ module B = FStar.Buffer
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
-let rec parse_list_aux
+let rec parse_list
+  (#t: Type0)
+  (p: P.parser t)
+  (b: P.bytes32)
+: Tot (option (list t * (n: nat { n <= Seq.length b } ) ) )
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then 
+    Some ([], 0)
+  else
+    match p b with
+    | None -> None
+    | Some (v, n) ->
+      if n = 0
+      then None (* elements cannot be empty *)
+      else
+        match parse_list p (Seq.slice b n (Seq.length b)) with
+	| Some (l, n') -> Some (v :: l, n + n')
+	| _ -> None
+
+let rec parse_list_tailrec
   (#t: Type0)
   (p: P.parser t)
   (b: P.bytes32)
   (aux: list t)
 : Tot (option (list t))
   (decreases (Seq.length b))
-=
-    if Seq.length b = 0
-    then 
-      Some aux
-    else
-      match p b with
-      | None -> None
-      | Some (v, n) ->
-	if n = 0
-	then None (* elements cannot be empty *)
-	else
-	  parse_list_aux p (Seq.slice b n (Seq.length b)) (List.Tot.append aux [v])
+= if Seq.length b = 0
+  then 
+    Some aux
+  else
+    match p b with
+    | None -> None
+    | Some (v, n) ->
+      if n = 0
+      then None (* elements cannot be empty *)
+      else
+	parse_list_tailrec p (Seq.slice b n (Seq.length b)) (List.Tot.append aux [v])
 
-let parse_list
+let rec parse_list_tailrec_append
   (#t: Type0)
   (p: P.parser t)
-: Tot (P.parser (list t))
-= fun b ->
-  match parse_list_aux p b [] with
-  | Some l -> Some (l, Seq.length b)
-  | _ -> None
+  (b: P.bytes32)
+  (auxl: list t)
+  (auxr: list t)
+: Lemma
+  (requires True)
+  (ensures (
+    parse_list_tailrec p b (List.Tot.append auxl auxr) == (
+    match parse_list_tailrec p b auxr with
+    | None -> None
+    | Some l -> Some (List.Tot.append auxl l)
+  )))
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then ()
+  else
+    match p b with
+    | None -> ()
+    | Some (v, n) ->
+      if n = 0
+      then ()
+      else begin
+	parse_list_tailrec_append p (Seq.slice b n (Seq.length b)) auxl (List.Tot.append auxr [v]);
+	List.Tot.append_assoc auxl auxr [v]
+      end
+
+let rec parse_list_tailrec_correct
+  (#t: Type0)
+  (p: P.parser t)
+  (b: P.bytes32)
+  (aux: list t)
+: Lemma
+  (requires True)
+  (ensures (
+    parse_list_tailrec p b aux == (
+    match parse_list p b with
+    | Some (l, n) -> Some (List.Tot.append aux l)
+    | None -> None
+  )))
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then
+    List.Tot.append_l_nil aux
+  else
+    match p b with
+    | None -> ()
+    | Some (v, n) ->
+      if n = 0
+      then ()
+      else begin
+	let s = Seq.slice b n (Seq.length b) in
+	parse_list_tailrec_correct p s (List.Tot.append aux [v]);
+	match parse_list p s with
+	| Some (l, n') ->
+	  List.Tot.append_assoc aux [v] l
+	| None -> ()
+      end
+  
 
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
 
@@ -244,6 +315,160 @@ let advance_slice_advance_slice
 = let s1 = S.advance_slice b off1 in
   let s2 = S.advance_slice s1 off2 in
   B.sub_sub (S.BSlice?.p b) off1 (S.BSlice?.len s1) off2 (S.BSlice?.len s2)
+
+(* TODO: move to FStar.List.Tot.Properties *)
+
+let rec list_append_index_r
+  (#t: Type0)
+  (l1: list t)
+  (l2: list t)
+  (i: nat)
+: Lemma
+  (requires (
+    i >= List.Tot.length l1 /\
+    i < List.Tot.length l1 + List.Tot.length l2
+  ))
+  (ensures (
+    i >= List.Tot.length l1 /\
+    i < List.Tot.length l1 + List.Tot.length l2 /\
+    i < List.Tot.length (List.Tot.append l1 l2) /\
+    List.Tot.index (List.Tot.append l1 l2) i ==
+    List.Tot.index l2 (i - List.Tot.length l1)
+  ))
+  (decreases l1)
+= List.Tot.append_length l1 l2; // TODO: replace/augment the patterns on @ with patterns on List.Tot.append
+  match l1 with
+  | [] -> ()
+  | _ :: l1' ->
+    list_append_index_r l1' l2 (i - 1)
+
+
+(* TODO: move to FStar.Buffer or FStar.HyperStack? *)
+   
+let modifies_tip_popped h0 h1 h2 h3 : Lemma
+  (requires (HS.fresh_frame h0 h1 /\ HS.popped h2 h3 /\ HS.modifies_one h1.HS.tip h1 h2 /\ h1.HS.tip == h2.HS.tip))
+  (ensures  (B.modifies_none h0 h3))
+  = ()
+
+let list_nth_slice
+  (#t: Type0)
+  (p: Ghost.erased (P.parser t))
+  (sv: P.stateful_validator p)
+  (b: S.bslice)
+  (i: UInt32.t)
+: HST.Stack S.bslice
+  (requires (fun h ->
+    S.live h b /\ (
+    let sq = S.as_seq h b in
+    let pl = parse_list (Ghost.reveal p) sq in (
+    Some? pl /\ (
+    let (Some (l, _)) = pl in (
+    UInt32.v i < List.Tot.length l
+  ))))))
+  (ensures (fun h b' h' ->
+    B.modifies_none h h' /\
+    S.live h b /\
+    S.live h b' /\
+    S.bslice_prefix b' b /\ (
+    let sq = S.as_seq h b in
+    let pl = parse_list (Ghost.reveal p) sq in (
+    Some? pl /\ (
+    let (Some (l, _)) = pl in (
+    UInt32.v i < List.Tot.length l /\ (
+    let sq' = S.as_seq h b' in
+    let pb' = Ghost.reveal p sq' in (
+    Some? pb' /\ (
+    let (Some (v, _)) = pb' in (
+    v == List.Tot.index l (UInt32.v i)
+  ))))))))))
+= 
+  let h0 = HST.get () in
+  HST.push_frame ();
+  let h1 = HST.get () in
+  let sl : B.buffer S.bslice = B.create b 1ul in
+  let l : Ghost.erased (list t) =
+    Ghost.elift1
+      (fun () ->
+	let sq = S.as_seq h1 b in
+	let (Some (l, _)) = parse_list (Ghost.reveal p) sq in
+	l
+      )
+      (Ghost.hide ())
+  in
+  let inv
+    (h: HS.mem)
+    (j: nat)
+    (ll : list t)
+  : GTot Type0
+  = HS.modifies_one h1.HS.tip h1 h /\
+    h.HS.tip == h1.HS.tip /\
+    S.live h b /\
+    B.live h sl /\ (
+    let s = Seq.index (B.as_seq h sl) 0 in (
+    S.bslice_prefix s b /\
+    S.live h s /\ (
+    let sq = S.as_seq h s in
+    let pl = parse_list (Ghost.reveal p) sq in (
+    Some? pl /\ (
+    let (Some (lr, _)) = pl in (
+    Ghost.reveal l == List.Tot.append ll lr /\
+    List.Tot.length ll == j /\
+    List.Tot.length lr > 0
+    ))))))
+  in
+  let ll = C.Loops.for_with_ghost_state
+    0ul
+    i
+    (Ghost.hide [])
+    inv
+    (fun j g ->
+      let s = B.index sl 0ul in
+      let (Some k) = sv s in
+      let s' = S.advance_slice s k in
+      B.upd sl 0ul s';
+      let h = HST.get () in
+      let g' = Ghost.elift1
+	(fun ll ->
+	  let sq = S.as_seq h s in
+	  let (Some (v, _)) = Ghost.reveal p sq in
+	  List.Tot.append ll [v]
+	)
+	g
+      in
+      let prf () : Lemma (inv h (UInt32.v j + 1) (Ghost.reveal g')) =
+	let sq = S.as_seq h s in
+	let (Some (v, _)) = Ghost.reveal p sq in
+	let sq' = S.as_seq h s' in	
+	let (Some (lr, _)) = parse_list (Ghost.reveal p) sq' in
+	List.Tot.append_assoc (Ghost.reveal g) [v] lr;
+	List.Tot.append_length (Ghost.reveal g) (v :: lr)
+      in
+      prf ();
+      g'
+    )
+  in
+  let h' = HST.get () in
+  assume (inv h' (UInt32.v i) (Ghost.reveal ll));
+  let res = B.index sl 0ul in
+  HST.pop_frame ();
+  let h = HST.get () in
+  let correctness () : Lemma (
+    let sq = S.as_seq h res in
+    let (Some (v, _)) = Ghost.reveal p sq in (
+    v == List.Tot.index (Ghost.reveal l) (UInt32.v i)
+  )) =
+    let sq = S.as_seq h res in
+    let (Some (lr, _)) = parse_list (Ghost.reveal p) sq in
+    list_append_index_r (Ghost.reveal ll) lr (UInt32.v i)
+  in
+  correctness ();
+  let _ : squash (B.modifies_none h0 h) =
+    assert (HS.fresh_frame h0 h1);
+    assert (HS.modifies_one h1.HS.tip h1 h');
+    assert (HS.popped h' h);
+    modifies_tip_popped h0 h1 h' h
+  in
+  res
 
 (*
 
