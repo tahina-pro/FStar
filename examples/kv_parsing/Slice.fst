@@ -37,24 +37,25 @@ let advance_slice_spec (b:bslice) (off:U32.t{U32.v off <= U32.v b.len}) h :
 let u32_add_overflows (a b:U32.t) : overflow:bool{not overflow <==> U32.v a + U32.v b < pow2 32} =
   U32.lt (U32.add_mod a b) a
 
+// pure version of truncate_slice (which is in Stack)
+val truncated_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> bslice
+let truncated_slice b len = BSlice len (B.sub b.p (U32.uint_to_t 0) len)
+
 val truncate_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> Stack bslice
   (requires (fun h0 -> live h0 b))
   (ensures (fun h0 r h1 -> live h1 b /\
                         live h1 r /\
                         h0 == h1 /\
+			r == truncated_slice b len /\
                         as_seq h1 r == slice (as_seq h1 b) 0 (U32.v len)))
 let truncate_slice b len = BSlice len (B.sub b.p (U32.uint_to_t 0) len)
-
-// pure version of truncate_slice (which is in Stack)
-val truncated_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> bslice
-let truncated_slice b len = BSlice len (B.sub b.p (U32.uint_to_t 0) len)
 
 let preorder (rel: 'a -> 'a -> Type0) =
     (forall x. rel x x) /\
     (forall x y z. rel x y /\ rel y x ==> rel x z)
 
 let bslice_prefix (b b':bslice) : GTot Type0 =
-    // B.includes x y means x is the larger buffer
+    // B.includes b'.p b.p means b'.p is the larger buffer
     B.includes b'.p b.p /\
     B.idx b.p + B.length b.p == B.idx b'.p + B.length b'.p
 
