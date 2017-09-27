@@ -67,6 +67,8 @@ let reveal_erased_arrow
 let parse_vlbytes1 (#t: Type0) (p: P.parser t) : P.parser t =
   IP.parse_u8 `P.and_then` (parse_sized1 p)
 
+(*  Useless for now
+<<
 let parse_sized1_st
   (#t: Type0)
   (#p: Ghost.erased (P.parser t))
@@ -95,6 +97,7 @@ let parse_sized1_st
       else None
     | _ -> None
   end
+>>
 
 // TODO: WHY WHY WHY do I need all those unfold above? 
 
@@ -129,6 +132,8 @@ let parse_vlbytes1_st
     and_then_st #UInt8.t #(Ghost.hide IP.parse_u8) IP.parse_u8_st (parse_sized1_st ps)
   in
   ps'
+>>
+*)
 
 let validate_sized1
   (#t: Type0)
@@ -138,22 +143,15 @@ let validate_sized1
 : P.stateful_validator (erased_arrow (parse_sized1_erased p) len)
 = fun input ->
   let len' : UInt32.t = Int.Cast.uint8_to_uint32 len in
-  assert (UInt32.v len' == UInt8.v len);
   let blen = S.BSlice?.len input in
-  let test = UInt32.lt blen len' in
-  assume (test = (UInt32.v blen < UInt32.v len' ));
-  if test
+  if UInt32.lt blen len'
   then begin
-    assert (UInt32.v blen < UInt32.v len');
     None
   end else begin
-    assert (UInt32.v len' <= UInt32.v blen);
     let input'  = S.truncate_slice input len'  in
     match ps input' with
     | Some consumed ->
-      let test = (consumed = len') in
-      assume (test == (UInt32.v consumed = UInt32.v len' ));
-      if test
+      if consumed = len'
       then Some consumed
       else None
     | _ -> None
@@ -195,6 +193,79 @@ module Ser = Serializing
 module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module B = FStar.Buffer
+
+val point_to_vlbytes1_contents
+  (#t: Type0)
+  (#p: Ghost.erased (P.parser t))
+  (ps: P.stateful_validator p)
+  (b: S.bslice)
+: HST.Stack S.bslice
+  (requires (fun h ->
+    S.live h b /\ (
+    let s = S.as_seq h b in (
+    Some? (parse_vlbytes1 (Ghost.reveal p) s)
+  ))))
+  (ensures (fun h0 b' h1 ->
+    B.modifies_none h0 h1 /\
+    S.live h0 b /\
+    S.live h0 b' /\ (
+    let s = S.as_seq h0 b in
+    let v = parse_vlbytes1 (Ghost.reveal p) s in (
+    Some? v /\ (
+    let (Some (v', consumed)) = v in (
+    B.includes (S.truncated_slice b (UInt32.uint_to_t consumed)).S.p b'.S.p /\
+    (
+    let s' = S.as_seq h1 b' in
+    let v'' = Ghost.reveal p s' in (
+    Some? v'' /\ (
+    let (Some (v'', len')) = v'' in (
+    v'' == v' /\
+    len' == UInt32.v (S.BSlice?.len b')
+  ))))))))))
+
+let point_to_vlbytes1_contents #t #p ps b =
+  let h0 = HST.get () in
+  let v = IP.parse_u8_st b in
+  assert (Some? v);
+  let (Some (len, off1)) = v in
+  let b1 = S.advance_slice b off1 in
+  let len' = FStar.Int.Cast.uint8_to_uint32 len in
+  assert (UInt32.v len' <= UInt32.v (S.BSlice?.len b1));
+  let b' = S.truncate_slice b1 len' in
+  assert (b1.S.p == B.sub b.S.p off1 (UInt32.sub b.S.len off1));
+  assert (b'.S.p == B.sub b1.S.p 0ul len');
+  let f () : Lemma
+  (
+    let s = S.as_seq h0 b in
+    let (Some (_, consumed)) = parse_vlbytes1 (Ghost.reveal p) s in
+    b'.S.p == B.sub (B.sub b.S.p 0ul (UInt32.uint_to_t consumed)) off1 len'
+  )
+  = let s = S.as_seq h0 b in
+    let (Some (_, consumed)) = parse_vlbytes1 (Ghost.reveal p) s in
+    B.sub_sub b.S.p 0ul (UInt32.uint_to_t consumed) off1 len';
+    B.sub_sub b.S.p off1 (UInt32.sub b.S.len off1) 0ul len'
+  in
+  f ();
+  b'
+  
+(* 
+  let h = HST.get () in
+  assume (
+    let s' = S.as_seq h b' in
+    let v'' = Ghost.reveal p s' in
+    Some? v''
+  );
+  b'
+
+(*
+  | Some (len, off1) ->
+    let len = FStar.Int.Cast.uint8_to_uint32 len in
+    let b1 = S.advance_slice b off1 in
+    S.truncate_slice b1 len
+  | _ -> false_elim ()
+
+(*
+
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
