@@ -247,25 +247,142 @@ let point_to_vlbytes1_contents #t #p ps b =
   in
   f ();
   b'
-  
-(* 
-  let h = HST.get () in
-  assume (
-    let s' = S.as_seq h b' in
-    let v'' = Ghost.reveal p s' in
-    Some? v''
-  );
-  b'
+
+type example =
+| Left of UInt8.t
+| Right of UInt16.t
+
+let parse_example : P.parser example =
+  IP.parse_u8 `P.and_then` (fun j ->
+    let j' = Int.Cast.uint8_to_uint32 j in
+    if j' = 0ul
+    then IP.parse_u8 `P.and_then` (fun v -> P.parse_ret (Left v))
+    else IP.parse_u16 `P.and_then` (fun v -> P.parse_ret (Right v))
+  )
+
+assume val validate_u8_st : P.stateful_validator (Ghost.hide IP.parse_u8)
+assume val validate_u16_st: P.stateful_validator (Ghost.hide IP.parse_u16)
+
+(* Special case for non-dependent parsing *)
+
+let nondep_then
+  (#t1 #t2: Type0)
+  (p1: P.parser t1)
+  (p2: P.parser t2)
+: Tot (P.parser (t1 * t2))
+= p1 `P.and_then` (fun v1 -> p2 `P.and_then` (fun v2 -> P.parse_ret (v1, v2)))
+
+let validate_nondep_then
+  (#t1: Type0)
+  (#p1: Ghost.erased (P.parser t1))
+  (v1: P.stateful_validator p1)
+  (#t2: Type0)
+  (#p2: Ghost.erased (P.parser t2))
+  (v2: P.stateful_validator p2)
+: Tot (P.stateful_validator (Ghost.elift2 nondep_then p1 p2))
+= admit () // P.then_check p1 v1 p2 v2 (fun x1 x2 -> (x1, x2))
+
+let parse_filter
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: P.parser t1)
+  (f2: t1 -> Tot (option t2))
+: Tot (P.parser t2)
+= p1 `P.and_then` (fun v1 ->
+    match f2 v1 with
+    | Some v2 -> P.parse_ret v2
+    | _ -> P.fail_parser
+  )
+
+let stateful_filter_validator
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: Ghost.erased (P.parser t1))
+  (f2: Ghost.erased (t1 -> Tot (option t2)))
+: Tot Type0
+= (v2: (
+    (b: S.bslice) ->
+    HST.Stack bool
+    (requires (fun h ->
+      S.live h b /\ (
+      let s = S.as_seq h b in (
+      Some? (Ghost.reveal p1 s)
+    ))))
+    (ensures (fun h0 r h1 ->
+      S.live h0 b /\
+      S.live h1 b /\
+      B.modifies_none h0 h1 /\ (
+      let s = S.as_seq h0 b in
+      let v1' = Ghost.reveal p1 s in (
+      Some? v1' /\ (
+      let (Some (w1, _)) = v1' in (
+      r == Some? (Ghost.reveal f2 w1)
+  ))))))))
+
+let validate_filter
+  (#t1: Type0)
+  (#p1: Ghost.erased (P.parser t1))
+  (v1: P.stateful_validator p1)
+  (#t2: Type0)
+  (#f2: Ghost.erased (t1 -> Tot (option t2)))
+  (v2: stateful_filter_validator p1 f2)
+: Tot (P.stateful_validator (Ghost.elift2 parse_filter p1 f2))
+= fun b ->
+    let r1 = v1 b in
+    if Some? r1
+    then
+      let r2 = v2 b in
+      if r2
+      then r1
+      else None
+    else None
+
+let parse_synth
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: P.parser t1)
+  (f2: t1 -> Tot t2)
+= parse_filter p1 (fun v1 -> Some (f2 v1))
+
+let validate_synth
+  (#t1: Type0)
+  (#t2: Type0)
+  (#p1: Ghost.erased (P.parser t1))
+  (v1: P.stateful_validator p1)
+  (f2: Ghost.erased (t1 -> Tot t2))
+: Tot (P.stateful_validator (Ghost.elift2 parse_synth p1 f2))
+= admit () // fun b -> v1 b
+
+type example' =
+| Left':
+    (u1: UInt8.t) ->
+    (u2: UInt8.t) ->
+    example'
+| Right' of UInt16.t
+
+let uncurry_left' (u : UInt8.t * UInt8.t) : Tot example' =
+  let (u1, u2) = u in
+  Left' u1 u2
+
+let parse_example' : P.parser example' =
+  IP.parse_u8 `P.and_then` (fun j ->
+    let j' = Int.Cast.uint8_to_uint32 j in
+    if j' = 0ul
+    then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
+    else parse_synth IP.parse_u16 (fun v -> Right' v)
+  )
+
+(* TODO: WHY WHY WHY does this NOT typecheck? It should!  *)
 
 (*
-  | Some (len, off1) ->
-    let len = FStar.Int.Cast.uint8_to_uint32 len in
-    let b1 = S.advance_slice b off1 in
-    S.truncate_slice b1 len
-  | _ -> false_elim ()
-
-(*
-
+let validate_example_st' : P.stateful_validator (Ghost.hide parse_example') =
+  IP.parse_u8_st `parse_then_check` (fun j ->
+    let j' = Int.Cast.uint8_to_uint32 j in
+    if j' = 0ul
+    then validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (Ghost.hide uncurry_left')
+    else validate_synth validate_u16_st (Ghost.hide Right')
+  )
+*)
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
