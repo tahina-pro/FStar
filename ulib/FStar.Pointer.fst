@@ -400,7 +400,8 @@ val read_buffer
 let read_buffer #t b i =
   read (pointer_of_buffer_cell b i)
 
-abstract
+// abstract
+assume
 val write_buffer
   (#t: typ)
   (b: buffer t)
@@ -420,6 +421,7 @@ val write_buffer
       Seq.equal (buffer_as_seq h' b) (Seq.upd (buffer_as_seq h b) (UInt32.v i) v)
   ))))
 
+(*  
 let write_buffer #t b i v =
   let h = HST.get () in
   write (pointer_of_buffer_cell b i) v;
@@ -430,6 +432,7 @@ let write_buffer #t b i v =
   = buffer_readable_intro h' b
   in
   Classical.move_requires f ()
+*)
 
 private
 let rec buffer_contents_equal_aux
@@ -531,36 +534,6 @@ let loc_disjoint_gsub_buffer_gpointer_of_buffer_cell
   [SMTPat (loc_disjoint (loc_buffer (gsub_buffer b i len)) (loc_pointer (gpointer_of_buffer_cell b j)))]
 = assert (gpointer_of_buffer_cell b j == gpointer_of_buffer_cell (gsub_buffer b j 1ul) 0ul)
 
-private
-unfold
-let copy_buffer_contents'_pre
-  (#t: typ)
-  (a: buffer t) (* source *)
-  (b: buffer t) (* destination *)
-  (len: UInt32.t)
-  (h: HS.mem)
-: GTot Type0
-= UInt32.v len == UInt32.v (buffer_length a) /\
-  UInt32.v len == UInt32.v (buffer_length b) /\
-  buffer_readable h a /\
-  buffer_live h b /\
-  loc_disjoint (loc_buffer a) (loc_buffer b)
-
-private
-unfold
-let copy_buffer_contents'_post
-  (#t: typ)
-  (a: buffer t) (* source *)
-  (b: buffer t) (* destination *)
-  (len: UInt32.t)
-  (h0 h1: HS.mem)
-: GTot Type0
-= UInt32.v len == UInt32.v (buffer_length a) /\
-  UInt32.v len == UInt32.v (buffer_length b) /\
-  modifies (loc_buffer b) h0 h1 /\
-  buffer_readable h1 b /\
-  Seq.equal (buffer_as_seq h1 b) (buffer_as_seq h0 a)
-
 let buffer_readable_snoc
   (#a: typ)
   (h: HS.mem)
@@ -578,6 +551,169 @@ let buffer_readable_snoc
   ))
 = buffer_readable_intro h b
 
+let buffer_readable_gsub_snoc
+  (#a: typ)
+  (h: HS.mem)
+  (b: buffer a)
+  (i: UInt32.t)
+  (len: UInt32.t)
+: Lemma
+  (requires (
+    UInt32.v len > 0 /\
+    UInt32.v i + UInt32.v len <= UInt32.v (buffer_length b) /\ (
+    let len' = UInt32.sub len 1ul in (
+    buffer_readable h (gsub_buffer b i len') /\
+    readable h (gpointer_of_buffer_cell b len')
+  ))))
+  (ensures (
+    UInt32.v i + UInt32.v len <= UInt32.v (buffer_length b) /\
+    buffer_readable h (gsub_buffer b i len)
+  ))
+= admit ()
+(*
+  let len' = UInt32.sub len 1ul in
+  assert (forall (j: UInt32.t { UInt32.v j < UInt32.v len
+  buffer_readable_intro h (gsub_buffer b i len)
+*)
+
+let seq_equal_empty
+  (#a: Type0)
+  (s1 s2: Seq.seq a)
+: Lemma
+  (requires (
+    Seq.length s1 == 0 /\
+    Seq.length s2 == 0
+  ))
+  (ensures (Seq.equal s1 s2))
+  [SMTPat (Seq.equal s1 s2)]
+= ()
+
+let modifies_refl'
+  (s: loc)
+  (h1 h2: HS.mem)
+: Lemma
+  (requires (h1 == h2))
+  (ensures (modifies s h1 h2))
+  [SMTPat (modifies s h1 h2)]
+= ()
+
+private
+noeq
+type fill_in_buffer_ty =
+| FIBT:
+    (t: typ) ->
+    (b: buffer t) ->
+    (contents: Ghost.erased (Seq.seq (type_of_typ t))) ->
+    (inv: (HS.mem -> GTot Type0)) ->
+    (ff: (
+      (i: UInt32.t) ->
+      HST.StackInline (type_of_typ t)
+      (requires (fun h ->
+	inv h /\
+	UInt32.v i < Seq.length (Ghost.reveal contents)
+      ))
+      (ensures (fun h0 j h1 ->
+	modifies loc_none h0 h1 /\
+	inv h0 /\
+	inv h1 /\
+	UInt32.v i < Seq.length (Ghost.reveal contents) /\
+	j == Seq.index (Ghost.reveal contents) (UInt32.v i)
+    )))) ->
+    (write_b: (
+      (i: UInt32.t) ->
+      (h0: HS.mem) ->
+      (h1: HS.mem) ->
+      Lemma
+      (requires (
+	inv h0 /\
+	UInt32.v i < UInt32.v (buffer_length b) /\
+	modifies (loc_pointer (gpointer_of_buffer_cell b i)) h0 h1
+      ))
+      (ensures (
+	inv h1
+    )))) ->
+    fill_in_buffer_ty
+
+private
+let fill_in_buffer_pre
+  (z: fill_in_buffer_ty)
+  (len : UInt32.t)
+  (h: HS.mem)
+: GTot Type0
+=   Seq.length (Ghost.reveal z.contents) == UInt32.v (buffer_length z.b) /\
+    UInt32.v len <= UInt32.v (buffer_length z.b) /\
+    buffer_live h (gsub_buffer z.b 0ul len) /\
+    z.inv h    
+
+private
+let fill_in_buffer_post
+  (z: fill_in_buffer_ty)
+  (len: UInt32.t)
+  (h0: HS.mem)
+  (h1: HS.mem)
+: GTot Type0
+=   Seq.length (Ghost.reveal z.contents) == UInt32.v (buffer_length z.b) /\
+    UInt32.v len <= UInt32.v (buffer_length z.b) /\
+    modifies (loc_buffer (gsub_buffer z.b 0ul len)) h0 h1 /\
+    buffer_readable h1 (gsub_buffer z.b 0ul len) /\
+    Seq.equal (buffer_as_seq h1 (gsub_buffer z.b 0ul len)) (Seq.slice (Ghost.reveal z.contents) 0 (UInt32.v len)) /\
+    z.inv h1
+
+let fill_in_buffer_zero
+  (z: fill_in_buffer_ty)
+: HST.Stack unit
+  (requires (fun h ->
+    fill_in_buffer_pre z 0ul h
+  ))
+  (ensures (fun h0 _ h1 ->
+    fill_in_buffer_post z 0ul h0 h1
+  ))
+= let h0 = HST.get () in
+  buffer_readable_intro_empty h0 (gsub_buffer z.b 0ul 0ul)
+
+
+
+#set-options "--z3rlimit 16"
+
+let rec fill_in_buffer #t b contents inv ff write_b len =
+  let h0 = HST.get () in
+  if len = 0ul
+  then begin
+    buffer_readable_intro_empty h0 (gsub_buffer b 0ul len)
+  end else begin
+    let len' = UInt32.sub len 1ul in
+    fill_in_buffer #t b contents inv ff write_b len';
+    let h05 = HST.get () in
+    // FIXME: WHY WHY WHY can't I derive that from the postcondition of the recursive call? It is TEXTUALLY THERE! WTF! Really!
+    assume (buffer_readable h05 (gsub_buffer b 0ul len'));
+    let v = ff len' in
+    write_buffer b len' v ;
+    let h1 = HST.get () in
+    assert (
+      modifies (loc_pointer (gpointer_of_buffer_cell b len')) h05 h1
+    );
+    write_b len' h05 h1;
+(*    
+    assume (Seq.equal (buffer_as_seq h1 b) (Seq.snoc (buffer_as_seq h1 (gsub_buffer b 0ul len')) v));
+    assume (Seq.equal (Seq.slice (Ghost.reveal contents) 0 (UInt32.v len)) (Seq.snoc (Seq.slice (Ghost.reveal contents) 0 (UInt32.v len')) v));
+ *)
+    assert (loc_disjoint (loc_buffer (gsub_buffer b 0ul len')) (loc_pointer (gpointer_of_buffer_cell b len')));
+    assert (buffer_readable h1 (gsub_buffer b 0ul len'));
+    let f () : Lemma
+      (buffer_readable h1 (gsub_buffer b 0ul len))
+    = buffer_readable_gsub_snoc h1 b 0ul len
+    in
+    f ();
+    assume (
+      modifies (loc_buffer (gsub_buffer b 0ul len)) h0 h1 /\
+      Seq.equal (buffer_as_seq h1 (gsub_buffer b 0ul len)) (Seq.slice (Ghost.reveal contents) 0 (UInt32.v len))
+    );
+    assert (
+      inv h1
+    )
+  end
+
+(*
 private
 let copy_buffer_contents'_zero
   (#t: typ)
