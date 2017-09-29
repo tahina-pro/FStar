@@ -364,6 +364,7 @@ let uncurry_left' (u : UInt8.t * UInt8.t) : Tot example' =
   let (u1, u2) = u in
   Left' u1 u2
 
+(*
 let parse_example' : P.parser example' =
   IP.parse_u8 `P.and_then` (fun j ->
     let j' = Int.Cast.uint8_to_uint32 j in
@@ -371,10 +372,21 @@ let parse_example' : P.parser example' =
     then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
     else parse_synth IP.parse_u16 (fun v -> Right' v)
   )
+*)
+
+let parse_example'_aux (j: UInt8.t) : Tot (P.parser example') =
+    let j' = Int.Cast.uint8_to_uint32 j in
+    if j' = 0ul
+    then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
+    else parse_synth IP.parse_u16 (fun v -> Right' v)
+
+let parse_example' : P.parser example' =
+  IP.parse_u8 `P.and_then` parse_example'_aux
 
 (* TODO: WHY WHY WHY does this NOT typecheck? It should!  *)
 
 (*
+
 let validate_example_st' : P.stateful_validator (Ghost.hide parse_example') =
   IP.parse_u8_st `parse_then_check` (fun j ->
     let j' = Int.Cast.uint8_to_uint32 j in
@@ -383,6 +395,41 @@ let validate_example_st' : P.stateful_validator (Ghost.hide parse_example') =
     else validate_synth validate_u16_st (Ghost.hide Right')
   )
 *)
+
+let eq_ind_r (#t1 t2: Type0) (f: t1) : Pure t2 (requires (t1 == t2)) (ensures (fun g -> t1 == t2 /\ g == f)) = f
+  
+let validate_nondep_then'
+  (#t1: Type0)
+  (#p1: P.parser t1)
+  (v1: P.stateful_validator (Ghost.hide p1))
+  (#t2: Type0)
+  (#p2: P.parser t2)
+  (v2: P.stateful_validator (Ghost.hide p2))
+: Tot (P.stateful_validator (Ghost.hide (nondep_then p1 p2)))
+= eq_ind_r (P.stateful_validator (Ghost.hide (nondep_then p1 p2))) (validate_nondep_then v1 v2)
+
+let validate_synth'
+  (#t1: Type0)
+  (#t2: Type0)
+  (#p1: P.parser t1)
+  (v1: P.stateful_validator (Ghost.hide p1))
+  (f2:  (t1 -> Tot t2))
+: Tot (P.stateful_validator (Ghost.hide (parse_synth p1 f2)))
+= eq_ind_r (P.stateful_validator (Ghost.hide (parse_synth p1 f2))) (validate_synth v1 (Ghost.hide f2))
+
+let validate_example'_aux (j: UInt8.t) : Tot (P.stateful_validator (erased_arrow (Ghost.hide parse_example'_aux) j)) =
+    let j' = Int.Cast.uint8_to_uint32 j in
+    if j' = 0ul
+    then 
+      eq_ind_r (P.stateful_validator (erased_arrow (Ghost.hide parse_example'_aux) j))
+	(validate_synth' (validate_nondep_then' validate_u8_st validate_u8_st) uncurry_left')
+    else
+      eq_ind_r (P.stateful_validator (erased_arrow (Ghost.hide parse_example'_aux) j))
+	(validate_synth' validate_u16_st Right')
+
+let validate_example_st' : P.stateful_validator (Ghost.hide parse_example') =
+  eq_ind_r (P.stateful_validator (Ghost.hide parse_example'))
+    (parse_then_check #_ #(Ghost.hide IP.parse_u8) IP.parse_u8_st validate_example'_aux)
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
