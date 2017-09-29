@@ -1,10 +1,10 @@
 module MITLSLow
 // module E = Extensions
 module S = Slice
-module P = Parsing
+module P = GhostParsing
 module IP = IntegerParsing
 
-let parse_sized (#t: Type0) (p: P.parser t) (sz: nat) : P.parser t = fun s ->
+let parse_sized (#t: Type0) (p: P.parser t) (sz: nat) : Tot (P.parser t) = fun s ->
   if Seq.length s < sz
   then None
   else
@@ -14,6 +14,23 @@ let parse_sized (#t: Type0) (p: P.parser t) (sz: nat) : P.parser t = fun s ->
       then Some (v, consumed)
       else None
     | _ -> None
+
+let g_parse_sized (#t: Type0) (p: P.gparser t) (sz: nat) : GTot (P.gparser t) = fun s ->
+  if Seq.length s < sz
+  then None
+  else
+    match p (Seq.slice s 0 sz) with
+    | Some (v, consumed) ->
+      if consumed = sz
+      then Some (v, consumed)
+      else None
+    | _ -> None
+
+let g_parse_sized_eq (#t: Type0) (p: P.parser t) (sz: nat) : Lemma
+  (g_parse_sized p sz == parse_sized p sz)
+= assert_norm (g_parse_sized p sz == parse_sized p sz)
+
+(* HERE *)
 
 unfold
 let and_then_erased
