@@ -1,4 +1,4 @@
-module ImmBuffer
+module FStar.ImmBuffer
 
 open FStar.Seq
 open FStar.UInt8
@@ -6,9 +6,9 @@ open FStar.UInt32
 open FStar.Ghost
 open FStar.Int.Cast
 
-(** **************************************************************** **)
-(** Defining a generic 'bytes' type as a view on a sequence of bytes **)
-(** **************************************************************** **)
+(* **************************************************************** **)
+(* Defining a generic 'bytes' type as a view on a sequence of bytes **)
+(* **************************************************************** **)
 
 assume MaxUInt32: pow2 32 = 4294967296
 
@@ -55,15 +55,15 @@ let lemma_eq_intro (b:bytes) (b':bytes) : Lemma
   (ensures  (equal_bytes b b')) =
     Seq.lemma_eq_intro (to_seq_byte b) (to_seq_byte b')
 
-(** **************************************************************** **)
-(**           Defining serializable types of fixed length            **)
-(** **************************************************************** **)
+(* **************************************************************** **)
+(*           Defining serializable types of fixed length            **)
+(* **************************************************************** **)
 
 open FStar.Mul
 
 (* Optional results for the parsing functions *)
-type result 'a : Type0 =
-  | Correct of 'a
+type result (a: Type0) : Type0 =
+  | Correct of a
   | Error of string
 
 (* Destructors for that type *)
@@ -100,7 +100,7 @@ type parser (#t:sizeof_t) ($f:serializer t) =
 
 (* Type of F* types that can be serialized into sequences of bytes *)
 type inverse (#t:sizeof_t) ($f:serializer t) ($g:parser f) =
-  (forall (x:t). g (f x) == Correct x) /\ (forall (y:seq byte). Correct? (g y) ==>  (f (Correct._0 (g y))) == y)
+  (forall (x:t). g (f x) == Correct x) /\ (forall (y:seq byte). Correct? (g y) ==>  (f (Correct?._0 (g y))) == y)
 
 noeq type serializable (t:sizeof_t) : Type0 =
 | Serializable: $f:serializer t -> $g:parser f{inverse f g} -> serializable t
@@ -118,7 +118,7 @@ let rec of_seq_bytes #t #ty s =
   else begin
     lemma_aux_0 (Seq.length s) (sizeof t);
     let a = parse (Seq.slice s 0 (sizeof t)) in
-    let b = of_seq_bytes (Seq.slice s (sizeof t) (Seq.length s)) in
+    let b = of_seq_bytes #t #ty (Seq.slice s (sizeof t) (Seq.length s)) in
     match a,b with
     | Correct x, Correct y ->
       Correct (Seq.append (Seq.create 1 x) y)
@@ -130,7 +130,7 @@ val to_seq_bytes: #t:sizeof_t -> #ty:serializable t -> s:Seq.seq t ->
 let rec to_seq_bytes #t #ty s =
   let Serializable serialize parse = ty in
   if Seq.length s = 0 then Seq.createEmpty #UInt8.t
-  else Seq.append (serialize (Seq.index s 0)) (to_seq_bytes (Seq.slice s 1 (Seq.length s)))
+  else Seq.append (serialize (Seq.index s 0)) (to_seq_bytes #t #ty (Seq.slice s 1 (Seq.length s)))
 
 (* Buffer of serializable types *)
 (* It is a "flat" representation of some structures in memory *)
@@ -227,9 +227,9 @@ let cast (#t:sizeof_t) (ty:serializable t) (#t':sizeof_t) (#ty':serializable t')
   : Tot (b':buffer ty) = cast_to_buffer #t ty (cast_to_bytes b)
 
 
-(** **************************************************************** **)
-(**           Concrete parser and serializers for basetypes          **)
-(** **************************************************************** **)
+(* **************************************************************** **)
+(*           Concrete parser and serializers for basetypes          **)
+(* **************************************************************** **)
 
 #set-options "--lax"
 
@@ -344,7 +344,7 @@ assume val lemma_bytes_to_buffer: b:bytes ->
 	/\ Seq.length (to_seq_byte b) = length_bytes b
 	/\ Correct? (of_seq_bytes #byte #u8 (to_seq_byte b)))
 
-type lbytes = (| len:UInt32.t & b:buffer u8{length b >= v len} |)
+type lbytes = ( len:UInt32.t & b:buffer u8{length b >= v len} )
 
 (* The following assume should be derived from the type structure *)
 assume HasSizeLBytes: hasSize lbytes /\ sizeof lbytes = sizeof UInt32.t + sizeof bytes
