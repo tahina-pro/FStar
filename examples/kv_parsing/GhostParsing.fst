@@ -25,6 +25,9 @@ let bytes = seq byte
 /// offsets always fit in a UInt32.t
 let bytes32 = bs:bytes{length bs < pow2 32}
 
+(* Switch to Tot if you want an OCaml executable model for parsers *)
+let parse_arrow (a: Type0) (b: (a -> Type0)) = (x: a) -> GTot (b x)
+
 /// parse a value of type t
 ///
 /// - the parser can fail (currently reporting an uninformative [None])
@@ -36,32 +39,14 @@ let bytes32 = bs:bytes{length bs < pow2 32}
 ///
 /// these parsers are used as specifications, and thus use unrepresentable types
 /// such as byte sequences and natural numbers and are always pure
-let parser (t:Type) = b:bytes32 -> Tot (option (t * n:nat{n <= length b}))
-let gparser (t:Type) = b:bytes32 -> GTot (option (t * n:nat{n <= length b}))
+let parser (t:Type) = parse_arrow bytes32 (fun b -> option (t * n:nat{n <= length b}))
 
 /// monadic bind for the parser monad
 val and_then : #t:Type -> #t':Type ->
                 p:parser t ->
-                p': (t -> parser t') ->
+                p': parse_arrow t (fun _ -> parser t') ->
                 parser t'
 let and_then #t #t' p p' b =
-  match p b with
-  | Some (v, l) ->
-    begin
-      match p' v (slice b l (length b)) with
-      | Some (v', l') -> Some (v', l + l')
-      | None -> None
-    end
-  | None -> None
-
-/// monadic bind for the parser monad (ghost)
-val g_and_then : #t:Type -> #t':Type ->
-                p:gparser t ->
-                p': (t -> GTot (gparser t')) ->
-                Tot (gparser t')
-let g_and_then #t #t' p p' =
-  let () = () in
-  fun b ->
   match p b with
   | Some (v, l) ->
     begin
@@ -71,14 +56,6 @@ let g_and_then #t #t' p p' =
       | None -> None
     end
   | None -> None
-
-let g_and_then_eq_and_then
-  (#t:Type) (#t':Type)
-                (p:parser t)
-                (p': (t -> Tot (parser t')))
-:                Lemma
-		(p `g_and_then` p' == p `and_then` p')
-= ()
 
 /// monadic return for the parser monad
 unfold let parse_ret (#t:Type) (v:t) : parser t =
@@ -103,7 +80,7 @@ let parse_result (#t:Type) (#b:bytes)
 /// buffer as input (as opposed to higher-order implementations that return a
 /// function).
 inline_for_extraction
-let parser_st #t (p: gparser t) =
+let parser_st #t (p: parser t) =
   input:bslice -> Stack (option (t * off:U32.t{U32.v off <= U32.v input.len}))
   (requires (fun h0 -> live h0 input))
   (ensures (fun h0 r h1 -> live h1 input /\
@@ -132,7 +109,7 @@ unfold let validation_checks_parse #t (b: bytes)
 /// specification ensures that when a validator accepts the input the parser
 /// would succeed on the same input.
 inline_for_extraction
-let stateful_validator #t (p: gparser t) =
+let stateful_validator #t (p: parser t) =
   input:bslice ->
   Stack (option (off:U32.t{U32.v off <= U32.v input.len}))
     (requires (fun h0 -> live h0 input))
@@ -148,10 +125,10 @@ let stateful_validator #t (p: gparser t) =
 /// always run one after the other. This validator will check any combination of
 /// the results of the two parsers.
 [@"substitute"]
-let then_check #t (p: gparser t) (v: stateful_validator p)
-                #t' (p': gparser t') (v': stateful_validator p')
+let then_check #t (p: parser t) (v: stateful_validator p)
+                #t' (p': parser t') (v': stateful_validator p')
                 #t'' (f: t -> t' -> Tot t'') :
-                stateful_validator (p `g_and_then` (fun x -> p' `g_and_then` (fun y -> parse_ret (f x y)))) =
+                stateful_validator (p `and_then` (fun x -> p' `and_then` (fun y -> parse_ret (f x y)))) =
 fun input ->
   match v input with
   | Some off -> begin
@@ -173,11 +150,11 @@ let validate_fail : stateful_validator fail_parser =
 
 #reset-options "--z3rlimit 40 --max_fuel 4 --max_ifuel 1"
 
-let and_then_offset (#t:Type) (p: gparser t) (#t':Type) (p':t -> GTot (gparser t')) (bs:bytes32) :
-  Lemma (requires (Some? (g_and_then p p' bs)))
+let and_then_offset (#t:Type) (p: parser t) (#t':Type) (p': parse_arrow t (fun _ ->parser t')) (bs:bytes32) :
+  Lemma (requires (Some? (and_then p p' bs)))
         (ensures (Some? (p bs) /\
-                  Some? (g_and_then p p' bs) /\
-                  snd (Some?.v (p bs)) <= snd (Some?.v (g_and_then p p' bs)))) =
+                  Some? (and_then p p' bs) /\
+                  snd (Some?.v (p bs)) <= snd (Some?.v (and_then p p' bs)))) =
   match p bs with
   | Some (v, off) ->
     match p' v (slice bs off (length bs)) with
