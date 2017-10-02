@@ -58,7 +58,7 @@ let and_then #t #t' p p' b =
 val g_and_then : #t:Type -> #t':Type ->
                 p:gparser t ->
                 p': (t -> GTot (gparser t')) ->
-                GTot (gparser t')
+                Tot (gparser t')
 let g_and_then #t #t' p p' =
   let () = () in
   fun b ->
@@ -75,7 +75,7 @@ let g_and_then #t #t' p p' =
 let g_and_then_eq_and_then
   (#t:Type) (#t':Type)
                 (p:parser t)
-                (p': (t -> parser t'))
+                (p': (t -> Tot (parser t')))
 :                Lemma
 		(p `g_and_then` p' == p `and_then` p')
 = ()
