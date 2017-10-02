@@ -4,7 +4,31 @@ module S = Slice
 module P = GhostParsing
 module IP = IntegerParsing
 
-let parse_sized (#t: Type0) (p: P.parser t) (sz: nat) : Tot (P.parser t) = fun s ->
+
+let parse_synth
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: P.parser t1)
+  (f2: P.parse_arrow t1 (fun _ -> t2))
+= P.and_then p1 (fun v1 -> P.parse_ret (f2 v1))
+
+val parse_tagged_union
+  (#tag: Type0)
+  (#tu: tag -> Type0)
+  (pt: P.parser tag)
+  (p: P.parse_arrow (t: tag) (fun t -> P.parser (tu t)))
+: Tot (P.parser (t: tag & tu t))
+
+let parse_tagged_union #tag #tu pt p =
+  pt `P.and_then` (fun (v: tag) ->
+    parse_synth #(tu v) #(t: tag & tu t) (p v) (fun (v': tu v) -> (| v, v' |)
+  ))
+
+val parse_sized : (#t: Type0) -> (p: P.parser t) -> P.parse_arrow (sz: nat) (fun _ -> P.parser t)
+
+let parse_sized #t p sz =
+  let () = () in // Necessary to pass arity checking
+  fun s ->
   if Seq.length s < sz
   then None
   else
@@ -15,32 +39,10 @@ let parse_sized (#t: Type0) (p: P.parser t) (sz: nat) : Tot (P.parser t) = fun s
       else None
     | _ -> None
 
-let g_parse_sized (#t: Type0) (p: P.gparser t) (sz: nat) : Tot (P.gparser t) = fun s ->
-  if Seq.length s < sz
-  then None
-  else
-    match p (Seq.slice s 0 sz) with
-    | Some (v, consumed) ->
-      if consumed = sz
-      then Some (v, consumed)
-      else None
-    | _ -> None
-
-let g_parse_sized_eq (#t: Type0) (p: P.parser t) (sz: nat) : Lemma
-  (g_parse_sized p sz == parse_sized p sz)
-= assert_norm (g_parse_sized p sz == parse_sized p sz)
-
-(* HERE *)
-
-let parse_sized1 (#t: Type0) (p: P.parser t) (sz: UInt8.t) : Tot (P.parser t) = parse_sized p (UInt8.v sz)
-
-let g_parse_sized1 (#t: Type0) (p: P.gparser t) (sz: UInt8.t) : Tot (P.gparser t) = g_parse_sized p (UInt8.v sz)
+let parse_sized1 (#t: Type0) (p: P.parser t) : P.parse_arrow (sz: UInt8.t) (fun _ -> P.parser t) = fun sz -> parse_sized p (UInt8.v sz)
 
 let parse_vlbytes1 (#t: Type0) (p: P.parser t) : Tot (P.parser t) =
   IP.parse_u8 `P.and_then` (fun len -> parse_sized1 p len)
-
-let gparse_vlbytes1 (#t: Type0) (p: P.gparser t) : Tot (P.gparser t) =
-  IP.parse_u8 `P.g_and_then` (fun len -> g_parse_sized1 p len)
 
 (*  Useless for now
 <<
@@ -112,10 +114,10 @@ let parse_vlbytes1_st
 
 let validate_sized1
   (#t: Type0)
-  (#p: P.gparser t)
+  (#p: P.parser t)
   (ps: P.stateful_validator p)
   (len: UInt8.t)
-: Tot (P.stateful_validator (g_parse_sized1 p len))
+: Tot (P.stateful_validator (parse_sized1 p len))
 = fun input ->
   let len' : UInt32.t = Int.Cast.uint8_to_uint32 len in
   let blen = S.BSlice?.len input in
@@ -134,12 +136,12 @@ let validate_sized1
 
 let parse_then_check
   (#t1: Type0)
-  (#p1: P.gparser t1)
+  (#p1: P.parser t1)
   (ps1: P.parser_st p1)
   (#t2: Type0)
-  (#p2: t1 -> GTot (P.gparser t2))
+  (#p2: P.parse_arrow t1 (fun _ -> P.parser t2))
   (ps2: ((x1: t1) -> Tot (P.stateful_validator (p2 x1))))
-: P.stateful_validator (P.g_and_then p1 p2)
+: P.stateful_validator (P.and_then p1 p2)
 = fun input ->
   match ps1 input with
   | Some (v1, off1) ->
@@ -155,10 +157,10 @@ let parse_then_check
 
 let validate_vlbytes1
   (#t: Type0)
-  (#p: P.gparser t)
+  (#p: P.parser t)
   (ps: P.stateful_validator p)
-: P.stateful_validator (gparse_vlbytes1 p)
-= parse_then_check #_ #IP.parse_u8 IP.parse_u8_st (validate_sized1 ps)
+: P.stateful_validator (parse_vlbytes1 p)
+= parse_then_check #_ #IP.parse_u8 IP.parse_u8_st #_ #(fun n -> parse_sized1 p n) (fun n -> validate_sized1 ps n)
 
 module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
@@ -166,21 +168,21 @@ module B = FStar.Buffer
 
 val point_to_vlbytes1_contents
   (#t: Type0)
-  (#p: P.gparser t)
+  (#p: P.parser t)
   (ps: P.stateful_validator p)
   (b: S.bslice)
 : HST.Stack S.bslice
   (requires (fun h ->
     S.live h b /\ (
     let s = S.as_seq h b in (
-    Some? (gparse_vlbytes1 p s)
+    Some? (parse_vlbytes1 p s)
   ))))
   (ensures (fun h0 b' h1 ->
     B.modifies_none h0 h1 /\
     S.live h0 b /\
     S.live h0 b' /\ (
     let s = S.as_seq h0 b in
-    let v = gparse_vlbytes1 p s in (
+    let v = parse_vlbytes1 p s in (
     Some? v /\ (
     let (Some (v', consumed)) = v in (
     B.includes (S.truncated_slice b (UInt32.uint_to_t consumed)).S.p b'.S.p /\
@@ -193,12 +195,15 @@ val point_to_vlbytes1_contents
     len' == UInt32.v (S.BSlice?.len b')
   ))))))))))
 
+#set-options "--z3rlimit 16"
+
 let point_to_vlbytes1_contents #t #p ps b =
   let h0 = HST.get () in
   let v = IP.parse_u8_st b in
   assert (Some? v);
   let (Some (len, off1)) = v in
   let b1 = S.advance_slice b off1 in
+  assert (b1.S.p == B.sub b.S.p off1 (UInt32.sub b.S.len off1));
   let len' = FStar.Int.Cast.uint8_to_uint32 len in
   assert (UInt32.v len' <= UInt32.v (S.BSlice?.len b1));
   let b' = S.truncate_slice b1 len' in
@@ -207,28 +212,17 @@ let point_to_vlbytes1_contents #t #p ps b =
   let f () : Lemma
   (
     let s = S.as_seq h0 b in
-    let (Some (_, consumed)) = gparse_vlbytes1 p s in
+    let (Some (_, consumed)) = parse_vlbytes1 p s in
     b'.S.p == B.sub (B.sub b.S.p 0ul (UInt32.uint_to_t consumed)) off1 len'
   )
   = let s = S.as_seq h0 b in
-    let (Some (_, consumed)) = gparse_vlbytes1 p s in
+    let (Some (_, consumed)) = parse_vlbytes1 p s in
     B.sub_sub b.S.p 0ul (UInt32.uint_to_t consumed) off1 len';
     B.sub_sub b.S.p off1 (UInt32.sub b.S.len off1) 0ul len'
   in
   f ();
   b'
 
-type example =
-| Left of UInt8.t
-| Right of UInt16.t
-
-let parse_example : P.parser example =
-  IP.parse_u8 `P.and_then` (fun j ->
-    let j' = Int.Cast.uint8_to_uint32 j in
-    if j' = 0ul
-    then IP.parse_u8 `P.and_then` (fun v -> P.parse_ret (Left v))
-    else IP.parse_u16 `P.and_then` (fun v -> P.parse_ret (Right v))
-  )
 
 assume val validate_u8_st : P.stateful_validator IP.parse_u8
 assume val validate_u16_st: P.stateful_validator IP.parse_u16
@@ -242,53 +236,33 @@ let nondep_then
 : Tot (P.parser (t1 * t2))
 = p1 `P.and_then` (fun v1 -> p2 `P.and_then` (fun v2 -> P.parse_ret (v1, v2)))
 
-let g_nondep_then
-  (#t1 #t2: Type0)
-  (p1: P.gparser t1)
-  (p2: P.gparser t2)
-: Tot (P.gparser (t1 * t2))
-= p1 `P.g_and_then` (fun v1 -> p2 `P.g_and_then` (fun v2 -> P.parse_ret (v1, v2)))
-
 let validate_nondep_then
   (#t1: Type0)
-  (#p1: P.gparser t1)
+  (#p1: P.parser t1)
   (v1: P.stateful_validator p1)
   (#t2: Type0)
-  (#p2: P.gparser t2)
+  (#p2: P.parser t2)
   (v2: P.stateful_validator p2)
-: Tot (P.stateful_validator (g_nondep_then p1 p2))
+: Tot (P.stateful_validator (nondep_then p1 p2))
 = P.then_check p1 v1 p2 v2 (fun x1 x2 -> (x1, x2))
 
 let parse_filter
   (#t: Type0)
   (p: P.parser t)
-  (f: t -> Tot bool)
-: Tot (P.parser (x: t { f x }))
+  (f: P.parse_arrow t (fun _ -> bool))
+: Tot (P.parser (x: t { f x == true }))
 = p `P.and_then` (fun v ->
     if f v
     then
-      let (v' : t { f v' } ) = v in
-      P.parse_ret v'
-    else P.fail_parser
-  )
-
-let gparse_filter
-  (#t: Type0)
-  (p: P.gparser t)
-  (f: t -> GTot bool)
-: Tot (P.gparser (x: t { f x }))
-= p `P.g_and_then` (fun v ->
-    if f v
-    then
-      let (v' : t { f v' } ) = v in
+      let (v' : t { f v' == true } ) = v in
       P.parse_ret v'
     else P.fail_parser
   )
  
 let stateful_filter_validator
   (#t: Type0)
-  (p: P.gparser t)
-  (f: t -> GTot bool)
+  (p: P.parser t)
+  (f: P.parse_arrow t (fun _ -> bool))
 : Tot Type0
 = (v2: (
     (b: S.bslice) ->
@@ -311,11 +285,11 @@ let stateful_filter_validator
 
 let validate_filter
   (#t: Type0)
-  (#p: P.gparser t)
+  (#p: P.parser t)
   (v1: P.stateful_validator p)
-  (#f: t -> GTot bool)
+  (#f: P.parse_arrow t (fun _ -> bool))
   (v2: stateful_filter_validator p f)
-: Tot (P.stateful_validator (gparse_filter p f))
+: Tot (P.stateful_validator (parse_filter p f))
 = fun b ->
     let r1 = v1 b in
     if Some? r1
@@ -326,27 +300,13 @@ let validate_filter
       else None
     else None
 
-let parse_synth
-  (#t1: Type0)
-  (#t2: Type0)
-  (p1: P.parser t1)
-  (f2: t1 -> Tot t2)
-= P.and_then p1 (fun v1 -> P.parse_ret (f2 v1))
-
-let gparse_synth
-  (#t1: Type0)
-  (#t2: Type0)
-  (p1: P.gparser t1)
-  (f2: t1 -> GTot t2)
-= P.g_and_then p1 (fun v1 -> P.parse_ret (f2 v1))
-
 let validate_synth
   (#t1: Type0)
   (#t2: Type0)
-  (#p1: P.gparser t1)
+  (#p1: P.parser t1)
   (v1: P.stateful_validator p1)
-  (f2: t1 -> GTot t2)
-: Tot (P.stateful_validator (gparse_synth p1 f2))
+  (f2: P.parse_arrow t1 (fun _ -> t2))
+: Tot (P.stateful_validator (parse_synth p1 f2))
 = fun b -> v1 b
 
 type example' =
@@ -356,55 +316,59 @@ type example' =
     example'
 | Right' of UInt16.t
 
-unfold
-let parse_example'_aux (j: UInt8.t) : Tot (P.gparser example') =
+let parse_example' : P.parser example' =
+  IP.parse_u8 `P.and_then` (fun j ->
     let j' = Int.Cast.uint8_to_uint32 j in
     if j' = 0ul
-    then gparse_synth (g_nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
-    else gparse_synth IP.parse_u16 (fun v -> Right' v)
-
-(* Lax-type-checks, but does not typecheck
-<<
-let validate_example_st' (j: UInt8.t) : Tot (P.stateful_validator (parse_example'_aux j)) =
-    let j' = Int.Cast.uint8_to_uint32 j in
-    if j' = 0ul
-    then
-      validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (fun (u1, u2) -> Left' u1 u2)
-    else
-      validate_synth validate_u16_st (fun v -> Right' v)
->>
-*)
-
-let eq_ind_r (#t1 t2: Type0) (f: t1) : Pure t2 (requires (t1 == t2)) (ensures (fun g -> t1 == t2 /\ g == f)) = f
-
-let parse_example' : P.gparser example' =
-  IP.parse_u8 `P.g_and_then` (fun j ->
-    parse_example'_aux j
+    then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
+    else parse_synth IP.parse_u16 (fun v -> Right' v)
   )
-
-(* FIXME: WHY WHY WHY do I need these F* coercions?
-   UPDATE: I don't need them if I *uniformly* use ghost parsers everywhere
- *)
 
 let validate_example_st' : P.stateful_validator parse_example' =
-   parse_then_check #_ #IP.parse_u8 IP.parse_u8_st #_ #parse_example'_aux (fun j ->
-    let j' = Int.Cast.uint8_to_uint32 j in
-    if j' = 0ul
-    then // eq_ind_r (P.stateful_validator (parse_example'_aux j)) 
-    (validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
-    else // eq_ind_r (P.stateful_validator (parse_example'_aux j))
-    (validate_synth validate_u16_st (fun v -> Right' v))
-  )
+   parse_then_check #_ #IP.parse_u8 IP.parse_u8_st #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
+     let j' = Int.Cast.uint8_to_uint32 j in
+     if j' = 0ul
+     then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
+     else parse_synth IP.parse_u16 (fun v -> Right' v)
+   ) (fun j ->
+     let j' = Int.Cast.uint8_to_uint32 j in
+     if j' = 0ul
+     then // eq_ind_r (P.stateful_validator (parse_example'_aux j)) 
+      (validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
+      else // eq_ind_r (P.stateful_validator (parse_example'_aux j))
+        (validate_synth validate_u16_st (fun v -> Right' v))
+   )
+
+type example_tag = | Left | Right
+
+type example = ( t: example_tag & (
+  match t with
+  | Left -> (UInt8.t * UInt8.t)
+  | Right -> UInt16.t
+) )
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
-let rec parse_list
+(*
+val parse_list
+  (#t: Type0)
+  (p: P.parser t)
+: Tot (P.parser (list t))
+
+let parse_list #t p b = parse_list' #t p b ()
+*)
+
+val parse_list'
   (#t: Type0)
   (p: P.parser t)
   (b: P.bytes32)
-: Tot (option (list t * (n: nat { n <= Seq.length b } ) ) )
+: Tot (P.parse_arrow unit (fun _ -> option (list t * (n: nat { n <= Seq.length b } ))))
   (decreases (Seq.length b))
-= if Seq.length b = 0
+
+let rec parse_list' #t p b =
+  let () = () in
+  fun () ->
+  if Seq.length b = 0
   then 
     Some ([], 0)
   else
@@ -414,7 +378,7 @@ let rec parse_list
       if n = 0
       then None (* elements cannot be empty *)
       else
-        match parse_list p (Seq.slice b n (Seq.length b)) with
+        match parse_list' p (Seq.slice b n (Seq.length b)) () with
 	| Some (l, n') -> Some (v :: l, n + n')
 	| _ -> None
 
@@ -422,10 +386,10 @@ let rec parse_list_tailrec
   (#t: Type0)
   (p: P.parser t)
   (b: P.bytes32)
-  (aux: list t)
-: Tot (option (list t))
+: Tot (P.parse_arrow (aux: list t) (fun _ -> option (list t)))
   (decreases (Seq.length b))
-= if Seq.length b = 0
+= fun aux ->
+  if Seq.length b = 0
   then 
     Some aux
   else
@@ -474,7 +438,7 @@ let rec parse_list_tailrec_correct
   (requires True)
   (ensures (
     parse_list_tailrec p b aux == (
-    match parse_list p b with
+    match parse_list' p b () with
     | Some (l, n) -> Some (List.Tot.append aux l)
     | None -> None
   )))
@@ -491,7 +455,7 @@ let rec parse_list_tailrec_correct
       else begin
 	let s = Seq.slice b n (Seq.length b) in
 	parse_list_tailrec_correct p s (List.Tot.append aux [v]);
-	match parse_list p s with
+	match parse_list' p s () with
 	| Some (l, n') ->
 	  List.Tot.append_assoc aux [v] l
 	| None -> ()
@@ -550,9 +514,39 @@ let modifies_tip_popped h0 h1 h2 h3 : Lemma
   (ensures  (B.modifies_none h0 h3))
   = ()
 
-let list_nth_slice
+(* TODO: move to C.Loops *)
+(* To be extracted as:
+    for (int i = <start>; i != <finish>; ++i)
+      <f> i;
+*)
+val for_with_ghost_state:
+  (#gt: Type0) ->
+  start:UInt32.t ->
+  finish:UInt32.t{UInt32.v finish >= UInt32.v start} ->
+  gt_start: Ghost.erased gt ->
+  inv:(HS.mem -> nat -> gt -> GTot Type0) ->
+  f:(
+    i:UInt32.t{FStar.UInt32.(v start <= v i /\ v i < v finish)} ->
+    g : Ghost.erased gt ->
+    HST.Stack (Ghost.erased gt)
+    (requires (fun h -> inv h (UInt32.v i) (Ghost.reveal g)))
+    (ensures (fun h_1 g' h_2 -> FStar.UInt32.(inv h_1 (v i) (Ghost.reveal g) /\ inv h_2 (v i + 1) (Ghost.reveal g'))))
+  ) ->
+  HST.Stack (Ghost.erased gt)
+    (requires (fun h -> inv h (UInt32.v start) (Ghost.reveal gt_start)))
+    (ensures (fun _ g' h_2 -> inv h_2 (UInt32.v finish) (Ghost.reveal g')))
+let rec for_with_ghost_state #gt start finish gt_start inv f =
+  if start = finish then
+    gt_start
+  else begin
+    let g' = f start gt_start in
+    for_with_ghost_state (FStar.UInt32.(start +^ 1ul)) finish g' inv f
+  end
+
+(*
+val list_nth_slice
   (#t: Type0)
-  (p: Ghost.erased (P.parser t))
+  (p: P.parser t)
   (sv: P.stateful_validator p)
   (b: S.bslice)
   (i: UInt32.t)
@@ -560,7 +554,7 @@ let list_nth_slice
   (requires (fun h ->
     S.live h b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list (Ghost.reveal p) sq in (
+    let pl = parse_list' p sq () in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     UInt32.v i < List.Tot.length l
@@ -571,17 +565,18 @@ let list_nth_slice
     S.live h b' /\
     S.bslice_prefix b' b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list (Ghost.reveal p) sq in (
+    let pl = parse_list' p sq () in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     UInt32.v i < List.Tot.length l /\ (
     let sq' = S.as_seq h b' in
-    let pb' = Ghost.reveal p sq' in (
+    let pb' = p sq' in (
     Some? pb' /\ (
     let (Some (v, _)) = pb' in (
     v == List.Tot.index l (UInt32.v i)
   ))))))))))
-= 
+
+let list_nth_slice #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
   let h1 = HST.get () in
@@ -590,7 +585,7 @@ let list_nth_slice
     Ghost.elift1
       (fun () ->
 	let sq = S.as_seq h1 b in
-	let (Some (l, _)) = parse_list (Ghost.reveal p) sq in
+	let (Some (l, _)) = parse_list' p sq () in
 	l
       )
       (Ghost.hide ())
@@ -608,7 +603,7 @@ let list_nth_slice
     S.bslice_prefix s b /\
     S.live h s /\ (
     let sq = S.as_seq h s in
-    let pl = parse_list (Ghost.reveal p) sq in (
+    let pl = parse_list' p sq () in (
     Some? pl /\ (
     let (Some (lr, _)) = pl in (
     Ghost.reveal l == List.Tot.append ll lr /\
@@ -616,32 +611,44 @@ let list_nth_slice
     List.Tot.length lr > 0
     ))))))
   in
-  let ll = C.Loops.for_with_ghost_state
+  let h2 = HST.get () in
+  assert (inv h2 0 []);
+  let ll = for_with_ghost_state
     0ul
     i
     (Ghost.hide [])
     inv
     (fun j g ->
       let s = B.index sl 0ul in
-      let (Some k) = sv s in
+      let w = sv s in
+      assert (Some? w);
+      let (Some k) = w in
       let s' = S.advance_slice s k in
       B.upd sl 0ul s';
       let h = HST.get () in
       let g' = Ghost.elift1
 	(fun ll ->
 	  let sq = S.as_seq h s in
-	  let (Some (v, _)) = Ghost.reveal p sq in
+	  let w = p sq in
+//	  assume (Some? w);
+	  let (Some (v, _)) = w in
 	  List.Tot.append ll [v]
 	)
 	g
       in
       let prf () : Lemma (inv h (UInt32.v j + 1) (Ghost.reveal g')) =
 	let sq = S.as_seq h s in
-	let (Some (v, _)) = Ghost.reveal p sq in
-	let sq' = S.as_seq h s' in	
-	let (Some (lr, _)) = parse_list (Ghost.reveal p) sq' in
+	let w = p sq in
+//	assume (Some? w);
+	let (Some (v, _)) = w in
+	let sq' = S.as_seq h s' in
+	let w' = parse_list' p sq' () in
+//	assert (Some? w');
+	let (Some (lr, _)) = w' in
 	List.Tot.append_assoc (Ghost.reveal g) [v] lr;
-	List.Tot.append_length (Ghost.reveal g) (v :: lr)
+	List.Tot.append_length (Ghost.reveal g) (v :: lr);
+//	assume (inv h (UInt32.v j + 1) (Ghost.reveal g'));
+	()
       in
       prf ();
       g'
@@ -654,11 +661,11 @@ let list_nth_slice
   let h = HST.get () in
   let correctness () : Lemma (
     let sq = S.as_seq h res in
-    let (Some (v, _)) = Ghost.reveal p sq in (
+    let (Some (v, _)) = p sq in (
     v == List.Tot.index (Ghost.reveal l) (UInt32.v i)
   )) =
     let sq = S.as_seq h res in
-    let (Some (lr, _)) = parse_list (Ghost.reveal p) sq in
+    let (Some (lr, _)) = parse_list' p sq () in
     list_append_index_r (Ghost.reveal ll) lr (UInt32.v i)
   in
   correctness ();
