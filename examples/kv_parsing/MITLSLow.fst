@@ -15,7 +15,7 @@ let parse_sized (#t: Type0) (p: P.parser t) (sz: nat) : Tot (P.parser t) = fun s
       else None
     | _ -> None
 
-let g_parse_sized (#t: Type0) (p: P.gparser t) (sz: nat) : GTot (P.gparser t) = fun s ->
+let g_parse_sized (#t: Type0) (p: P.gparser t) (sz: nat) : Tot (P.gparser t) = fun s ->
   if Seq.length s < sz
   then None
   else
@@ -32,57 +32,15 @@ let g_parse_sized_eq (#t: Type0) (p: P.parser t) (sz: nat) : Lemma
 
 (* HERE *)
 
-unfold
-let and_then_erased
-  (#t1: Type0)
-  (p1: Ghost.erased (P.parser t1))
-  (#t2: Type0)
-  (p2: Ghost.erased (t1 -> P.parser t2))
-: Ghost.erased (P.parser t2)
-= Ghost.elift2 P.and_then p1 p2
+let parse_sized1 (#t: Type0) (p: P.parser t) (sz: UInt8.t) : Tot (P.parser t) = parse_sized p (UInt8.v sz)
 
-let reveal_and_then_erased
-  (#t1: Type0)
-  (p1: Ghost.erased (P.parser t1))
-  (#t2: Type0)
-  (p2: Ghost.erased (t1 -> P.parser t2))
-: Lemma
-  (Ghost.reveal (and_then_erased p1 p2) == P.and_then (Ghost.reveal p1) (Ghost.reveal p2))
-//  [SMTPat (Ghost.reveal (and_then_erased p1 p2))]
-= ()
+let g_parse_sized1 (#t: Type0) (p: P.gparser t) (sz: UInt8.t) : Tot (P.gparser t) = g_parse_sized p (UInt8.v sz)
 
-let parse_sized1 (#t: Type0) (p: P.parser t) (sz: UInt8.t) = parse_sized p (UInt8.v sz)
+let parse_vlbytes1 (#t: Type0) (p: P.parser t) : Tot (P.parser t) =
+  IP.parse_u8 `P.and_then` (fun len -> parse_sized1 p len)
 
-unfold
-let parse_sized1_erased (#t: Type0) (p: Ghost.erased (P.parser t)) : Ghost.erased (UInt8.t -> P.parser t) =
-  Ghost.elift1 parse_sized1 p
-
-let reveal_parse_sized1_erased (#t: Type0) (p: Ghost.erased (P.parser t)) : Lemma
-  (Ghost.reveal (parse_sized1_erased p) == parse_sized1 (Ghost.reveal p))
-//  [SMTPat (Ghost.reveal (parse_sized1_erased p))]
-= ()
-
-unfold
-let erased_arrow
-  (#t1: Type0)
-  (#t2: Type0)
-  (a: Ghost.erased (t1 -> t2))
-  (x: t1)
-: Ghost.erased t2
-= Ghost.elift1 (fun (f: (t1 -> t2)) -> f x) a
-
-let reveal_erased_arrow
-  (#t1: Type0)
-  (#t2: Type0)
-  (a: Ghost.erased (t1 -> t2))
-  (x: t1)
-: Lemma
-  (Ghost.reveal (erased_arrow a x) == Ghost.reveal a x)
-//  [SMTPat (Ghost.reveal (erased_arrow a x))]
-= ()
-
-let parse_vlbytes1 (#t: Type0) (p: P.parser t) : P.parser t =
-  IP.parse_u8 `P.and_then` (parse_sized1 p)
+let gparse_vlbytes1 (#t: Type0) (p: P.gparser t) : Tot (P.gparser t) =
+  IP.parse_u8 `P.g_and_then` (fun len -> g_parse_sized1 p len)
 
 (*  Useless for now
 <<
@@ -154,10 +112,10 @@ let parse_vlbytes1_st
 
 let validate_sized1
   (#t: Type0)
-  (#p: Ghost.erased (P.parser t))
+  (#p: P.gparser t)
   (ps: P.stateful_validator p)
   (len: UInt8.t)
-: P.stateful_validator (erased_arrow (parse_sized1_erased p) len)
+: Tot (P.stateful_validator (g_parse_sized1 p len))
 = fun input ->
   let len' : UInt32.t = Int.Cast.uint8_to_uint32 len in
   let blen = S.BSlice?.len input in
@@ -176,12 +134,12 @@ let validate_sized1
 
 let parse_then_check
   (#t1: Type0)
-  (#p1: Ghost.erased (P.parser t1))
+  (#p1: P.gparser t1)
   (ps1: P.parser_st p1)
   (#t2: Type0)
-  (#p2: Ghost.erased (t1 -> P.parser t2))
-  (ps2: ((x1: t1) -> P.stateful_validator (erased_arrow p2 x1)))
-: P.stateful_validator (Ghost.elift2 P.and_then p1 p2)
+  (#p2: t1 -> GTot (P.gparser t2))
+  (ps2: ((x1: t1) -> Tot (P.stateful_validator (p2 x1))))
+: P.stateful_validator (P.g_and_then p1 p2)
 = fun input ->
   match ps1 input with
   | Some (v1, off1) ->
@@ -197,43 +155,38 @@ let parse_then_check
 
 let validate_vlbytes1
   (#t: Type0)
-  (#p: Ghost.erased (P.parser t))
+  (#p: P.gparser t)
   (ps: P.stateful_validator p)
-: P.stateful_validator (Ghost.elift1 (parse_vlbytes1 #t) p)
-= let t1 = Ghost.elift1 (parse_vlbytes1 #t) p in
-  let ps' : P.stateful_validator t1 =
-    parse_then_check #UInt8.t #(Ghost.hide IP.parse_u8) IP.parse_u8_st (validate_sized1 ps)
-  in
-  ps'
+: P.stateful_validator (gparse_vlbytes1 p)
+= parse_then_check #_ #IP.parse_u8 IP.parse_u8_st (validate_sized1 ps)
 
-module Ser = Serializing
 module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module B = FStar.Buffer
 
 val point_to_vlbytes1_contents
   (#t: Type0)
-  (#p: Ghost.erased (P.parser t))
+  (#p: P.gparser t)
   (ps: P.stateful_validator p)
   (b: S.bslice)
 : HST.Stack S.bslice
   (requires (fun h ->
     S.live h b /\ (
     let s = S.as_seq h b in (
-    Some? (parse_vlbytes1 (Ghost.reveal p) s)
+    Some? (gparse_vlbytes1 p s)
   ))))
   (ensures (fun h0 b' h1 ->
     B.modifies_none h0 h1 /\
     S.live h0 b /\
     S.live h0 b' /\ (
     let s = S.as_seq h0 b in
-    let v = parse_vlbytes1 (Ghost.reveal p) s in (
+    let v = gparse_vlbytes1 p s in (
     Some? v /\ (
     let (Some (v', consumed)) = v in (
     B.includes (S.truncated_slice b (UInt32.uint_to_t consumed)).S.p b'.S.p /\
     (
     let s' = S.as_seq h1 b' in
-    let v'' = Ghost.reveal p s' in (
+    let v'' = p s' in (
     Some? v'' /\ (
     let (Some (v'', len')) = v'' in (
     v'' == v' /\
@@ -254,11 +207,11 @@ let point_to_vlbytes1_contents #t #p ps b =
   let f () : Lemma
   (
     let s = S.as_seq h0 b in
-    let (Some (_, consumed)) = parse_vlbytes1 (Ghost.reveal p) s in
+    let (Some (_, consumed)) = gparse_vlbytes1 p s in
     b'.S.p == B.sub (B.sub b.S.p 0ul (UInt32.uint_to_t consumed)) off1 len'
   )
   = let s = S.as_seq h0 b in
-    let (Some (_, consumed)) = parse_vlbytes1 (Ghost.reveal p) s in
+    let (Some (_, consumed)) = gparse_vlbytes1 p s in
     B.sub_sub b.S.p 0ul (UInt32.uint_to_t consumed) off1 len';
     B.sub_sub b.S.p off1 (UInt32.sub b.S.len off1) 0ul len'
   in
@@ -277,8 +230,8 @@ let parse_example : P.parser example =
     else IP.parse_u16 `P.and_then` (fun v -> P.parse_ret (Right v))
   )
 
-assume val validate_u8_st : P.stateful_validator (Ghost.hide IP.parse_u8)
-assume val validate_u16_st: P.stateful_validator (Ghost.hide IP.parse_u16)
+assume val validate_u8_st : P.stateful_validator IP.parse_u8
+assume val validate_u16_st: P.stateful_validator IP.parse_u16
 
 (* Special case for non-dependent parsing *)
 
@@ -289,33 +242,53 @@ let nondep_then
 : Tot (P.parser (t1 * t2))
 = p1 `P.and_then` (fun v1 -> p2 `P.and_then` (fun v2 -> P.parse_ret (v1, v2)))
 
+let g_nondep_then
+  (#t1 #t2: Type0)
+  (p1: P.gparser t1)
+  (p2: P.gparser t2)
+: Tot (P.gparser (t1 * t2))
+= p1 `P.g_and_then` (fun v1 -> p2 `P.g_and_then` (fun v2 -> P.parse_ret (v1, v2)))
+
 let validate_nondep_then
   (#t1: Type0)
-  (#p1: Ghost.erased (P.parser t1))
+  (#p1: P.gparser t1)
   (v1: P.stateful_validator p1)
   (#t2: Type0)
-  (#p2: Ghost.erased (P.parser t2))
+  (#p2: P.gparser t2)
   (v2: P.stateful_validator p2)
-: Tot (P.stateful_validator (Ghost.elift2 nondep_then p1 p2))
-= admit () // P.then_check p1 v1 p2 v2 (fun x1 x2 -> (x1, x2))
+: Tot (P.stateful_validator (g_nondep_then p1 p2))
+= P.then_check p1 v1 p2 v2 (fun x1 x2 -> (x1, x2))
 
 let parse_filter
-  (#t1: Type0)
-  (#t2: Type0)
-  (p1: P.parser t1)
-  (f2: t1 -> Tot (option t2))
-: Tot (P.parser t2)
-= p1 `P.and_then` (fun v1 ->
-    match f2 v1 with
-    | Some v2 -> P.parse_ret v2
-    | _ -> P.fail_parser
+  (#t: Type0)
+  (p: P.parser t)
+  (f: t -> Tot bool)
+: Tot (P.parser (x: t { f x }))
+= p `P.and_then` (fun v ->
+    if f v
+    then
+      let (v' : t { f v' } ) = v in
+      P.parse_ret v'
+    else P.fail_parser
   )
 
+let gparse_filter
+  (#t: Type0)
+  (p: P.gparser t)
+  (f: t -> GTot bool)
+: Tot (P.gparser (x: t { f x }))
+= p `P.g_and_then` (fun v ->
+    if f v
+    then
+      let (v' : t { f v' } ) = v in
+      P.parse_ret v'
+    else P.fail_parser
+  )
+ 
 let stateful_filter_validator
-  (#t1: Type0)
-  (#t2: Type0)
-  (p1: Ghost.erased (P.parser t1))
-  (f2: Ghost.erased (t1 -> Tot (option t2)))
+  (#t: Type0)
+  (p: P.gparser t)
+  (f: t -> GTot bool)
 : Tot Type0
 = (v2: (
     (b: S.bslice) ->
@@ -323,27 +296,26 @@ let stateful_filter_validator
     (requires (fun h ->
       S.live h b /\ (
       let s = S.as_seq h b in (
-      Some? (Ghost.reveal p1 s)
+      Some? (p s)
     ))))
     (ensures (fun h0 r h1 ->
       S.live h0 b /\
       S.live h1 b /\
       B.modifies_none h0 h1 /\ (
       let s = S.as_seq h0 b in
-      let v1' = Ghost.reveal p1 s in (
-      Some? v1' /\ (
-      let (Some (w1, _)) = v1' in (
-      r == Some? (Ghost.reveal f2 w1)
+      let v' = p s in (
+      Some? v' /\ (
+      let (Some (w, _)) = v' in (
+      r == f w
   ))))))))
 
 let validate_filter
-  (#t1: Type0)
-  (#p1: Ghost.erased (P.parser t1))
-  (v1: P.stateful_validator p1)
-  (#t2: Type0)
-  (#f2: Ghost.erased (t1 -> Tot (option t2)))
-  (v2: stateful_filter_validator p1 f2)
-: Tot (P.stateful_validator (Ghost.elift2 parse_filter p1 f2))
+  (#t: Type0)
+  (#p: P.gparser t)
+  (v1: P.stateful_validator p)
+  (#f: t -> GTot bool)
+  (v2: stateful_filter_validator p f)
+: Tot (P.stateful_validator (gparse_filter p f))
 = fun b ->
     let r1 = v1 b in
     if Some? r1
@@ -359,16 +331,23 @@ let parse_synth
   (#t2: Type0)
   (p1: P.parser t1)
   (f2: t1 -> Tot t2)
-= parse_filter p1 (fun v1 -> Some (f2 v1))
+= P.and_then p1 (fun v1 -> P.parse_ret (f2 v1))
+
+let gparse_synth
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: P.gparser t1)
+  (f2: t1 -> GTot t2)
+= P.g_and_then p1 (fun v1 -> P.parse_ret (f2 v1))
 
 let validate_synth
   (#t1: Type0)
   (#t2: Type0)
-  (#p1: Ghost.erased (P.parser t1))
+  (#p1: P.gparser t1)
   (v1: P.stateful_validator p1)
-  (f2: Ghost.erased (t1 -> Tot t2))
-: Tot (P.stateful_validator (Ghost.elift2 parse_synth p1 f2))
-= admit () // fun b -> v1 b
+  (f2: t1 -> GTot t2)
+: Tot (P.stateful_validator (gparse_synth p1 f2))
+= fun b -> v1 b
 
 type example' =
 | Left':
@@ -377,76 +356,45 @@ type example' =
     example'
 | Right' of UInt16.t
 
-let uncurry_left' (u : UInt8.t * UInt8.t) : Tot example' =
-  let (u1, u2) = u in
-  Left' u1 u2
-
-(*
-let parse_example' : P.parser example' =
-  IP.parse_u8 `P.and_then` (fun j ->
+unfold
+let parse_example'_aux (j: UInt8.t) : Tot (P.gparser example') =
     let j' = Int.Cast.uint8_to_uint32 j in
     if j' = 0ul
-    then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
-    else parse_synth IP.parse_u16 (fun v -> Right' v)
-  )
-*)
+    then gparse_synth (g_nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
+    else gparse_synth IP.parse_u16 (fun v -> Right' v)
 
-let parse_example'_aux (j: UInt8.t) : Tot (P.parser example') =
+(* Lax-type-checks, but does not typecheck
+<<
+let validate_example_st' (j: UInt8.t) : Tot (P.stateful_validator (parse_example'_aux j)) =
     let j' = Int.Cast.uint8_to_uint32 j in
     if j' = 0ul
-    then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
-    else parse_synth IP.parse_u16 (fun v -> Right' v)
-
-let parse_example' : P.parser example' =
-  IP.parse_u8 `P.and_then` parse_example'_aux
-
-(* TODO: WHY WHY WHY does this NOT typecheck? It should!  *)
-
-(*
-
-let validate_example_st' : P.stateful_validator (Ghost.hide parse_example') =
-  IP.parse_u8_st `parse_then_check` (fun j ->
-    let j' = Int.Cast.uint8_to_uint32 j in
-    if j' = 0ul
-    then validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (Ghost.hide uncurry_left')
-    else validate_synth validate_u16_st (Ghost.hide Right')
-  )
+    then
+      validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (fun (u1, u2) -> Left' u1 u2)
+    else
+      validate_synth validate_u16_st (fun v -> Right' v)
+>>
 *)
 
 let eq_ind_r (#t1 t2: Type0) (f: t1) : Pure t2 (requires (t1 == t2)) (ensures (fun g -> t1 == t2 /\ g == f)) = f
-  
-let validate_nondep_then'
-  (#t1: Type0)
-  (#p1: P.parser t1)
-  (v1: P.stateful_validator (Ghost.hide p1))
-  (#t2: Type0)
-  (#p2: P.parser t2)
-  (v2: P.stateful_validator (Ghost.hide p2))
-: Tot (P.stateful_validator (Ghost.hide (nondep_then p1 p2)))
-= eq_ind_r (P.stateful_validator (Ghost.hide (nondep_then p1 p2))) (validate_nondep_then v1 v2)
 
-let validate_synth'
-  (#t1: Type0)
-  (#t2: Type0)
-  (#p1: P.parser t1)
-  (v1: P.stateful_validator (Ghost.hide p1))
-  (f2:  (t1 -> Tot t2))
-: Tot (P.stateful_validator (Ghost.hide (parse_synth p1 f2)))
-= eq_ind_r (P.stateful_validator (Ghost.hide (parse_synth p1 f2))) (validate_synth v1 (Ghost.hide f2))
+let parse_example' : P.gparser example' =
+  IP.parse_u8 `P.g_and_then` (fun j ->
+    parse_example'_aux j
+  )
 
-let validate_example'_aux (j: UInt8.t) : Tot (P.stateful_validator (erased_arrow (Ghost.hide parse_example'_aux) j)) =
+(* FIXME: WHY WHY WHY do I need these F* coercions?
+   UPDATE: I don't need them if I *uniformly* use ghost parsers everywhere
+ *)
+
+let validate_example_st' : P.stateful_validator parse_example' =
+   parse_then_check #_ #IP.parse_u8 IP.parse_u8_st #_ #parse_example'_aux (fun j ->
     let j' = Int.Cast.uint8_to_uint32 j in
     if j' = 0ul
-    then 
-      eq_ind_r (P.stateful_validator (erased_arrow (Ghost.hide parse_example'_aux) j))
-	(validate_synth' (validate_nondep_then' validate_u8_st validate_u8_st) uncurry_left')
-    else
-      eq_ind_r (P.stateful_validator (erased_arrow (Ghost.hide parse_example'_aux) j))
-	(validate_synth' validate_u16_st Right')
-
-let validate_example_st' : P.stateful_validator (Ghost.hide parse_example') =
-  eq_ind_r (P.stateful_validator (Ghost.hide parse_example'))
-    (parse_then_check #_ #(Ghost.hide IP.parse_u8) IP.parse_u8_st validate_example'_aux)
+    then // eq_ind_r (P.stateful_validator (parse_example'_aux j)) 
+    (validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
+    else // eq_ind_r (P.stateful_validator (parse_example'_aux j))
+    (validate_synth validate_u16_st (fun v -> Right' v))
+  )
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
