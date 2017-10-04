@@ -292,8 +292,19 @@ let point_to_vlbytes1_contents #t #p ps b =
   f ();
   b'
 
-assume val validate_u8_st : P.stateful_validator IP.parse_u8
-assume val validate_u16_st: P.stateful_validator IP.parse_u16
+val validate_u8_st : P.stateful_validator IP.parse_u8
+let validate_u8_st =
+  fun b ->
+  if UInt32.lt b.S.len 1ul
+  then None
+  else Some 1ul
+
+val validate_u16_st: P.stateful_validator IP.parse_u16
+let validate_u16_st =
+  fun b ->
+  if UInt32.lt b.S.len 2ul
+  then None
+  else Some 2ul
 
 (* Special case for non-dependent parsing *)
 
@@ -327,6 +338,71 @@ let validate_nondep_then_nochk
   let s2 = S.advance_slice s1 off1 in
   let off2 = v2 s2 in
   UInt32.add off1 off2
+
+val nondep_fst
+  (#t1: Type0)
+  (p1: P.parser t1)
+  (#t2: Type0)
+  (p2: P.parser t2)
+  (b: S.bslice)
+: HST.Stack S.bslice
+  (requires (fun h ->
+    S.live h b /\ (
+    let s = S.as_seq h b in (
+    Some? (nondep_then p1 p2 s)
+  ))))
+  (ensures (fun h1 b' h2 ->
+    B.modifies_none h1 h2 /\
+    B.includes b.S.p b'.S.p /\
+    S.live h1 b /\
+    S.live h1 b' /\ (
+    let s = S.as_seq h1 b in
+    let v = nondep_then p1 p2 s in
+    let s' = S.as_seq h1 b' in
+    let v' = p1 s' in (
+    Some? v /\
+    Some? v' /\ (
+    let (Some ((v_fst, _), _)) = v in
+    let (Some (v'_, _)) = v' in
+    v'_ == v_fst
+  )))))
+
+let nondep_fst #t1 p1 #t2 p2 b =
+  b
+
+val nondep_snd
+  (#t1: Type0)
+  (#p1: P.parser t1)
+  (st1: P.stateful_validator_nochk p1)
+  (#t2: Type0)
+  (p2: P.parser t2)
+  (b: S.bslice)
+: HST.Stack S.bslice
+  (requires (fun h ->
+    S.live h b /\ (
+    let s = S.as_seq h b in (
+    Some? (nondep_then p1 p2 s)
+  ))))
+  (ensures (fun h1 b' h2 ->
+    B.modifies_none h1 h2 /\
+    B.includes b.S.p b'.S.p /\
+    S.live h1 b /\
+    S.live h1 b' /\ (
+    let s = S.as_seq h1 b in
+    let v = nondep_then p1 p2 s in
+    let s' = S.as_seq h1 b' in
+    let v' = p2 s' in (
+    Some? v /\
+    Some? v' /\ (
+    let (Some ((_, v_snd), _)) = v in
+    let (Some (v'_, _)) = v' in
+    v'_ == v_snd
+  )))))
+
+let nondep_snd #t1 #p1 st1 #t2 p2 b =
+  let off1 = st1 b in
+  let b' = S.advance_slice b off1 in
+  b'
 
 let parse_filter
   (#t: Type0)
@@ -415,9 +491,9 @@ let validate_example_st' : P.stateful_validator parse_example' =
      let j' = Int.Cast.uint8_to_uint32 j in
      if j' = 0ul
      then
-        (validate_synth (validate_nondep_then validate_u8_st validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
+        (validate_synth (validate_nondep_then #_ #IP.parse_u8 validate_u8_st #_ #IP.parse_u8 validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
      else
-        (validate_synth validate_u16_st (fun v -> Right' v))
+        (validate_synth #_ #_ #IP.parse_u16 validate_u16_st (fun v -> Right' v))
    )
 
 let validate_u8_st_nochk : P.stateful_validator_nochk IP.parse_u8 = fun _ -> 1ul
@@ -478,6 +554,26 @@ val parse_list
 : Tot (P.parser (list t))
 
 let parse_list #t p b = parse_list_aux #t p b ()
+
+let rec parse_list_consumed
+  (#t: Type0)
+  (p: P.parser t)
+  (b: P.bytes32)
+: Lemma
+  (requires (Some? (parse_list p b)))
+  (ensures (
+    let pb = parse_list p b in (
+    Some? pb /\ (
+    let (Some (_, consumed)) = pb in
+    consumed == Seq.length b
+  ))))
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then ()
+  else
+    let (Some (_, consumed1)) = p b in
+    let b' = Seq.slice b consumed1 (Seq.length b) in
+    parse_list_consumed p b'
 
 let rec parse_list_tailrec
   (#t: Type0)
@@ -927,6 +1023,109 @@ let validate_list_inv
     let sq' = S.as_seq (Ghost.reveal h0) sl in
     (Some? (parse_list p sq') ==> Some? (parse_list p sq))
   )))))
+
+val validate_list_advance
+  (#t: Type0)
+  (#p: P.parser t)
+  (sv: P.stateful_validator p)
+  (b: S.bslice)
+  (h0: Ghost.erased HS.mem)
+  (sl: B.buffer (option S.bslice))
+  (j: UInt32.t)
+: HST.Stack bool
+  (requires (fun h ->
+    UInt32.v j < UInt32.v b.S.len /\
+    validate_list_inv sv b h0 sl h (UInt32.v j) false
+  ))
+  (ensures (fun h1 res h2 ->
+    UInt32.v j < UInt32.v b.S.len /\
+    validate_list_inv sv b h0 sl h1 (UInt32.v j) false /\
+    validate_list_inv sv b h0 sl h2 (UInt32.v j + 1) res
+  ))
+
+let validate_list_advance #t #p sv b h0 sl j =
+  let h1 = HST.get () in
+  B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl b.S.p;
+  let os = B.index sl 0ul in
+  let (Some s) = os in
+  assert (S.as_seq h1 s == S.as_seq (Ghost.reveal h0) s);
+  if s.S.len = 0ul
+  then true
+  else begin
+    let svs = sv s in
+    let h2 = HST.get () in
+    assert (S.as_seq h2 s == S.as_seq (Ghost.reveal h0) s);
+    B.lemma_intro_modifies_1 sl h1 h2;
+    match svs with
+    | None ->
+      B.upd sl 0ul None;
+      true
+    | Some off ->
+      if off = 0ul
+      then begin
+	B.upd sl 0ul None;
+	true
+      end else begin
+	let s' = S.advance_slice s off in
+	assert (S.as_seq h2 s' == S.as_seq (Ghost.reveal h0) s');
+	B.upd sl 0ul (Some s');
+	false
+      end
+  end  
+
+val validate_list
+  (#t: Type0)
+  (#p: P.parser t)
+  (sv: P.stateful_validator p)
+: Tot (P.stateful_validator (parse_list p))
+
+let validate_list #t #p sv b =
+  let h0 = HST.get () in
+  HST.push_frame ();
+  let h1 = HST.get () in
+  let sl : B.buffer (option S.bslice) = B.create (Some b) 1ul in
+  let h2 = HST.get () in
+  B.lemma_reveal_modifies_0 h1 h2; // I really need to switch to my new modifies clauses very soon!
+  assert (S.as_seq h2 b == S.as_seq h0 b);
+  assert (validate_list_inv sv b (Ghost.hide h2) sl h2 0 false);
+  let (_, interrupt) = C.Loops.interruptible_for
+    0ul
+    b.S.len
+    (fun h j inter -> validate_list_inv sv b (Ghost.hide h2) sl h j inter)
+    (fun j -> validate_list_advance sv b (Ghost.hide h2) sl j)
+  in
+  let h3 = HST.get () in
+  B.lemma_reveal_modifies_1 sl h2 h3;
+  assert (S.as_seq h3 b == S.as_seq h0 b);
+  let tail = B.index sl 0ul in
+  let res : option (n: UInt32.t { UInt32.v n <= UInt32.v b.S.len } ) =
+    if interrupt
+    then match tail with
+    | None -> None
+    | Some _ -> Some b.S.len
+    else None
+  in
+  HST.pop_frame ();
+  let h = HST.get () in
+  assert (S.as_seq h b == S.as_seq h0 b);
+  let f () : Lemma
+    (requires (Some? res))
+    (ensures (
+      S.live h0 b /\ (
+      let s = S.as_seq h0 b in
+      let pl = parse_list p s in (
+      Some? res /\
+      Some? pl /\ (
+      let (Some (_, consumed)) = pl in
+      let (Some consumed') = res in
+      consumed == UInt32.v consumed'
+    )))))
+  = let s = S.as_seq h0 b in
+    parse_list_consumed p s
+  in
+  Classical.move_requires f ();
+  res
+  
 
 (*
   j <= UInt32.v i /\
