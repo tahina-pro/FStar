@@ -94,6 +94,26 @@ let parser_st #t (p: parser t) =
               end
             | None -> r == None)))
 
+/// A stateful parser much like parser_st, except that error cases are
+/// precluded. The precondition includes that the specification parser succeeds
+/// on the input, and under this assumption a parser_st_nochk does not fail and
+/// has the same behavior as the specification parser. The implementation need
+/// not make error checks since those cases are impossible.
+inline_for_extraction
+let parser_st_nochk #t (p: parser t) =
+  input:bslice -> Stack (t * off:U32.t{U32.v off <= U32.v input.len})
+  (requires (fun h0 -> live h0 input /\
+                    (let bs = as_seq h0 input in
+                     Some? (p bs))))
+  (ensures (fun h0 r h1 -> live h1 input /\
+                  modifies_none h0 h1 /\
+                  (let bs = B.as_seq h1 input.p in
+                    Some? (p bs) /\
+                    (let (v, n) = Some?.v (p bs) in
+                     let (rv, off) = r in
+                       v == rv /\
+                       n == U32.v off))))
+
 /// A validation is an [option U32.t], where [Some off] indicates success and
 /// consumes [off] bytes. A validation checks a parse result if it returns [Some
 /// off] only when the parser also succeeds and returns the same offset, with
@@ -118,6 +138,24 @@ let stateful_validator #t (p: parser t) =
                           (let bs = as_seq h1 input in
                             validation_checks_parse bs r (p bs))))
 
+/// Same thing, but where we already know that the data is valid. (In other words, how many offsets are skipped by the data being parsed.)
+let stateful_validator_nochk #t (p: parser t) =
+  input: bslice ->
+  Stack (off: U32.t { U32.v off <= U32.v input.len } )
+  (requires (fun h0 ->
+    live h0 input /\ (
+    let s = as_seq h0 input in
+    Some? (p s)
+  )))
+  (ensures (fun h0 r h1 ->
+    live h1 input /\
+    modifies_none h0 h1 /\ (
+    let s = as_seq h1 input in (
+    Some? (p s) /\ (
+    let (Some (_, consumed)) = p s in
+    UInt32.v r == consumed
+  )))))
+
 #reset-options "--z3rlimit 15 --max_fuel 1 --max_ifuel 1"
 
 /// Validators can be composed monoidally, checking two parsers in sequence.
@@ -138,6 +176,15 @@ fun input ->
           | None -> None
     end
   | None -> None
+
+[@"substitute"]
+let then_no_check #t (p: parser t) (v: stateful_validator_nochk p)
+                #t' (p': parser t') (v': stateful_validator_nochk p')
+                #t'' (f: t -> t' -> Tot t'') :
+                stateful_validator_nochk (p `and_then` (fun x -> p' `and_then` (fun y -> parse_ret (f x y)))) =
+fun input ->
+  let off = v input in
+  U32.add off (v' (advance_slice input off))
 
 #reset-options
 
