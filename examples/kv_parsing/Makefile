@@ -5,6 +5,9 @@ FST_FILES :=	Slice.fst \
 		Parsing.fst \
 		Serializing.fst \
 		IntegerParsing.fst \
+		GhostParsing.fst \
+		MITLSLow.fst \
+		MITLSLow.Continued.fst \
 		KeyValue.fst \
 		PureParser.fst \
 		PureValidator.fst \
