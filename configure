@@ -1,12 +1,10 @@
 #!/bin/bash
 
-cat <<EOWARNING
-NOTE: This file is currently used only for opam to check that the right
-version of z3 is installed. It is by no means complete.
+# NOTE: This file is currently used only for opam to check that the right
+# version of z3 is installed. It is by no means complete.
 
-TODO: enrich this script by checking whether all OCaml opam packages
-are here
-EOWARNING
+# TODO: enrich this script by checking whether all OCaml opam packages
+# are here
 
 z3version_expected=1f29cebd4df6
 
