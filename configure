@@ -1,0 +1,36 @@
+#!/bin/bash
+
+cat <<EOWARNING
+NOTE: This file is currently used only for opam to check that the right
+version of z3 is installed. It is by no means complete.
+
+TODO: enrich this script by checking whether all OCaml opam packages
+are here
+EOWARNING
+
+z3version_expected=1f29cebd4df6
+
+show_z3_url () {
+  echo Please download the right version of Z3 from:
+  echo https://github.com/FStarLang/binaries/tree/master/z3-tested
+  echo and add the bin/ subdirectory to your PATH
+}
+
+echo -n Checking for z3 version "$z3version_expected"...' '
+
+if ! z3executable=`which z3`
+then
+  echo no z3 found
+  show_z3_url
+  exit 1
+fi
+
+z3version=$("$z3executable" --version | grep -o '[0-9a-f]*$')
+
+if [[ "$z3version" != "$z3version_expected" ]] ; then
+  echo found another version, "$z3version"
+  show_z3_url
+  exit 1
+fi
+
+echo found the right version
