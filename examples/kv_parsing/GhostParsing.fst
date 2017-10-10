@@ -139,6 +139,7 @@ let stateful_validator #t (p: parser t) =
                             validation_checks_parse bs r (p bs))))
 
 /// Same thing, but where we already know that the data is valid. (In other words, how many offsets are skipped by the data being parsed.)
+inline_for_extraction
 let stateful_validator_nochk #t (p: parser t) =
   input: bslice ->
   Stack (off: U32.t { U32.v off <= U32.v input.len } )
@@ -163,6 +164,7 @@ let stateful_validator_nochk #t (p: parser t) =
 /// always run one after the other. This validator will check any combination of
 /// the results of the two parsers.
 [@"substitute"]
+inline_for_extraction
 let then_check #t (p: parser t) (v: stateful_validator p)
                 #t' (p': parser t') (v': stateful_validator p')
                 #t'' (f: t -> t' -> Tot t'') :
@@ -178,6 +180,7 @@ fun input ->
   | None -> None
 
 [@"substitute"]
+inline_for_extraction
 let then_no_check #t (p: parser t) (v: stateful_validator_nochk p)
                 #t' (p': parser t') (v': stateful_validator_nochk p')
                 #t'' (f: t -> t' -> Tot t'') :
@@ -189,9 +192,12 @@ fun input ->
 #reset-options
 
 [@"substitute"]
+inline_for_extraction
 let validate_done_st : stateful_validator parsing_done = fun input ->
   if U32.eq input.len 0ul then Some 0ul else None
 
+[@"substitute"]
+inline_for_extraction
 let validate_fail : stateful_validator fail_parser =
   fun input -> None
 

@@ -23,6 +23,8 @@ let parse_synth
   (f2: P.parse_arrow t1 (fun _ -> t2))
 = P.and_then p1 (fun v1 -> P.parse_ret (f2 v1))
 
+[@"substitute"]
+inline_for_extraction
 let validate_synth
   (#t1: Type0)
   (#t2: Type0)
@@ -32,6 +34,8 @@ let validate_synth
 : Tot (P.stateful_validator (parse_synth p1 f2))
 = fun b -> v1 b
 
+[@"substitute"]
+inline_for_extraction
 let validate_synth_nochk
   (#t1: Type0)
   (#t2: Type0)
@@ -41,6 +45,8 @@ let validate_synth_nochk
 : Tot (P.stateful_validator_nochk (parse_synth p1 f2))
 = fun b -> v1 b
 
+[@"substitute"]
+inline_for_extraction
 let parse_then_check
   (#t1: Type0)
   (#p1: P.parser t1)
@@ -62,6 +68,8 @@ let parse_then_check
     end
   | _ -> None
 
+[@"substitute"]
+inline_for_extraction
 let parse_nochk_then_nochk
   (#t1: Type0)
   (#p1: P.parser t1)
@@ -76,6 +84,8 @@ let parse_nochk_then_nochk
   let off2 = ps2 v1 input2 in
   UInt32.add off1 off2
 
+[@"substitute"]
+inline_for_extraction
 val validate_u8_st : P.stateful_validator parse_u8
 let validate_u8_st =
   fun b ->
@@ -83,6 +93,8 @@ let validate_u8_st =
   then None
   else Some 1ul
 
+[@"substitute"]
+inline_for_extraction
 val validate_u16_st: P.stateful_validator parse_u16
 let validate_u16_st =
   fun b ->
@@ -99,6 +111,8 @@ let nondep_then
 : Tot (P.parser (t1 * t2))
 = p1 `P.and_then` (fun v1 -> p2 `P.and_then` (fun v2 -> P.parse_ret (v1, v2)))
 
+[@"substitute"]
+inline_for_extraction
 let validate_nondep_then
   (#t1: Type0)
   (#p1: P.parser t1)
@@ -109,6 +123,8 @@ let validate_nondep_then
 : Tot (P.stateful_validator (nondep_then p1 p2))
 = P.then_check p1 v1 p2 v2 (fun x1 x2 -> (x1, x2))
 
+[@"substitute"]
+inline_for_extraction
 let validate_nondep_then_nochk
   (#t1: Type0)
   (#p1: P.parser t1)
@@ -138,20 +154,28 @@ let parse_example' : P.parser example' =
     else parse_synth parse_u16 (fun v -> Right' v)
   )
 
+[@"substitute"]
+inline_for_extraction
 let parse_u8_st_nochk :
     P.parser_st_nochk parse_u8 = fun input ->
     let b0 = Buffer.index input.S.p 0ul in
     (b0, 1ul)
 
+[@"substitute"]
+inline_for_extraction
 let parse_u8_st : P.parser_st parse_u8 = fun input ->
     if UInt32.lt input.S.len 1ul then None
     else (Some (parse_u8_st_nochk input))
 
+[@"substitute"]
+inline_for_extraction
 let parse_u16_st_nochk :
   P.parser_st_nochk parse_u16 = fun input ->
   let n = C.load16_be (S.truncated_slice input 2ul).S.p in
   (n, 2ul)
 
+[@"substitute"]
+inline_for_extraction
 let parse_u16_st : P.parser_st parse_u16 = fun input ->
   if UInt32.lt input.S.len 2ul
     then None
@@ -172,7 +196,11 @@ let validate_example_st' : P.stateful_validator parse_example' =
         (validate_synth #_ #_ #parse_u16 validate_u16_st (fun v -> Right' v))
    )
 
+[@"substitute"]
+inline_for_extraction
 let validate_u8_st_nochk : P.stateful_validator_nochk parse_u8 = fun _ -> 1ul
+[@"substitute"]
+inline_for_extraction
 let validate_u16_st_nochk: P.stateful_validator_nochk parse_u16 = fun _ -> 2ul
 
 let validate_example_st_nochk' : P.stateful_validator_nochk parse_example' =
