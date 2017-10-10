@@ -209,6 +209,7 @@ let and_then_offset (#t:Type) (p: parser t) (#t':Type) (p': parse_arrow t (fun _
     | None -> ()
   | None -> ()
 
+(* FIXME: why is noextract not honored?
 // TODO: this definition is here out of convenience, but should probably go somewhere else
 noextract
 val normalize : #t:Type -> list norm_step -> t -> tactic unit
