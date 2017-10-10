@@ -2,7 +2,19 @@ module MITLSLow
 // module E = Extensions
 module S = Slice
 module P = GhostParsing
-module IP = IntegerParsing
+module E = FStar.Kremlin.Endianness
+
+let parse_u8: P.parser UInt8.t =
+  fun b -> if Seq.length b < 1 then None
+        else Some (Seq.index b 0, 1)
+
+let parse_u16: P.parser UInt16.t =
+  fun b -> if Seq.length b < 2 then None
+        else begin
+          let b' = Seq.slice b 0 2 in
+          E.lemma_be_to_n_is_bounded b';
+          Some (UInt16.uint_to_t (E.be_to_n b'), 2)
+        end
 
 let parse_synth
   (#t1: Type0)
@@ -64,14 +76,14 @@ let parse_nochk_then_nochk
   let off2 = ps2 v1 input2 in
   UInt32.add off1 off2
 
-val validate_u8_st : P.stateful_validator IP.parse_u8
+val validate_u8_st : P.stateful_validator parse_u8
 let validate_u8_st =
   fun b ->
   if UInt32.lt b.S.len 1ul
   then None
   else Some 1ul
 
-val validate_u16_st: P.stateful_validator IP.parse_u16
+val validate_u16_st: P.stateful_validator parse_u16
 let validate_u16_st =
   fun b ->
   if UInt32.lt b.S.len 2ul
@@ -119,42 +131,61 @@ type example' =
 | Right' of UInt16.t
 
 let parse_example' : P.parser example' =
-  IP.parse_u8 `P.and_then` (fun j ->
+  parse_u8 `P.and_then` (fun j ->
     let j' = Int.Cast.uint8_to_uint32 j in
     if j' = 0ul
-    then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
-    else parse_synth IP.parse_u16 (fun v -> Right' v)
+    then parse_synth (nondep_then parse_u8 parse_u8) (fun (u1, u2) -> Left' u1 u2)
+    else parse_synth parse_u16 (fun v -> Right' v)
   )
 
+let parse_u8_st_nochk :
+    P.parser_st_nochk parse_u8 = fun input ->
+    let b0 = Buffer.index input.S.p 0ul in
+    (b0, 1ul)
+
+let parse_u8_st : P.parser_st parse_u8 = fun input ->
+    if UInt32.lt input.S.len 1ul then None
+    else (Some (parse_u8_st_nochk input))
+
+let parse_u16_st_nochk :
+  P.parser_st_nochk parse_u16 = fun input ->
+  let n = C.load16_be (S.truncated_slice input 2ul).S.p in
+  (n, 2ul)
+
+let parse_u16_st : P.parser_st parse_u16 = fun input ->
+  if UInt32.lt input.S.len 2ul
+    then None
+  else Some (parse_u16_st_nochk input)
+
 let validate_example_st' : P.stateful_validator parse_example' =
-   parse_then_check #_ #IP.parse_u8 IP.parse_u8_st #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
+   parse_then_check #_ #parse_u8 parse_u8_st #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
      let j' = Int.Cast.uint8_to_uint32 j in
      if j' = 0ul
-     then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
-     else parse_synth IP.parse_u16 (fun v -> Right' v)
+     then parse_synth (nondep_then parse_u8 parse_u8) (fun (u1, u2) -> Left' u1 u2)
+     else parse_synth parse_u16 (fun v -> Right' v)
    ) (fun j ->
      let j' = Int.Cast.uint8_to_uint32 j in
      if j' = 0ul
      then
-        (validate_synth (validate_nondep_then #_ #IP.parse_u8 validate_u8_st #_ #IP.parse_u8 validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
+        (validate_synth (validate_nondep_then #_ #parse_u8 validate_u8_st #_ #parse_u8 validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
      else
-        (validate_synth #_ #_ #IP.parse_u16 validate_u16_st (fun v -> Right' v))
+        (validate_synth #_ #_ #parse_u16 validate_u16_st (fun v -> Right' v))
    )
 
-let validate_u8_st_nochk : P.stateful_validator_nochk IP.parse_u8 = fun _ -> 1ul
-let validate_u16_st_nochk: P.stateful_validator_nochk IP.parse_u16 = fun _ -> 2ul
+let validate_u8_st_nochk : P.stateful_validator_nochk parse_u8 = fun _ -> 1ul
+let validate_u16_st_nochk: P.stateful_validator_nochk parse_u16 = fun _ -> 2ul
 
 let validate_example_st_nochk' : P.stateful_validator_nochk parse_example' =
-   parse_nochk_then_nochk #_ #IP.parse_u8 IP.parse_u8_st_nochk #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
+   parse_nochk_then_nochk #_ #parse_u8 parse_u8_st_nochk #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
      let j' = Int.Cast.uint8_to_uint32 j in
      if j' = 0ul
-     then parse_synth (nondep_then IP.parse_u8 IP.parse_u8) (fun (u1, u2) -> Left' u1 u2)
-     else parse_synth IP.parse_u16 (fun v -> Right' v)
+     then parse_synth (nondep_then parse_u8 parse_u8) (fun (u1, u2) -> Left' u1 u2)
+     else parse_synth parse_u16 (fun v -> Right' v)
    ) (fun j ->
      let j' = Int.Cast.uint8_to_uint32 j in
      if j' = 0ul
      then
-        (validate_synth_nochk (validate_nondep_then_nochk #_ #IP.parse_u8 validate_u8_st_nochk #_ #IP.parse_u8 validate_u8_st_nochk) (fun (u1, u2) -> Left' u1 u2))
+        (validate_synth_nochk (validate_nondep_then_nochk #_ #parse_u8 validate_u8_st_nochk #_ #parse_u8 validate_u8_st_nochk) (fun (u1, u2) -> Left' u1 u2))
      else
-        (validate_synth_nochk #_ #_ #IP.parse_u16 validate_u16_st_nochk (fun v -> Right' v))
+        (validate_synth_nochk #_ #_ #parse_u16 validate_u16_st_nochk (fun v -> Right' v))
    )
