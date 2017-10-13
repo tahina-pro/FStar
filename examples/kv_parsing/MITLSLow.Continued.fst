@@ -360,6 +360,21 @@ let validate_filter_nochk
 : Tot (P.stateful_validator_nochk (parse_filter p f))
 = fun b -> v1 b
 
+inline_for_extraction
+let parse_filter_st
+  (#t: Type0)
+  (#p: P.parser t)
+  (ps: P.parser_st p)
+  (f: (t -> Tot bool)) // checker MUST be total here (we do have a stateful parser)
+: Tot (P.parser_st (parse_filter p f))
+= fun input ->
+  match ps input with
+  | Some (v, off) ->
+    if f v
+    then Some (v, off)
+    else None
+  | _ -> None
+
 type example_tag = | Left | Right
 
 type example = ( t: example_tag & (
@@ -1078,6 +1093,14 @@ let log256 n =
     end
   end
 
+inline_for_extraction
+let in_bounds
+  (min: UInt32.t)
+  (max: UInt32.t)
+  (x: UInt32.t)
+: Tot bool
+= not (UInt32.lt x min || UInt32.lt max x)
+
 let parse_vlbytes'
   (min: UInt32.t)
   (max: UInt32.t { UInt32.v max > 0 } )
@@ -1085,13 +1108,13 @@ let parse_vlbytes'
   (p: P.parser t)
   (sz: integer_size { sz == log256 max } )
 : Tot (P.parser t)
-= parse_bounded_integer sz
-    `P.and_then`
-    (fun len ->
-      if UInt32.lt len min || UInt32.lt max len
-      then P.fail_parser
-      else parse_sized p (UInt32.v len)
-    )
+= parse_filter
+    (parse_bounded_integer sz)
+    (in_bounds min max)
+  `P.and_then`
+  (fun len ->
+    parse_sized p (UInt32.v len)
+  )
 
 let parse_vlbytes
   (min: UInt32.t)
@@ -1106,6 +1129,12 @@ assume
 val parse_bounded_integer_st_nochk
   (i: integer_size)
 : Tot (P.parser_st_nochk (parse_bounded_integer i))
+
+inline_for_extraction
+let parse_bounded_integer_st
+  (i: integer_size)
+: Tot (P.parser_st (parse_bounded_integer i))
+= parse_total_constant_size (UInt32.uint_to_t i) (parse_bounded_integer_st_nochk i)
 
 inline_for_extraction
 let validate_sized
@@ -1144,12 +1173,17 @@ let validate_vlbytes
   (#t: Type0)
   (#p: P.parser t)
   (pv: P.stateful_validator p)
-: Tot (P.stateful_validator (parse_vlbytes min max p))
-= let sz : integer_size = log256 max in
-  parse_then_check
+  (sz: integer_size { sz == log256 max } )
+: Tot (P.stateful_validator (parse_vlbytes' min max p sz))
+= parse_then_check
     #_
-    #(parse_bounded_integer sz)
-    (parse_total_constant_size (UInt32.uint_to_t sz) (parse_bounded_integer_st_nochk sz))
+    #(parse_filter (parse_bounded_integer sz) (in_bounds min max))
+    (parse_filter_st (parse_bounded_integer_st sz) (in_bounds min max))
+    #_
+    #(fun len -> parse_sized p (UInt32.v len))
+    (fun len -> validate_sized pv len)
+
+(*
     #_
     #(fun len ->
       if UInt32.lt len min || UInt32.lt max len
