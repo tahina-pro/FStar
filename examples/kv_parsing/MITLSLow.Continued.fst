@@ -971,7 +971,219 @@ let validate_list #t #p sv b =
   in
   Classical.move_requires f ();
   res
-  
+
+let constant_size_parser
+  (sz: nat)
+  (t: Type0)
+: Type0
+= (f: P.parser t {
+    forall (s: P.bytes32) .
+    match f s with
+    | None -> True
+    | Some (_, consumed) -> consumed == sz
+  })
+
+inline_for_extraction
+let validate_constant_size_nochk
+  (sz: UInt32.t)
+  (#t: Type0)
+  (p: constant_size_parser (UInt32.v sz) t)
+: Tot (P.stateful_validator_nochk p)
+= fun _ -> sz
+
+let total_constant_size_parser
+  (sz: nat)
+  (t: Type0)
+: Type0
+= (f: constant_size_parser sz t {
+    forall (s: P.bytes32) .
+    (Seq.length s < sz) == (None? (f s))
+  })
+
+inline_for_extraction
+let validate_total_constant_size
+  (sz: UInt32.t)
+  (#t: Type0)
+  (p: total_constant_size_parser (UInt32.v sz) t)
+: Tot (P.stateful_validator p)
+= fun s ->
+  if UInt32.lt s.S.len sz
+  then None
+  else Some sz
+
+inline_for_extraction
+let parse_total_constant_size
+  (sz: UInt32.t)
+  (#t: Type0)
+  (#p: total_constant_size_parser (UInt32.v sz) t)
+  (ps: P.parser_st_nochk p)
+: Tot (P.parser_st p)
+= fun s ->
+  if UInt32.lt s.S.len sz
+  then None
+  else Some (ps s)
+
+let integer_size : Type0 = (sz: nat { 1 <= sz /\ sz <= 4 } )
+
+inline_for_extraction
+let bounded_integer
+  (i: integer_size)
+: Tot Type0
+= (u: UInt32.t { UInt32.v u < pow2 (FStar.Mul.op_Star 8 i) } )
+
+assume
+val parse_bounded_integer
+  (i: integer_size)
+: Tot (total_constant_size_parser i (bounded_integer i))
+
+val log256
+  (n: UInt32.t)
+: Pure nat
+  (requires (UInt32.v n > 0))
+  (ensures (fun l ->
+    1 <= l /\
+    l <= 4 /\
+    pow2 (FStar.Mul.op_Star 8 (l - 1)) <= UInt32.v n /\
+    UInt32.v n < pow2 (FStar.Mul.op_Star 8 l)
+  ))
+
+let log256 n =
+  let z0 = 1ul in
+  let z1 = UInt32.mul 256ul z0 in
+  let l = 1 in
+  assert_norm (pow2 (FStar.Mul.op_Star 8 l) == UInt32.v z1);
+  assert_norm (pow2 (FStar.Mul.op_Star 8 (l - 1)) == UInt32.v z0);
+  if UInt32.lt n z1
+  then
+    l
+  else begin
+    let z2 = UInt32.mul 256ul z1 in
+    let l = l + 1 in
+    assert_norm (pow2 (FStar.Mul.op_Star 8 l) == UInt32.v z2);
+    if UInt32.lt n z2
+    then
+      l
+    else begin
+      let z3 = UInt32.mul 256ul z2 in
+      let l = l + 1 in
+      assert_norm (pow2 (FStar.Mul.op_Star 8 l) == UInt32.v z3);
+      if UInt32.lt n z3
+      then
+        l    
+      else begin
+        let l = l + 1 in
+        assert_norm (pow2 (FStar.Mul.op_Star 8 l) == FStar.Mul.op_Star 256 (UInt32.v z3));
+        l
+      end
+    end
+  end
+
+let parse_vlbytes'
+  (min: UInt32.t)
+  (max: UInt32.t { UInt32.v max > 0 } )
+  (#t: Type0)
+  (p: P.parser t)
+  (sz: integer_size { sz == log256 max } )
+: Tot (P.parser t)
+= parse_bounded_integer sz
+    `P.and_then`
+    (fun len ->
+      if UInt32.lt len min || UInt32.lt max len
+      then P.fail_parser
+      else parse_sized p (UInt32.v len)
+    )
+
+let parse_vlbytes
+  (min: UInt32.t)
+  (max: UInt32.t { UInt32.v max > 0 } )
+  (#t: Type0)
+  (p: P.parser t)
+: Tot (P.parser t)
+= let sz : integer_size = log256 max in
+  parse_vlbytes' min max p sz
+
+assume
+val parse_bounded_integer_st_nochk
+  (i: integer_size)
+: Tot (P.parser_st_nochk (parse_bounded_integer i))
+
+inline_for_extraction
+let validate_sized
+  (#t: Type0)
+  (#p: P.parser t)
+  (ps: P.stateful_validator p)
+  (len': UInt32.t)
+: Tot (P.stateful_validator (parse_sized p (UInt32.v len')))
+= fun input ->
+  let blen = S.BSlice?.len input in
+  if UInt32.lt blen len'
+  then begin
+    None
+  end else begin
+    let input'  = S.truncate_slice input len'  in
+    match ps input' with
+    | Some consumed ->
+      if consumed = len'
+      then Some consumed
+      else None
+    | _ -> None
+  end
+
+inline_for_extraction
+let validate_sized_nochk
+  (#t: Type0)
+  (p: P.parser t)
+  (len: UInt32.t)
+: Tot (P.stateful_validator_nochk (parse_sized p (UInt32.v len)))
+= fun _ -> len
+
+inline_for_extraction
+let validate_vlbytes
+  (min: UInt32.t)
+  (max: UInt32.t { UInt32.v max > 0 } )
+  (#t: Type0)
+  (#p: P.parser t)
+  (pv: P.stateful_validator p)
+: Tot (P.stateful_validator (parse_vlbytes min max p))
+= let sz : integer_size = log256 max in
+  parse_then_check
+    #_
+    #(parse_bounded_integer sz)
+    (parse_total_constant_size (UInt32.uint_to_t sz) (parse_bounded_integer_st_nochk sz))
+    #_
+    #(fun len ->
+      if UInt32.lt len min || UInt32.lt max len
+      then P.fail_parser
+      else parse_sized p (UInt32.v len)    
+    )
+    (fun len ->
+      if UInt32.lt len min || UInt32.lt max len
+      then (P.validate_fail #t)
+      else validate_sized pv len
+    )
+
+inline_for_extraction
+let validate_vlbytes_nochk
+  (min: UInt32.t)
+  (max: UInt32.t { UInt32.v max > 0 } )
+  (#t: Type0)
+  (p: P.parser t)
+: Tot (P.stateful_validator_nochk (parse_vlbytes min max p))
+= let sz : integer_size = log256 max in
+  parse_nochk_then_nochk
+    #_
+    #(parse_bounded_integer sz)
+    (parse_bounded_integer_st_nochk sz)
+    #_
+    #(fun len ->
+      if UInt32.lt len min || UInt32.lt max len
+      then P.fail_parser
+      else parse_sized p (UInt32.v len)    
+    )
+    (fun len s ->
+      validate_sized_nochk p len s
+    )
+
 
 (*
   j <= UInt32.v i /\
