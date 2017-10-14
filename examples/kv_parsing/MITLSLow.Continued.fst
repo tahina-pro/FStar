@@ -375,6 +375,17 @@ let parse_filter_st
     else None
   | _ -> None
 
+inline_for_extraction
+let parse_filter_st_nochk
+  (#t: Type0)
+  (#p: P.parser t)
+  (ps: P.parser_st_nochk p)
+  (f: P.parse_arrow t (fun _ -> bool))
+: Tot (P.parser_st_nochk (parse_filter p f))
+= fun input ->
+  let (x, off) = ps input in
+  (x, off)
+
 type example_tag = | Left | Right
 
 type example = ( t: example_tag & (
@@ -1167,7 +1178,7 @@ let validate_sized_nochk
 = fun _ -> len
 
 inline_for_extraction
-let validate_vlbytes
+let validate_vlbytes'
   (min: UInt32.t)
   (max: UInt32.t { UInt32.v max > 0 } )
   (#t: Type0)
@@ -1182,6 +1193,44 @@ let validate_vlbytes
     #_
     #(fun len -> parse_sized p (UInt32.v len))
     (fun len -> validate_sized pv len)
+
+inline_for_extraction
+let validate_vlbytes
+  (min: UInt32.t)
+  (max: UInt32.t { UInt32.v max > 0 } )
+  (#t: Type0)
+  (#p: P.parser t)
+  (pv: P.stateful_validator p)
+: Tot (P.stateful_validator (parse_vlbytes min max p))
+= let sz = log256 max in
+  validate_vlbytes' min max pv sz
+
+inline_for_extraction
+let validate_vlbytes_nochk'
+  (min: UInt32.t)
+  (max: UInt32.t { UInt32.v max > 0 } )
+  (#t: Type0)
+  (p: P.parser t)
+  (sz: integer_size { sz == log256 max } )
+: Tot (P.stateful_validator_nochk (parse_vlbytes' min max p sz))
+= parse_nochk_then_nochk
+    #_
+    #(parse_filter (parse_bounded_integer sz) (in_bounds min max))
+    (parse_filter_st_nochk (parse_bounded_integer_st_nochk sz) (in_bounds min max))
+    #_
+    #(fun len -> parse_sized p (UInt32.v len))
+    (fun len -> validate_sized_nochk p len)
+
+inline_for_extraction
+let validate_vlbytes_nochk
+  (min: UInt32.t)
+  (max: UInt32.t { UInt32.v max > 0 } )
+  (#t: Type0)
+  (p: P.parser t)
+: Tot (P.stateful_validator_nochk (parse_vlbytes min max p))
+= let sz = log256 max in
+  validate_vlbytes_nochk' min max p sz
+
 
 (*
     #_
