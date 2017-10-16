@@ -335,6 +335,7 @@ let stateful_filter_validator
       r == f w
   ))))))))
 
+inline_for_extraction
 let validate_filter
   (#t: Type0)
   (#p: P.parser t)
@@ -352,6 +353,7 @@ let validate_filter
       else None
     else None
 
+inline_for_extraction
 let validate_filter_nochk
   (#t: Type0)
   (#p: P.parser t)
@@ -359,6 +361,22 @@ let validate_filter_nochk
   (f: P.parse_arrow t (fun _ -> bool))
 : Tot (P.stateful_validator_nochk (parse_filter p f))
 = fun b -> v1 b
+
+inline_for_extraction
+let validate_filter_st
+  (#t: Type0)
+  (#p: P.parser t)
+  (ps: P.parser_st p)
+  (f: P.parse_arrow t (fun _ -> bool))
+  (f': ((x: t) -> Pure bool (requires True) (ensures (fun y -> y == f x)))) // checker MUST be total here (we do have a stateful parser)
+: Tot (P.stateful_validator (parse_filter p f))
+= fun input ->
+  match ps input with
+  | Some (v, off) ->
+    if f' v
+    then Some off
+    else None
+  | _ -> None
 
 inline_for_extraction
 let parse_filter_st
@@ -1230,6 +1248,219 @@ let validate_vlbytes_nochk
 : Tot (P.stateful_validator_nochk (parse_vlbytes min max p))
 = let sz = log256 max in
   validate_vlbytes_nochk' min max p sz
+
+type enum (repr: eqtype) = (l: list (string * repr) {
+  List.Tot.noRepeats (List.Tot.map fst l) /\
+  List.Tot.noRepeats (List.Tot.map snd l)
+})
+
+type enum_key (#repr: eqtype) (e: enum repr) = (s: string { List.Tot.mem s (List.Tot.map fst e) } )
+
+(*
+unfold
+let enum_key_cons (#repr: eqtype) (e e': enum repr) (xy: string * repr) (k: enum_key e) : Pure (enum_key e') (requires (e' == xy :: e)) (ensures (fun _ -> True)) =
+  let k' : string = k in
+  k'
+*)
+
+let flip (#a #b: Type) (c: (a * b)) : Tot (b * a) = let (ca, cb) = c in (cb, ca)
+
+let rec map_flip_flip (#a #b: Type) (l: list (a * b)) : Lemma
+  (List.Tot.map flip (List.Tot.map flip l) == l)
+= match l with
+  | [] -> ()
+  | _ :: q -> map_flip_flip q
+
+let rec map_fst_flip (#a #b: Type) (l: list (a * b)) : Lemma
+  (List.Tot.map fst (List.Tot.map flip l) == List.Tot.map snd l)
+= match l with
+  | [] -> ()
+  | _ :: q -> map_fst_flip q
+
+let rec map_snd_flip (#a #b: Type) (l: list (a * b)) : Lemma
+  (List.Tot.map snd (List.Tot.map flip l) == List.Tot.map fst l)
+= match l with
+  | [] -> ()
+  | _ :: q -> map_snd_flip q
+
+let rec assoc_flip_elim
+  (#a #b: eqtype)
+  (l: list (a * b))
+  (y: b)
+  (x: a)
+: Lemma
+  (requires (
+    List.Tot.noRepeats (List.Tot.map fst l) /\
+    List.Tot.noRepeats (List.Tot.map snd l) /\
+    List.Tot.assoc y (List.Tot.map flip l) == Some x
+  ))
+  (ensures (
+    List.Tot.assoc x l == Some y
+  ))
+  (decreases l)
+= let ((x', y') :: l') = l in
+  if y' = y
+  then ()
+  else begin
+    assume (x' <> x);
+    assoc_flip_elim l' y x
+  end
+
+let rec assoc_flip_intro
+  (#a #b: eqtype)
+  (l: list (a * b))
+  (y: b)
+  (x: a)
+: Lemma
+  (requires (
+    List.Tot.noRepeats (List.Tot.map fst l) /\
+    List.Tot.noRepeats (List.Tot.map snd l) /\
+    List.Tot.assoc x l == Some y
+  ))
+  (ensures (
+    List.Tot.assoc y (List.Tot.map flip l) == Some x
+  ))
+= map_fst_flip l;
+  map_snd_flip l;
+  map_flip_flip l;
+  assoc_flip_elim (List.Tot.map flip l) x y
+
+let rec enum_key_of_repr
+  (#repr: eqtype)
+  (e: enum repr)
+  (r: repr { List.Tot.mem r (List.Tot.map snd e) } )
+: Pure (enum_key e)
+  (requires True)
+  (ensures (fun y -> List.Tot.assoc y e == Some r))
+= map_fst_flip e;
+  let e' = List.Tot.map flip e in
+  List.Tot.assoc_mem r e';
+  let k = Some?.v (List.Tot.assoc r e') in
+  assoc_flip_elim e r k;
+  List.Tot.assoc_mem k e;
+  (k <: enum_key e)
+
+let rec parse_enum
+  (#repr: eqtype)
+  (p: P.parser repr)
+  (e: enum repr)
+: Tot (P.parser (enum_key e))
+= (p
+    `parse_filter`
+    (fun r -> List.Tot.mem r (List.Tot.map snd e))
+  )
+  `parse_synth`
+  (enum_key_of_repr e)
+
+module T = FStar.Tactics
+
+(*
+let rec gen_check_in_enum
+  (#repr: eqtype)
+  (e: enum repr)
+  (y: T.term (* repr *) )
+: Tot (T.tactic (T.term (* b: bool { b == List.Tot.mem y (List.Tot.map snd e) } *) ))
+  (decreases e)
+= let mk_fv x = T.pack (T.Tv_FVar (T.pack_fv x)) in
+  T.bind (T.quote repr) (fun repr' ->
+    match e with
+    | [] -> T.return (mk_fv T.false_qn)
+    | (_, y') :: e' ->
+      T.bind (T.quote y') (fun y'' ->
+        let test = T.mk_app (mk_fv T.eq1_qn) [
+          (repr', T.Q_Implicit);
+          (y, T.Q_Explicit);
+          (y'', T.Q_Explicit)
+        ]
+        in
+        T.bind (gen_check_in_enum e' y) (fun t' ->
+          let br_true = (T.Pat_Constant T.C_True, mk_fv T.true_qn) in
+          let br_false = (T.Pat_Constant T.C_False, t') in
+          let m = T.pack (T.Tv_Match test [ br_true; br_false ] ) in
+          T.return m
+  )))
+*)
+
+let mk_if (test e_true e_false: T.term) : Tot T.term =
+  let br_true = (T.Pat_Constant T.C_True, e_true) in
+  let br_false = (T.Pat_Constant T.C_False, e_false) in
+  let m = T.pack (T.Tv_Match test [ br_true; br_false ] ) in
+  m
+
+noextract
+let rec gen_enum_destr
+  (#repr: eqtype)
+  (e: enum repr)
+  (y: T.term)
+  (x: (enum_key e -> Tot (T.tactic T.term)))
+  (z: T.term)
+: Tot (T.tactic T.term)
+  (decreases e)
+= T.bind (T.quote (op_Equality #repr)) (fun eq_repr ->
+    match e with
+    | [] -> T.return z
+    | (x', y') :: e' ->
+      T.bind (T.quote y') (fun y'' ->
+        let test = T.mk_app eq_repr [
+          (y, T.Q_Explicit);
+          (y'', T.Q_Explicit)
+        ]
+        in
+        T.bind (gen_enum_destr e' y (fun (k: enum_key e') ->
+          x ((k <: string) <: enum_key e)
+        ) z) (fun t' ->
+          T.bind (x x') (fun rt ->
+            let m = mk_if test rt t' in
+            T.return m
+  ))))
+
+noextract
+let gen_filter_key
+  (#repr: eqtype)
+  (e: enum repr)
+  (x: repr)
+: Tot (T.tactic unit)
+= T.bind (T.quote x) (fun x' ->
+  T.bind (T.quote false) (fun false' ->
+  T.bind (T.quote true) (fun true' ->
+    T.bind (
+      gen_enum_destr
+       e
+       x'
+       (fun _ -> T.return true')
+       false'
+    ) (fun t -> T.exact (T.return t))
+  )))
+
+let exa : enum UInt32.t = [
+  "K_EREF", 2ul;
+  "K_HJEU", 3ul;
+]
+
+#set-options "--max_fuel 8"
+
+inline_for_extraction
+let check_exa_key
+  (x: UInt32.t)
+: Pure bool
+  (requires True)
+  (ensures (fun y -> y == List.Tot.mem x (List.Tot.map snd exa)))
+= T.synth_by_tactic (gen_filter_key exa x)
+
+(*
+inline_for_extraction
+let check_exa_key'
+  (x: UInt32.t)
+: Pure bool
+  (requires True)
+  (ensures (fun y -> y == List.Tot.mem x (List.Tot.map snd exa)))
+= normalize_term (List.Tot.mem x (List.Tot.map snd exa))
+*)
+
+let validate_exa : P.stateful_validator (parse_enum IP.parse_u32 exa) =
+  validate_synth
+    (validate_filter_st #_ #IP.parse_u32 IP.parse_u32_st (fun x -> List.Tot.mem x (List.Tot.map snd exa)) check_exa_key)
+    (enum_key_of_repr exa)
 
 
 (*
