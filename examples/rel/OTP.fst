@@ -55,7 +55,10 @@ let one_time_pad_ok x0 x1 t0 t1 : Lemma
             dec0 (enc0 x0) == x0 /\
             dec1 (enc1 x1) == x1 /\
             enc0 x0 == enc1 x1))
-   = let (Some (enc0, dec0),_) = reify (one_time_pad ()) (to_id 0, t0) in
-     let (Some (enc1, dec1),_) = reify (one_time_pad ()) (to_id 0, t1) in
+   = let f = reify (one_time_pad ()) in
+     let (g0, _) = f (to_id 0, t0) in
+     let (Some (enc0, dec0)) = g0 in
+     let (g1, _) = f (to_id 0, t1) in
+     let (Some (enc1, dec1)) = g1 in
      assert (enc0 x0 == x0 ^^ (index t0 (to_id 0)));
      assert (enc1 x1 == x1 ^^ (index t1 (to_id 0)))
