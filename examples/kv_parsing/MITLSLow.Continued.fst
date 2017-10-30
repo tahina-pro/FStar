@@ -998,18 +998,24 @@ let validate_list #t #p sv b =
   HST.pop_frame ();
   let h = HST.get () in
   assert (S.as_seq h b == S.as_seq h0 b);
+  assert (S.live h0 b);
+  let pre : Type0 =
+    Some? res
+  in
+  let post : Type0 =
+    pre /\
+    S.live h0 b /\ (
+    let s = S.as_seq h0 b in
+    let pl = parse_list p s in (
+    Some? pl /\ (
+    let (Some (_, consumed)) = pl in
+    let (Some consumed') = res in
+    consumed == UInt32.v consumed'
+  )))
+  in
   let f () : Lemma
-    (requires (Some? res))
-    (ensures (
-      S.live h0 b /\ (
-      let s = S.as_seq h0 b in
-      let pl = parse_list p s in (
-      Some? res /\
-      Some? pl /\ (
-      let (Some (_, consumed)) = pl in
-      let (Some consumed') = res in
-      consumed == UInt32.v consumed'
-    )))))
+    (requires pre)
+    (ensures post)
   = let s = S.as_seq h0 b in
     parse_list_consumed p s
   in
