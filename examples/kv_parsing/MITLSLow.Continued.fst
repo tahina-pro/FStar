@@ -1539,6 +1539,223 @@ let gen_validate_key
 let validate_exa_key : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
   (T.synth_by_tactic (gen_validate_key #_ #IP.parse_u32 IP.parse_u32_st exa))
 
+noextract
+let gen_discr_body'
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+  (x' : T.term) // (x: repr { List.Tot.mem x (List.Tot.map snd e) } )
+: Tot (T.tactic T.term)
+= let open T in (
+    true' <-- T.quote true ;
+    false' <-- T.quote false ;
+    r <-- gen_enum_destr #repr e x' (fun k' -> if k = k' then return true' else return false' ) false' ;
+    return r
+  )
+
+noextract
+let gen_discr_body
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+  (x: repr)
+: Tot (T.tactic unit)
+= let open T in (
+    x' <-- T.quote x ;
+    res <-- gen_discr_body' #repr e k x' ;
+    exact_guard (return res)
+  )
+
+let discr_return_type
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+  (x: repr)
+: Tot Type0
+= (y: bool { y == true <==> (List.Tot.mem x (List.Tot.map snd e) /\ enum_key_of_repr e x == k) } )
+
+noextract
+let gen_discr
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+: Tot (T.tactic unit)
+= let open T in (
+    ty <-- quote repr ;
+    let x = fresh_binder ty in
+    let x' = pack (Tv_Var x) in
+    uncoerced_body <-- gen_discr_body' #repr e k x' ;
+    ret_ty_0 <-- quote (discr_return_type #repr e k) ;
+    let ret_ty = mk_app ret_ty_0 [x', Q_Explicit] in
+    let r = fresh_binder ret_ty in
+    let r' = pack (Tv_Var r) in
+    let body = pack (Tv_Let r uncoerced_body r') in
+    let res = pack (T.Tv_Abs x body) in
+    exact_guard (return res)
+  )
+
+inline_for_extraction
+let exa_discr_K_EREF'
+  (x: UInt32.t)
+: Pure bool
+  (requires True)
+  (ensures (fun y -> y == true <==> (List.Tot.mem x (List.Tot.map snd exa) /\ enum_key_of_repr exa x == "K_EREF" )))
+= T.synth_by_tactic (gen_discr_body #UInt32.t exa "K_EREF" x)
+
+inline_for_extraction
+let exa_discr_K_EREF
+:   (x: UInt32.t) -> Tot (discr_return_type exa "K_EREF" x) // discr_spec exa "K_EREF"
+= T.synth_by_tactic (gen_discr #UInt32.t exa "K_EREF")
+
+(*
+
+unfold
+let discr_spec (#repr: eqtype) (e: enum repr) (k: enum_key e) : Tot Type0 =
+  (x: repr) -> Tot (discr_return_type e k x)
+
+inline_for_extraction
+let exa_discr_K_EREF_FAIL
+: discr_spec exa "K_EREF"
+= T.synth_by_tactic (gen_discr #UInt32.t exa "K_EREF")
+
+let _ : unit = T.assert_by_tactic True (let open T in u <-- quote exa_discr_K_EREF ; T.print (T.term_to_string u))
+
+(*
+(* A more general destructor *)
+
+let destr_return_type
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: ((enum_key e) -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+  (x: repr { List.Tot.mem x (List.Tot.map snd e) } )
+: Tot Type0
+= (y: t (enum_key_of_repr e x) { y == f (enum_key_of_repr e x) } )
+
+let destr_arg_type
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: ((enum_key e) -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+: Tot Type0
+= (x: repr { List.Tot.mem x (List.Tot.map snd e) } )
+
+let destr
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: ((enum_key e) -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+: Tot Type0
+= (x: destr_arg_type e t f) ->
+  Tot (destr_return_type e t f x)
+
+noextract
+let gen_destr_body
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: ((enum_key e) -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+  (x' : T.term) // (x: repr { List.Tot.mem x (List.Tot.map snd e) } )
+: Tot (T.tactic T.term)
+= let open T in (
+    false_elim_0 <-- T.quote false_elim ;
+    false_elim_1_0 <-- T.quote (destr_return_type #repr e t f) ;
+    let false_elim_1 = T.mk_app false_elim_1_0 [x', Q_Explicit] in
+    let false_elim' = T.mk_app false_elim_0 [false_elim_1, Q_Implicit] in
+    u <-- T.quote () ;
+    let fe = mk_app false_elim' [u, Q_Explicit] in
+    r  <-- gen_enum_destr #repr e x' (fun k -> (res <-- quote (f k) ; return res)) fe ;
+    return r
+  )
+
+noextract
+let gen_destr
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: ((enum_key e) -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+: Tot (T.tactic unit)
+= let open T in (
+    ty <-- quote (destr_arg_type #repr e t f) ;
+    let x = fresh_binder ty in
+    let x' = pack (Tv_Var x) in
+    body <-- gen_destr_body #repr e t f x' ;
+    let res = pack (T.Tv_Abs x body) in
+    exact_guard (return res)
+  )
+
+noextract
+let gen_key_is
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+: Tot (T.tactic unit)
+= gen_destr #repr e (fun _ -> bool) (fun k' -> k' = k)
+
+inline_for_extraction
+let exa_key_is (k: enum_key exa) : ((x: UInt32.t { List.Tot.mem x (List.Tot.map snd exa) } ) -> Tot (y: bool { y == (enum_key_of_repr exa x = k) } )) =
+  T.synth_by_tactic (gen_key_is #UInt32.t exa k)
+
+type maybe_unknown_key (#repr: eqtype) (e: enum repr) =
+| Known of (enum_key e)
+| Unknown of (r: repr { List.Tot.mem r (List.Tot.map snd e) == false } )
+
+let maybe_unknown_key_of_repr
+  (#repr: eqtype)
+  (e: enum repr)
+  (r: repr)
+: Tot (maybe_unknown_key e)
+= if List.Tot.mem r (List.Tot.map snd e)
+  then Known (enum_key_of_repr e r)
+  else Unknown r
+
+#set-options "--max_ifuel 8 --max_fuel 8"
+
+let parse_maybe_unknown_key
+  (#repr: eqtype)
+  (p: P.parser repr)
+  (e: enum repr)
+: Tot (P.parser (maybe_unknown_key e))
+= p `parse_synth` (maybe_unknown_key_of_repr e)
+
+inline_for_extraction
+let validate_maybe_unknown_key
+  (#repr: eqtype)
+  (#p: P.parser repr)
+  (vs: P.stateful_validator p)
+  (e: enum repr)
+: Tot (P.stateful_validator (parse_maybe_unknown_key p e))
+= fun s -> vs s
+
+
+
+(*
+noextract
+let gen_key_is_term
+  (#repr: eqtype)
+  (e: enum repr)
+  (x' : T.term)
+  (key: enum_key e)
+: Tot (T.tactic T.term)
+= T.bind (T.quote false) (fun false' ->
+  T.bind (T.quote true) (fun true' ->
+    T.bind (
+      gen_enum_destr
+       e
+       x'
+       (fun (key' : enum_key e) -> 
+         if key = key'
+         then T.return true'
+         else T.return false'
+       )
+       false'
+    ) (fun x ->
+      T.return x
+  )))
+
+
+
+
 (*
     P.stateful_validator (parse_enum_key IP.parse_u32 exa))
 
