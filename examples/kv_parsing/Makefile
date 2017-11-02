@@ -8,6 +8,7 @@ FST_FILES :=	Slice.fst \
 		GhostParsing.fst \
 		MITLSLow.fst \
 		MITLSLow.Continued.fst \
+		MITLSLow.List.fst \
 		KeyValue.fst \
 		PureParser.fst \
 		PureValidator.fst \
