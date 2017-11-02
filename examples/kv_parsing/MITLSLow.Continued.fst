@@ -652,6 +652,8 @@ type enum (repr: eqtype) = (l: list (string * repr) {
 
 type enum_key (#repr: eqtype) (e: enum repr) = (s: string { List.Tot.mem s (List.Tot.map fst e) } )
 
+type enum_repr (#repr: eqtype) (e: enum repr) = (r: repr { List.Tot.mem r (List.Tot.map snd e) } )
+
 (*
 unfold
 let enum_key_cons (#repr: eqtype) (e e': enum repr) (xy: string * repr) (k: enum_key e) : Pure (enum_key e') (requires (e' == xy :: e)) (ensures (fun _ -> True)) =
@@ -724,7 +726,7 @@ let rec assoc_flip_intro
 let rec enum_key_of_repr
   (#repr: eqtype)
   (e: enum repr)
-  (r: repr { List.Tot.mem r (List.Tot.map snd e) } )
+  (r: enum_repr e)
 : Pure (enum_key e)
   (requires True)
   (ensures (fun y -> List.Tot.assoc y e == Some r))
@@ -746,7 +748,7 @@ let rec parse_enum_key
     (fun r -> List.Tot.mem r (List.Tot.map snd e))
   )
   `parse_synth`
-  (enum_key_of_repr e)
+  (fun x -> enum_key_of_repr e x)
 
 module T = FStar.Tactics
 
@@ -896,7 +898,7 @@ let gen_validate_key_partial
       #(enum_key e)
       #(p `parse_filter` (fun r -> List.Tot.mem r (List.Tot.map snd e)))
       g
-      (enum_key_of_repr e)
+      (fun x -> enum_key_of_repr e x)
     `coerce`
     P.stateful_validator (parse_enum_key p e)
   )
@@ -926,9 +928,339 @@ let gen_validate_key
         T.exact_guard (T.return res)
   )))
 
-let validate_exa_key : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
-  (T.synth_by_tactic (gen_validate_key #_ #IP.parse_u32 IP.parse_u32_st exa))
+inline_for_extraction
+let parse_u32_st : P.parser_st IP.parse_u32 = IP.parse_u32_st
 
+let validate_exa_key : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
+  (T.synth_by_tactic (gen_validate_key parse_u32_st exa))
+
+inline_for_extraction
+let validate_exa_key_1 : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
+  gen_validate_key_partial parse_u32_st exa (fun x -> normalize_term (List.Tot.mem x (List.Tot.map snd exa)))
+
+inline_for_extraction
+let validate_exa_key_2 : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
+  gen_validate_key_partial parse_u32_st exa (fun x -> (List.Tot.mem x (List.Tot.map snd exa)))
+
+let rec enum_repr_of_key
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+: Pure (enum_repr e)
+  (requires True)
+  (ensures (fun r -> List.Tot.assoc k e == Some r))
+= List.Tot.assoc_mem k e;
+  let r = Some?.v (List.Tot.assoc k e) in
+  assoc_flip_intro e r k;
+  List.Tot.assoc_mem r (List.Tot.map flip e);
+  map_fst_flip e;
+  (r <: enum_repr e)
+
+let enum_repr_of_key_of_repr
+  (#repr: eqtype)
+  (e: enum repr)
+  (r: enum_repr e)
+: Lemma
+  (enum_repr_of_key e (enum_key_of_repr e r) == r)
+= ()
+
+let enum_key_of_repr_of_key
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+: Lemma
+  (enum_key_of_repr e (enum_repr_of_key e k) == k)
+= assoc_flip_intro e (enum_repr_of_key e k) k
+
+let discr_prop
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+  (x: repr)
+: Lemma
+  (x == enum_repr_of_key e k <==> (List.Tot.mem x (List.Tot.map snd e) /\ enum_key_of_repr e x == k))
+= enum_key_of_repr_of_key e k
+
+inline_for_extraction
+let discr
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+: Tot (
+    (x: repr) ->
+    Tot (y: bool { y == true <==> (List.Tot.mem x (List.Tot.map snd e) /\ enum_key_of_repr e x == k) } )
+  )
+= let r = enum_repr_of_key e k in
+  fun x ->
+    discr_prop e k x;
+    x = r
+
+inline_for_extraction
+let exa_discr_K_EREF'
+  (x: UInt32.t)
+: Pure bool
+  (requires True)
+  (ensures (fun y -> y == true <==> (List.Tot.mem x (List.Tot.map snd exa) /\ enum_key_of_repr exa x == "K_EREF" )))
+= let f = normalize_term (discr exa "K_EREF") in
+  normalize_term (f x)
+
+inline_for_extraction
+val gen_validate_sum_partial'
+  (#repr: eqtype)
+  (#p: P.parser repr)
+  (ps: P.parser_st p)
+  (e: enum repr)
+  (t: ((x: enum_key e) -> Tot Type0))
+  (pt: ((x: enum_key e) -> Tot (P.parser (t x))))
+  (svt: ((x: enum_key e) -> Tot (P.stateful_validator (pt x))))
+  (f' : ((x: repr) -> Tot (b: bool { b == List.Tot.mem x (List.Tot.map snd e) } )))
+//  (pf: P.parser_st (p `parse_filter` (fun r -> List.Tot.mem r (List.Tot.map snd e))))
+: Tot (P.stateful_validator (parse_enum_key p e `parse_tagged_union` pt))
+
+#set-options "--z3rlimit 32"
+
+let gen_validate_sum_partial' #repr #p ps e t pt svt f' =
+  fun input ->
+  match ps input with
+    | Some (r, off1) ->
+      if f' r
+      then
+        let input2 = S.advance_slice input off1 in
+        let (r: enum_repr e) = r in
+        let x = normalize_term (enum_key_of_repr e r) in
+        match svt x input2 with
+        | Some off2 ->
+          if S.u32_add_overflows off1 off2
+          then None
+          else Some (UInt32.add off1 off2)
+        | None -> None
+      else
+        None
+    | None -> None
+
+(*
+noextract
+let gen_validate_sum'
+  (#repr: eqtype)
+  (#p: P.parser repr)
+  (ps: P.parser_st p)
+  (e: enum repr)
+  (t: ((x: enum_key e) -> Tot Type0))
+  (pt: ((x: enum_key e) -> Tot (P.parser (t x))))
+  (svt: ((x: enum_key e) -> Tot (P.stateful_validator (pt x))))
+: Tot (T.tactic unit)
+= T.bind (T.quote repr) (fun repr' ->
+    let x = T.fresh_binder repr' in // FIXME: should be T.bind
+    let x' = T.pack (T.Tv_Var x) in
+    T.bind (gen_filter_key_term e x') (fun check_key_body ->
+      let res_1 = T.pack (T.Tv_Abs x check_key_body) in
+      T.bind (T.quote (
+        gen_validate_sum_partial
+          #repr
+          #p
+          ps
+          e
+          t
+          pt
+          svt
+      )) (fun res_0 ->
+        let res =
+          T.mk_app res_0 [res_1, T.Q_Explicit]
+        in
+        T.exact_guard (T.return res)
+  )))
+*)
+
+inline_for_extraction
+let sum = (repr: eqtype & (e: enum repr & ((x: enum_key e) -> Tot Type0)))
+
+let sum_key_repr (t: sum) : Tot eqtype =
+  let (| repr,  _ |) = t in repr
+
+let sum_enum (t: sum) : Tot (enum (sum_key_repr t)) =
+  let (| _, (| e, _ |) |) = t in e
+
+let sum_key (t: sum) : Tot Type0 =
+  enum_key (sum_enum t)
+
+let sum_cases (t: sum) : Tot ((x: sum_key t) -> Tot Type0) =
+  let (|_, (| _, c |) |) = t in c
+
+let sum_data (t: sum) : Tot Type0 =
+  (x: sum_key t & sum_cases t x)
+
+let parse_sum
+  (t: sum)
+  (p: P.parser (sum_key_repr t))
+  (pc: ((x: sum_key t) -> Tot (P.parser (sum_cases t x))))
+: Tot (P.parser (sum_data t))
+= parse_tagged_union
+    #(sum_key t)
+    #(sum_cases t)
+    (parse_enum_key p (sum_enum t))
+    pc
+
+inline_for_extraction
+val gen_validate_sum_partial
+  (t: sum)
+  (#p: P.parser (sum_key_repr t))
+  (ps: P.parser_st p)
+  (pc: ((x: sum_key t) -> Tot (P.parser (sum_cases t x))))
+  (vcs: ((x: sum_key t) -> Tot (P.stateful_validator (pc x))))
+  (f' : ((x: sum_key_repr t) -> Tot (b: bool { b == List.Tot.mem x (List.Tot.map snd (sum_enum t)) } )))
+//  (pf: P.parser_st (p `parse_filter` (fun r -> List.Tot.mem r (List.Tot.map snd e))))
+: Tot (P.stateful_validator (parse_sum t p pc))
+
+let gen_validate_sum_partial t #p ps pc vcs f' =
+  gen_validate_sum_partial'
+    #(sum_key_repr t)
+    #p
+    ps
+    (sum_enum t)
+    (sum_cases t)
+    pc
+    vcs
+    f'
+  `coerce`
+  P.stateful_validator (parse_sum t p pc)
+
+noextract
+let gen_validate_sum
+  (t: sum)
+  (#p: P.parser (sum_key_repr t))
+  (ps: P.parser_st p)
+  (pc: ((x: sum_key t) -> Tot (P.parser (sum_cases t x))))
+  (vcs: ((x: sum_key t) -> Tot (P.stateful_validator (pc x))))
+: Tot (T.tactic unit)
+= T.bind (T.quote (sum_key_repr t)) (fun repr' ->
+    let x = T.fresh_binder repr' in // FIXME: should be T.bind
+    let x' = T.pack (T.Tv_Var x) in
+    T.bind (gen_filter_key_term (sum_enum t) x') (fun check_key_body ->
+      let res_1 = T.pack (T.Tv_Abs x check_key_body) in
+      T.bind (T.quote (
+        gen_validate_sum_partial
+          t
+          #p
+          ps
+          pc
+          vcs
+      )) (fun res_0 ->
+        let res =
+          T.mk_app res_0 [res_1, T.Q_Explicit]
+        in
+        T.exact_guard (T.return res)
+  )))
+
+let make_sum
+  (#repr: eqtype)
+  (e: enum repr)
+  (cases: (enum_key e -> Tot Type0))
+: Tot sum
+= (| repr, (| e, cases |) |)
+
+let test : sum =
+  make_sum exa (function
+    | "K_EREF" -> UInt8.t
+    | "K_HJEU" -> UInt16.t
+  )
+
+let parse_test_cases (x: sum_key test) : Tot (P.parser (sum_cases test x)) =
+  match x with
+    | "K_HJEU" -> IP.parse_u16
+    | "K_EREF" -> IP.parse_u8
+
+inline_for_extraction
+val validate_test
+: P.stateful_validator (parse_sum test IP.parse_u32 parse_test_cases)
+
+let validate_test =
+  T.synth_by_tactic (gen_validate_sum test parse_u32_st parse_test_cases (function "K_EREF" -> validate_u8_st | "K_HJEU" -> validate_u16_st))
+
+(*
+  
+  parse_tagged_union
+    #(enum_key e)
+    #(function "K_EREF" -> IP.parse_u
+parse_enum_key IP.parse_u32 exa `parse_tagged_union` (function "K_EREF" -> IP.parse_u16 | "K_HJEU" -> IP.parse_u8))
+
+
+= T.synth_by_tactic (gen_validate_sum e _ _ (function "K_EREF 
+
+
+(*
+let g =
+    validate_filter_st
+      #repr
+      #p
+      ps
+      (fun x -> List.Tot.mem x (List.Tot.map snd e))
+      f'
+  in
+  (
+    validate_synth
+      #(r: repr { List.Tot.mem r (List.Tot.map snd e) } )
+      #(enum_key e)
+      #(p `parse_filter` (fun r -> List.Tot.mem r (List.Tot.map snd e)))
+      g
+      (fun x -> enum_key_of_repr e x)
+    `coerce`
+    P.stateful_validator (parse_enum_key p e)
+  )
+
+noextract
+let gen_validate_key
+  (#repr: eqtype)
+  (#p: P.parser repr)
+  (ps: P.parser_st p)
+  (e: enum repr)
+: Tot (T.tactic unit)
+= T.bind (T.quote repr) (fun repr' ->
+    let x = T.fresh_binder repr' in // FIXME: should be T.bind
+    let x' = T.pack (T.Tv_Var x) in
+    T.bind (gen_filter_key_term e x') (fun check_key_body ->
+      let res_1 = T.pack (T.Tv_Abs x check_key_body) in
+      T.bind (T.quote (
+        gen_validate_key_partial
+          #repr
+          #p
+          ps
+          e
+      )) (fun res_0 ->
+        let res =
+          T.mk_app res_0 [res_1, T.Q_Explicit]
+        in
+        T.exact_guard (T.return res)
+  )))
+
+(*
+
+let discr_return_type
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+  (x: repr)
+: Tot Type0
+= (y: bool { y == true <==> (List.Tot.mem x (List.Tot.map snd e) /\ enum_key_of_repr e x == k) } )
+
+
+(*
+noextract
+let gen_discr_body'
+  (#repr: eqtype)
+  (e: enum repr)
+  (k: enum_key e)
+  (x' : T.term) // (x: repr { List.Tot.mem x (List.Tot.map snd e) } )
+: Tot (T.tactic T.term)
+= 
+  let open T in (
+    true' <-- T.quote true ;
+    false' <-- T.quote false ;
+    r <-- gen_enum_destr #repr e x' (fun k' -> if k = k' then return true' else return false' ) false' ;
+    return r
+  )
+
+
+(*
 noextract
 let gen_discr_body'
   (#repr: eqtype)
@@ -955,14 +1287,6 @@ let gen_discr_body
     res <-- gen_discr_body' #repr e k x' ;
     exact_guard (return res)
   )
-
-let discr_return_type
-  (#repr: eqtype)
-  (e: enum repr)
-  (k: enum_key e)
-  (x: repr)
-: Tot Type0
-= (y: bool { y == true <==> (List.Tot.mem x (List.Tot.map snd e) /\ enum_key_of_repr e x == k) } )
 
 noextract
 let gen_discr
@@ -996,6 +1320,11 @@ inline_for_extraction
 let exa_discr_K_EREF
 :   (x: UInt32.t) -> Tot (discr_return_type exa "K_EREF" x) // discr_spec exa "K_EREF"
 = T.synth_by_tactic (gen_discr #UInt32.t exa "K_EREF")
+
+inline_for_extraction
+let exa_discr_K_EREF
+  (x: UInt32.t) -> Tot (discr_return_type exa "K_EREF" x)
+= let y = 
 
 (*
 
