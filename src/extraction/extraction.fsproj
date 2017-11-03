@@ -59,7 +59,6 @@
     <Compile Include="FStar.Extraction.ML.PrintML.fs" />
     <Compile Include="FStar.Extraction.ML.Term.fs" />
     <Compile Include="FStar.Extraction.ML.Modul.fs" />
-    <Content Include="app.config" />
     <Compile Include="FStar.Extraction.Kremlin.fs" />
     <Content Include="packages.config" />
   </ItemGroup>

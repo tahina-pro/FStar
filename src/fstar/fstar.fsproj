@@ -75,7 +75,6 @@
     <Compile Include="FStar.Indent.fs" />
     <Compile Include="FStar.Main.fs" />
     <Compile Include="FStar.Top.fs" />
-    <None Include="app.config" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
