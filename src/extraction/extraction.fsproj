@@ -80,6 +80,9 @@
       <HintPath>..\VS\packages\FSharp.Compatibility.OCaml.0.1.10\lib\net40\FSharp.Compatibility.OCaml.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Core">
+      <HintPath>..\VS\packages\FSharp.Core.4.2.3\lib\net45\FSharp.Core.dll</HintPath>
+    </Reference>
     <Reference Include="FSharp.PPrint">
       <HintPath>..\VS\packages\PPrintForFSharp.0.0.2\lib\net40\FSharp.PPrint.dll</HintPath>
       <Private>True</Private>
@@ -120,7 +123,6 @@
       <Project>{8869FA4E-96AF-4E01-99BC-B52C88610E3D}</Project>
       <Private>True</Private>
     </ProjectReference>
-
   </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

@@ -73,6 +73,9 @@
       <HintPath>..\VS\packages\FSharp.Compatibility.OCaml.0.1.10\lib\net40\FSharp.Compatibility.OCaml.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Core">
+      <HintPath>..\VS\packages\FSharp.Core.4.2.3\lib\net45\FSharp.Core.dll</HintPath>
+    </Reference>
     <Reference Include="FSharp.PPrint">
       <HintPath>..\VS\packages\PPrintForFSharp.0.0.2\lib\net40\FSharp.PPrint.dll</HintPath>
       <Private>True</Private>

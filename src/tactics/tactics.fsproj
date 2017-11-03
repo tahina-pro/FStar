@@ -38,7 +38,38 @@
     <OtherFlags>--mlcompatibility</OtherFlags>
     <NoWarn>40</NoWarn>
   </PropertyGroup>
+  <PropertyGroup>
+    <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
+  </PropertyGroup>
+  <Choose>
+    <When Condition="'$(VisualStudioVersion)' == '11.0'">
+      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')">
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets')">
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+  <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
+    <Compile Include="FStar.Tactics.Types.fs" />
+    <Compile Include="FStar.Tactics.Result.fs" />
+    <Compile Include="FStar.Tactics.Basic.fs" />
+    <Compile Include="FStar.Tactics.Embedding.fs" />
+    <Compile Include="FStar.Tactics.Native.fs" />
+    <Compile Include="boot/FStar.Tactics.Interpreter.fsi" />
+    <Compile Include="boot/FStar.Tactics.Interpreter.fs" />
+    <Compile Include="FStar.Tactics.Load.fsi" />
+    <Compile Include="FStar.Tactics.Load.fs" />
+    <Content Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="FSharp.Core">
+      <HintPath>..\VS\packages\FSharp.Core.4.2.3\lib\net45\FSharp.Core.dll</HintPath>
+    </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
       <Private>True</Private>
@@ -46,8 +77,6 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\basic\basic.fsproj">
       <Name>basic</Name>
       <Project>{e8957dbd-58e7-4cf8-9192-e0a9cfb3867e}</Project>
@@ -84,33 +113,6 @@
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="FStar.Tactics.Types.fs" />
-    <Compile Include="FStar.Tactics.Result.fs" />
-    <Compile Include="FStar.Tactics.Basic.fs" />
-    <Compile Include="FStar.Tactics.Embedding.fs" />
-    <Compile Include="FStar.Tactics.Native.fs" />
-    <Compile Include="boot/FStar.Tactics.Interpreter.fsi" />
-    <Compile Include="boot/FStar.Tactics.Interpreter.fs" />
-    <Compile Include="FStar.Tactics.Load.fsi" />
-    <Compile Include="FStar.Tactics.Load.fs" />
-  </ItemGroup>
-  <PropertyGroup>
-    <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
-  </PropertyGroup>
-  <Choose>
-    <When Condition="'$(VisualStudioVersion)' == '11.0'">
-      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets')">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets')">
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
-  <Import Project="$(FSharpTargetsPath)" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

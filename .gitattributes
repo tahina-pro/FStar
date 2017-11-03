@@ -22,3 +22,6 @@ kremlin_ref eol=lf
 
 # Batch files
 *.bat eol=crlf
+
+# Visual Studio projects
+*.fsproj eol=crlf
