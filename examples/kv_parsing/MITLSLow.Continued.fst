@@ -1176,6 +1176,233 @@ val validate_test
 let validate_test =
   T.synth_by_tactic (gen_validate_sum test parse_u32_st parse_test_cases (function "K_EREF" -> validate_u8_st | "K_HJEU" -> validate_u16_st))
 
+let unknown_enum_key (#repr: eqtype) (e: enum repr) : Tot Type0 =
+  (r: repr { List.Tot.mem r (List.Tot.map snd e) == false } )
+
+type maybe_unknown_key (#repr: eqtype) (e: enum repr) =
+| Known of (enum_key e)
+| Unknown of (unknown_enum_key e)
+
+let maybe_unknown_key_of_repr
+  (#repr: eqtype)
+  (e: enum repr)
+  (r: repr)
+: Tot (maybe_unknown_key e)
+= if List.Tot.mem r (List.Tot.map snd e)
+  then Known (enum_key_of_repr e r)
+  else Unknown r
+
+val enum_univ_destr_spec_gen
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: (maybe_unknown_key e -> Tot Type0))
+  (f: ((k: maybe_unknown_key e) -> Tot (t k)))
+  (r: repr)
+: Tot (t (maybe_unknown_key_of_repr e r))
+
+let enum_univ_destr_spec_gen #repr e t f r =
+  f (maybe_unknown_key_of_repr e r)
+
+val enum_univ_destr_spec
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: (enum_key e -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+  (r: enum_repr e)
+: Tot (t (enum_key_of_repr e r))
+
+let enum_univ_destr_spec #repr e t f r =
+  f (enum_key_of_repr e r)
+
+val enum_univ_destr_spec'
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: (enum_key e -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+  (r: enum_repr e)
+: Tot (t (enum_key_of_repr e r))
+
+noextract
+let rec gen_enum_univ_destr_body
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: (enum_key e -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+  (r: T.term)
+: Pure (T.tactic T.term)
+  (requires (Cons? e))
+  (ensures (fun _ -> True))
+  (decreases e)
+= let ((k', r') :: e') = e in
+  let k' : enum_key e = k' in
+  let fk' = f k' in
+  T.bind (T.quote fk') (fun rt ->
+    if Nil? e'
+    then T.return rt
+    else
+      let eq_repr_k = op_Equality #repr r' in
+      T.bind (T.quote eq_repr_k) (fun eq_repr_k' ->
+        let test = T.mk_app eq_repr_k' [
+          (r, T.Q_Explicit);
+        ]
+        in
+        T.bind (
+          gen_enum_univ_destr_body
+            e'
+            (fun (k: enum_key e') -> t ((k <: string) <: enum_key e))
+            (fun (k: enum_key e') -> f ((k <: string) <: enum_key e))
+            r
+        ) (fun t' ->
+          let m = mk_if test rt t' in
+          T.return m
+  )))
+
+noextract
+let rec gen_enum_univ_destr
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: (enum_key e -> Tot Type0))
+  (f: ((k: enum_key e) -> Tot (t k)))
+: Tot (T.tactic unit)
+= let open T in
+  if Cons? e
+  then begin
+    tk <-- quote (enum_repr e) ;
+    let x = fresh_binder tk in
+    let r = T.pack (T.Tv_Var x) in
+    body <-- gen_enum_univ_destr_body #repr e t f r ;
+    let res = T.pack (T.Tv_Abs x body) in
+    exact (return res)
+  end else begin
+    let g (k: enum_key e) : Tot (t k) =
+      false_elim ()
+    in
+    exact_guard (quote g)
+  end
+
+let maybe_unknown_key_or_excluded
+  (#repr: eqtype)
+  (e: enum repr)
+  (excluded: list repr)
+: Tot Type0
+= (k: maybe_unknown_key e {
+    match k with
+    | Known _ -> True
+    | Unknown r -> List.Tot.mem r excluded == false
+  })
+
+let maybe_unknown_key_or_excluded_cons_coerce
+  (#repr: eqtype)
+  (e: enum repr)
+  (excluded: list repr)
+  (k' : string)
+  (r' : repr)
+  (e' : enum repr)
+  (k: maybe_unknown_key_or_excluded e' (r' :: excluded))
+: Pure (maybe_unknown_key_or_excluded e excluded)
+  (requires (e == (k', r') :: e'))
+  (ensures (fun _ -> True))
+= match k with
+  | Known r -> Known ((r <: string) <: enum_key e)
+  | Unknown r -> Unknown ((r <: repr) <: unknown_enum_key e)
+
+noextract
+let rec gen_enum_univ_destr_gen_body
+  (#repr: eqtype)
+  (e: enum repr)
+  (excluded: list repr)
+  (t: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot Type0))
+  (f: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot (t k)))
+  (r: T.term)
+: Tot (T.tactic T.term)
+  (decreases e)
+= match e with
+  | [] ->
+    let g (r' : unknown_enum_key e {List.Tot.mem r' excluded == false}) : Tot (t (Unknown r')) =
+      f (Unknown r')
+    in
+    T.bind (T.quote g) (fun g' ->
+      let res = T.mk_app g' [
+        (r, T.Q_Explicit)
+      ]
+      in
+      T.return res
+    )
+  | ((k', r') :: e') ->
+    let k' : enum_key e = k' in
+    let fk' = f (Known k') in
+    T.bind (T.quote fk') (fun rt ->
+      T.bind (T.quote (op_Equality #repr r')) (fun eq_repr_k' ->
+        let test = T.mk_app eq_repr_k' [
+          (r, T.Q_Explicit);
+        ]
+        in
+        let excluded' = r' :: excluded in
+        T.bind (
+          gen_enum_univ_destr_gen_body
+            e'
+            excluded'
+            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
+              t (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
+            )
+            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
+              f (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
+            )
+            r
+        ) (fun t' ->
+          let m = mk_if test rt t' in
+          T.return m
+  )))
+
+noextract
+let rec gen_enum_univ_destr_gen
+  (#repr: eqtype)
+  (e: enum repr)
+  (t: ((k: maybe_unknown_key e) -> Tot Type0))
+  (f: ((k: maybe_unknown_key e) -> Tot (t k)))
+: Tot (T.tactic unit)
+= let open T in (
+    tk <-- quote repr ;
+    let x = fresh_binder tk in
+    let r = T.pack (T.Tv_Var x) in
+    body <-- gen_enum_univ_destr_gen_body #repr e [] t f r ;
+    let res = T.pack (T.Tv_Abs x body) in
+    exact_guard (return res)
+  )
+
+#set-options "--max_fuel 8 --max_ifuel 8"
+
+let univ_destr_exa
+  (t: ((k: maybe_unknown_key exa) -> Tot Type0))
+  (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
+  (k: maybe_unknown_key exa)
+: Tot (u: t k)
+= let t' (k : maybe_unknown_key exa) : Tot Type0 = (u: t k { u == f k } ) in
+  let f' (k : maybe_unknown_key exa) : Tot (t' k) = f k in
+  T.synth_by_tactic (gen_enum_univ_destr_gen exa t f) k
+
+inline_for_extraction
+let validate_exa_key_3 : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
+  let f : UInt32.t -> Tot bool =
+    T.synth_by_tactic (
+      gen_enum_univ_destr_gen
+      #UInt32.t
+      exa
+      (fun k -> (b: bool { b == Known? k } ))
+      (fun k -> Known? k)
+    )
+  in
+  fun s ->
+    validate_filter_st
+      #UInt32.t
+      #IP.parse_u32
+      parse_u32_st
+      (fun r -> Known? (maybe_unknown_key_of_repr exa r))
+      (fun x -> f x)
+      s
+
+
+
 (*
   
   parse_tagged_union
@@ -1414,19 +1641,6 @@ let gen_key_is
 inline_for_extraction
 let exa_key_is (k: enum_key exa) : ((x: UInt32.t { List.Tot.mem x (List.Tot.map snd exa) } ) -> Tot (y: bool { y == (enum_key_of_repr exa x = k) } )) =
   T.synth_by_tactic (gen_key_is #UInt32.t exa k)
-
-type maybe_unknown_key (#repr: eqtype) (e: enum repr) =
-| Known of (enum_key e)
-| Unknown of (r: repr { List.Tot.mem r (List.Tot.map snd e) == false } )
-
-let maybe_unknown_key_of_repr
-  (#repr: eqtype)
-  (e: enum repr)
-  (r: repr)
-: Tot (maybe_unknown_key e)
-= if List.Tot.mem r (List.Tot.map snd e)
-  then Known (enum_key_of_repr e r)
-  else Unknown r
 
 #set-options "--max_ifuel 8 --max_fuel 8"
 
