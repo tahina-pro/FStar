@@ -1356,10 +1356,18 @@ let univ_destr_gen_exa
   (t: ((k: maybe_unknown_key exa) -> Tot Type0))
   (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
 : (k: UInt32.t) ->
+  Tot (t (maybe_unknown_key_of_repr exa k))
+= T.synth_by_tactic (gen_enum_univ_destr_gen exa t f)
+
+inline_for_extraction
+let univ_destr_gen_exa_strong
+  (t: ((k: maybe_unknown_key exa) -> Tot Type0))
+  (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
+: (k: UInt32.t) ->
   Tot (y: t (maybe_unknown_key_of_repr exa k) { y == f (maybe_unknown_key_of_repr exa k) } )
 = let t' (k : maybe_unknown_key exa) : Tot Type0 = (u: t k { u == f k } ) in
   let f' (k : maybe_unknown_key exa) : Tot (t' k) = f k in
-  T.synth_by_tactic (gen_enum_univ_destr_gen exa t' f')
+  univ_destr_gen_exa t' f'
 
 inline_for_extraction
 let is_known
@@ -1392,12 +1400,22 @@ val univ_destr_exa
   (t: ((k: enum_key exa) -> Tot Type0))
   (f: ((k: enum_key exa) -> Tot (t k)))
 : (r: enum_repr exa) ->
-  Tot (y: t (enum_key_of_repr exa r) { y == f (enum_key_of_repr exa r) } )
+  Tot (t (enum_key_of_repr exa r))
 
 let univ_destr_exa t f =
+  T.synth_by_tactic (gen_enum_univ_destr exa t f)
+
+inline_for_extraction
+val univ_destr_exa_strong
+  (t: ((k: enum_key exa) -> Tot Type0))
+  (f: ((k: enum_key exa) -> Tot (t k)))
+: (r: enum_repr exa) ->
+  Tot (y: t (enum_key_of_repr exa r) { y == f (enum_key_of_repr exa r) } )
+
+let univ_destr_exa_strong t f =
   let t' (k : enum_key exa) : Tot Type0 = (u: t k { u == f k } ) in
   let f' (k : enum_key exa) : Tot (t' k) = f k in
-  T.synth_by_tactic (gen_enum_univ_destr exa t' f')
+  univ_destr_exa t' f'
 
 inline_for_extraction
 let parse_filter_st'
@@ -1478,10 +1496,12 @@ val repr_lift_validator_cases_exa
   (vs: ((x: enum_key exa) -> Tot (P.stateful_validator (pc x))))
 : Tot ((x: UInt32.t) -> Tot (P.stateful_validator (lift_parser_cases (exa) (cases) pc (maybe_unknown_key_of_repr (exa) x))))  
 
-let repr_lift_validator_cases_exa cases pc vs =
+let repr_lift_validator_cases_exa cases pc vs x s =
   univ_destr_gen_exa
   (fun k -> P.stateful_validator (lift_parser_cases exa cases pc k))
   (lift_validator_cases exa cases pc vs)
+  x
+  s
 
 let test : sum =
   make_sum exa (function
