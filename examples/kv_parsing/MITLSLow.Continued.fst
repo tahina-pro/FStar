@@ -3,7 +3,6 @@ include MITLSLow
 
 module S = Slice
 module P = GhostParsing
-module IP = IntegerParsing
 
 val parse_tagged_union
   (#tag: Type0)
@@ -60,7 +59,7 @@ let parse_sized #t p sz =
 let parse_sized1 (#t: Type0) (p: P.parser t) (sz: UInt8.t) : Tot (P.parser t) = parse_sized p (UInt8.v sz)
 
 let parse_vlbytes1 (#t: Type0) (p: P.parser t) : Tot (P.parser t) =
-  IP.parse_u8 `P.and_then` (fun len -> parse_sized1 p len)
+  parse_u8 `P.and_then` (fun len -> parse_sized1 p len)
 
 (*  Useless for now
 <<
@@ -164,13 +163,13 @@ let validate_vlbytes1
   (#p: P.parser t)
   (ps: P.stateful_validator p)
 : P.stateful_validator (parse_vlbytes1 p)
-= parse_then_check #_ #IP.parse_u8 IP.parse_u8_st #_ #(fun n -> parse_sized1 p n) (fun n -> validate_sized1 ps n)
+= parse_then_check #_ #parse_u8 parse_u8_st #_ #(fun n -> parse_sized1 p n) (fun n -> validate_sized1 ps n)
 
 let validate_vlbytes1_nochk
   (#t: Type0)
   (p: P.parser t)
 : Tot (P.stateful_validator_nochk (parse_vlbytes1 p))
-= parse_nochk_then_nochk #_ #IP.parse_u8 IP.parse_u8_st_nochk #_ #(fun n -> parse_sized1 p n) (fun n -> validate_sized1_nochk p n)
+= parse_nochk_then_nochk #_ #parse_u8 parse_u8_st_nochk #_ #(fun n -> parse_sized1 p n) (fun n -> validate_sized1_nochk p n)
 
 module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
@@ -209,7 +208,7 @@ val point_to_vlbytes1_contents
 
 let point_to_vlbytes1_contents #t #p ps b =
   let h0 = HST.get () in
-  let v = IP.parse_u8_st b in
+  let v = parse_u8_st b in
   assert (Some? v);
   let (Some (len, off1)) = v in
   let b1 = S.advance_slice b off1 in
@@ -928,18 +927,38 @@ let gen_validate_key
         T.exact_guard (T.return res)
   )))
 
-inline_for_extraction
-let parse_u32_st : P.parser_st IP.parse_u32 = IP.parse_u32_st
+module E = FStar.Kremlin.Endianness
 
-let validate_exa_key : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
-  (T.synth_by_tactic (gen_validate_key parse_u32_st exa))
+let parse_u32: P.parser UInt32.t =
+  fun b -> if Seq.length b < 4 then None
+        else begin
+          let b' = Seq.slice b 0 4 in
+          E.lemma_be_to_n_is_bounded b';
+          Some (UInt32.uint_to_t (E.be_to_n b'), 4)
+        end
 
 inline_for_extraction
-let validate_exa_key_1 : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
+let parse_u32_st_nochk :
+  P.parser_st_nochk (parse_u32) = fun input ->
+  let n = C.load32_be (S.truncated_slice input 4ul).S.p in
+  (n, 4ul)
+
+inline_for_extraction
+let parse_u32_st : P.parser_st (parse_u32) = fun input ->
+  if UInt32.lt input.S.len 4ul
+    then None
+    else Some (parse_u32_st_nochk input)
+
+inline_for_extraction
+let validate_exa_key : P.stateful_validator (parse_enum_key parse_u32 exa) =
+  (T.synth_by_tactic (gen_validate_key #_ #parse_u32 parse_u32_st exa))
+
+inline_for_extraction
+let validate_exa_key_1 : P.stateful_validator (parse_enum_key parse_u32 exa) =
   gen_validate_key_partial parse_u32_st exa (fun x -> normalize_term (List.Tot.mem x (List.Tot.map snd exa)))
 
 inline_for_extraction
-let validate_exa_key_2 : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
+let validate_exa_key_2 : P.stateful_validator (parse_enum_key parse_u32 exa) =
   gen_validate_key_partial parse_u32_st exa (fun x -> (List.Tot.mem x (List.Tot.map snd exa)))
 
 let rec enum_repr_of_key
@@ -1166,15 +1185,15 @@ let test : sum =
 
 let parse_test_cases (x: sum_key test) : Tot (P.parser (sum_cases test x)) =
   match x with
-    | "K_HJEU" -> IP.parse_u16
-    | "K_EREF" -> IP.parse_u8
+    | "K_HJEU" -> parse_u16
+    | "K_EREF" -> parse_u8
 
 inline_for_extraction
 val validate_test
-: P.stateful_validator (parse_sum test IP.parse_u32 parse_test_cases)
+: P.stateful_validator (parse_sum test parse_u32 parse_test_cases)
 
 let validate_test =
-  T.synth_by_tactic (gen_validate_sum test parse_u32_st parse_test_cases (function "K_EREF" -> validate_u8_st | "K_HJEU" -> validate_u16_st))
+  T.synth_by_tactic (gen_validate_sum test #parse_u32 parse_u32_st parse_test_cases (function "K_EREF" -> validate_u8_st | "K_HJEU" -> validate_u16_st))
 
 let unknown_enum_key (#repr: eqtype) (e: enum repr) : Tot Type0 =
   (r: repr { List.Tot.mem r (List.Tot.map snd e) == false } )
@@ -1436,7 +1455,7 @@ let is_known
   | _ -> false
 
 inline_for_extraction
-let validate_exa_key_3 : P.stateful_validator (parse_enum_key IP.parse_u32 exa) =
+let validate_exa_key_3 : P.stateful_validator (parse_enum_key parse_u32 exa) =
   let f : UInt32.t -> Tot bool =
     univ_destr_exa
       (fun k -> (b: bool { b == Known? k } ))
@@ -1445,7 +1464,7 @@ let validate_exa_key_3 : P.stateful_validator (parse_enum_key IP.parse_u32 exa) 
   fun s ->
     validate_filter_st
       #UInt32.t
-      #IP.parse_u32
+      #parse_u32
       parse_u32_st
       (fun r -> Known? (maybe_unknown_key_of_repr exa r))
       (fun x -> f x)
