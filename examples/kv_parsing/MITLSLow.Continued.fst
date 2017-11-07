@@ -1318,55 +1318,35 @@ noextract
 let rec gen_enum_univ_destr_gen_body
   (#repr: eqtype)
   (e: enum repr)
-  (excluded: list repr)
-  (t: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot Type0))
-  (f: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot (t k)))
+  (f: ((k: enum_key e) -> Tot (T.tactic T.term) (* t k *)))
+  (unknown_case: T.term)
   (r: T.term)
 : Tot (T.tactic T.term)
   (decreases e)
 = match e with
   | [] ->
-    let g (r' : unknown_enum_key e {List.Tot.mem r' excluded == false}) : Tot (t (Unknown r')) =
-      f (Unknown r')
-    in
-    T.bind (T.quote g) (fun g' ->
-      let res = T.mk_app g' [
-        (r, T.Q_Explicit)
-      ]
-      in
-      T.return res
-    )
+    T.return unknown_case
   | ((k', r') :: e') ->
     let k' : enum_key e = k' in
-    let fk' = f (Known k') in
-    T.bind (T.quote fk') (fun rt ->
-      T.bind (T.quote id) (fun id' ->
-      T.bind (T.quote t) (fun t' ->
-      T.bind (T.quote (maybe_unknown_key_or_excluded_of_repr #repr e excluded)) (fun myu ->
-      let m_type = T.mk_app t' [T.mk_app myu [r, T.Q_Explicit], T.Q_Explicit] in
+    T.bind (f k') (fun rt ->
       T.bind (T.quote (op_Equality #repr r')) (fun eq_repr_k' ->
         let test = T.mk_app eq_repr_k' [
           (r, T.Q_Explicit);
         ]
         in
-        let excluded' = r' :: excluded in
+        let f' (k: enum_key e') : Tot (T.tactic T.term) =
+          f ((k <: string) <: enum_key e)
+        in
         T.bind (
           gen_enum_univ_destr_gen_body
             e'
-            excluded'
-            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
-              t (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
-            )
-            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
-              f (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
-            )
+            f'
+            unknown_case
             r
         ) (fun t' ->
-          let rt_constr = T.mk_app id' [m_type, T.Q_Explicit; rt, T.Q_Explicit] in
-          let t'_constr = T.mk_app id' [m_type, T.Q_Explicit; t', T.Q_Explicit] in
-          let m = mk_if test rt_constr t'_constr in
+          let m = mk_if test rt t' in
           T.return m
-  ))))))
+  )))
 
 noextract
 let rec gen_enum_univ_destr_gen
@@ -1379,15 +1359,16 @@ let rec gen_enum_univ_destr_gen
     tk <-- quote repr ;
     let x = fresh_binder tk in
     let r = T.pack (T.Tv_Var x) in
-    body <-- gen_enum_univ_destr_gen_body #repr e [] t f r ;
-(*
-    t' <-- quote t ;
-    let body_type = mk_app t' [r, Q_Explicit] in
-    let y = fresh_binder body_type in
-    let y' = T.pack (T.Tv_Var y) in
-    let typed_body = pack (T.Tv_Let y body y') in
-    let res = T.pack (T.Tv_Abs x typed_body) in
-*)
+    let f' (k: enum_key e) : Tot (T.tactic T.term) =
+      q <-- T.quote (f (Known #repr #e k)) ;
+      T.return q
+    in
+    q_unknown <-- quote (Unknown #repr #e) ;
+    q_f <-- quote f ;
+    let unknown_case =
+      mk_app q_f [mk_app q_unknown [r, Q_Explicit], Q_Explicit]
+    in
+    body <-- gen_enum_univ_destr_gen_body #repr e f' unknown_case r ;
     let res = T.pack (T.Tv_Abs x body) in
     _ <-- print (term_to_string res) ;
     t_exact true false (return res)
@@ -1416,6 +1397,121 @@ let univ_destr_exa_nondep
 = // let t' (k : maybe_unknown_key exa) : Tot Type0 = (u: t { u == f k } ) in
   // let f' (k : maybe_unknown_key exa) : Tot (t' k) = f k in
   T.synth_by_tactic (gen_enum_univ_destr_gen exa (fun _ -> t) f)
+
+inline_for_extraction
+let univ_destr_exa
+  (t: ((k: maybe_unknown_key exa) -> Tot Type0))
+  (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
+: (k: UInt32.t) ->
+  Tot (t (maybe_unknown_key_of_repr exa k))
+= 
+ fun __refl ->
+  match Prims.op_Equality (FStar.UInt32.uint_to_t 2) __refl with
+   | true -> f (Known #FStar.UInt32.t #exa "K_EREF")
+   | false ->
+     begin match Prims.op_Equality (FStar.UInt32.uint_to_t 3) __refl with
+       | true ->
+         f (Known #FStar.UInt32.t
+               #exa
+               ("K_HJEU" <: enum_key exa))
+       | false -> f ((Unknown #FStar.UInt32.t #exa) __refl) end
+
+(*
+inline_for_extraction
+let univ_destr_exa
+  (t: ((k: maybe_unknown_key exa) -> Tot Type0))
+  (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
+: (k: UInt32.t) ->
+  Tot (t (maybe_unknown_key_of_repr exa k))
+= T.synth_by_tactic (gen_enum_univ_destr_gen exa t f)
+
+(*
+  inline_for_extraction
+  val univ_destr_exa :
+
+  t:(k:maybe_unknown_key exa -> Prims.Tot Type0) ->
+  f:(k:maybe_unknown_key exa -> Prims.Tot (t k)) ->
+  Prims.Tot
+  (k:FStar.UInt32.t ->
+    Prims.Tot (t (maybe_unknown_key_of_repr exa k)))
+
+  let univ_destr_exa t f =
+    (fun __refl ->
+        (match FStar.UInt32.uint_to_t 2 = __refl with
+          | true -> f (Known "K_EREF")
+          | false ->
+            (match FStar.UInt32.uint_to_t 3 = __refl with
+              | true ->
+                f (maybe_unknown_key_or_excluded_cons_coerce exa
+                      Prims.Nil
+                      "K_EREF"
+                      (FStar.UInt32.uint_to_t 2)
+                      (Prims.Cons (FStar.Pervasives.Native.Mktuple2 "K_HJEU"
+                              (FStar.UInt32.uint_to_t 3))
+                          Prims.Nil)
+                      (Known "K_HJEU"))
+              | false ->
+                f (maybe_unknown_key_or_excluded_cons_coerce exa
+                      Prims.Nil
+                      "K_EREF"
+                      (FStar.UInt32.uint_to_t 2)
+                      (Prims.Cons (FStar.Pervasives.Native.Mktuple2 "K_HJEU"
+                              (FStar.UInt32.uint_to_t 3))
+                          Prims.Nil)
+                      (maybe_unknown_key_or_excluded_cons_coerce (Prims.Cons (FStar.Pervasives.Native.Mktuple2 
+                                  "K_HJEU"
+                                  (FStar.UInt32.uint_to_t 3))
+                              Prims.Nil)
+                          (Prims.Cons (FStar.UInt32.uint_to_t 2) Prims.Nil)
+                          "K_HJEU"
+                          (FStar.UInt32.uint_to_t 3)
+                          Prims.Nil
+                          (Unknown __refl)))
+)
+)
+)
+
+
+(*
+  let univ_destr_exa t f =
+    (fun __refl ->
+        (match FStar.UInt32.uint_to_t 2 = __refl with
+          | true ->
+              (f (Known "K_EREF"))
+          | false ->
+              ((match FStar.UInt32.uint_to_t 3 = __refl with
+                  | true ->
+                      (f (maybe_unknown_key_or_excluded_cons_coerce exa
+                              Prims.Nil
+                              "K_EREF"
+                              (FStar.UInt32.uint_to_t 2)
+                              (Prims.Cons (FStar.Pervasives.Native.Mktuple2 "K_HJEU"
+                                      (FStar.UInt32.uint_to_t 3))
+                                  Prims.Nil)
+                              (Known "K_HJEU")))
+                  | false ->
+                      (f (maybe_unknown_key_or_excluded_cons_coerce exa
+                              Prims.Nil
+                              "K_EREF"
+                              (FStar.UInt32.uint_to_t 2)
+                              (Prims.Cons (FStar.Pervasives.Native.Mktuple2 "K_HJEU"
+                                      (FStar.UInt32.uint_to_t 3))
+                                  Prims.Nil)
+                              (maybe_unknown_key_or_excluded_cons_coerce (Prims.Cons 
+                                      (FStar.Pervasives.Native.Mktuple2 "K_HJEU"
+                                          (FStar.UInt32.uint_to_t 3))
+                                      Prims.Nil)
+                                  (Prims.Cons (FStar.UInt32.uint_to_t 2) Prims.Nil)
+                                  "K_HJEU"
+                                  (FStar.UInt32.uint_to_t 3)
+                                  Prims.Nil
+                                  (Unknown __refl)))
+))
+))
+)
+
+
+(*
 
 inline_for_extraction
 let univ_destr_exa
