@@ -5,6 +5,7 @@ include MITLSLow.Continued
 module S = Slice
 module P = GhostParsing
 module IP = IntegerParsing
+module B = FStar.Buffer
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
@@ -182,6 +183,7 @@ let rec list_append_index_r
   | _ :: l1' ->
     list_append_index_r l1' l2 (i - 1)
 
+module HS = FStar.HyperStack
 
 (* TODO: move to FStar.Buffer or FStar.HyperStack? *)
    
@@ -220,6 +222,8 @@ let rec for_with_ghost_state #gt start finish gt_start inv f =
     for_with_ghost_state (FStar.UInt32.(start +^ 1ul)) finish g' inv f
   end
 *)
+
+module HST = FStar.HyperStack.ST
 
 val list_head
   (#t: Type0)
