@@ -512,6 +512,8 @@ let validate_list_inv
     (Some? (parse_list p sq') ==> Some? (parse_list p sq))
   )))))
 
+#set-options "--z3rlimit 16"
+
 val validate_list_advance
   (#t: Type0)
   (#p: P.parser t)
