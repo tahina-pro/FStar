@@ -1251,6 +1251,44 @@ let maybe_unknown_key_or_excluded_of_repr
 : Tot (maybe_unknown_key_or_excluded e excluded)
 = maybe_unknown_key_of_repr e r
 
+let cond_true (cond: bool) : Tot Type0 = (u: unit { cond == true } )
+
+let cond_false (cond: bool) : Tot Type0 = (u: unit { cond == false } )
+
+let if_combinator
+  (t: Type0)
+: Tot Type0
+= (cond: bool) ->
+  (sv_true: (cond_true cond -> Tot t)) ->
+  (sv_false: (cond_false cond -> Tot t)) ->
+  Tot t
+
+inline_for_extraction
+let validate_if
+  (#t: Type0)
+  (p: P.parser t)
+: Tot (if_combinator (P.stateful_validator p))
+= fun
+  (cond: bool)
+  (sv_true: (cond_true cond -> Tot (P.stateful_validator p)))
+  (sv_false: (cond_false cond -> Tot (P.stateful_validator p)))
+  input ->
+  if cond
+  then sv_true () input
+  else sv_false () input
+
+inline_for_extraction
+let default_if
+  (t: Type0)
+: Tot (if_combinator t)
+= fun
+  (cond: bool)
+  (s_true: (cond_true cond -> Tot t))
+  (s_false: (cond_false cond -> Tot t))
+-> if cond
+  then s_true ()
+  else s_false ()
+
 noextract
 let rec gen_enum_univ_destr_gen_body
   (#repr: eqtype)
@@ -1258,6 +1296,7 @@ let rec gen_enum_univ_destr_gen_body
   (excluded: list repr)
   (t: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot Type0))
   (f: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot (t k)))
+  (combine_if: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot (if_combinator (t k))))
   (r: T.term)
 : Tot (T.tactic T.term)
   (decreases e)
@@ -1280,7 +1319,8 @@ let rec gen_enum_univ_destr_gen_body
       T.bind (T.quote id) (fun id' ->
       T.bind (T.quote t) (fun t' ->
       T.bind (T.quote (maybe_unknown_key_or_excluded_of_repr #repr e excluded)) (fun myu ->
-      let m_type = T.mk_app t' [T.mk_app myu [r, T.Q_Explicit], T.Q_Explicit] in
+      let m_key = T.mk_app myu [r, T.Q_Explicit] in
+      let m_type = T.mk_app t' [m_key, T.Q_Explicit] in
       T.bind (T.quote (op_Equality #repr r')) (fun eq_repr_k' ->
         let test = T.mk_app eq_repr_k' [
           (r, T.Q_Explicit);
@@ -1297,13 +1337,31 @@ let rec gen_enum_univ_destr_gen_body
             (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
               f (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
             )
+            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
+              combine_if (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
+            )
             r
         ) (fun t' ->
+          T.bind (T.quote cond_true) (fun cond_true_q ->
+          T.bind (T.quote cond_false) (fun cond_false_q ->
+          T.bind (T.quote combine_if) (fun combine_if_q ->          
           let rt_constr = T.mk_app id' [m_type, T.Q_Explicit; rt, T.Q_Explicit] in
           let t'_constr = T.mk_app id' [m_type, T.Q_Explicit; t', T.Q_Explicit] in
-          let m = mk_if test rt_constr t'_constr in
+          let cond_true_type = T.mk_app cond_true_q [test, T.Q_Explicit] in
+          let cond_true_var = T.fresh_binder cond_true_type in
+          let cond_true_abs = T.pack (T.Tv_Abs cond_true_var rt_constr) in
+          let cond_false_type = T.mk_app cond_false_q [test, T.Q_Explicit] in
+          let cond_false_var = T.fresh_binder cond_false_type in
+          let cond_false_abs = T.pack (T.Tv_Abs cond_false_var t'_constr) in
+          let m = T.mk_app combine_if_q [
+            m_key, T.Q_Explicit;
+            test, T.Q_Explicit;
+            cond_true_abs, T.Q_Explicit;
+            cond_false_abs, T.Q_Explicit;
+          ]
+          in
           T.return m
-  ))))))
+  )))))))))
 
 noextract
 let rec gen_enum_univ_destr_gen
@@ -1311,12 +1369,13 @@ let rec gen_enum_univ_destr_gen
   (e: enum repr)
   (t: ((k: maybe_unknown_key e) -> Tot Type0))
   (f: ((k: maybe_unknown_key e) -> Tot (t k)))
+  (combine_if: ((k: maybe_unknown_key e) -> Tot (if_combinator (t k))))
 : Tot (T.tactic unit)
 = let open T in (
     tk <-- quote repr ;
     let x = fresh_binder tk in
     let r = T.pack (T.Tv_Var x) in
-    body <-- gen_enum_univ_destr_gen_body #repr e [] t f r ;
+    body <-- gen_enum_univ_destr_gen_body #repr e [] t f combine_if r ;
 (*
     t' <-- quote t ;
     let body_type = mk_app t' [r, Q_Explicit] in
@@ -1330,34 +1389,14 @@ let rec gen_enum_univ_destr_gen
     t_exact true false (return res)
   )
 
-(*
-inline_for_extraction
-let univ_destr_exa
-  (t: ((k: maybe_unknown_key exa) -> Tot Type0))
-  (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
-: (k: UInt32.t) ->
-  Tot (t (maybe_unknown_key_of_repr exa k))
-//  Tot (u: t (maybe_unknown_key_of_repr exa k))
-= let t' (k : maybe_unknown_key exa) : Tot Type0 = (u: t k { u == f k } ) in
-  let f' (k : maybe_unknown_key exa) : Tot (t' k) = f k in
-  T.synth_by_tactic (gen_enum_univ_destr_gen exa t' f')
-*)
-
-inline_for_extraction
-let univ_destr_gen_exa_nondep
-  (t: Type0)
-  (f: ((k: maybe_unknown_key exa) -> Tot t))
-: (k: UInt32.t) ->
-  Tot t
-= T.synth_by_tactic (gen_enum_univ_destr_gen exa (fun _ -> t) f)
-
 inline_for_extraction
 let univ_destr_gen_exa
   (t: ((k: maybe_unknown_key exa) -> Tot Type0))
   (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
+  (combine_if: ((k: maybe_unknown_key exa) -> Tot (if_combinator (t k))))
 : (k: UInt32.t) ->
   Tot (t (maybe_unknown_key_of_repr exa k))
-= T.synth_by_tactic (gen_enum_univ_destr_gen exa t f)
+= T.synth_by_tactic (gen_enum_univ_destr_gen exa t f combine_if)
 
 inline_for_extraction
 let univ_destr_gen_exa_strong
@@ -1367,7 +1406,10 @@ let univ_destr_gen_exa_strong
   Tot (y: t (maybe_unknown_key_of_repr exa k) { y == f (maybe_unknown_key_of_repr exa k) } )
 = let t' (k : maybe_unknown_key exa) : Tot Type0 = (u: t k { u == f k } ) in
   let f' (k : maybe_unknown_key exa) : Tot (t' k) = f k in
-  univ_destr_gen_exa t' f'
+  let combine_if' (k : maybe_unknown_key exa) : Tot (if_combinator (t' k)) =
+    default_if (t' k)
+  in
+  univ_destr_gen_exa t' f' combine_if'
 
 inline_for_extraction
 let is_known
@@ -1385,6 +1427,7 @@ let validate_exa_key_3 : P.stateful_validator (parse_enum_key parse_u32 exa) =
     univ_destr_gen_exa
       (fun k -> (b: bool { b == Known? k } ))
       (fun k -> is_known exa k)
+      (fun k -> default_if _)
   in
   fun s ->
     validate_filter_st
@@ -1463,6 +1506,8 @@ val gen_validate_sum_partial
   (vs' : ((x: sum_key_repr t) -> Tot (P.stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) x)))))
 : Tot (P.stateful_validator (parse_sum t p pc))
 
+#set-options "--z3rlimit 32"
+
 let gen_validate_sum_partial t p ps pc vs' input =
   match ps input with
   | Some (v1, off1) ->
@@ -1496,12 +1541,11 @@ val repr_lift_validator_cases_exa
   (vs: ((x: enum_key exa) -> Tot (P.stateful_validator (pc x))))
 : Tot ((x: UInt32.t) -> Tot (P.stateful_validator (lift_parser_cases (exa) (cases) pc (maybe_unknown_key_of_repr (exa) x))))  
 
-let repr_lift_validator_cases_exa cases pc vs x s =
+let repr_lift_validator_cases_exa cases pc vs =
   univ_destr_gen_exa
   (fun k -> P.stateful_validator (lift_parser_cases exa cases pc k))
   (lift_validator_cases exa cases pc vs)
-  x
-  s
+  (fun k -> validate_if _)
 
 let test : sum =
   make_sum exa (function
