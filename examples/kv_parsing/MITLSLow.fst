@@ -139,21 +139,6 @@ let validate_nondep_then_nochk
   let off2 = v2 s2 in
   UInt32.add off1 off2
 
-type example' =
-| Left':
-    (u1: UInt8.t) ->
-    (u2: UInt8.t) ->
-    example'
-| Right' of UInt16.t
-
-let parse_example' : P.parser example' =
-  parse_u8 `P.and_then` (fun j ->
-    let j' = Int.Cast.uint8_to_uint32 j in
-    if j' = 0ul
-    then parse_synth (nondep_then parse_u8 parse_u8) (fun (u1, u2) -> Left' u1 u2)
-    else parse_synth parse_u16 (fun v -> Right' v)
-  )
-
 [@"substitute"]
 inline_for_extraction
 let parse_u8_st_nochk :
@@ -180,41 +165,3 @@ let parse_u16_st : P.parser_st parse_u16 = fun input ->
   if UInt32.lt input.S.len 2ul
     then None
   else Some (parse_u16_st_nochk input)
-
-(*
-let validate_example_st' : P.stateful_validator parse_example' =
-   parse_then_check #_ #parse_u8 parse_u8_st #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
-     let j' = Int.Cast.uint8_to_uint32 j in
-     if j' = 0ul
-     then parse_synth (nondep_then parse_u8 parse_u8) (fun (u1, u2) -> Left' u1 u2)
-     else parse_synth parse_u16 (fun v -> Right' v)
-   ) (fun j ->
-     let j' = Int.Cast.uint8_to_uint32 j in
-     if j' = 0ul
-     then
-        (validate_synth (validate_nondep_then #_ #parse_u8 validate_u8_st #_ #parse_u8 validate_u8_st) (fun (u1, u2) -> Left' u1 u2))
-     else
-        (validate_synth #_ #_ #parse_u16 validate_u16_st (fun v -> Right' v))
-   )
-
-[@"substitute"]
-inline_for_extraction
-let validate_u8_st_nochk : P.stateful_validator_nochk parse_u8 = fun _ -> 1ul
-[@"substitute"]
-inline_for_extraction
-let validate_u16_st_nochk: P.stateful_validator_nochk parse_u16 = fun _ -> 2ul
-
-let validate_example_st_nochk' : P.stateful_validator_nochk parse_example' =
-   parse_nochk_then_nochk #_ #parse_u8 parse_u8_st_nochk #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
-     let j' = Int.Cast.uint8_to_uint32 j in
-     if j' = 0ul
-     then parse_synth (nondep_then parse_u8 parse_u8) (fun (u1, u2) -> Left' u1 u2)
-     else parse_synth parse_u16 (fun v -> Right' v)
-   ) (fun j ->
-     let j' = Int.Cast.uint8_to_uint32 j in
-     if j' = 0ul
-     then
-        (validate_synth_nochk (validate_nondep_then_nochk #_ #parse_u8 validate_u8_st_nochk #_ #parse_u8 validate_u8_st_nochk) (fun (u1, u2) -> Left' u1 u2))
-     else
-        (validate_synth_nochk #_ #_ #parse_u16 validate_u16_st_nochk (fun v -> Right' v))
-   )
