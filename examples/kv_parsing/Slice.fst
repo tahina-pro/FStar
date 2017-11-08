@@ -21,6 +21,7 @@ noeq type bslice =
   | BSlice : len:U32.t -> p:lbuffer (U32.v len) -> bslice
 
 let live h (b: bslice) = B.live h b.p
+noextract
 let as_seq h (b: bslice) : Ghost (s:bytes{length s == U32.v b.len})
   (requires (live h b))
   (ensures (fun _ -> True)) = B.as_seq h b.p

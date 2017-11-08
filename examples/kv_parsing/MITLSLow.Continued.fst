@@ -737,6 +737,7 @@ let rec enum_key_of_repr
   List.Tot.assoc_mem k e;
   (k <: enum_key e)
 
+noextract
 let rec parse_enum_key
   (#repr: eqtype)
   (p: P.parser repr)
@@ -828,6 +829,7 @@ let gen_filter_key_term
     ) (fun t -> T.return t)
   ))
 
+inline_for_extraction
 let exa : enum UInt32.t = [
   "K_EREF", 2ul;
   "K_HJEU", 3ul;
@@ -1026,6 +1028,7 @@ let exa_discr_K_EREF'
 inline_for_extraction
 let sum = (repr: eqtype & (e: enum repr & ((x: enum_key e) -> Tot Type0)))
 
+inline_for_extraction
 let sum_key_repr (t: sum) : Tot eqtype =
   let (| repr,  _ |) = t in repr
 
@@ -1052,6 +1055,7 @@ let parse_sum
     (parse_enum_key p (sum_enum t))
     pc
 
+inline_for_extraction
 let make_sum
   (#repr: eqtype)
   (e: enum repr)
@@ -1547,6 +1551,7 @@ let repr_lift_validator_cases_exa cases pc vs =
   (lift_validator_cases exa cases pc vs)
   (fun k -> validate_if _)
 
+inline_for_extraction
 let test : sum =
   make_sum exa (function
     | "K_EREF" -> UInt8.t

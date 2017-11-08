@@ -181,6 +181,7 @@ let parse_u16_st : P.parser_st parse_u16 = fun input ->
     then None
   else Some (parse_u16_st_nochk input)
 
+(*
 let validate_example_st' : P.stateful_validator parse_example' =
    parse_then_check #_ #parse_u8 parse_u8_st #_ #(fun j -> (* FIXME: WHY WHY WHY do I need this F* explicit argument? *)
      let j' = Int.Cast.uint8_to_uint32 j in
