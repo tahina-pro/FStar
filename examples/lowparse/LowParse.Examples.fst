@@ -44,6 +44,8 @@ let univ_destr_gen_exa_strong
   in
   univ_destr_gen_exa t' f' combine_if'
 
+#set-options "--z3rlimit 16"
+
 inline_for_extraction
 let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
   let f =
