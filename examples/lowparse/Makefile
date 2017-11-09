@@ -6,6 +6,10 @@ FST_FILES :=	\
 	LowParse.Base.fst \
 	LowParse.Int.fst \
 	LowParse.VLBytes.fst \
+	LowParse.Enum.Base.fst \
+	LowParse.Enum.Tactics.Aux.fsti \
+	LowParse.Enum.Tactics.Aux.fst \
+	LowParse.Enum.Tactics.fst \
 	LowParse.Enum.fst \
 	LowParse.Sum.fst \
 	LowParse.List.fst \
