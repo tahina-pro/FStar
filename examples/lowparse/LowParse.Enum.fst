@@ -234,6 +234,16 @@ let enum_repr_cons_coerce_recip
 = (k <: repr) <: enum_repr e'
 
 noextract
+let mk_coercion
+  (from_value: T.term)
+  (to_typ: T.term)
+: Tot (T.tactic T.term)
+= T.bind (T.quote id) (fun id' ->
+    let res = T.mk_app id' [to_typ, T.Q_Explicit; from_value, T.Q_Explicit] in
+    T.return res
+  )
+
+noextract
 let rec gen_enum_univ_destr_body
   (#repr: eqtype)
   (e: enum repr)
@@ -250,14 +260,13 @@ let rec gen_enum_univ_destr_body
     let k' : enum_key e = k' in
     let fk' = f k' in
     T.bind (T.quote fk') (fun rt ->
-      T.bind (T.quote id) (fun id' ->
       match e' with
       | [] -> T.return rt
       | _ ->
       T.bind (T.quote t) (fun t' ->
       T.bind (T.quote (enum_key_of_repr #repr e)) (fun myu ->
       let m_type = T.mk_app t' [T.mk_app myu [r, T.Q_Explicit], T.Q_Explicit] in
-      let rt_constr = T.mk_app id' [m_type, T.Q_Explicit; rt, T.Q_Explicit] in
+      T.bind (mk_coercion rt m_type) (fun rt_constr ->
       T.bind (T.quote (op_Equality #repr r')) (fun eq_repr_k' ->
         let test = T.mk_app eq_repr_k' [
           (r, T.Q_Explicit);
@@ -275,10 +284,10 @@ let rec gen_enum_univ_destr_body
             )
             (T.mk_app q_r_false [r, T.Q_Explicit])
         ) (fun t' ->
-          let t'_constr = T.mk_app id' [m_type, T.Q_Explicit; t', T.Q_Explicit] in
+          T.bind (mk_coercion t' m_type) (fun t'_constr ->
           let m = mk_if test rt_constr t'_constr in
           T.return m
-  )))))))
+  ))))))))
 
 noextract
 let rec gen_enum_univ_destr
@@ -365,7 +374,6 @@ let rec gen_enum_univ_destr_gen_body
     let k' : enum_key e = k' in
     let fk' = f (Known k') in
     T.bind (T.quote fk') (fun rt ->
-      T.bind (T.quote id) (fun id' ->
       T.bind (T.quote t) (fun t' ->
       T.bind (T.quote (maybe_unknown_key_or_excluded_of_repr #repr e excluded)) (fun myu ->
       let m_key = T.mk_app myu [r, T.Q_Explicit] in
@@ -393,9 +401,9 @@ let rec gen_enum_univ_destr_gen_body
         ) (fun t' ->
           T.bind (T.quote cond_true) (fun cond_true_q ->
           T.bind (T.quote cond_false) (fun cond_false_q ->
-          T.bind (T.quote combine_if) (fun combine_if_q ->          
-          let rt_constr = T.mk_app id' [m_type, T.Q_Explicit; rt, T.Q_Explicit] in
-          let t'_constr = T.mk_app id' [m_type, T.Q_Explicit; t', T.Q_Explicit] in
+          T.bind (T.quote combine_if) (fun combine_if_q ->
+          T.bind (mk_coercion rt m_type) (fun rt_constr ->
+          T.bind (mk_coercion t' m_type) (fun t'_constr ->
           let cond_true_type = T.mk_app cond_true_q [test, T.Q_Explicit] in
           let cond_true_var = T.fresh_binder cond_true_type in
           let cond_true_abs = T.pack (T.Tv_Abs cond_true_var rt_constr) in
@@ -410,7 +418,7 @@ let rec gen_enum_univ_destr_gen_body
           ]
           in
           T.return m
-  )))))))))
+  ))))))))))
 
 noextract
 let rec gen_enum_univ_destr_gen
