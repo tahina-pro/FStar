@@ -17,9 +17,15 @@ EXTRACT_FILES := \
 	LowParse.Examples.fst \
 
 
-FSTAR_INCLUDE_PATHS:=--include $(KREMLIN_HOME)/kremlib
+INCLUDE_PATHS:=
 
-OTHERFLAGS+=$(FSTAR_INCLUDE_PATHS) --z3rlimit_factor 4
+ifeq ($(KREMLIN_HOME),)
+  INCLUDE_KREMLIN=
+else
+  INCLUDE_KREMLIN=--include $(KREMLIN_HOME)/kremlib
+endif
+
+OTHERFLAGS+=$(addprefix --include , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN) --z3rlimit_factor 4
 
 all: $(FST_FILES:.fst=.uver)
 
@@ -28,4 +34,4 @@ all: $(FST_FILES:.fst=.uver)
 
 
 extract-c: $(EXTRACT_FILES)
-	krml -skip-compilation -warn-error +11 $(EXTRACT_FILES)
+	$(KREMLIN_HOME)/krml $(addprefix -I , $(INCLUDE_PATHS)) -skip-compilation -warn-error +11 $(EXTRACT_FILES)
