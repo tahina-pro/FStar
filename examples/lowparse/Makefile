@@ -11,10 +11,11 @@ FST_FILES :=	\
 	LowParse.List.fst \
 	LowParse.fst \
 	LowParse.Examples.fst \
+	LowParse.Examples.Extract.fst \
 
 
 EXTRACT_FILES := \
-	LowParse.Examples.fst \
+	LowParse.Examples.Extract.fst \
 
 
 INCLUDE_PATHS:=
@@ -32,6 +33,11 @@ all: $(FST_FILES:.fst=.uver)
 %.fst-in:
 	@echo $(OTHERFLAGS)
 
+extract-ocaml: $(EXTRACT_FILES)
+	$(FSTAR_HOME)/bin/fstar.exe $(addprefix -I , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN) --lax --codegen OCaml $(EXTRACT_FILES)
 
 extract-c: $(EXTRACT_FILES)
-	$(KREMLIN_HOME)/krml $(addprefix -I , $(INCLUDE_PATHS)) -skip-compilation -warn-error +11 $(EXTRACT_FILES)
+	$(KREMLIN_HOME)/krml $(addprefix -I , $(INCLUDE_PATHS)) -skip-linking -warn-error +11 $(patsubst %.fst,-bundle %=LowParse.*,$(EXTRACT_FILES)) $(EXTRACT_FILES)
+
+clean:
+	rm -f *.c *.h *.o *.ml *.krml

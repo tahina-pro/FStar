@@ -12,9 +12,10 @@ FSTAR_FILES = \
 	LowParse.Sum.fst \
 	LowParse.fst \
 	LowParse.Examples.fst \
+	LowParse.Examples.Extract.fst \
 
 
-EXTRACT_FILES := LowParse.Examples.fst
+EXTRACT_FILES := LowParse.Examples.Extract.fst
 
 # The paths to related files which to include for scanning
 #   -- No need to add FSTAR_HOME/ulib; it is included by default

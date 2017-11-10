@@ -111,9 +111,13 @@ let parse_test_cases (x: sum_key test) : Tot (parser (sum_cases test x)) =
     | "K_HJEU" -> parse_u16
     | "K_EREF" -> parse_u8
 
+let parse_test
+: parser (sum_data test)
+= parse_sum test parse_u32 parse_test_cases
+
 inline_for_extraction
 val validate_test
-: stateful_validator (parse_sum test parse_u32 parse_test_cases)
+: stateful_validator parse_test
 
 let validate_test =
   gen_validate_sum_partial
@@ -126,6 +130,28 @@ let validate_test =
 	"K_HJEU" -> validate_u16_st
       | "K_EREF" -> validate_u8_st
     ))
+
+noeq
+type fstar_test =
+  | K_HJEU of U16.t
+  | K_EREF of U8.t
+
+noextract
+let parse_fstar_test
+: parser fstar_test
+= parse_test `parse_synth` (function
+  | (| "K_HJEU", x |) -> K_HJEU x
+  | (| "K_EREF", y |) -> K_EREF y
+  )
+
+inline_for_extraction
+let validate_fstar_test
+: stateful_validator parse_fstar_test
+= validate_test `validate_synth` (function
+  | (| "K_HJEU", x |) -> K_HJEU x
+  | (| "K_EREF", y |) -> K_EREF y
+  )
+
 
 (* TODO: convert the following example into new style 
 
