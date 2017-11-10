@@ -19,7 +19,7 @@ let bytes32 = bs:bytes{ Seq.length bs < pow2 32}
 /// - it returns the parsed value as well as the number of bytes read
 ///   (this is intended to be the number of bytes to advance the input pointer)
 ///
-/// note that the type does not forbid lookahead; the parser can depend on
+/// note that the type now forbids lookahead; the parser cannot depend on
 /// values beyond the returned offset
 ///
 /// these parsers are used as specifications, and thus use unrepresentable types
@@ -28,7 +28,31 @@ let bytes32 = bs:bytes{ Seq.length bs < pow2 32}
 (* Switch to Tot if you want an OCaml executable model for parsers *)
 let parse_arrow (a: Type0) (b: (a -> Type0)) = (x: a) -> GTot (b x)
 
-let parser (t:Type) = (b: bytes32) -> GTot (option (t * (n: nat { n <= Seq.length b } )))
+let weak_parser (t:Type) = (b: bytes32) -> GTot (option (t * (n: nat { n <= Seq.length b } )))
+
+let no_lookahead_on
+  (t: Type)
+  (f: weak_parser t)
+  (x x' : bytes32)
+: GTot Type0
+= Some? (f x) ==> (
+  let (Some v) = f x in
+  let (y, off) = v in (
+  (off <= Seq.length x' /\ Seq.slice x' 0 off == Seq.slice x 0 off) ==>
+  Some? (f x') /\ (
+  let (Some v') = f x' in
+  let (y', off') = v' in
+  y == y' /\ off == off'
+  )))
+
+let no_lookahead
+  (t: Type)
+  (f: weak_parser t)
+: GTot Type0
+= forall (x x' : bytes32) . no_lookahead_on t f x x'
+
+let parser (t: Type) = (f: weak_parser t { no_lookahead t f } )
+
 
 /// A stateful parser that implements the same behavior as a pure parser. This
 /// includes both the output and offset. The specification parser is an erased
@@ -114,16 +138,16 @@ let stateful_validator_nochk #t (p: parser t) =
     U32.v r == consumed
   )))))
 
-#reset-options "--z3rlimit 15 --max_fuel 1 --max_ifuel 1"
+#reset-options "--z3rlimit 15"
 
 (** Combinators *)
  
 /// monadic return for the parser monad
 unfold let parse_ret (#t:Type) (v:t) : parser t =
-   fun _ -> Some (v, 0)
+  (( fun (b: bytes32) -> Some (v, 0)) <: weak_parser t) <: parser t
 
 /// parser that always fails
-let fail_parser #t : parser t = fun b -> None
+let fail_parser #t : parser t = ((fun b -> None) <: weak_parser t) <: parser t
 
 [@"substitute"]
 inline_for_extraction
@@ -135,16 +159,70 @@ val and_then : #t:Type -> #t':Type ->
                 p:parser t ->
                 p': parse_arrow t (fun _ -> parser t') ->
                 parser t'
-let and_then #t #t' p p' b =
-  match p b with
-  | Some (v, l) ->
-    begin
-      let p'v = p' v in
-      match p'v (Seq.slice b l (Seq.length b)) with
-      | Some (v', l') -> Some (v', l + l')
-      | None -> None
-    end
-  | None -> None
+let and_then #t #t' p p' =
+  let f : weak_parser t' =
+    fun (b: bytes32) ->
+    match p b with
+    | Some (v, l) ->
+      begin
+	let p'v = p' v in
+	match p'v (Seq.slice b l (Seq.length b)) with
+	| Some (v', l') -> Some (v', l + l')
+	| None -> None
+      end
+    | None -> None
+  in
+  let prf
+    (x: bytes32) 
+    (x' : bytes32)
+  : Lemma
+    (no_lookahead_on t' f x x')
+  = match f x with
+    | Some v -> 
+      let (y, off) = v in
+      let off : nat = off in
+      let (off_x : nat { 0 <= off_x && off_x <= Seq.length x } ) = off in
+      if off <= Seq.length x'
+      then
+	let (off_x' : nat { 0 <= off_x' && off_x' <= Seq.length x' } ) = off in
+	let g () : Lemma
+	  (requires (Seq.slice x' 0 off_x' == Seq.slice x 0 off_x))
+	  (ensures (
+	    Some? (f x') /\ (
+	    let (Some v') = f x' in
+	    let (y', off') = v' in
+	    y == y' /\ (off <: nat) == (off' <: nat)
+	  )))
+	= assert (Some? (p x));
+	  let (Some (y1, off1)) = p x in
+	  assert (off1 <= off);
+	  assert (off1 <= Seq.length x');
+	  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off_x') 0 off1);
+	  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
+	  assert (no_lookahead_on t p x x');
+	  assert (Some? (p x'));
+	  let (Some v1') = p x' in
+	  let (y1', off1') = v1' in
+	  assert (y1 == y1' /\ off1 == off1');
+	  let x2 = Seq.slice x off1 (Seq.length x) in
+	  let x2' = Seq.slice x' off1 (Seq.length x') in
+	  let p2 = p' y1 in
+	  assert (Some? (p2 x2));
+	  let (Some (y', off2)) = p2 x2 in
+	  assert (off == off1 + off2);
+	  assert (off2 <= Seq.length x2);
+	  assert (off2 <= Seq.length x2');
+	  assert (Seq.slice x2' 0 off2 == Seq.slice (Seq.slice x' 0 off_x') off1 (off1 + off2));
+	  assert (Seq.slice x2' 0 off2 == Seq.slice x2 0 off2);
+	  assert (no_lookahead_on t' p2 x2 x2');
+	  ()
+	in
+	Classical.move_requires g ()
+      else ()
+    | _ -> ()
+  in
+  Classical.forall_intro_2 (fun x -> Classical.move_requires (prf x));  
+  (f <: parser t')
 
 [@"substitute"]
 inline_for_extraction
@@ -170,13 +248,14 @@ let parse_then_check
   | _ -> None
 
 let and_then_offset (#t:Type) (p: parser t) (#t':Type) (p': parse_arrow t (fun _ ->parser t')) (bs:bytes32) :
-  Lemma (requires (Some? (and_then p p' bs)))
+  Lemma (requires (Some? (let f = and_then p p' in f bs)))
         (ensures (Some? (p bs) /\
-                  Some? (and_then p p' bs) /\
-                  snd (Some?.v (p bs)) <= snd (Some?.v (and_then p p' bs)))) =
+                  Some? (let f = and_then p p' in f bs) /\
+                  snd (Some?.v (p bs)) <= snd (Some?.v (let f = and_then p p' in f bs)))) =
   match p bs with
   | Some (v, off) ->
-    match p' v (Seq.slice bs off (Seq.length bs)) with
+    let p'v = p' v in
+    match p'v (Seq.slice bs off (Seq.length bs)) with
     | Some (v', off') -> ()
     | None -> ()
   | None -> ()
@@ -237,7 +316,7 @@ val nondep_fst
   (requires (fun h ->
     S.live h b /\ (
     let s = S.as_seq h b in (
-    Some? (nondep_then p1 p2 s)
+    Some? (let f = nondep_then p1 p2 in f s)
   ))))
   (ensures (fun h1 b' h2 ->
     S.modifies_none h1 h2 /\
@@ -245,7 +324,8 @@ val nondep_fst
     S.live h1 b /\
     S.live h1 b' /\ (
     let s = S.as_seq h1 b in
-    let v = nondep_then p1 p2 s in
+    let f = nondep_then p1 p2 in
+    let v = f s in
     let s' = S.as_seq h1 b' in
     let v' = p1 s' in (
     Some? v /\
@@ -270,7 +350,7 @@ val nondep_snd
   (requires (fun h ->
     S.live h b /\ (
     let s = S.as_seq h b in (
-    Some? (nondep_then p1 p2 s)
+    Some? (let f = nondep_then p1 p2 in f s)
   ))))
   (ensures (fun h1 b' h2 ->
     S.modifies_none h1 h2 /\
@@ -278,7 +358,8 @@ val nondep_snd
     S.live h1 b /\
     S.live h1 b' /\ (
     let s = S.as_seq h1 b in
-    let v = nondep_then p1 p2 s in
+    let f = nondep_then p1 p2 in
+    let v = f s in
     let s' = S.as_seq h1 b' in
     let v' = p2 s' in (
     Some? v /\
