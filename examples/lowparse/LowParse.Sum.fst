@@ -115,9 +115,7 @@ let gen_validate_sum_partial t p ps pc vs' input =
     let input2 = S.advance_slice input off1 in
     begin match vs' v1 input2 with
     | Some off2 ->
-      if S.u32_add_overflows off1 off2
-      then None
-      else Some (UInt32.add off1 off2)
+      Some (UInt32.add off1 off2)
     | _ -> None
     end
   | _ -> None

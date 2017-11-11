@@ -162,9 +162,7 @@ let parse_then_check
     let input2 = S.advance_slice input off1 in
     begin match ps2 v1 input2 with
     | Some off2 ->
-      if S.u32_add_overflows off1 off2
-      then None
-      else Some (U32.add off1 off2)
+      Some (U32.add off1 off2)
     | _ -> None
     end
   | _ -> None
@@ -204,8 +202,8 @@ let validate_nondep_then
   match v1 input with
   | Some off -> begin
           match v2 (S.advance_slice input off) with
-          | Some off' -> (if S.u32_add_overflows off off' then None
-                      else Some (U32.add off off'))
+          | Some off' ->
+	    Some (U32.add off off')
           | None -> None
     end
   | None -> None
