@@ -43,19 +43,15 @@ let advance_slice_spec (b:bslice) (off:U32.t{U32.v off <= U32.v b.len}) h :
                   as_seq h (advance_slice b off) == Seq.slice (as_seq h b) (U32.v off) (Seq.length (as_seq h b))))
   = ()
 
-let u32_add_overflows (a b:U32.t) : overflow:bool{not overflow <==> U32.v a + U32.v b < pow2 32} =
-  U32.lt (U32.add_mod a b) a
-
 let advance_slice_advance_slice
   (b: bslice)
   (off1: U32.t {U32.v off1 <= U32.v (length b) } )
   (off2: U32.t {U32.v off2 <= U32.v (advance_slice b off1).len } )
 : Lemma
   (requires (
-    u32_add_overflows off1 off2 == false
+    True
   ))
   (ensures (
-    u32_add_overflows off1 off2 == false /\
     advance_slice (advance_slice b off1) off2 == advance_slice b (U32.add off1 off2)
   ))
 = let s1 = advance_slice b off1 in
