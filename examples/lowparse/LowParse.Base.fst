@@ -346,7 +346,8 @@ let validate_nondep_then
 = fun input ->
   match v1 input with
   | Some off -> begin
-          match v2 (S.advance_slice input off) with
+	  let s2 = S.advance_slice input off in
+          match v2 s2 with
           | Some off' ->
 	    Some (U32.add off off' <: consumed_slice_length input)
           | None -> None

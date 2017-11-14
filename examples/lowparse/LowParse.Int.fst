@@ -47,7 +47,7 @@ inline_for_extraction
 let parse_u8_st_nochk :
     parser_st_nochk parse_u8 =
     parse_total_constant_size_nochk 1ul (fun (input: S.bslice) ->
-      Buffer.index input.S.p 0ul
+      S.index input 0ul
     )
 
 [@"substitute"]
@@ -61,7 +61,8 @@ inline_for_extraction
 let parse_u16_st_nochk :
   parser_st_nochk parse_u16 =
   parse_total_constant_size_nochk 2ul (fun (input: S.bslice) ->
-    C.load16_be (S.truncated_slice input 2ul).S.p
+    let s = S.truncate_slice input 2ul in
+    C.load16_be (S.as_buffer s)
   )
 
 [@"substitute"]
@@ -74,7 +75,8 @@ inline_for_extraction
 let parse_u32_st_nochk :
   parser_st_nochk (parse_u32) = 
   parse_total_constant_size_nochk 4ul (fun input ->
-    C.load32_be (S.truncated_slice input 4ul).S.p
+    let s = S.truncate_slice input 4ul in
+    C.load32_be (S.as_buffer s)
   )
 
 [@"substitute"]

@@ -290,7 +290,7 @@ let list_nth_slice_inv
   (h: HS.mem)
   (j: nat)
 : GTot Type0
-= B.disjoint b.S.p sl /\
+= B.disjoint (S.as_buffer b) sl /\
   B.length sl == 1 /\
   list_nth_slice_precond p sv b i (Ghost.reveal h0) /\
   B.modifies_1 sl (Ghost.reveal h0) h /\
@@ -335,7 +335,7 @@ val list_nth_slice_advance
 
 let list_nth_slice_advance #t p sv b i h0 sl j =
   let h1 = HST.get () in
-  B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl b.S.p;
+  B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl (S.as_buffer b);
   let s = B.index sl 0ul in
   assert (S.as_seq h1 s == S.as_seq (Ghost.reveal h0) s);
   let h2 = HST.get () in
@@ -350,7 +350,7 @@ let list_nth_slice_advance #t p sv b i h0 sl j =
   B.upd sl 0ul s';
   let h = HST.get () in
   assert (B.modifies_1 sl (Ghost.reveal h0) h);
-  B.includes_trans b.S.p s.S.p s'.S.p;
+  S.includes_trans b s s';
   ()
 
 inline_for_extraction
@@ -425,7 +425,7 @@ let validate_list_inv
   (j: nat)
   (interrupt: bool)
 : GTot Type0
-= B.disjoint b.S.p sl /\
+= B.disjoint (S. as_buffer b) sl /\
   B.length sl == 1 /\
   S.live (Ghost.reveal h0) b /\
   B.modifies_1 sl (Ghost.reveal h0) h /\
@@ -468,7 +468,7 @@ val validate_list_advance
 
 let validate_list_advance #t #p sv b h0 sl j =
   let h1 = HST.get () in
-  B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl b.S.p;
+  B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl (S.as_buffer b);
   let os = B.index sl 0ul in
   let (Some s) = os in
   assert (S.as_seq h1 s == S.as_seq (Ghost.reveal h0) s);
