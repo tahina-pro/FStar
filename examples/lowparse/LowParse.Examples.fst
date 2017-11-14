@@ -46,6 +46,8 @@ let univ_destr_gen_exa_strong
 
 #set-options "--z3rlimit 16"
 
+module S = LowParse.Slice
+
 inline_for_extraction
 let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
   let f =
@@ -54,7 +56,7 @@ let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
       (fun k -> is_known exa k)
       (fun k -> default_if _)
   in
-  fun s ->
+  fun (s: S.bslice) ->
     validate_filter_st
       #U32.t
       #parse_u32
@@ -139,7 +141,7 @@ type fstar_test =
 noextract
 let parse_fstar_test
 : parser fstar_test
-= parse_test `parse_synth` (function
+= parse_test `parse_synth` (fun (x: sum_data test) -> match x with
   | (| "K_HJEU", x |) -> K_HJEU x
   | (| "K_EREF", y |) -> K_EREF y
   )
@@ -147,7 +149,7 @@ let parse_fstar_test
 inline_for_extraction
 let validate_fstar_test
 : stateful_validator parse_fstar_test
-= validate_test `validate_synth` (function
+= validate_test `validate_synth` (fun (x: sum_data test) -> match x with
   | (| "K_HJEU", x |) -> K_HJEU x
   | (| "K_EREF", y |) -> K_EREF y
   )

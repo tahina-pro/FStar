@@ -17,7 +17,7 @@ val parse_list_aux
   (#t: Type0)
   (p: parser t)
   (b: bytes32)
-: Tot (parse_arrow unit (fun _ -> option (list t * (n: nat { n <= Seq.length b } ))))
+: Tot (parse_arrow unit (fun _ -> option (list t * (consumed_length b))))
   (decreases (Seq.length b))
 
 let rec parse_list_aux #t p b =
@@ -25,7 +25,7 @@ let rec parse_list_aux #t p b =
   fun () ->
   if Seq.length b = 0
   then 
-    Some ([], 0)
+    Some ([], (0 <: consumed_length b))
   else
     match p b with
     | None -> None
@@ -34,8 +34,24 @@ let rec parse_list_aux #t p b =
       then None (* elements cannot be empty *)
       else
         match parse_list_aux p (Seq.slice b n (Seq.length b)) () with
-	| Some (l, n') -> Some (v :: l, n + n')
+	| Some (l, n') -> Some (v :: l, (n + n' <: consumed_length b))
 	| _ -> None
+
+noextract
+val parse_list_weak
+  (#t: Type0)
+  (p: parser t)
+: Tot (weak_parser (list t))
+
+let parse_list_weak #t p = (fun b -> parse_list_aux #t p b ()) <: weak_parser (list t)
+
+let no_lookahead_on_parse_list_weak
+  (#t: Type0)
+  (p: parser t)
+  (x x' : bytes32)
+: Lemma
+  (no_lookahead_on (list t) (parse_list_weak p) x x')
+= admit ()
 
 noextract
 val parse_list
@@ -43,7 +59,9 @@ val parse_list
   (p: parser t)
 : Tot (parser (list t))
 
-let parse_list #t p b = parse_list_aux #t p b ()
+let parse_list #t p =
+  Classical.forall_intro_2 (no_lookahead_on_parse_list_weak p);
+  parse_list_weak p
 
 noextract
 let rec parse_list_consumed
@@ -51,9 +69,9 @@ let rec parse_list_consumed
   (p: parser t)
   (b: bytes32)
 : Lemma
-  (requires (Some? (parse_list p b)))
+  (requires (Some? (parse (parse_list p) b)))
   (ensures (
-    let pb = parse_list p b in (
+    let pb = parse (parse_list p) b in (
     Some? pb /\ (
     let (Some (_, consumed)) = pb in
     consumed == Seq.length b
@@ -125,7 +143,7 @@ let rec parse_list_tailrec_correct
   (requires True)
   (ensures (
     parse_list_tailrec p b aux == (
-    match parse_list p b with
+    match parse (parse_list p) b with
     | Some (l, n) -> Some (L.append aux l)
     | None -> None
   )))
@@ -142,48 +160,13 @@ let rec parse_list_tailrec_correct
       else begin
 	let s = Seq.slice b n (Seq.length b) in
 	parse_list_tailrec_correct p s (L.append aux [v]);
-	match parse_list p s with
+	match parse (parse_list p) s with
 	| Some (l, n') ->
 	  L.append_assoc aux [v] l
 	| None -> ()
       end
 
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
-
-(* TODO: move to FStar.List.Tot.Properties *)
-
-noextract
-let rec list_append_index_r
-  (#t: Type0)
-  (l1: list t)
-  (l2: list t)
-  (i: nat)
-: Lemma
-  (requires (
-    i >= L.length l1 /\
-    i < L.length l1 + L.length l2
-  ))
-  (ensures (
-    i >= L.length l1 /\
-    i < L.length l1 + L.length l2 /\
-    i < L.length (L.append l1 l2) /\
-    L.index (L.append l1 l2) i ==
-    L.index l2 (i - L.length l1)
-  ))
-  (decreases l1)
-= L.append_length l1 l2; // TODO: replace/augment the patterns on @ with patterns on L.append
-  match l1 with
-  | [] -> ()
-  | _ :: l1' ->
-    list_append_index_r l1' l2 (i - 1)
-
-(* TODO: move to FStar.Buffer or FStar.HyperStack? *)
-   
-noextract
-let modifies_tip_popped h0 h1 h2 h3 : Lemma
-  (requires (HS.fresh_frame h0 h1 /\ HS.popped h2 h3 /\ HS.modifies_one h1.HS.tip h1 h2 /\ h1.HS.tip == h2.HS.tip))
-  (ensures  (S.modifies_none h0 h3))
-  = ()
 
 inline_for_extraction
 val list_head
@@ -194,7 +177,7 @@ val list_head
   (requires (fun h ->
     S.live h b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     Cons? l
@@ -205,7 +188,7 @@ val list_head
     S.live h b' /\
     S.includes b b' /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     Cons? l /\ (
@@ -228,7 +211,7 @@ val list_tail
   (requires (fun h ->
     S.live h b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     Cons? l
@@ -239,12 +222,12 @@ val list_tail
     S.live h b' /\
     S.includes b b' /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     Cons? l /\ (
     let sq' = S.as_seq h b' in
-    let pb' = parse_list p sq' in (
+    let pb' = parse (parse_list p) sq' in (
     Some? pb' /\ (
     let (Some (v, _)) = pb' in (
     v == L.tl l
@@ -264,14 +247,14 @@ val list_is_empty
   (requires (fun h ->
     S.live h b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in
+    let pl = parse (parse_list p) sq in
     Some? pl
   )))
   (ensures (fun h b' h' ->
     S.modifies_none h h' /\
     S.live h b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     b' == Nil? l
@@ -279,23 +262,6 @@ val list_is_empty
 
 let list_is_empty #t p b =
   S.length b = 0ul
-
-noextract
-let index_tail
-  (#a: Type0)
-  (l: list a)
-  (i: nat)
-: Lemma
-  (requires (
-    i < L.length l /\
-    0 < i
-  ))
-  (ensures (
-    i < L.length l /\
-    0 < i /\
-    L.index l i == L.index (L.tl l) (i - 1)
-  ))
-= ()
 
 let list_nth_slice_precond
   (#t: Type0)
@@ -307,7 +273,7 @@ let list_nth_slice_precond
 : GTot Type0
 =   S.live h b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in
     U32.v i < L.length l
@@ -334,10 +300,10 @@ let list_nth_slice_inv
   S.live (Ghost.reveal h0) b' /\
   S.includes b b' /\ (
   let sq = S.as_seq (Ghost.reveal h0) b in
-  let pl = parse_list p sq in (
+  let pl = parse (parse_list p) sq in (
   let (Some (l, _)) = pl in (
   let sq' = S.as_seq (Ghost.reveal h0) b' in
-  let pb' = parse_list p sq' in (
+  let pb' = parse (parse_list p) sq' in (
   Some? pb' /\ (
   let (Some (lr, _)) = pb' in (
   L.length lr == L.length l - j /\
@@ -398,7 +364,7 @@ val list_nth_slice
   (requires (fun h ->
     S.live h b /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     U32.v i < L.length l
@@ -409,7 +375,7 @@ val list_nth_slice
     S.live h b' /\
     S.includes b b' /\ (
     let sq = S.as_seq h b in
-    let pl = parse_list p sq in (
+    let pl = parse (parse_list p) sq in (
     Some? pl /\ (
     let (Some (l, _)) = pl in (
     U32.v i < L.length l /\ (
@@ -468,7 +434,7 @@ let validate_list_inv
   let slo = Seq.index (B.as_seq h sl) 0 in
   if interrupt
   then
-    (Some? slo ==> Some? (parse_list p sq))
+    (Some? slo ==> Some? (parse (parse_list p) sq))
   else (
     Some? slo /\ (
     let (Some sl) = slo in (
@@ -477,7 +443,7 @@ let validate_list_inv
     j <= U32.v (S.length b) /\
     U32.v (S.length sl) <= U32.v (S.length b) - j /\ (
     let sq' = S.as_seq (Ghost.reveal h0) sl in
-    (Some? (parse_list p sq') ==> Some? (parse_list p sq))
+    (Some? (parse (parse_list p) sq') ==> Some? (parse (parse_list p) sq))
   )))))
 
 inline_for_extraction
@@ -537,7 +503,9 @@ val validate_list
   (sv: stateful_validator p)
 : Tot (stateful_validator (parse_list p))
 
-let validate_list #t #p sv b =
+let validate_list #t #p sv =
+  let () = () in
+  fun (b: S.bslice) ->
   let h0 = HST.get () in
   HST.push_frame ();
   let h1 = HST.get () in
@@ -556,7 +524,7 @@ let validate_list #t #p sv b =
   B.lemma_reveal_modifies_1 sl h2 h3;
   assert (S.as_seq h3 b == S.as_seq h0 b);
   let tail = B.index sl 0ul in
-  let res : option (n: U32.t { U32.v n <= U32.v (S.length b) } ) =
+  let res : option (n: consumed_slice_length b) =
     if interrupt
     then match tail with
     | None -> None
@@ -574,7 +542,7 @@ let validate_list #t #p sv b =
     pre /\
     S.live h0 b /\ (
     let s = S.as_seq h0 b in
-    let pl = parse_list p s in (
+    let pl = parse (parse_list p) s in (
     Some? pl /\ (
     let (Some (_, consumed)) = pl in
     let (Some consumed') = res in

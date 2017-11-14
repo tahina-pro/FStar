@@ -17,10 +17,10 @@ let parse_sized #t p sz =
   if Seq.length s < sz
   then None
   else
-    let (sz: nat { sz <= Seq.length s } ) = sz in
+    let (sz: consumed_length s) = sz in
     match p (Seq.slice s 0 sz) with
     | Some (v, consumed) ->
-      if consumed = sz
+      if (consumed <: nat) = (sz <: nat)
       then Some (v, sz)
       else None
     | _ -> None
@@ -32,8 +32,8 @@ let validate_sized
   (ps: stateful_validator p)
   (len': U32.t)
 : Tot (stateful_validator (parse_sized p (U32.v len')))
-= fun input ->
-  let blen = S.BSlice?.len input in
+= fun (input: S.bslice) ->
+  let blen = S.length input in
   if U32.lt blen len'
   then begin
     None
@@ -42,7 +42,7 @@ let validate_sized
     match ps input' with
     | Some consumed ->
       if consumed = len'
-      then Some consumed
+      then Some ((consumed <: U32.t) <: consumed_slice_length input)
       else None
     | _ -> None
   end
@@ -53,7 +53,7 @@ let validate_sized_nochk
   (p: parser t)
   (len: U32.t)
 : Tot (stateful_validator_nochk (parse_sized p (U32.v len)))
-= fun _ -> len
+= validate_constant_size_nochk len (parse_sized p (U32.v len))
 
 let integer_size : Type0 = (sz: nat { 1 <= sz /\ sz <= 4 } )
 

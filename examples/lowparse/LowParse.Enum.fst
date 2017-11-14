@@ -98,10 +98,10 @@ let rec parse_enum_key
 : Tot (parser (enum_key e))
 = (p
     `parse_filter`
-    (fun r -> L.mem r (L.map snd e))
+    (fun (r: repr) -> L.mem r (L.map snd e))
   )
   `parse_synth`
-  (fun x -> enum_key_of_repr e x)
+  (fun (x: repr {L.mem x (L.map snd e) == true})  -> enum_key_of_repr e x)
 
 let mk_if (test e_true e_false: T.term) : Tot T.term =
   let br_true = (T.Pat_Constant T.C_True, e_true) in

@@ -14,32 +14,10 @@ val parse_tagged_union
 
 let parse_tagged_union #tag #tu pt p =
   pt `and_then` (fun (v: tag) ->
-    parse_synth #(tu v) #(t: tag & tu t) (p v) (fun (v': tu v) -> (| v, v' |)
-  ))
-
-val validate_tagged_union
-  (#tag: Type0)
-  (#tu: tag -> Type0)
-  (#pt: parser tag)
-  (pt_st: parser_st pt)
-  (#p: (t: tag) -> Tot (parser (tu t)))
-  (v_st: (t: tag) -> Tot (stateful_validator (p t)))
-: Tot (stateful_validator (parse_tagged_union pt p))
-
-let validate_tagged_union #tag #tu #pt pt_st #p v_st =
-  parse_then_check pt_st #(t : tag & tu t) #(fun v -> parse_synth #(tu v) #(t: tag & tu t) (p v) (fun (v': tu v) -> (| v, v' |) )) (fun v -> validate_synth #(tu v) #(t: tag & tu t) #(p v) (v_st v) (fun (v': tu v) -> (| v, v' |)))
-
-val validate_tagged_union_nochk
-  (#tag: Type0)
-  (#tu: tag -> Type0)
-  (#pt: parser tag)
-  (pt_st: parser_st_nochk pt)
-  (#p: (t: tag) -> Tot (parser (tu t)))
-  (v_st: (t: tag) -> Tot (stateful_validator_nochk (p t)))
-: Tot (stateful_validator_nochk (parse_tagged_union pt p))
-
-let validate_tagged_union_nochk #tag #tu #pt pt_st #p v_st =
-  parse_nochk_then_nochk pt_st #(t : tag & tu t) #(fun v -> parse_synth #(tu v) #(t: tag & tu t) (p v) (fun (v': tu v) -> (| v, v' |) )) (fun v -> validate_synth_nochk #(tu v) #(t: tag & tu t) #(p v) (v_st v) (fun (v': tu v) -> (| v, v' |)))
+    let pv : parser (tu v) = p v in
+    let synth : tu v -> Tot (t: tag & tu t) = fun (v': tu v) -> (| v, v' |) in
+    parse_synth #(tu v) #(t: tag & tu t) pv synth
+  )
 
 inline_for_extraction
 let sum = (repr: eqtype & (e: enum repr & ((x: enum_key e) -> Tot Type0)))
@@ -109,16 +87,17 @@ val gen_validate_sum_partial
   (vs' : ((x: sum_key_repr t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) x)))))
 : Tot (stateful_validator (parse_sum t p pc))
 
-let gen_validate_sum_partial t p ps pc vs' input =
+let gen_validate_sum_partial t p ps pc vs' =
+  (fun input ->
   match ps input with
   | Some (v1, off1) ->
     let input2 = S.advance_slice input off1 in
     begin match vs' v1 input2 with
     | Some off2 ->
-      Some (UInt32.add off1 off2)
+      Some (UInt32.add off1 off2 <: consumed_slice_length input)
     | _ -> None
     end
-  | _ -> None
+  | _ -> None) <: (stateful_validator (parse_sum t p pc))
 
 inline_for_extraction
 let lift_validator_cases

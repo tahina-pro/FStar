@@ -21,7 +21,8 @@ type lbuffer (len: nat) = b:B.buffer byte{B.length b == len}
 noeq type bslice =
   | BSlice : len:U32.t -> p:lbuffer (U32.v len) -> bslice
 
-let length (b: bslice) = b.len
+inline_for_extraction
+let length (b: bslice) : Tot U32.t = b.len
 let live h (b: bslice) = B.live h b.p
 
 noextract
@@ -34,7 +35,8 @@ let length_as_seq h (b: bslice) : Lemma
   (ensures (Seq.length (as_seq h b) == UInt32.v (length b)))
 = ()
 
-let advance_slice (b:bslice) (off:U32.t{U32.v off <= U32.v b.len}) : bslice =
+inline_for_extraction
+let advance_slice (b:bslice) (off:U32.t{U32.v off <= U32.v b.len}) : Tot bslice =
   BSlice (U32.sub b.len off) (B.sub b.p off (U32.sub b.len off))
 
 let advance_slice_spec (b:bslice) (off:U32.t{U32.v off <= U32.v b.len}) h :
@@ -59,9 +61,10 @@ let advance_slice_advance_slice
   B.sub_sub (BSlice?.p b) off1 (BSlice?.len s1) off2 (BSlice?.len s2)
 
 // pure version of truncate_slice (which is in Stack)
-val truncated_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> bslice
+val truncated_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> Tot bslice
 let truncated_slice b len = BSlice len (B.sub b.p (U32.uint_to_t 0) len)
 
+inline_for_extraction
 val truncate_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> HST.Stack bslice
   (requires (fun h0 -> live h0 b))
   (ensures (fun h0 r h1 -> live h1 b /\
