@@ -8,7 +8,7 @@ module U32 = FStar.UInt32
 module L = FStar.List.Tot
 
 inline_for_extraction
-let exa : enum U32.t = [
+let exa : enum string U32.t = [
   "K_EREF", 2ul;
   "K_HJEU", 3ul;
 ]
@@ -114,7 +114,7 @@ let parse_test_cases (x: sum_key test) : Tot (parser (sum_cases test x)) =
     | "K_EREF" -> parse_u8
 
 let parse_test
-: parser (sum_data test)
+: parser (sum_type test)
 = parse_sum test parse_u32 parse_test_cases
 
 inline_for_extraction
@@ -141,7 +141,7 @@ type fstar_test =
 noextract
 let parse_fstar_test
 : parser fstar_test
-= parse_test `parse_synth` (fun (x: sum_data test) -> match x with
+= parse_test `parse_synth` (fun (x: sum_type test) -> match x with
   | (| "K_HJEU", x |) -> K_HJEU x
   | (| "K_EREF", y |) -> K_EREF y
   )
@@ -149,7 +149,7 @@ let parse_fstar_test
 inline_for_extraction
 let validate_fstar_test
 : stateful_validator parse_fstar_test
-= validate_test `validate_synth` (fun (x: sum_data test) -> match x with
+= validate_test `validate_synth` (fun (x: sum_type test) -> match x with
   | (| "K_HJEU", x |) -> K_HJEU x
   | (| "K_EREF", y |) -> K_EREF y
   )

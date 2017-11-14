@@ -4,14 +4,14 @@ include LowParse.Base
 module L = FStar.List.Tot
 module T = FStar.Tactics
 
-type enum (repr: eqtype) = (l: list (string * repr) {
+type enum (key: eqtype) (repr: eqtype) = (l: list (key * repr) {
   L.noRepeats (L.map fst l) /\
   L.noRepeats (L.map snd l)
 })
 
-type enum_key (#repr: eqtype) (e: enum repr) = (s: string { L.mem s (L.map fst e) } )
+type enum_key (#key #repr: eqtype) (e: enum key repr) = (s: key { L.mem s (L.map fst e) } )
 
-type enum_repr (#repr: eqtype) (e: enum repr) = (r: repr { L.mem r (L.map snd e) } )
+type enum_repr (#key #repr: eqtype) (e: enum key repr) = (r: repr { L.mem r (L.map snd e) } )
 
 let flip (#a #b: Type) (c: (a * b)) : Tot (b * a) = let (ca, cb) = c in (cb, ca)
 
@@ -76,8 +76,8 @@ let rec assoc_flip_intro
   assoc_flip_elim (L.map flip l) x y
 
 let rec enum_key_of_repr
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (r: enum_repr e)
 : Pure (enum_key e)
   (requires True)
@@ -92,9 +92,9 @@ let rec enum_key_of_repr
 
 noextract
 let rec parse_enum_key
-  (#repr: eqtype)
+  (#key #repr: eqtype)
   (p: parser repr)
-  (e: enum repr)
+  (e: enum key repr)
 : Tot (parser (enum_key e))
 = (p
     `parse_filter`
@@ -110,8 +110,8 @@ let mk_if (test e_true e_false: T.term) : Tot T.term =
   m
 
 let rec enum_repr_of_key
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (k: enum_key e)
 : Pure (enum_repr e)
   (requires True)
@@ -124,24 +124,24 @@ let rec enum_repr_of_key
   (r <: enum_repr e)
 
 let enum_repr_of_key_of_repr
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (r: enum_repr e)
 : Lemma
   (enum_repr_of_key e (enum_key_of_repr e r) == r)
 = ()
 
 let enum_key_of_repr_of_key
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (k: enum_key e)
 : Lemma
   (enum_key_of_repr e (enum_repr_of_key e k) == k)
 = assoc_flip_intro e (enum_repr_of_key e k) k
 
 let discr_prop
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (k: enum_key e)
   (x: repr)
 : Lemma
@@ -150,8 +150,8 @@ let discr_prop
 
 inline_for_extraction
 let discr
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (k: enum_key e)
 : Tot (
     (x: repr) ->
@@ -162,16 +162,16 @@ let discr
     discr_prop e k x;
     x = r
 
-let unknown_enum_key (#repr: eqtype) (e: enum repr) : Tot Type0 =
+let unknown_enum_key (#key #repr: eqtype) (e: enum key repr) : Tot Type0 =
   (r: repr { L.mem r (L.map snd e) == false } )
 
-type maybe_unknown_key (#repr: eqtype) (e: enum repr) =
+type maybe_unknown_key (#key #repr: eqtype) (e: enum key repr) =
 | Known of (enum_key e)
 | Unknown of (unknown_enum_key e)
 
 let maybe_unknown_key_of_repr
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (r: repr)
 : Tot (maybe_unknown_key e)
 = if L.mem r (L.map snd e)
@@ -179,25 +179,25 @@ let maybe_unknown_key_of_repr
   else Unknown r
 
 val enum_univ_destr_spec_gen
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (t: (maybe_unknown_key e -> Tot Type0))
   (f: ((k: maybe_unknown_key e) -> Tot (t k)))
   (r: repr)
 : Tot (t (maybe_unknown_key_of_repr e r))
 
-let enum_univ_destr_spec_gen #repr e t f r =
+let enum_univ_destr_spec_gen #key #repr e t f r =
   f (maybe_unknown_key_of_repr e r)
 
 val enum_univ_destr_spec
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (t: (enum_key e -> Tot Type0))
   (f: ((k: enum_key e) -> Tot (t k)))
   (r: enum_repr e)
 : Tot (t (enum_key_of_repr e r))
 
-let enum_univ_destr_spec #repr e t f r =
+let enum_univ_destr_spec #key #repr e t f r =
   f (enum_key_of_repr e r)
 
 inline_for_extraction
@@ -209,24 +209,24 @@ let id
 
 inline_for_extraction
 let enum_key_cons_coerce
-  (#repr: eqtype)
-  (e: enum repr)
-  (k' : string)
+  (#key #repr: eqtype)
+  (e: enum key repr)
+  (k' : key)
   (r' : repr)
-  (e' : enum repr)
+  (e' : enum key repr)
   (k: enum_key e')
 : Pure (enum_key e)
   (requires (e == (k', r') :: e'))
   (ensures (fun _ -> True))
-= (k <: string) <: enum_key e
+= (k <: key) <: enum_key e
 
 inline_for_extraction
 let enum_repr_cons_coerce_recip
-  (#repr: eqtype)
-  (e: enum repr)
-  (k' : string)
+  (#key #repr: eqtype)
+  (e: enum key repr)
+  (k' : key)
   (r' : repr)
-  (e' : enum repr)
+  (e' : enum key repr)
   (k: enum_repr e)
 : Pure (enum_repr e')
   (requires (e == (k', r') :: e' /\ r' <> k))
@@ -245,8 +245,8 @@ let mk_coercion
 
 noextract
 let rec gen_enum_univ_destr_body
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (t: ((k: enum_key e) -> Tot Type0))
   (f: ((k: enum_key e) -> Tot (t k)))
   (r: T.term)
@@ -256,7 +256,7 @@ let rec gen_enum_univ_destr_body
   (decreases e)
 = match e with
   | ((k', r') :: e') ->
-    let e' : enum repr = e' in
+    let e' : enum key repr = e' in
     let k' : enum_key e = k' in
     let fk' = f k' in
     T.bind (T.quote fk') (fun rt ->
@@ -264,7 +264,7 @@ let rec gen_enum_univ_destr_body
       | [] -> T.return rt
       | _ ->
       T.bind (T.quote t) (fun t' ->
-      T.bind (T.quote (enum_key_of_repr #repr e)) (fun myu ->
+      T.bind (T.quote (enum_key_of_repr #key #repr e)) (fun myu ->
       let m_type = T.mk_app t' [T.mk_app myu [r, T.Q_Explicit], T.Q_Explicit] in
       T.bind (mk_coercion rt m_type) (fun rt_constr ->
       T.bind (T.quote (op_Equality #repr r')) (fun eq_repr_k' ->
@@ -272,15 +272,15 @@ let rec gen_enum_univ_destr_body
           (r, T.Q_Explicit);
         ]
         in
-	T.bind (T.quote (enum_repr_cons_coerce_recip #repr e k' r' e')) (fun q_r_false ->
+	T.bind (T.quote (enum_repr_cons_coerce_recip #key #repr e k' r' e')) (fun q_r_false ->
         T.bind (
           gen_enum_univ_destr_body
             e'
             (fun (k: enum_key e') ->
-              t (enum_key_cons_coerce #repr e k' r' e' k)
+              t (enum_key_cons_coerce #key #repr e k' r' e' k)
             )
             (fun (k: enum_key e') ->
-              f (enum_key_cons_coerce #repr e k' r' e' k)
+              f (enum_key_cons_coerce #key #repr e k' r' e' k)
             )
             (T.mk_app q_r_false [r, T.Q_Explicit])
         ) (fun t' ->
@@ -291,30 +291,30 @@ let rec gen_enum_univ_destr_body
 
 noextract
 let rec gen_enum_univ_destr
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (t: (enum_key e -> Tot Type0))
   (f: ((k: enum_key e) -> Tot (t k)))
 : Tot (T.tactic unit)
 = let open T in
   match e with
   | _ :: _ ->
-    tk <-- quote (enum_repr #repr e) ;
+    tk <-- quote (enum_repr #key #repr e) ;
     let x = fresh_binder tk in
     let r = T.pack (T.Tv_Var x) in
-    body <-- gen_enum_univ_destr_body #repr e t f r ;
+    body <-- gen_enum_univ_destr_body #key #repr e t f r ;
     let res = T.pack (T.Tv_Abs x body) in
     _ <-- print (term_to_string res) ;
     t_exact true false (return res)
   | _ ->
-    let g (r: enum_repr #repr e) : Tot (t (enum_key_of_repr #repr e r)) =
+    let g (r: enum_repr #key #repr e) : Tot (t (enum_key_of_repr #key #repr e r)) =
       false_elim ()
     in
     exact_guard (quote g)
 
 let maybe_unknown_key_or_excluded
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (excluded: list repr)
 : Tot Type0
 = (k: maybe_unknown_key e {
@@ -325,23 +325,23 @@ let maybe_unknown_key_or_excluded
 
 inline_for_extraction
 let maybe_unknown_key_or_excluded_cons_coerce
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (excluded: list repr)
-  (k' : string)
+  (k' : key)
   (r' : repr)
-  (e' : enum repr)
+  (e' : enum key repr)
   (k: maybe_unknown_key_or_excluded e' (r' :: excluded))
 : Pure (maybe_unknown_key_or_excluded e excluded)
   (requires (e == (k', r') :: e'))
   (ensures (fun _ -> True))
 = match k with
-  | Known r -> Known ((r <: string) <: enum_key e)
+  | Known r -> Known ((r <: key) <: enum_key e)
   | Unknown r -> Unknown ((r <: repr) <: unknown_enum_key e)
 
 let maybe_unknown_key_or_excluded_of_repr
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (excluded: list repr)
   (r: repr { L.mem r excluded == false } )
 : Tot (maybe_unknown_key_or_excluded e excluded)
@@ -349,8 +349,8 @@ let maybe_unknown_key_or_excluded_of_repr
 
 noextract
 let rec gen_enum_univ_destr_gen_body
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (excluded: list repr)
   (t: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot Type0))
   (f: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot (t k)))
@@ -375,7 +375,7 @@ let rec gen_enum_univ_destr_gen_body
     let fk' = f (Known k') in
     T.bind (T.quote fk') (fun rt ->
       T.bind (T.quote t) (fun t' ->
-      T.bind (T.quote (maybe_unknown_key_or_excluded_of_repr #repr e excluded)) (fun myu ->
+      T.bind (T.quote (maybe_unknown_key_or_excluded_of_repr #key #repr e excluded)) (fun myu ->
       let m_key = T.mk_app myu [r, T.Q_Explicit] in
       let m_type = T.mk_app t' [m_key, T.Q_Explicit] in
       T.bind (T.quote (op_Equality #repr r')) (fun eq_repr_k' ->
@@ -422,8 +422,8 @@ let rec gen_enum_univ_destr_gen_body
 
 noextract
 let rec gen_enum_univ_destr_gen
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (t: ((k: maybe_unknown_key e) -> Tot Type0))
   (f: ((k: maybe_unknown_key e) -> Tot (t k)))
   (combine_if: ((k: maybe_unknown_key e) -> Tot (if_combinator (t k))))
@@ -432,7 +432,7 @@ let rec gen_enum_univ_destr_gen
     tk <-- quote repr ;
     let x = fresh_binder tk in
     let r = T.pack (T.Tv_Var x) in
-    body <-- gen_enum_univ_destr_gen_body #repr e [] t f combine_if r ;
+    body <-- gen_enum_univ_destr_gen_body #key #repr e [] t f combine_if r ;
     let res = T.pack (T.Tv_Abs x body) in
     _ <-- print (term_to_string res) ;
     t_exact true false (return res)
@@ -440,8 +440,8 @@ let rec gen_enum_univ_destr_gen
 
 inline_for_extraction
 let is_known
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (k: maybe_unknown_key e)
 : Tot bool
 = match k with

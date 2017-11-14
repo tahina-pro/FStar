@@ -20,29 +20,33 @@ let parse_tagged_union #tag #tu pt p =
   )
 
 inline_for_extraction
-let sum = (repr: eqtype & (e: enum repr & ((x: enum_key e) -> Tot Type0)))
+let sum = (key: eqtype & (repr: eqtype & (e: enum key repr & ((x: enum_key e) -> Tot Type0))))
 
 inline_for_extraction
-let sum_key_repr (t: sum) : Tot eqtype =
-  let (| repr,  _ |) = t in repr
+let sum_key_type (t: sum) : Tot eqtype =
+  let (| key,  _ |) = t in key
 
-let sum_enum (t: sum) : Tot (enum (sum_key_repr t)) =
-  let (| _, (| e, _ |) |) = t in e
+inline_for_extraction
+let sum_repr_type (t: sum) : Tot eqtype =
+  let (| _, (| repr,  _ |) |) = t in repr
+
+let sum_enum (t: sum) : Tot (enum (sum_key_type t) (sum_repr_type t)) =
+  let (| _, (| _, (| e, _ |) |) |) = t in e
 
 let sum_key (t: sum) : Tot Type0 =
   enum_key (sum_enum t)
 
 let sum_cases (t: sum) : Tot ((x: sum_key t) -> Tot Type0) =
-  let (|_, (| _, c |) |) = t in c
+  let (|_, (| _, (| _, c |) |) |) = t in c
 
-let sum_data (t: sum) : Tot Type0 =
+let sum_type (t: sum) : Tot Type0 =
   (x: sum_key t & sum_cases t x)
 
 let parse_sum
   (t: sum)
-  (p: parser (sum_key_repr t))
+  (p: parser (sum_repr_type t))
   (pc: ((x: sum_key t) -> Tot (parser (sum_cases t x))))
-: Tot (parser (sum_data t))
+: Tot (parser (sum_type t))
 = parse_tagged_union
     #(sum_key t)
     #(sum_cases t)
@@ -51,15 +55,15 @@ let parse_sum
 
 inline_for_extraction
 let make_sum
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (cases: (enum_key e -> Tot Type0))
 : Tot sum
-= (| repr, (| e, cases |) |)
+= (| key, (| repr, (| e, cases |) |) |)
 
 let lift_cases
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (cases: (enum_key e -> Tot Type0))
   (k: maybe_unknown_key e)
 : Tot Type0
@@ -68,8 +72,8 @@ let lift_cases
   | _ -> False
 
 let lift_parser_cases
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (cases: (enum_key e -> Tot Type0))
   (pc: ((x: enum_key e) -> Tot (parser (cases x))))
   (k: maybe_unknown_key e)
@@ -81,11 +85,13 @@ let lift_parser_cases
 inline_for_extraction
 val gen_validate_sum_partial
   (t: sum)
-  (p: parser (sum_key_repr t))
+  (p: parser (sum_repr_type t))
   (ps: parser_st p)
   (pc: ((x: sum_key t) -> Tot (parser (sum_cases t x))))
-  (vs' : ((x: sum_key_repr t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) x)))))
+  (vs' : ((x: sum_repr_type t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) x)))))
 : Tot (stateful_validator (parse_sum t p pc))
+
+#set-options "--z3rlimit 16"
 
 let gen_validate_sum_partial t p ps pc vs' =
   (fun input ->
@@ -101,8 +107,8 @@ let gen_validate_sum_partial t p ps pc vs' =
 
 inline_for_extraction
 let lift_validator_cases
-  (#repr: eqtype)
-  (e: enum repr)
+  (#key #repr: eqtype)
+  (e: enum key repr)
   (cases: (enum_key e -> Tot Type0))
   (pc: ((x: enum_key e) -> Tot (parser (cases x))))
   (vs: ((x: enum_key e) -> Tot (stateful_validator (pc x))))
