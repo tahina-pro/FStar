@@ -6,12 +6,13 @@ module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
+module Ghost = FStar.Ghost
 
 type byte = U8.t
-let bytes = Seq.seq byte
+let bytes = S.bytes
 /// the abstract model of input is a sequence of bytes, with a limit on size so
 /// offsets always fit in a U32.t
-let bytes32 = bs:bytes{ Seq.length bs < pow2 32}
+let bytes32 = S.bytes32
 
 /// parse a value of type t
 ///
@@ -774,3 +775,100 @@ let default_if
 -> if cond
   then s_true ()
   else s_false ()
+
+(** Slices that exactly correspond to some parsed data *)
+
+unfold
+let parses
+  (#t: Type0)
+  (h: HS.mem)
+  (p: parser t)
+  (s: S.bslice)
+  (k: ((t * consumed_slice_length s) -> GTot Type0))
+: GTot Type0
+= S.live h s /\ (
+  let sq : bytes32 = S.as_seq h s in
+  let y = p sq in (
+  Some? y /\ (
+  let (Some (v', l)) = y in
+  k (v', U32.uint_to_t l)
+  )))
+
+unfold
+let exactly_parses
+  (#t: Type0)
+  (h: HS.mem)
+  (p: parser t)
+  (s: S.bslice)
+  (k: (t -> GTot Type0))
+: GTot Type0
+= S.live h s /\ (
+  let sq : bytes32 = S.as_seq h s in
+  let y = p sq in (
+  Some? y /\ (
+  let (Some (v', len)) = y in
+  len == U32.v (S.length s) /\
+  k v'
+  )))
+
+inline_for_extraction
+val validate_and_split
+  (#t: Type0)
+  (#p: parser t)
+  (sv: stateful_validator p)
+  (s: S.bslice)
+: HST.Stack (option (S.bslice * S.bslice))
+  (requires (fun h ->
+    S.live h s
+  ))
+  (ensures (fun h r h' ->
+    S.modifies_none h h' /\
+    S.live h s /\
+    (Some? r ==> (
+    let (Some (sl, sr)) = r in
+    S.is_concat s sl sr /\
+    parses h p s (fun (v, l) ->
+    exactly_parses h p sl (fun v' ->
+    S.length sl == l /\
+    v == v'
+  ))))))
+
+let validate_and_split #t #p sv s =
+  match sv s with
+  | Some consumed ->
+    let sl = S.truncate_slice s consumed in
+    let sr = S.advance_slice s consumed in
+    let h = HST.get () in
+    assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
+    Some (sl, sr)
+  | _ -> None
+
+inline_for_extraction
+val split
+  (#t: Type0)
+  (#p: parser t)
+  (sv: stateful_validator_nochk p)
+  (s: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.live h s /\
+    parses h p s (fun _ -> True)
+  ))
+  (ensures (fun h r h' ->
+    S.modifies_none h h' /\
+    S.live h s /\ (
+    let (sl, sr) = r in
+    S.is_concat s sl sr /\
+    parses h p s (fun (v, l) ->
+    exactly_parses h p sl (fun v' ->
+    S.length sl == l /\
+    v == v'
+  )))))
+
+let split #t #p sv s =
+  let consumed = sv s in
+  let sl = S.truncate_slice s consumed in
+  let sr = S.advance_slice s consumed in
+  let h = HST.get () in
+  assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
+  (sl, sr)

@@ -11,6 +11,9 @@ module U32 = FStar.UInt32
 
 type byte = U8.byte
 type bytes = Seq.seq byte
+/// the abstract model of input is a sequence of bytes, with a limit on size so
+/// offsets always fit in a U32.t
+let bytes32 = bs:bytes{ Seq.length bs < pow2 32}
 
 (*** Slices: buffers with runtime length *)
 
@@ -35,13 +38,13 @@ let as_buffer
 = b.p
 
 noextract
-let as_seq h (b: bslice) : Ghost (s:bytes{Seq.length s == U32.v b.len})
+let as_seq h (b: bslice) : Ghost (s:bytes32 {Seq.length s == U32.v b.len})
   (requires (live h b))
   (ensures (fun _ -> True)) = B.as_seq h b.p
 
 let length_as_seq h (b: bslice) : Lemma
   (requires (live h b))
-  (ensures (Seq.length (as_seq h b) == UInt32.v (length b)))
+  (ensures (Seq.length (as_seq h b) == U32.v (length b)))
 = ()
 
 noextract
@@ -141,3 +144,278 @@ let includes_trans (b1 b2 b3: bslice) : Lemma
 let modifies_none = B.modifies_none
 
 (*! Splitting slices into two parts *)
+
+let buffer_is_concat
+  (#t: Type)
+  (b: B.buffer t)
+  (b1 b2: B.buffer t)
+: GTot Type0
+= B.length b == B.length b1 + B.length b2 /\
+  b1 == B.sub b 0ul (U32.uint_to_t (B.length b1)) /\
+  b2 == B.sub b (U32.uint_to_t (B.length b1)) (U32.uint_to_t (B.length b2))
+
+let buffer_is_concat_intro
+  (#t: Type)
+  (b: B.buffer t)
+  (i: U32.t)
+: Lemma
+  (requires (U32.v i <= B.length b))
+  (ensures (
+    U32.v i <= B.length b /\
+    buffer_is_concat b (B.sub b 0ul i) (B.sub b i (U32.sub (U32.uint_to_t (B.length b)) i))
+  ))
+= ()
+
+let buffer_is_concat_zero_l
+  (#t: Type)
+  (b: B.buffer t)
+: Lemma
+  (buffer_is_concat b (B.sub b 0ul 0ul) b)
+= ()
+
+let buffer_is_concat_zero_r
+  (#t: Type)
+  (b: B.buffer t)
+: Lemma
+  (buffer_is_concat b b (B.sub b (U32.uint_to_t (B.length b)) 0ul))
+= ()
+
+let buffer_is_concat_assoc
+  (#t: Type)
+  (b123 b12 b23 b1 b2 b3: B.buffer t)
+: Lemma
+  (requires (
+    buffer_is_concat b12 b1 b2 /\
+    buffer_is_concat b23 b2 b3
+  ))
+  (ensures (
+    buffer_is_concat b123 b1 b23 <==> buffer_is_concat b123 b12 b3
+  ))
+= ()
+
+let buffer_is_concat_live
+  (#t: Type)
+  (h: HS.mem)
+  (b12 b1 b2: B.buffer t)
+: Lemma
+  (requires (
+    buffer_is_concat b12 b1 b2 /\ (
+    B.live h b1 \/
+    B.live h b2 \/
+    B.live h b12
+  )))
+  (ensures (
+    B.live h b1 /\
+    B.live h b2 /\
+    B.live h b12
+  ))
+= ()
+
+let is_concat
+  (b: bslice)
+  (b1 b2: bslice)
+: GTot Type0
+= buffer_is_concat (as_buffer b) (as_buffer b1) (as_buffer b2)
+
+let is_concat_intro
+  (#t: Type)
+  (b: bslice)
+  (i: U32.t)
+: Lemma
+  (requires (U32.v i <= U32.v (length b)))
+  (ensures (
+    U32.v i <= U32.v (length b) /\
+    is_concat b (truncated_slice b i) (advanced_slice b i)
+  ))
+= ()
+
+let is_concat_assoc
+  (#t: Type)
+  (b123 b12 b23 b1 b2 b3: bslice)
+: Lemma
+  (requires (
+    is_concat b12 b1 b2 /\
+    is_concat b23 b2 b3
+  ))
+  (ensures (
+    is_concat b123 b1 b23 <==> is_concat b123 b12 b3
+  ))
+= ()
+
+let is_concat_live
+  (h: HS.mem)
+  (b12 b1 b2: bslice)
+: Lemma
+  (requires (
+    is_concat b12 b1 b2 /\ (
+    live h b1 \/
+    live h b2 \/
+    live h b12
+  )))
+  (ensures (
+    live h b1 /\
+    live h b2 /\
+    live h b12
+  ))
+= ()
+
+let is_prefix (short long: bslice) : GTot Type0 =
+  U32.v (length short) <= U32.v (length long) /\ (
+    let tail = advanced_slice long (length short) in
+    is_concat long short tail
+  )
+
+let is_prefix_refl (b: bslice) : Lemma (is_prefix b b) = ()
+
+let is_prefix_truncated_slice
+  (b: bslice)
+  (i: U32.t)
+: Lemma
+  (requires (U32.v i <= U32.v (length b)))
+  (ensures (
+    U32.v i <= U32.v (length b) /\
+    is_prefix (truncated_slice b i) b
+  ))
+= ()
+
+let rec is_concat_gen
+  (b: bslice)
+  (l: list bslice)
+: GTot Type0
+  (decreases l)
+= match l with
+  | [] -> length b == 0ul
+  | b1 :: q ->
+    is_prefix b1 b /\ (
+      let b' = advanced_slice b (length b1) in
+      is_concat_gen b' q
+    )
+
+let is_concat_is_concat_gen
+  (b b1 b2: bslice)
+: Lemma
+  (is_concat b b1 b2 <==> is_concat_gen b [b1; b2])
+= ()
+
+let is_prefix_is_concat_is_prefix
+  (b b12 b1 b2: bslice)
+: Lemma
+  (requires (
+    is_prefix b12 b /\
+    is_concat b12 b1 b2
+  ))
+  (ensures (
+    is_prefix b1 b
+  ))
+= ()
+
+let advanced_slice_is_prefix
+  (short long: bslice)
+  (i: U32.t)
+: Lemma
+  (requires (
+    U32.v i <= U32.v (length short) /\
+    is_prefix short long
+  ))
+  (ensures (
+    U32.v i <= U32.v (length short) /\
+    U32.v i <= U32.v (length long) /\
+    is_prefix (advanced_slice short i) (advanced_slice long i)
+  ))
+= ()
+
+module L = FStar.List.Tot
+
+let is_concat_gen_cons
+  (b: bslice)
+  (b1: bslice)
+  (q: list bslice)
+: Lemma
+  (requires (
+    is_prefix b1 b /\ (
+      let b' = advanced_slice b (length b1) in
+      is_concat_gen b' q
+  )))
+  (ensures (is_concat_gen b (b1 :: q)))
+= ()
+  
+#set-options "--z3rlimit 16"
+
+let rec is_concat_gen_append_intro_l
+  (b bl: bslice)
+  (ll lr: list bslice)
+: Lemma
+  (requires (
+    is_concat_gen b (bl :: lr) /\
+    is_concat_gen bl ll
+  ))
+  (ensures (
+    is_concat_gen b (L.append ll lr)
+  ))
+  (decreases ll)
+= match ll with
+  | [] -> ()
+  | (b' :: ll') ->
+    assert (U32.v (length bl) <= U32.v (length b));
+    assert (U32.v (length b') <= U32.v (length bl));   
+    assert (is_prefix bl b);
+    let bl_ = advanced_slice bl (length b') in
+    let b_ = advanced_slice b (length b') in
+    is_concat_gen_append_intro_l b_ bl_ ll' lr
+
+let rec is_concat_gen_append_intro
+  (b bm: bslice)
+  (ll lm lr: list bslice)
+: Lemma
+  (requires (
+    is_concat_gen b (L.append ll (bm :: lr)) /\
+    is_concat_gen bm lm
+  ))
+  (ensures (
+    is_concat_gen b (L.append ll (L.append lm lr))
+  ))
+  (decreases ll)
+= match ll with
+  | [] -> is_concat_gen_append_intro_l b bm lm lr
+  | b' :: ll' ->
+    is_concat_gen_append_intro (advanced_slice b (length b')) bm ll' lm lr
+
+#set-options "--z3rlimit 32"
+
+let rec is_concat_gen_append_elim_l
+  (b bl: bslice)
+  (ll lr: list bslice)
+: Lemma
+  (requires (
+    is_concat_gen b (L.append ll lr) /\
+    is_concat_gen bl ll /\
+    Cons? ll
+  ))
+  (ensures (
+    is_concat_gen b (bl :: lr)
+  ))
+  (decreases ll)
+= match ll with
+  | [_] -> ()
+  | (b' :: ll') ->
+    let bl_ = advanced_slice bl (length b') in
+    let b_ = advanced_slice b (length b') in
+    is_concat_gen_append_elim_l b_ bl_ ll' lr
+
+let rec is_concat_gen_append_elim
+  (b bm: bslice)
+  (ll lm lr: list bslice)
+: Lemma
+  (requires (
+    is_concat_gen b (L.append ll (L.append lm lr)) /\
+    is_concat_gen bm lm /\
+    Cons? lm
+  ))
+  (ensures (
+    is_concat_gen b (L.append ll (bm :: lr))
+  ))
+  (decreases ll)
+= match ll with
+  | [] -> is_concat_gen_append_elim_l b bm lm lr
+  | b' :: ll' ->
+    is_concat_gen_append_elim (advanced_slice b (length b')) bm ll' lm lr

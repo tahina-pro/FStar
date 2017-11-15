@@ -45,13 +45,36 @@ val parse_list_weak
 
 let parse_list_weak #t p = (fun b -> parse_list_aux #t p b ()) <: weak_parser (list t)
 
+noextract
+let rec parse_list_weak_consumed
+  (#t: Type0)
+  (p: parser t)
+  (b: bytes32)
+: Lemma
+  (requires (Some? (parse_list_weak p b)))
+  (ensures (
+    let pb = parse_list_weak p b in (
+    Some? pb /\ (
+    let (Some (_, consumed)) = pb in
+    consumed == Seq.length b
+  ))))
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then ()
+  else
+    let (Some (_, consumed1)) = p b in
+    let b' = Seq.slice b consumed1 (Seq.length b) in
+    parse_list_weak_consumed p b'
+
 let no_lookahead_on_parse_list_weak
   (#t: Type0)
   (p: parser t)
   (x x' : bytes32)
 : Lemma
   (no_lookahead_on (list t) (parse_list_weak p) x x')
-= admit ()
+= match parse_list_weak p x with
+  | Some _ -> parse_list_weak_consumed p x
+  | _ -> ()
 
 noextract
 val parse_list
@@ -64,7 +87,7 @@ let parse_list #t p =
   parse_list_weak p
 
 noextract
-let rec parse_list_consumed
+let parse_list_consumed
   (#t: Type0)
   (p: parser t)
   (b: bytes32)
@@ -77,12 +100,7 @@ let rec parse_list_consumed
     consumed == Seq.length b
   ))))
   (decreases (Seq.length b))
-= if Seq.length b = 0
-  then ()
-  else
-    let (Some (_, consumed1)) = p b in
-    let b' = Seq.slice b consumed1 (Seq.length b) in
-    parse_list_consumed p b'
+= parse_list_weak_consumed p b
 
 noextract
 let rec parse_list_tailrec
@@ -169,74 +187,30 @@ let rec parse_list_tailrec_correct
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
 
 inline_for_extraction
-val list_head
-  (#t: Type0)
-  (p: parser t)
-  (b: S.bslice)
-: HST.Stack S.bslice
-  (requires (fun h ->
-    S.live h b /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in (
-    Cons? l
-  ))))))
-  (ensures (fun h b' h' ->
-    S.modifies_none h h' /\
-    S.live h b /\
-    S.live h b' /\
-    S.includes b b' /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in (
-    Cons? l /\ (
-    let sq' = S.as_seq h b' in
-    let pb' = p sq' in (
-    Some? pb' /\ (
-    let (Some (v, _)) = pb' in (
-    v == L.hd l
-  ))))))))))
-
-let list_head #t p b = b
-
-inline_for_extraction
-val list_tail
+val list_head_tail
   (#t: Type0)
   (#p: parser t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
-: HST.Stack S.bslice
+: HST.Stack (S.bslice * S.bslice)
   (requires (fun h ->
-    S.live h b /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in (
+    parses h (parse_list p) b (fun (l, _) ->
     Cons? l
+  )))
+  (ensures (fun h r h' ->
+    S.modifies_none h h' /\ (
+    let (bh, bt) = r in
+    S.is_concat_gen b [bh; bt] /\
+    parses h (parse_list p) b (fun (l, _) ->
+    exactly_parses h p bh (fun a ->
+    parses h' (parse_list p) bt (fun (q, _) ->
+    l == a :: q
   ))))))
-  (ensures (fun h b' h' ->
-    S.modifies_none h h' /\
-    S.live h b /\
-    S.live h b' /\
-    S.includes b b' /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in (
-    Cons? l /\ (
-    let sq' = S.as_seq h b' in
-    let pb' = parse (parse_list p) sq' in (
-    Some? pb' /\ (
-    let (Some (v, _)) = pb' in (
-    v == L.tl l
-  ))))))))))
 
-let list_tail #t #p sv b =
-  let off = sv b in
-  let b' = S.advance_slice b off in
-  b'
+#set-options "--z3rlimit 32"
+
+let list_head_tail #t #p sv b =
+  split sv b
 
 inline_for_extraction
 val list_is_empty
@@ -245,20 +219,13 @@ val list_is_empty
   (b: S.bslice)
 : HST.Stack bool
   (requires (fun h ->
-    S.live h b /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in
-    Some? pl
-  )))
+    parses h (parse_list p) b (fun _ -> True)
+  ))
   (ensures (fun h b' h' ->
     S.modifies_none h h' /\
-    S.live h b /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in (
+    parses h (parse_list p) b (fun (l, _) ->
     b' == Nil? l
-  ))))))
+  )))
 
 let list_is_empty #t p b =
   S.length b = 0ul
@@ -271,13 +238,9 @@ let list_nth_slice_precond
   (i: U32.t)
   (h: HS.mem)
 : GTot Type0
-=   S.live h b /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in
+= parses h (parse_list p) b (fun (l, _) ->
     U32.v i < L.length l
-  )))
+  )
 
 let list_nth_slice_inv
   (#t: Type0)
@@ -297,18 +260,13 @@ let list_nth_slice_inv
   j <= U32.v i /\
   B.live h sl /\ (
   let b' = Seq.index (B.as_seq h sl) 0 in (
-  S.live (Ghost.reveal h0) b' /\
   S.includes b b' /\ (
-  let sq = S.as_seq (Ghost.reveal h0) b in
-  let pl = parse (parse_list p) sq in (
-  let (Some (l, _)) = pl in (
-  let sq' = S.as_seq (Ghost.reveal h0) b' in
-  let pb' = parse (parse_list p) sq' in (
-  Some? pb' /\ (
-  let (Some (lr, _)) = pb' in (
+  parses (Ghost.reveal h0) (parse_list p) b (fun (l, _) ->
+  parses (Ghost.reveal h0) (parse_list p) b' (fun (lr, _) ->
+  U32.v i < L.length l /\
   L.length lr == L.length l - j /\
   L.index l (U32.v i) == L.index lr (U32.v i - j)
-  ))))))))
+  )))))
 
 inline_for_extraction
 val list_nth_slice_advance
@@ -331,8 +289,6 @@ val list_nth_slice_advance
     list_nth_slice_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
-#set-options "--z3rlimit 16"
-
 let list_nth_slice_advance #t p sv b i h0 sl j =
   let h1 = HST.get () in
   B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl (S.as_buffer b);
@@ -341,7 +297,7 @@ let list_nth_slice_advance #t p sv b i h0 sl j =
   let h2 = HST.get () in
   assert (B.modifies_1 sl h1 h2);
   assert (S.as_seq h2 s == S.as_seq (Ghost.reveal h0) s);
-  let s' = list_tail sv s in
+  let (_, s') = list_head_tail sv s in
   let h3 = HST.get () in
   assert (B.modifies_none h2 h3);
   assert (S.as_seq h3 s == S.as_seq (Ghost.reveal h0) s);
@@ -362,29 +318,17 @@ val list_nth_slice
   (i: U32.t)
 : HST.Stack S.bslice
   (requires (fun h ->
-    S.live h b /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in (
+    parses h (parse_list p) b (fun (l, _) ->
     U32.v i < L.length l
-  ))))))
+  )))
   (ensures (fun h b' h' ->
     S.modifies_none h h' /\
-    S.live h b /\
-    S.live h b' /\
-    S.includes b b' /\ (
-    let sq = S.as_seq h b in
-    let pl = parse (parse_list p) sq in (
-    Some? pl /\ (
-    let (Some (l, _)) = pl in (
-    U32.v i < L.length l /\ (
-    let sq' = S.as_seq h b' in
-    let pb' = p sq' in (
-    Some? pb' /\ (
-    let (Some (v, _)) = pb' in (
+    S.includes b b' /\
+    parses h (parse_list p) b (fun (l, _) ->
+    exactly_parses h p b' (fun v ->
+    U32.v i < L.length l /\
     v == L.index l (U32.v i)
-  ))))))))))
+  ))))
 
 let list_nth_slice #t p sv b i =
   let h0 = HST.get () in
@@ -404,7 +348,7 @@ let list_nth_slice #t p sv b i =
   let h3 = HST.get () in
   B.lemma_reveal_modifies_1 sl h2 h3;
   let tail = B.index sl 0ul in
-  let res = list_head p tail in
+  let (res, _) = list_head_tail sv tail in
   let h4 = HST.get () in
   assert (S.as_seq h4 b == S.as_seq h0 b);
   assert (S.as_seq h4 res == S.as_seq h0 res);
