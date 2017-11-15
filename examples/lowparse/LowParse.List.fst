@@ -102,6 +102,17 @@ let parse_list_consumed
   (decreases (Seq.length b))
 = parse_list_weak_consumed p b
 
+let parse_list_exactly_parses
+  (h: HS.mem)
+  (#t: Type0)
+  (p: parser t)
+  (s: S.bslice)
+  (pred: ((list t * consumed_slice_length s) -> GTot Type0))
+: Lemma
+  (requires (parses h (parse_list p) s pred))
+  (ensures (exactly_parses h (parse_list p) s (fun v -> pred (v, S.length s))))
+= parse_list_consumed p (S.as_seq h s)
+
 noextract
 let rec parse_list_tailrec
   (#t: Type0)
