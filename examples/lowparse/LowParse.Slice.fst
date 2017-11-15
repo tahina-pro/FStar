@@ -339,7 +339,7 @@ let is_concat_gen_cons
   (ensures (is_concat_gen b (b1 :: q)))
 = ()
   
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let rec is_concat_gen_append_intro_l
   (b bl: bslice)
