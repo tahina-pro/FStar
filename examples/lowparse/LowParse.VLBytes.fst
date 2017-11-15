@@ -6,6 +6,8 @@ module S = LowParse.Slice
 module U32 = FStar.UInt32
 module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
+module IP = LowParse.Int
+module Cast = FStar.Int.Cast
 
 val parse_sized
   (#t: Type0)
@@ -66,9 +68,18 @@ let bounded_integer
 = (u: U32.t { U32.v u < pow2 (FStar.Mul.op_Star 8 i) } )
 
 assume
+val parse_bounded_integer_3
+: total_constant_size_parser 3 (bounded_integer 3)
+
 val parse_bounded_integer
   (i: integer_size)
 : Tot (total_constant_size_parser i (bounded_integer i))
+
+let parse_bounded_integer = function
+  | 1 -> parse_synth IP.parse_u8 (fun x -> Cast.uint8_to_uint32 x <: bounded_integer 1)
+  | 2 -> parse_synth IP.parse_u16 (fun x -> Cast.uint16_to_uint32 x <: bounded_integer 2)
+  | 3 -> parse_bounded_integer_3
+  | 4 -> IP.parse_u32
 
 let parse_vlbytes
   (sz: integer_size)
@@ -82,9 +93,19 @@ let parse_vlbytes
   )
 
 assume
+val parse_bounded_integer_st_nochk_3
+: (parser_st_nochk (parse_bounded_integer 3))
+
+inline_for_extraction
 val parse_bounded_integer_st_nochk
   (i: integer_size)
 : Tot (parser_st_nochk (parse_bounded_integer i))
+
+let parse_bounded_integer_st_nochk = function
+  | 1 -> parse_synth_st_nochk IP.parse_u8_st_nochk (fun x -> Cast.uint8_to_uint32 x <: bounded_integer 1)
+  | 2 -> parse_synth_st_nochk IP.parse_u16_st_nochk (fun x -> Cast.uint16_to_uint32 x <: bounded_integer 2)
+  | 3 -> parse_bounded_integer_st_nochk_3
+  | 4 -> IP.parse_u32_st_nochk
 
 inline_for_extraction
 let parse_bounded_integer_st

@@ -469,6 +469,17 @@ let validate_synth_nochk
 : Tot (stateful_validator_nochk (parse_synth p1 f2))
 = fun b -> v1 b
 
+let parse_synth_st_nochk
+  (#t1: Type0)
+  (#t2: Type0)
+  (#p1: parser t1)
+  (ps1: parser_st_nochk p1)
+  (f2: t1 -> Tot t2) // Tot necessary here
+: Tot (parser_st_nochk (parse_synth p1 f2))
+= fun b ->
+  let (v1, len) = ps1 b in
+  (f2 v1, len)
+
 [@"substitute"]
 inline_for_extraction
 let parse_nochk_then_nochk
