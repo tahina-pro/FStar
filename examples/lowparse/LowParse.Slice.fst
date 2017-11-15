@@ -419,3 +419,31 @@ let rec is_concat_gen_append_elim
   | [] -> is_concat_gen_append_elim_l b bm lm lr
   | b' :: ll' ->
     is_concat_gen_append_elim (advanced_slice b (length b')) bm ll' lm lr
+
+let rec is_prefix_gen
+  (l: list bslice)
+  (b: bslice)
+: GTot Type0
+  (decreases l)
+= match l with
+  | [] -> True
+  | (b' :: l') ->
+    is_prefix b' b /\
+    is_prefix_gen l' (advanced_slice b (length b'))
+
+let is_prefix_is_prefix_gen
+  (short long: bslice)
+: Lemma
+  (is_prefix short long <==> is_prefix_gen [short] long)
+= ()
+
+let rec is_concat_gen_is_prefix_gen
+  (l: list bslice)
+  (b: bslice)
+: Lemma
+  (requires (is_concat_gen b l))
+  (ensures (is_prefix_gen l b))
+= match l with
+  | [] -> ()
+  | b' :: l' ->
+    is_concat_gen_is_prefix_gen l' (advanced_slice b (length b'))
