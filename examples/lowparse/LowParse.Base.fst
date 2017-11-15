@@ -799,7 +799,7 @@ let parses
 : GTot Type0
 = S.live h s /\ (
   let sq : bytes32 = S.as_seq h s in
-  let y = p sq in (
+  let y = parse p sq in (
   Some? y /\ (
   let (Some (v', l)) = y in
   k (v', U32.uint_to_t l)
@@ -815,7 +815,7 @@ let exactly_parses
 : GTot Type0
 = S.live h s /\ (
   let sq : bytes32 = S.as_seq h s in
-  let y = p sq in (
+  let y = parse p sq in (
   Some? y /\ (
   let (Some (v', len)) = y in
   len == U32.v (S.length s) /\

@@ -165,7 +165,7 @@ val point_to_vlbytes_contents
     v == v'
   )))))
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let point_to_vlbytes_contents #t p sz b =
   let (len, _) = parse_bounded_integer_st_nochk sz b in
