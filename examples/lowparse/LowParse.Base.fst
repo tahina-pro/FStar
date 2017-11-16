@@ -108,12 +108,44 @@ let parser_st_nochk #t (p: parser t) : Tot Type0 =
                        v == rv /\
                        n == U32.v off))))
 
+#reset-options "--z3rlimit 15"
+
+(** Slices that exactly correspond to some parsed data *)
+
+unfold
+let parses
+  (#t: Type0)
+  (h: HS.mem)
+  (p: parser t)
+  (s: S.bslice)
+  (k: ((t * consumed_slice_length s) -> GTot Type0))
+: GTot Type0
+= S.live h s /\ (
+  let sq : bytes32 = S.as_seq h s in
+  let y = parse p sq in (
+  Some? y /\ (
+  let (Some (v', l)) = y in
+  k (v', U32.uint_to_t l)
+  )))
+
+unfold
+let exactly_parses
+  (#t: Type0)
+  (h: HS.mem)
+  (p: parser t)
+  (s: S.bslice)
+  (k: (t -> GTot Type0))
+: GTot Type0
+= parses h p s (fun (v, len) -> S.length s == len /\ k v)
+
 /// A validation is an [option U32.t], where [Some off] indicates success and
 /// consumes [off] bytes. A validation checks a parse result if it returns [Some
 /// off] only when the parser also succeeds and returns the same offset, with
 /// any result. Note that a validation need not be complete (in particular,
 /// [None] validates any parse).
 
+
+(*
 let validator_checks_parse
   (#t: Type0)
   (pinput: bytes32)
@@ -138,6 +170,7 @@ let validator_checks_parse_none
   (validator_checks_parse #t pinput pv sinput None)
   [SMTPat (validator_checks_parse #t pinput pv sinput None)]
 = ()
+*)
 
 /// A stateful validator is parametrized by a specification parser. A validator
 /// does not produce a value but only checks that the data is valid. The
@@ -148,16 +181,12 @@ let stateful_validator (#t: Type0) (p: parser t) : Tot Type0 =
   input: S.bslice ->
   HST.Stack (option (consumed_slice_length input))
     (requires (fun h0 -> S.live h0 input))
-    (ensures (fun h0 r h1 -> S.live h1 input /\
-                          S.modifies_none h0 h1
-			  /\ (
-                            let bs = S.as_seq h1 input in
-			    let pv = parse p bs in
-			    validator_checks_parse #t bs pv input r
-    )))
-(*
-			  (Some? pv /\ U32.v (Some?.v r) == snd (Some?.v pv)))))))
-*)
+    (ensures (fun h0 r h1 -> S.modifies_none h0 h1 /\ (
+      Some? r ==> (
+      let (Some len) = r in
+      parses h0 p input (fun (_, len') -> len == len')
+    ))))
+
 
 /// Same thing, but where we already know that the data is valid. (In other words, how many offsets are skipped by the data being parsed.)
 inline_for_extraction
@@ -165,20 +194,76 @@ let stateful_validator_nochk (#t: Type0) (p: parser t) : Tot Type0 =
   input: S.bslice ->
   HST.Stack (consumed_slice_length input)
   (requires (fun h0 ->
-    S.live h0 input /\ (
-    let s = S.as_seq h0 input in
-    Some? (p s)
-  )))
+    parses h0 p input (fun _ -> True)
+  ))
   (ensures (fun h0 r h1 ->
-    S.live h1 input /\
-    S.modifies_none h0 h1 /\ (
-    let s = S.as_seq h1 input in (
-    Some? (p s) /\ (
-    let (Some (_, consumed)) = p s in
-    U32.v r == consumed
+    S.modifies_none h0 h1 /\
+    parses h0 p input (fun (_, len) ->
+      len == r
+  )))
+
+inline_for_extraction
+val validate_and_split
+  (#t: Type0)
+  (#p: parser t)
+  (sv: stateful_validator p)
+  (s: S.bslice)
+: HST.Stack (option (S.bslice * S.bslice))
+  (requires (fun h ->
+    S.live h s
+  ))
+  (ensures (fun h r h' ->
+    S.modifies_none h h' /\
+    S.live h s /\
+    (Some? r ==> (
+    let (Some (sl, sr)) = r in
+    S.is_concat s sl sr /\
+    parses h p s (fun (v, l) ->
+    exactly_parses h p sl (fun v' ->
+    S.length sl == l /\
+    v == v'
+  ))))))
+
+let validate_and_split #t #p sv s =
+  match sv s with
+  | Some consumed ->
+    let sl = S.truncate_slice s consumed in
+    let sr = S.advance_slice s consumed in
+    let h = HST.get () in
+    assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
+    Some (sl, sr)
+  | _ -> None
+
+inline_for_extraction
+val split
+  (#t: Type0)
+  (#p: parser t)
+  (sv: stateful_validator_nochk p)
+  (s: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.live h s /\
+    parses h p s (fun _ -> True)
+  ))
+  (ensures (fun h r h' ->
+    S.modifies_none h h' /\
+    S.live h s /\ (
+    let (sl, sr) = r in
+    S.is_concat s sl sr /\
+    parses h p s (fun (v, l) ->
+    exactly_parses h p sl (fun v' ->
+    S.length sl == l /\
+    v == v'
   )))))
 
-#reset-options "--z3rlimit 15"
+let split #t #p sv s =
+  let consumed = sv s in
+  let sl = S.truncate_slice s consumed in
+  let sr = S.advance_slice s consumed in
+  let h = HST.get () in
+  assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
+  (sl, sr)
+
 
 (** Combinators *)
  
@@ -199,7 +284,7 @@ val validate_fail (#t: Type0) : Tot (stateful_validator (fail_parser #t))
 let validate_fail #t =
   (fun (input: S.bslice) -> (
     let h = HST.get () in
-    validator_checks_parse_none #t (S.as_seq h input) ((fail_parser #t <: parser t) (S.as_seq h input)) input;
+//    validator_checks_parse_none #t (S.as_seq h input) ((fail_parser #t <: parser t) (S.as_seq h input)) input;
     None #(consumed_slice_length input)
   )) <: stateful_validator (fail_parser #t)
 
@@ -372,71 +457,29 @@ let validate_nondep_then_nochk
   (U32.add off1 off2 <: consumed_slice_length s1)
 
 inline_for_extraction
-val nondep_fst
-  (#t1: Type0)
-  (p1: parser t1)
-  (#t2: Type0)
-  (p2: parser t2)
-  (b: S.bslice)
-: HST.Stack S.bslice
-  (requires (fun h ->
-    S.live h b /\ (
-    let s = S.as_seq h b in (
-    Some? (parse (nondep_then p1 p2) s)
-  ))))
-  (ensures (fun h1 b' h2 ->
-    S.modifies_none h1 h2 /\
-    S.includes b b' /\
-    S.live h1 b /\
-    S.live h1 b' /\ (
-    let s = S.as_seq h1 b in
-    let v = parse (nondep_then p1 p2) s in
-    let s' = S.as_seq h1 b' in
-    let v' = p1 s' in (
-    Some? v /\
-    Some? v' /\ (
-    let (Some ((v_fst, _), _)) = v in
-    let (Some (v'_, _)) = v' in
-    v'_ == v_fst
-  )))))
-
-let nondep_fst #t1 p1 #t2 p2 b =
-  b
-
-inline_for_extraction
-val nondep_snd
+val nondep_destruct
   (#t1: Type0)
   (#p1: parser t1)
   (st1: stateful_validator_nochk p1)
   (#t2: Type0)
   (p2: parser t2)
   (b: S.bslice)
-: HST.Stack S.bslice
+: HST.Stack (S.bslice * S.bslice)
   (requires (fun h ->
-    S.live h b /\ (
-    let s = S.as_seq h b in (
-    Some? (parse (nondep_then p1 p2) s)
-  ))))
-  (ensures (fun h1 b' h2 ->
-    S.modifies_none h1 h2 /\
-    S.includes b b' /\
-    S.live h1 b /\
-    S.live h1 b' /\ (
-    let s = S.as_seq h1 b in
-    let v = parse (nondep_then p1 p2) s in
-    let s' = S.as_seq h1 b' in
-    let v' = p2 s' in (
-    Some? v /\
-    Some? v' /\ (
-    let (Some ((_, v_snd), _)) = v in
-    let (Some (v'_, _)) = v' in
-    v'_ == v_snd
-  )))))
+    exactly_parses h (nondep_then p1 p2) b (fun _ -> True)
+  ))
+  (ensures (fun h r h' ->
+    S.modifies_none h h' /\ (
+    let (b1, b2) = r in
+    S.is_concat_gen b [b1; b2] /\
+    exactly_parses h (nondep_then p1 p2) b (fun v ->
+    exactly_parses h p1 b1 (fun v1 ->
+    exactly_parses h p2 b2 (fun v2 ->
+    v == (v1, v2)
+  ))))))
 
-let nondep_snd #t1 #p1 st1 #t2 p2 b =
-  let off1 = st1 b in
-  let b' = S.advance_slice b off1 in
-  b'
+let nondep_destruct #t1 #p1 st1 #t2 p2 b =
+  split st1 b
 
 (** Apply a total transformation on parsed data *)
 
@@ -786,100 +829,3 @@ let default_if
 -> if cond
   then s_true ()
   else s_false ()
-
-(** Slices that exactly correspond to some parsed data *)
-
-unfold
-let parses
-  (#t: Type0)
-  (h: HS.mem)
-  (p: parser t)
-  (s: S.bslice)
-  (k: ((t * consumed_slice_length s) -> GTot Type0))
-: GTot Type0
-= S.live h s /\ (
-  let sq : bytes32 = S.as_seq h s in
-  let y = parse p sq in (
-  Some? y /\ (
-  let (Some (v', l)) = y in
-  k (v', U32.uint_to_t l)
-  )))
-
-unfold
-let exactly_parses
-  (#t: Type0)
-  (h: HS.mem)
-  (p: parser t)
-  (s: S.bslice)
-  (k: (t -> GTot Type0))
-: GTot Type0
-= S.live h s /\ (
-  let sq : bytes32 = S.as_seq h s in
-  let y = parse p sq in (
-  Some? y /\ (
-  let (Some (v', len)) = y in
-  len == U32.v (S.length s) /\
-  k v'
-  )))
-
-inline_for_extraction
-val validate_and_split
-  (#t: Type0)
-  (#p: parser t)
-  (sv: stateful_validator p)
-  (s: S.bslice)
-: HST.Stack (option (S.bslice * S.bslice))
-  (requires (fun h ->
-    S.live h s
-  ))
-  (ensures (fun h r h' ->
-    S.modifies_none h h' /\
-    S.live h s /\
-    (Some? r ==> (
-    let (Some (sl, sr)) = r in
-    S.is_concat s sl sr /\
-    parses h p s (fun (v, l) ->
-    exactly_parses h p sl (fun v' ->
-    S.length sl == l /\
-    v == v'
-  ))))))
-
-let validate_and_split #t #p sv s =
-  match sv s with
-  | Some consumed ->
-    let sl = S.truncate_slice s consumed in
-    let sr = S.advance_slice s consumed in
-    let h = HST.get () in
-    assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
-    Some (sl, sr)
-  | _ -> None
-
-inline_for_extraction
-val split
-  (#t: Type0)
-  (#p: parser t)
-  (sv: stateful_validator_nochk p)
-  (s: S.bslice)
-: HST.Stack (S.bslice * S.bslice)
-  (requires (fun h ->
-    S.live h s /\
-    parses h p s (fun _ -> True)
-  ))
-  (ensures (fun h r h' ->
-    S.modifies_none h h' /\
-    S.live h s /\ (
-    let (sl, sr) = r in
-    S.is_concat s sl sr /\
-    parses h p s (fun (v, l) ->
-    exactly_parses h p sl (fun v' ->
-    S.length sl == l /\
-    v == v'
-  )))))
-
-let split #t #p sv s =
-  let consumed = sv s in
-  let sl = S.truncate_slice s consumed in
-  let sr = S.advance_slice s consumed in
-  let h = HST.get () in
-  assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
-  (sl, sr)

@@ -38,9 +38,9 @@ let as_buffer
 = b.p
 
 noextract
-let as_seq h (b: bslice) : Ghost (s:bytes32 {Seq.length s == U32.v b.len})
+let as_seq h (b: bslice) : Ghost (s:bytes32)
   (requires (live h b))
-  (ensures (fun _ -> True)) = B.as_seq h b.p
+  (ensures (fun s -> Seq.length s == U32.v b.len)) = B.as_seq h b.p
 
 let length_as_seq h (b: bslice) : Lemma
   (requires (live h b))

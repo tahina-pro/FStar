@@ -83,3 +83,5 @@ let parse_u32_st_nochk :
 inline_for_extraction
 let parse_u32_st : parser_st (parse_u32) =
   parse_total_constant_size 4ul parse_u32_st_nochk
+
+let parse_byte: total_constant_size_parser 1 byte = parse_u8
