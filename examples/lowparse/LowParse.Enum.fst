@@ -33,6 +33,20 @@ let rec map_snd_flip (#a #b: Type) (l: list (a * b)) : Lemma
   | [] -> ()
   | _ :: q -> map_snd_flip q
 
+let rec assoc_mem_snd
+  (#a #b: eqtype)
+  (l: list (a * b))
+  (x: a)
+  (y: b)
+: Lemma
+  (requires (L.assoc x l == Some y))
+  (ensures (L.mem y (L.map snd l) == true))
+  (decreases l)
+= let ((x', y') :: l') = l in
+  if x' = x
+  then ()
+  else assoc_mem_snd l' x y
+
 let rec assoc_flip_elim
   (#a #b: eqtype)
   (l: list (a * b))
@@ -52,8 +66,15 @@ let rec assoc_flip_elim
   if y' = y
   then ()
   else begin
-    assume (x' <> x);
-    assoc_flip_elim l' y x
+    if x' = x
+    then begin
+      assert (L.mem x' (L.map fst l') == false);
+      assoc_mem_snd (L.map flip l') y x;
+      map_snd_flip l';
+      assert False
+    end
+    else
+      assoc_flip_elim l' y x
   end
 
 let rec assoc_flip_intro
