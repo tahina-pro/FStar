@@ -591,6 +591,22 @@ let validate_nondep_then_nochk
   let off2 = v2 s2 in
   (U32.add off1 off2 <: consumed_slice_length s1)
 
+[@"substitute"]
+inline_for_extraction
+let parse_nondep_then_nochk
+  (#t1: Type0)
+  (#p1: parser t1)
+  (v1: parser_st_nochk p1)
+  (#t2: Type0)
+  (#p2: parser t2)
+  (v2: parser_st_nochk p2)
+: Tot (parser_st_nochk (nondep_then p1 p2))
+= fun s1 ->
+  let (x1, off1) = v1 s1 in
+  let s2 = S.advance_slice s1 off1 in
+  let (x2, off2) = v2 s2 in
+  ((x1, x2), (U32.add off1 off2 <: consumed_slice_length s1))
+
 inline_for_extraction
 val nondep_destruct
   (#t1: Type0)
