@@ -41,29 +41,50 @@ let parse_u8_injective () : Lemma (injective parse_u8) =
   );
   make_total_constant_size_parser_injective 1 U8.t (fun b -> Seq.index b 0)
 
+(* TODO: move to FStar.Kremlin.Endianness *)
+
+let rec be_to_n_inj
+  (b1 b2: bytes)
+: Lemma
+  (requires (Seq.length b1 == Seq.length b2 /\ E.be_to_n b1 == E.be_to_n b2))
+  (ensures (Seq.equal b1 b2))
+  (decreases (Seq.length b1))
+= if Seq.length b1 = 0
+  then ()
+  else begin
+    be_to_n_inj (Seq.slice b1 0 (Seq.length b1 - 1)) (Seq.slice b2 0 (Seq.length b2 - 1));
+    Seq.lemma_split b1 (Seq.length b1 - 1);
+    Seq.lemma_split b2 (Seq.length b2 - 1)
+  end
+
+let decode_u16_injective
+  (b1: bytes32 { Seq.length b1 == 2 } )
+  (b2: bytes32 { Seq.length b2 == 2 } )
+: Lemma
+  (decode_u16 b1 == decode_u16 b2 ==> b1 == b2)
+= if decode_u16 b1 = decode_u16 b2
+  then
+    be_to_n_inj b1 b2
+  else ()
+
 let parse_u16_injective () : Lemma (injective parse_u16) =
-  assert (forall (b1: bytes32 { Seq.length b1 == 2 }) (b2: bytes32 { Seq.length b2 == 2 }) .
-    decode_u16 b1 == decode_u16 b2 ==> Seq.equal b1 b2
-  );
+  Classical.forall_intro_2 decode_u16_injective;
   make_total_constant_size_parser_injective 2 U16.t decode_u16
 
-#set-options "--z3rlimit 32 --max_fuel 8 --max_ifuel 8"
+noextract
+let decode_u32_injective
+  (b1: bytes32 { Seq.length b1 == 4 } )
+  (b2: bytes32 { Seq.length b2 == 4 } )
+: Lemma
+  (decode_u32 b1 == decode_u32 b2 ==> b1 == b2)
+= if decode_u32 b1 = decode_u32 b2
+  then
+    be_to_n_inj b1 b2
+  else ()
 
 let parse_u32_injective () : Lemma (injective parse_u32) =
-  assert (forall (b1: bytes32 { Seq.length b1 == 4 }) (b2: bytes32 { Seq.length b2 == 4 }) .
-    decode_u32 b1 == decode_u32 b2 ==> (
-      Seq.index b1 0 == Seq.index b2 0 /\
-      Seq.index b1 1 == Seq.index b2 1 /\
-      Seq.index b1 2 == Seq.index b2 2 /\
-      Seq.index b1 3 == Seq.index b2 3
-  ));
-  assert (forall (b1: bytes32 { Seq.length b1 == 4 }) (b2: bytes32 { Seq.length b2 == 4 }) .
-    decode_u32 b1 == decode_u32 b2 ==> (
-      Seq.equal b1 b2
-  ));
+  Classical.forall_intro_2 decode_u32_injective;
   make_total_constant_size_parser_injective 4 U32.t decode_u32
-
-#reset-options
 
 [@"substitute"]
 inline_for_extraction
