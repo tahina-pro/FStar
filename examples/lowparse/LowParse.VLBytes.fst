@@ -109,9 +109,14 @@ let decode_bounded_integer_injective
 : Lemma
   (decode_bounded_integer i b1 == decode_bounded_integer i b2 ==> b1 == b2)
 = if decode_bounded_integer i b1 = decode_bounded_integer i b2
-  then
+  then begin
+    E.lemma_be_to_n_is_bounded b1;
+    E.lemma_be_to_n_is_bounded b2;
+    assert (U32.v (U32.uint_to_t (E.be_to_n b1)) == E.be_to_n b1);
+    assert (U32.v (U32.uint_to_t (E.be_to_n b2)) == E.be_to_n b2);
+    assert (E.be_to_n b1 == E.be_to_n b2);
     IP.be_to_n_inj b1 b2
-  else ()
+  end else ()
 
 let parse_bounded_integer_injective
   (i: integer_size)
