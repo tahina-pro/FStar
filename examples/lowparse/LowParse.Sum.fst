@@ -4,6 +4,7 @@ include LowParse.Enum
 module S = LowParse.Slice
 module T = FStar.Tactics
 
+noextract
 val parse_tagged_union
   (#tag: Type0)
   (#tu: tag -> Type0)
@@ -69,6 +70,7 @@ let sum_cases (t: sum) : Tot ((x: sum_key t) -> Tot Type0) =
 let sum_type (t: sum) : Tot Type0 =
   (x: sum_key t & sum_cases t x)
 
+noextract
 let parse_sum
   (t: sum)
   (p: parser (sum_repr_type t))

@@ -301,7 +301,8 @@ let injective (#t: Type0) (p: parser t) : GTot Type0 =
 (** Combinators *)
  
 /// monadic return for the parser monad
-unfold let parse_ret (#t:Type) (v:t) : Tot (parser t) =
+noextract
+let parse_ret (#t:Type) (v:t) : Tot (parser t) =
   ((fun (b: bytes32) ->
     let z : consumed_length b = 0 in
     Some (v, z)) <: parser t)
@@ -314,6 +315,7 @@ let parse_ret_injective
 = ()
 
 /// parser that always fails
+noextract
 let fail_parser (#t: Type0) : Tot (parser t) =
   (fun b -> None) <: parser t
 
@@ -335,6 +337,7 @@ let validate_fail #t =
   )) <: stateful_validator (fail_parser #t)
 
 /// monadic bind for the parser monad
+noextract
 val and_then : #t:Type -> #t':Type ->
                 p:parser t ->
                 p': parse_arrow t (fun _ -> parser t') ->
@@ -523,6 +526,7 @@ let and_then_offset #t p #t' p' bs =
 
 (* Special case for non-dependent parsing *)
 
+noextract
 let nondep_then
   (#t1 #t2: Type0)
   (p1: parser t1)
@@ -634,6 +638,7 @@ let nondep_destruct #t1 #p1 st1 #t2 p2 b =
 
 (** Apply a total transformation on parsed data *)
 
+noextract
 let parse_synth
   (#t1: Type0)
   (#t2: Type0)
@@ -680,6 +685,8 @@ let validate_synth_nochk
 : Tot (stateful_validator_nochk (parse_synth p1 f2))
 = fun b -> v1 b
 
+[@"substitute"]
+inline_for_extraction
 let parse_synth_st_nochk
   (#t1: Type0)
   (#t2: Type0)
@@ -727,7 +734,7 @@ let constant_size_parser
 : Tot Type0
 = (f: parser t { constant_size_parser_prop sz t f } )
 
-inline_for_extraction
+noextract
 let make_constant_size_parser
   (sz: nat)
   (t: Type0)
@@ -780,7 +787,7 @@ let total_constant_size_parser
     (Seq.length s < sz) == (None? (f s))
   })
 
-inline_for_extraction
+noextract
 let make_total_constant_size_parser
   (sz: nat)
   (t: Type0)
@@ -859,6 +866,7 @@ let parse_total_constant_size
 
 (** Refinements *)
 
+noextract
 let parse_filter
   (#t: Type0)
   (p: parser t)

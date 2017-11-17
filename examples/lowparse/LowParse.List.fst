@@ -498,7 +498,6 @@ val validate_list
 : Tot (stateful_validator (parse_list p))
 
 let validate_list #t #p sv =
-  let () = () in
   fun (b: S.bslice) ->
   let h0 = HST.get () in
   HST.push_frame ();
@@ -508,9 +507,10 @@ let validate_list #t #p sv =
   B.lemma_reveal_modifies_0 h1 h2; // I really need to switch to my new modifies clauses very soon!
   assert (S.as_seq h2 b == S.as_seq h0 b);
   assert (validate_list_inv sv b (Ghost.hide h2) sl h2 0 false);
+  let slen = S.length b in
   let (_, interrupt) = C.Loops.interruptible_for
     0ul
-    (S.length b)
+    slen
     (fun h j inter -> validate_list_inv sv b (Ghost.hide h2) sl h j inter)
     (fun j -> validate_list_advance sv b (Ghost.hide h2) sl j)
   in

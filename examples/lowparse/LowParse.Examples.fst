@@ -113,6 +113,7 @@ let parse_test_cases (x: sum_key test) : Tot (parser (sum_cases test x)) =
     | "K_HJEU" -> parse_u16
     | "K_EREF" -> parse_u8
 
+noextract
 let parse_test
 : parser (sum_type test)
 = parse_sum test parse_u32 parse_test_cases
@@ -154,6 +155,15 @@ let validate_fstar_test
   | (| "K_EREF", y |) -> K_EREF y
   )
 
+// inline_for_extraction // FIXME: if set, then KreMLin produces no code
+let validate_list_fstar_test
+: stateful_validator (parse_list parse_fstar_test)
+= validate_list validate_fstar_test
+
+inline_for_extraction
+let test_function
+: stateful_validator (parse_vlbytes 3 (parse_list parse_fstar_test))
+=  (validate_vlbytes 3 validate_list_fstar_test)
 
 (* TODO: convert the following example into new style 
 

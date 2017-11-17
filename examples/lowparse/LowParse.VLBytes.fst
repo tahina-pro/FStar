@@ -12,6 +12,7 @@ module E = FStar.Kremlin.Endianness
 module IP = LowParse.Int
 module Cast = FStar.Int.Cast
 
+noextract
 val parse_sized
   (#t: Type0)
   (p: parser t)
@@ -93,6 +94,7 @@ let decode_bounded_integer
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
 
+noextract
 val parse_bounded_integer
   (i: integer_size)
 : Tot (total_constant_size_parser i (bounded_integer i))
@@ -118,6 +120,7 @@ let parse_bounded_integer_injective
 = Classical.forall_intro_2 (decode_bounded_integer_injective i);
   make_total_constant_size_parser_injective i (bounded_integer i) (decode_bounded_integer i)
 
+noextract
 let parse_vlbytes
   (sz: integer_size)
   (#t: Type0)
@@ -171,6 +174,7 @@ let parse_vlbytes_injective
   in
   f' ()
 
+noextract
 val parse_bounded_integer'
   (i: integer_size)
 : parser (bounded_integer i)
@@ -185,7 +189,7 @@ let parse_bounded_integer' = function
 	)
   | 4 -> IP.parse_u32
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let parse_bounded_integer'_correct
   (i: integer_size)
@@ -193,6 +197,8 @@ let parse_bounded_integer'_correct
 : Lemma
   (parse (parse_bounded_integer' i) b == parse (parse_bounded_integer i) b)
 = ()
+
+#set-options "--z3rlimit 16"
 
 inline_for_extraction
 val parse_bounded_integer_st_nochk'
@@ -276,6 +282,8 @@ val point_to_vlbytes_contents
     v == v'
   )))))
 
+#set-options "--z3rlimit 32"
+
 let point_to_vlbytes_contents #t p sz b =
   let (len, _) = parse_bounded_integer_st_nochk sz b in
   let b1 = S.advance_slice b (U32.uint_to_t sz) in
@@ -333,6 +341,7 @@ let in_bounds
 : Tot bool
 = not (U32.lt x min || U32.lt max x)
 
+noextract
 let parse_bounded_vlbytes'
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
@@ -348,6 +357,7 @@ let parse_bounded_vlbytes'
     parse_sized p (U32.v len)
   )
 
+noextract
 let parse_bounded_vlbytes
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
