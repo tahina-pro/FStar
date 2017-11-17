@@ -29,6 +29,22 @@ let parse_sized #t p sz =
       else None
     | _ -> None
 
+let parse_sized_injective
+  (#t: Type0)
+  (p: parser t)
+  (sz: nat)
+: Lemma
+  (requires (injective p))
+  (ensures (injective (parse_sized p sz)))
+= let f
+    (b1 b2: bytes32)
+  : Lemma
+    (requires (injective_precond (parse_sized p sz) b1 b2))
+    (ensures (injective_postcond (parse_sized p sz) b1 b2))
+  = assert (injective_precond p (Seq.slice b1 0 sz) (Seq.slice b2 0 sz))
+  in
+  Classical.forall_intro_2 (fun b -> Classical.move_requires (f b))
+
 inline_for_extraction
 let validate_sized
   (#t: Type0)
@@ -71,6 +87,10 @@ assume
 val parse_bounded_integer_3
 : total_constant_size_parser 3 (bounded_integer 3)
 
+assume
+val parse_bounded_integer_3_injective
+: unit -> Lemma (injective parse_bounded_integer_3)
+
 val parse_bounded_integer
   (i: integer_size)
 : Tot (total_constant_size_parser i (bounded_integer i))
@@ -81,16 +101,74 @@ let parse_bounded_integer = function
   | 3 -> parse_bounded_integer_3
   | 4 -> IP.parse_u32
 
+let parse_bounded_integer_injective
+  (i: integer_size)
+: Lemma
+  (injective (parse_bounded_integer i))
+= match i with
+  | 1 ->
+    IP.parse_u8_injective ();
+    parse_synth_injective IP.parse_u8 (fun x -> Cast.uint8_to_uint32 x <: bounded_integer 1)
+  | 2 ->
+    IP.parse_u16_injective ();
+    parse_synth_injective IP.parse_u16 (fun x -> Cast.uint16_to_uint32 x <: bounded_integer 2)
+  | 3 ->
+    parse_bounded_integer_3_injective ()
+  | 4 ->
+    IP.parse_u32_injective ()
+
 let parse_vlbytes
   (sz: integer_size)
   (#t: Type0)
   (p: parser t)
 : Tot (parser t)
-= (parse_bounded_integer sz)
-  `and_then`
-  (fun len ->
+= let parse_payload (len: bounded_integer sz) : Tot (parser t) =
     parse_sized p (U32.v len)
-  )
+  in
+  (parse_bounded_integer sz)
+  `and_then`
+  parse_payload
+
+#set-options "--z3rlimit 16"
+
+let parse_vlbytes_injective
+  (sz: integer_size)
+  (#t: Type0)
+  (p: parser t)
+: Lemma
+  (requires (injective p))
+  (ensures (injective (parse_vlbytes sz p)))
+= let parse_payload (len: bounded_integer sz) : Tot (parser t) =
+    parse_sized p (U32.v len)
+  in
+  let f
+    (len: bounded_integer sz)
+  : Lemma
+    (injective (parse_payload len))
+  = parse_sized_injective p (U32.v len)
+  in
+  let g
+    (len1 len2: bounded_integer sz)
+    (b1 b2: bytes32)
+  : Lemma
+    (requires (and_then_cases_injective_precond parse_payload len1 len2 b1 b2))
+    (ensures (len1 == len2))
+  = assert (injective_precond p (Seq.slice b1 0 (U32.v len1)) (Seq.slice b2 0 (U32.v len2)));
+    assert (injective_postcond p (Seq.slice b1 0 (U32.v len1)) (Seq.slice b2 0 (U32.v len2)));
+    assert (len1 == len2)
+  in
+  let g' () : Lemma
+    (and_then_cases_injective parse_payload)
+  = Classical.forall_intro_3 (fun (len1 len2: bounded_integer sz) (b1: bytes32) -> Classical.forall_intro (Classical.move_requires (g len1 len2 b1)))
+  in
+  g' ();
+  Classical.forall_intro (Classical.move_requires f);
+  parse_bounded_integer_injective sz;
+  let f' () :
+    Lemma (injective (parse_vlbytes sz p))
+  = and_then_injective (parse_bounded_integer sz) parse_payload
+  in
+  f' ()
 
 assume
 val parse_bounded_integer_st_nochk_3
@@ -125,8 +203,8 @@ let validate_vlbytes
     #(parse_bounded_integer sz)
     (parse_bounded_integer_st sz)
     #_
-    #(fun len -> parse_sized p (U32.v len))
-    (fun len -> validate_sized pv len)
+    #(fun (len: bounded_integer sz) -> parse_sized p (U32.v len))
+    (fun (len: bounded_integer sz) -> validate_sized pv len)
 
 inline_for_extraction
 let validate_vlbytes_nochk
@@ -139,8 +217,8 @@ let validate_vlbytes_nochk
     #(parse_bounded_integer sz)
     (parse_bounded_integer_st_nochk sz)
     #_
-    #(fun len -> parse_sized p (U32.v len))
-    (fun len -> validate_sized_nochk p len)
+    #(fun (len: bounded_integer sz) -> parse_sized p (U32.v len))
+    (fun (len: bounded_integer sz) -> validate_sized_nochk p len)
 
 inline_for_extraction
 val point_to_vlbytes_contents

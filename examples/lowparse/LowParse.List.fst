@@ -224,14 +224,13 @@ let parse_list_injective
       let (Some (_, len1)) = parse p b1 in
       let (Some (_, len2)) = parse p b2 in
       assert ((len1 <: nat) == (len2 <: nat));
-      assert (len1 > 0);
-      assert (len2 > 0); 
       let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
       let b2' : bytes32 = Seq.slice b2 len2 (Seq.length b2) in
-      assume (injective_precond p b1' b2');
       aux b1' b2';
-      Seq.lemma_split b1 len1;
-      Seq.lemma_split b2 len2;
+      let (Some (_, len1')) = parse (parse_list p) b1' in
+      let (Some (_, len2')) = parse (parse_list p) b2' in
+      Seq.lemma_split (Seq.slice b1 0 (len1 + len1')) len1;
+      Seq.lemma_split (Seq.slice b2 0 (len2 + len2')) len2;
       assert (injective_postcond (parse_list p) b1 b2)
     end
   in
