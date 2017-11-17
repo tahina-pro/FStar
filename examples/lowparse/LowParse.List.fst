@@ -66,12 +66,12 @@ let rec parse_list_weak_consumed
     let b' = Seq.slice b consumed1 (Seq.length b) in
     parse_list_weak_consumed p b'
 
-let no_lookahead_on_parse_list_weak
+let no_lookahead_weak_on_parse_list_weak
   (#t: Type0)
   (p: parser t)
   (x x' : bytes32)
 : Lemma
-  (no_lookahead_on (list t) (parse_list_weak p) x x')
+  (no_lookahead_weak_on (list t) (parse_list_weak p) x x')
 = match parse_list_weak p x with
   | Some _ -> parse_list_weak_consumed p x
   | _ -> ()
@@ -83,7 +83,7 @@ val parse_list
 : Tot (parser (list t))
 
 let parse_list #t p =
-  Classical.forall_intro_2 (no_lookahead_on_parse_list_weak p);
+  Classical.forall_intro_2 (no_lookahead_weak_on_parse_list_weak p);
   parse_list_weak p
 
 noextract
@@ -195,6 +195,48 @@ let rec parse_list_tailrec_correct
 	| None -> ()
       end
 
+#set-options "--z3rlimit 32"
+
+let parse_list_injective
+  (#t: Type0)
+  (p: parser t)
+: Lemma
+  (requires (injective p))
+  (ensures (injective (parse_list p)))
+= let f () : Lemma
+    (injective p)
+  = ()
+  in
+  let rec aux
+    (b1: bytes32)
+    (b2: bytes32)
+  : Lemma
+    (requires (injective_precond (parse_list p) b1 b2))
+    (ensures (injective_postcond (parse_list p) b1 b2))
+    (decreases (Seq.length b1 + Seq.length b2))
+  = if Seq.length b1 = 0
+    then begin
+      () // assert (Seq.equal b1 b2)
+    end else begin
+      assert (injective_precond p b1 b2);
+      f ();
+      assert (injective_postcond p b1 b2);
+      let (Some (_, len1)) = parse p b1 in
+      let (Some (_, len2)) = parse p b2 in
+      assert ((len1 <: nat) == (len2 <: nat));
+      assert (len1 > 0);
+      assert (len2 > 0); 
+      let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
+      let b2' : bytes32 = Seq.slice b2 len2 (Seq.length b2) in
+      assume (injective_precond p b1' b2');
+      aux b1' b2';
+      Seq.lemma_split b1 len1;
+      Seq.lemma_split b2 len2;
+      assert (injective_postcond (parse_list p) b1 b2)
+    end
+  in
+  Classical.forall_intro_2 (fun b -> Classical.move_requires (aux b))
+
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
 
 inline_for_extraction
@@ -217,8 +259,6 @@ val list_head_tail
     parses h' (parse_list p) bt (fun (q, _) ->
     l == a :: q
   ))))))
-
-#set-options "--z3rlimit 32"
 
 let list_head_tail #t #p sv b =
   split sv b

@@ -36,7 +36,7 @@ let consumed_length (b: bytes32) : Tot Type0 = (n: nat { n <= Seq.length b } )
 //unfold
 let weak_parser (t:Type0) : Tot Type0 = (b: bytes32) -> GTot (option (t * consumed_length b))
 
-let no_lookahead_on
+let no_lookahead_weak_on
   (t: Type0)
   (f: weak_parser t)
   (x x' : bytes32)
@@ -51,13 +51,13 @@ let no_lookahead_on
   y == y' /\ (off <: nat) == (off' <: nat)
   )))
 
-let no_lookahead
+let no_lookahead_weak
   (t: Type0)
   (f: weak_parser t)
 : GTot Type0
-= forall (x x' : bytes32) . no_lookahead_on t f x x'
+= forall (x x' : bytes32) . no_lookahead_weak_on t f x x'
 
-let parser (t: Type0) : Tot Type0 = (f: weak_parser t { no_lookahead t f } )
+let parser (t: Type0) : Tot Type0 = (f: weak_parser t { no_lookahead_weak t f } )
 
 let parse (#t: Type0) (p: parser t) (b: bytes32) : GTot (option (t * consumed_length b)) =
   p b
@@ -230,7 +230,7 @@ let validate_and_split #t #p sv s =
     let sl = S.truncate_slice s consumed in
     let sr = S.advance_slice s consumed in
     let h = HST.get () in
-    assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
+    assert (no_lookahead_weak_on t p (S.as_seq h s) (S.as_seq h sl));
     Some (sl, sr)
   | _ -> None
 
@@ -261,30 +261,13 @@ let split #t #p sv s =
   let sl = S.truncate_slice s consumed in
   let sr = S.advance_slice s consumed in
   let h = HST.get () in
-  assert (no_lookahead_on t p (S.as_seq h s) (S.as_seq h sl));
+  assert (no_lookahead_weak_on t p (S.as_seq h s) (S.as_seq h sl));
   (sl, sr)
 
 
 (** Injectivity of parsing *)
 
-let weakly_injective_precond
-  (#t: Type0)
-  (p: parser t)
-  (b1 b2: bytes32)
-: GTot Type0
-= Some? (parse p b1) /\
-  Some? (parse p b2) /\ (
-    let (Some (v1, len1)) = parse p b1 in
-    let (Some (v2, len2)) = parse p b2 in
-    v1 == v2 /\
-    Seq.length b1 == len1 /\
-    Seq.length b2 == len2
-  )
-
-let weakly_injective (#t: Type0) (p: parser t) : GTot Type0 =
-  forall (b1 b2: bytes32) . weakly_injective_precond p b1 b2 ==> b1 == b2
-
-let strongly_injective_precond
+let injective_precond
   (#t: Type0)
   (p: parser t)
   (b1 b2: bytes32)
@@ -296,7 +279,7 @@ let strongly_injective_precond
     v1 == v2
   )
 
-let strongly_injective_postcond
+let injective_postcond
   (#t: Type0)
   (p: parser t)
   (b1 b2: bytes32)
@@ -309,16 +292,10 @@ let strongly_injective_postcond
     Seq.slice b1 0 len1 == Seq.slice b2 0 len2
   )
 
-let strongly_injective (#t: Type0) (p: parser t) : GTot Type0 =
+let injective (#t: Type0) (p: parser t) : GTot Type0 =
   forall (b1 b2: bytes32) .
-  strongly_injective_precond p b1 b2 ==>
-  strongly_injective_postcond p b1 b2
-
-let strongly_injective_weakly_injective (#t: Type0) (p: parser t) : Lemma
-  (requires (strongly_injective p))
-  (ensures (weakly_injective p))
-= assert (forall (b1 b2: bytes32) . weakly_injective_precond p b1 b2 ==> strongly_injective_precond p b1 b2);
-  assert (forall (b1 b2: bytes32) . (strongly_injective_postcond p b1 b2 /\ weakly_injective_precond p b1 b2) ==> b1 == b2)
+  injective_precond p b1 b2 ==>
+  injective_postcond p b1 b2
 
 
 (** Combinators *)
@@ -329,9 +306,22 @@ unfold let parse_ret (#t:Type) (v:t) : Tot (parser t) =
     let z : consumed_length b = 0 in
     Some (v, z)) <: parser t)
 
+let parse_ret_injective
+  (#t: Type)
+  (v: t)
+: Lemma
+  (injective (parse_ret v))
+= ()
+
 /// parser that always fails
 let fail_parser (#t: Type0) : Tot (parser t) =
   (fun b -> None) <: parser t
+
+let fail_parser_injective
+  (#t: Type0)
+: Lemma
+  (injective (fail_parser #t))
+= ()
 
 [@"substitute"]
 inline_for_extraction
@@ -368,7 +358,7 @@ let and_then #t #t' p p' =
     (x: bytes32) 
     (x' : bytes32)
   : Lemma
-    (no_lookahead_on t' f x x')
+    (no_lookahead_weak_on t' f x x')
   = match f x with
     | Some v -> 
       let (y, off) = v in
@@ -391,7 +381,7 @@ let and_then #t #t' p p' =
 	  assert (off1 <= Seq.length x');
 	  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off_x') 0 off1);
 	  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
-	  assert (no_lookahead_on t p x x');
+	  assert (no_lookahead_weak_on t p x x');
 	  assert (Some? (p x'));
 	  let (Some v1') = p x' in
 	  let (y1', off1') = v1' in
@@ -407,7 +397,7 @@ let and_then #t #t' p p' =
 	  assert (Seq.length x2' <= Seq.length x2);
 	  assert (Seq.slice x2' 0 off2 == Seq.slice (Seq.slice x' 0 off_x') off1 (off1 + off2));
 	  assert (Seq.slice x2' 0 off2 == Seq.slice x2 0 off2);
-	  assert (no_lookahead_on t' p2 x2 x2');
+	  assert (no_lookahead_weak_on t' p2 x2 x2');
 	  ()
 	in
 	Classical.move_requires g ()
@@ -440,26 +430,26 @@ let and_then_cases_injective
   and_then_cases_injective_precond p' x1 x2 b1 b2 ==>
   x1 == x2
 
-let and_then_weakly_injective
+let and_then_injective
   (#t:Type)
   (#t':Type)
   (p:parser t)
   (p': parse_arrow t (fun _ -> parser t'))
 : Lemma
   (requires (
-    strongly_injective p /\
+    injective p /\
     and_then_cases_injective p' /\
-    (forall (x: t) . weakly_injective (p' x))
+    (forall (x: t) . injective (p' x))
   ))
   (ensures (
-    weakly_injective (and_then p p')
+    injective (and_then p p')
   ))
 = let ps : parser t' = and_then p p' in
   let f
     (b1 b2: bytes32)
   : Lemma
-    (requires (weakly_injective_precond ps b1 b2))
-    (ensures (b1 == b2))
+    (requires (injective_precond ps b1 b2))
+    (ensures (injective_postcond ps b1 b2))
   = let (Some (v1, len1)) = parse p b1 in
     let (Some (v2, len2)) = parse p b2 in
     let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
@@ -468,56 +458,17 @@ let and_then_weakly_injective
     assert (Some? (parse (p' v2) b2'));
     assert (and_then_cases_injective_precond p' v1 v2 b1' b2');
     assert (v1 == v2);
-    assert (strongly_injective_precond p b1 b2);
+    assert (injective_precond p b1 b2);
     assert ((len1 <: nat) == (len2 <: nat));
-    assert (weakly_injective (p' v1));
-    assert (weakly_injective_precond (p' v1) b1' b2');
-    assert (b1' == b2');
-    assert (Seq.length b1 == Seq.length b2);
-    Seq.lemma_split b1 len1;
-    Seq.lemma_split b2 len2
-  in
-  Classical.forall_intro_2 (fun x -> Classical.move_requires (f x))
-
-let and_then_strongly_injective
-  (#t:Type)
-  (#t':Type)
-  (p:parser t)
-  (p': parse_arrow t (fun _ -> parser t'))
-: Lemma
-  (requires (
-    strongly_injective p /\
-    and_then_cases_injective p' /\
-    (forall (x: t) . strongly_injective (p' x))
-  ))
-  (ensures (
-    strongly_injective (and_then p p')
-  ))
-= let ps : parser t' = and_then p p' in
-  let f
-    (b1 b2: bytes32)
-  : Lemma
-    (requires (strongly_injective_precond ps b1 b2))
-    (ensures (strongly_injective_postcond ps b1 b2))
-  = let (Some (v1, len1)) = parse p b1 in
-    let (Some (v2, len2)) = parse p b2 in
-    let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
-    let b2' : bytes32 = Seq.slice b2 len2 (Seq.length b2) in
-    assert (Some? (parse (p' v1) b1'));
-    assert (Some? (parse (p' v2) b2'));
-    assert (and_then_cases_injective_precond p' v1 v2 b1' b2');
-    assert (v1 == v2);
-    assert (strongly_injective_precond p b1 b2);
-    assert ((len1 <: nat) == (len2 <: nat));
-    assert (strongly_injective (p' v1));
-    assert (strongly_injective_precond (p' v1) b1' b2');
-    assert (strongly_injective_postcond (p' v1) b1' b2');
+    assert (injective (p' v1));
+    assert (injective_precond (p' v1) b1' b2');
+    assert (injective_postcond (p' v1) b1' b2');
     let (Some (_, len1')) = parse (p' v1) b1' in
     let (Some (_, len2')) = parse (p' v2) b2' in
     assert ((len1' <: nat) == (len2' <: nat));
     Seq.lemma_split (Seq.slice b1 0 (len1 + len1')) len1;
     Seq.lemma_split (Seq.slice b2 0 (len2 + len2')) len1;
-    assert (strongly_injective_postcond ps b1 b2)
+    assert (injective_postcond ps b1 b2)
   in
   Classical.forall_intro_2 (fun x -> Classical.move_requires (f x))
 
@@ -578,6 +529,30 @@ let nondep_then
   (p2: parser t2)
 : Tot (parser (t1 * t2))
 = p1 `and_then` (fun v1 -> p2 `and_then` (fun v2 -> parse_ret (v1, v2)))
+
+let nondep_then_injective
+  (#t1 #t2: Type0)
+  (p1: parser t1)
+  (p2: parser t2)
+: Lemma
+  (requires (
+    injective p1 /\
+    injective p2
+  ))
+  (ensures (
+    injective (nondep_then p1 p2)
+  ))
+= let f
+    (v1: t1)
+  : Lemma
+    (injective (p2 `and_then` (fun v2 -> parse_ret (v1, v2))))
+  = assert (and_then_cases_injective (fun (v2: t2) -> parse_ret (v1, v2)));
+    assert (forall (v2: t2) . injective (parse_ret (v1, v2)));
+    and_then_injective p2 (fun v2 -> parse_ret (v1, v2))
+  in
+  Classical.forall_intro f;
+  assert (and_then_cases_injective (fun (v1: t1) -> p2 `and_then` (fun v2 -> parse_ret (v1, v2))));
+  and_then_injective p1 (fun v1 -> p2 `and_then` (fun v2 -> parse_ret (v1, v2)))
 
 [@"substitute"]
 inline_for_extraction
@@ -649,6 +624,23 @@ let parse_synth
   (p1: parser t1)
   (f2: parse_arrow t1 (fun _ -> t2))
 = and_then p1 (fun v1 -> parse_ret (f2 v1))
+
+let parse_synth_injective
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: parser t1)
+  (f2: parse_arrow t1 (fun _ -> t2))
+: Lemma
+  (requires (
+    injective p1 /\
+    (forall (x x' : t1) . f2 x == f2 x' ==> x == x')
+  ))
+  (ensures (
+    injective (parse_synth p1 f2)
+  ))
+= assert (forall v1. injective (parse_ret (f2 v1)));
+  assert (and_then_cases_injective (fun v1 -> parse_ret (f2 v1)));
+  and_then_injective p1 (fun v1 -> parse_ret (f2 v1))
 
 [@"substitute"]
 inline_for_extraction
@@ -738,6 +730,20 @@ let make_constant_size_parser
       Some (v, sz)
   end
 
+let make_constant_size_parser_injective
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+: Lemma
+  (requires (
+    forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+    ((Some? (f s1) \/ Some? (f s2)) /\ f s1 == f s2) ==> s1 == s2
+  ))
+  (ensures (
+    injective (make_constant_size_parser sz t f)
+  ))
+= ()
+
 inline_for_extraction
 let validate_constant_size_nochk
   (sz: U32.t)
@@ -765,6 +771,20 @@ let make_total_constant_size_parser
   (f: (s: bytes32 {Seq.length s == sz}) -> Tot t)
 : Tot (total_constant_size_parser sz t)
 = make_constant_size_parser sz t (fun x -> Some (f x))
+
+let make_total_constant_size_parser_injective
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t))
+: Lemma
+  (requires (
+    forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+    f s1 == f s2 ==> s1 == s2
+  ))
+  (ensures (
+    injective (make_total_constant_size_parser sz t f)
+  ))
+= ()
 
 inline_for_extraction
 let validate_total_constant_size
@@ -835,7 +855,18 @@ let parse_filter
       parse_ret v'
     else fail_parser
   )
- 
+
+let parse_filter_injective
+  (#t: Type0)
+  (p: parser t)
+  (f: parse_arrow t (fun _ -> bool))
+: Lemma
+  (requires (injective p))
+  (ensures (injective (parse_filter p f)))
+= assert (forall (v: t) . injective (if f v then parse_ret (v <: (v': t { f v' == true } )) else fail_parser));
+  assert (and_then_cases_injective (fun v -> if f v then parse_ret (v <: (v': t { f v' == true } )) else fail_parser));
+  and_then_injective p (fun (v: t) -> if f v then parse_ret (v <: (v': t { f v' == true } )) else fail_parser)
+
 let stateful_filter_validator
   (#t: Type0)
   (p: parser t)
