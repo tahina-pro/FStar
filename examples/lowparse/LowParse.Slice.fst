@@ -61,6 +61,7 @@ let buffer_as_seq_as_buffer (h: HS.mem) (b: bslice) : Lemma
   ]]
 = ()
 
+inline_for_extraction
 let index
   (b: bslice)
   (i: U32.t)
