@@ -75,7 +75,7 @@ let consumed_slice_length (input: S.bslice) : Tot Type0 =
 /// function).
 inline_for_extraction
 let parser_st #t (p: parser t) : Tot Type0 =
-  input:S.bslice -> HST.Stack (option (t * consumed_slice_length input))
+  input:S.bslice -> HST.StackInline (option (t * consumed_slice_length input))
   (requires (fun h0 -> S.live h0 input))
   (ensures (fun h0 r h1 -> S.live h1 input /\
             S.modifies_none h0 h1 /\
@@ -95,7 +95,7 @@ let parser_st #t (p: parser t) : Tot Type0 =
 /// not make error checks since those cases are impossible.
 inline_for_extraction
 let parser_st_nochk #t (p: parser t) : Tot Type0 =
-  input: S.bslice -> HST.Stack (t * consumed_slice_length input)
+  input: S.bslice -> HST.StackInline (t * consumed_slice_length input)
   (requires (fun h0 -> S.live h0 input /\
                     (let bs = S.as_seq h0 input in
                      Some? (p bs))))
@@ -179,7 +179,7 @@ let validator_checks_parse_none
 inline_for_extraction
 let stateful_validator (#t: Type0) (p: parser t) : Tot Type0 =
   input: S.bslice ->
-  HST.Stack (option (consumed_slice_length input))
+  HST.StackInline (option (consumed_slice_length input))
     (requires (fun h0 -> S.live h0 input))
     (ensures (fun h0 r h1 -> S.modifies_none h0 h1 /\ (
       Some? r ==> (
@@ -192,7 +192,7 @@ let stateful_validator (#t: Type0) (p: parser t) : Tot Type0 =
 inline_for_extraction
 let stateful_validator_nochk (#t: Type0) (p: parser t) : Tot Type0 =
   input: S.bslice ->
-  HST.Stack (consumed_slice_length input)
+  HST.StackInline (consumed_slice_length input)
   (requires (fun h0 ->
     parses h0 p input (fun _ -> True)
   ))
@@ -208,7 +208,7 @@ val validate_and_split
   (#p: parser t)
   (sv: stateful_validator p)
   (s: S.bslice)
-: HST.Stack (option (S.bslice * S.bslice))
+: HST.StackInline (option (S.bslice * S.bslice))
   (requires (fun h ->
     S.live h s
   ))
@@ -240,7 +240,7 @@ val split
   (#p: parser t)
   (sv: stateful_validator_nochk p)
   (s: S.bslice)
-: HST.Stack (S.bslice * S.bslice)
+: HST.StackInline (S.bslice * S.bslice)
   (requires (fun h ->
     S.live h s /\
     parses h p s (fun _ -> True)
@@ -619,7 +619,7 @@ val nondep_destruct
   (#t2: Type0)
   (p2: parser t2)
   (b: S.bslice)
-: HST.Stack (S.bslice * S.bslice)
+: HST.StackInline (S.bslice * S.bslice)
   (requires (fun h ->
     exactly_parses h (nondep_then p1 p2) b (fun _ -> True)
   ))
@@ -831,7 +831,7 @@ let parse_total_constant_size_nochk
   (#p: total_constant_size_parser (U32.v sz) t)
   (ps: (
     (input: S.bslice) ->
-    HST.Stack t
+    HST.StackInline t
     (requires (fun h ->
       U32.v (S.length input) >= U32.v sz /\
       S.live h input
@@ -898,7 +898,7 @@ let stateful_filter_validator
 : Tot Type0
 = (v2: (
     (b: S.bslice) ->
-    HST.Stack bool
+    HST.StackInline bool
     (requires (fun h ->
       S.live h b /\ (
       let s = S.as_seq h b in (

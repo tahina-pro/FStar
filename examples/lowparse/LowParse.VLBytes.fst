@@ -270,7 +270,7 @@ val point_to_vlbytes_contents
   (p: parser t)
   (sz: integer_size)
   (b: S.bslice)
-: HST.Stack S.bslice
+: HST.StackInline S.bslice
   (requires (fun h ->
     parses h (parse_vlbytes sz p) b (fun _ -> True)
   ))

@@ -244,7 +244,7 @@ val list_head_tail
   (#p: parser t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
-: HST.Stack (S.bslice * S.bslice)
+: HST.StackInline (S.bslice * S.bslice)
   (requires (fun h ->
     parses h (parse_list p) b (fun (l, _) ->
     Cons? l
@@ -328,7 +328,7 @@ val list_nth_slice_advance
   (h0: Ghost.erased HS.mem)
   (sl: B.buffer S.bslice)
   (j: U32.t)
-: HST.Stack unit
+: HST.StackInline unit
   (requires (fun h ->
     list_nth_slice_inv p sv b i h0 sl h (U32.v j) /\
     U32.v j < U32.v i
@@ -366,7 +366,7 @@ val list_nth_slice
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
-: HST.Stack S.bslice
+: HST.StackInline S.bslice
   (requires (fun h ->
     parses h (parse_list p) b (fun (l, _) ->
     U32.v i < L.length l
@@ -379,6 +379,8 @@ val list_nth_slice
     U32.v i < L.length l /\
     v == L.index l (U32.v i)
   ))))
+
+#set-options "--z3rlimit 64"
 
 let list_nth_slice #t p sv b i =
   let h0 = HST.get () in
