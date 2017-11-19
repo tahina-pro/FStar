@@ -13,46 +13,55 @@ module IP = LowParse.Int
 module Cast = FStar.Int.Cast
 
 noextract
-val parse_sized
+val parse_sized'
   (#t: Type0)
-  (p: parser t)
+  (p: bare_parser t)
   (sz: nat)
-: Tot (constant_size_parser sz t)
+: Tot (bare_parser t)
 
-let parse_sized #t p sz =
+let parse_sized' #t p sz =
   let () = () in // Necessary to pass arity checking
   fun (s: bytes32) ->
   if Seq.length s < sz
   then None
   else
-    let (sz: consumed_length s) = sz in
     match p (Seq.slice s 0 sz) with
     | Some (v, consumed) ->
       if (consumed <: nat) = (sz <: nat)
-      then Some (v, sz)
+      then Some (v, (sz <: consumed_length s))
       else None
     | _ -> None
 
 let parse_sized_injective
   (#t: Type0)
-  (p: parser t)
+  (p: weak_parser t)
   (sz: nat)
 : Lemma
-  (requires (injective p))
-  (ensures (injective (parse_sized p sz)))
+  (ensures (injective (parse_sized' p sz)))
 = let f
     (b1 b2: bytes32)
   : Lemma
-    (requires (injective_precond (parse_sized p sz) b1 b2))
-    (ensures (injective_postcond (parse_sized p sz) b1 b2))
+    (requires (injective_precond (parse_sized' p sz) b1 b2))
+    (ensures (injective_postcond (parse_sized' p sz) b1 b2))
   = assert (injective_precond p (Seq.slice b1 0 sz) (Seq.slice b2 0 sz))
   in
   Classical.forall_intro_2 (fun b -> Classical.move_requires (f b))
 
+noextract
+val parse_sized
+  (#t: Type0)
+  (p: weak_parser t)
+  (sz: nat)
+: Tot (weak_constant_size_parser sz t)
+
+let parse_sized #t p sz =
+  parse_sized_injective p sz;
+  parse_sized' p sz  
+
 inline_for_extraction
 let validate_sized
   (#t: Type0)
-  (#p: parser t)
+  (#p: weak_parser t)
   (ps: stateful_validator p)
   (len': U32.t)
 : Tot (stateful_validator (parse_sized p (U32.v len')))
@@ -74,7 +83,7 @@ let validate_sized
 inline_for_extraction
 let validate_sized_nochk
   (#t: Type0)
-  (p: parser t)
+  (p: weak_parser t)
   (len: U32.t)
 : Tot (stateful_validator_nochk (parse_sized p (U32.v len)))
 = validate_constant_size_nochk len (parse_sized p (U32.v len))
@@ -94,20 +103,12 @@ let decode_bounded_integer
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
 
-noextract
-val parse_bounded_integer
-  (i: integer_size)
-: Tot (total_constant_size_parser i (bounded_integer i))
-
-let parse_bounded_integer i =
-  make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
-
 let decode_bounded_integer_injective
   (i: integer_size)
   (b1: bytes32 { Seq.length b1 == i } )
   (b2: bytes32 { Seq.length b2 == i } )
 : Lemma
-  (decode_bounded_integer i b1 == decode_bounded_integer i b2 ==> b1 == b2)
+  (decode_bounded_integer i b1 == decode_bounded_integer i b2 ==> Seq.equal b1 b2)
 = if decode_bounded_integer i b1 = decode_bounded_integer i b2
   then begin
     E.lemma_be_to_n_is_bounded b1;
@@ -118,43 +119,23 @@ let decode_bounded_integer_injective
     IP.be_to_n_inj b1 b2
   end else ()
 
-let parse_bounded_integer_injective
-  (i: integer_size)
-: Lemma
-  (injective (parse_bounded_integer i))
-= Classical.forall_intro_2 (decode_bounded_integer_injective i);
-  make_total_constant_size_parser_injective i (bounded_integer i) (decode_bounded_integer i)
-
 noextract
-let parse_vlbytes
+val parse_bounded_integer
+  (i: integer_size)
+: Tot (total_constant_size_parser i (bounded_integer i))
+
+let parse_bounded_integer i =
+  Classical.forall_intro_2 (decode_bounded_integer_injective i);
+  make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
+
+let parse_sized_and_then_cases_injective
   (sz: integer_size)
   (#t: Type0)
-  (p: parser t)
-: Tot (parser t)
-= let parse_payload (len: bounded_integer sz) : Tot (parser t) =
-    parse_sized p (U32.v len)
-  in
-  (parse_bounded_integer sz)
-  `and_then`
-  parse_payload
-
-#set-options "--z3rlimit 16"
-
-let parse_vlbytes_injective
-  (sz: integer_size)
-  (#t: Type0)
-  (p: parser t)
+  (p: weak_parser t)
 : Lemma
-  (requires (injective p))
-  (ensures (injective (parse_vlbytes sz p)))
-= let parse_payload (len: bounded_integer sz) : Tot (parser t) =
+  (and_then_cases_injective (fun (i: bounded_integer sz) -> parse_sized p (U32.v i)))
+= let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
     parse_sized p (U32.v len)
-  in
-  let f
-    (len: bounded_integer sz)
-  : Lemma
-    (injective (parse_payload len))
-  = parse_sized_injective p (U32.v len)
   in
   let g
     (len1 len2: bounded_integer sz)
@@ -166,18 +147,23 @@ let parse_vlbytes_injective
     assert (injective_postcond p (Seq.slice b1 0 (U32.v len1)) (Seq.slice b2 0 (U32.v len2)));
     assert (len1 == len2)
   in
-  let g' () : Lemma
-    (and_then_cases_injective parse_payload)
-  = Classical.forall_intro_3 (fun (len1 len2: bounded_integer sz) (b1: bytes32) -> Classical.forall_intro (Classical.move_requires (g len1 len2 b1)))
+  Classical.forall_intro_3 (fun (len1 len2: bounded_integer sz) (b1: bytes32) -> Classical.forall_intro (Classical.move_requires (g len1 len2 b1)))
+
+noextract
+let parse_vlbytes'
+  (sz: integer_size)
+  (#t: Type0)
+  (p: weak_parser t)
+: Tot (weak_parser t)
+= let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
+    parse_sized p (U32.v len)
   in
-  g' ();
-  Classical.forall_intro (Classical.move_requires f);
-  parse_bounded_integer_injective sz;
-  let f' () :
-    Lemma (injective (parse_vlbytes sz p))
-  = and_then_injective (parse_bounded_integer sz) parse_payload
-  in
-  f' ()
+  parse_sized_and_then_cases_injective sz p;
+  (parse_bounded_integer sz)
+  `and_then_weak`
+  parse_payload
+
+#set-options "--z3rlimit 16"
 
 noextract
 val parse_bounded_integer'

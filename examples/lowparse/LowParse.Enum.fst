@@ -124,16 +124,6 @@ let rec parse_enum_key
   `parse_synth`
   (fun (x: repr {L.mem x (L.map snd e) == true})  -> enum_key_of_repr e x)
 
-let parse_enum_key_injective
-  (#key #repr: eqtype)
-  (p: parser repr)
-  (e: enum key repr)
-: Lemma
-  (requires (injective p))
-  (ensures (injective (parse_enum_key p e)))
-= parse_filter_injective p (fun (r: repr) -> L.mem r (L.map snd e));
-  parse_synth_injective (p `parse_filter` (fun (r: repr) -> L.mem r (L.map snd e))) (fun (x: repr {L.mem x (L.map snd e) == true})  -> enum_key_of_repr e x)
-
 let mk_if (test e_true e_false: T.term) : Tot T.term =
   let br_true = (T.Pat_Constant T.C_True, e_true) in
   let br_false = (T.Pat_Constant T.C_False, e_false) in

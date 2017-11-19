@@ -20,27 +20,6 @@ let decode_u16
 = E.lemma_be_to_n_is_bounded b;
   U16.uint_to_t (E.be_to_n b)
 
-noextract
-let parse_u16: total_constant_size_parser 2 U16.t =
-  make_total_constant_size_parser 2 U16.t decode_u16
-
-noextract
-let decode_u32
-  (b: bytes32 { Seq.length b == 4 } )
-: Tot U32.t
-= E.lemma_be_to_n_is_bounded b;
-  U32.uint_to_t (E.be_to_n b)
-
-noextract
-let parse_u32: total_constant_size_parser 4 U32.t =
-  make_total_constant_size_parser 4 U32.t decode_u32
-
-let parse_u8_injective () : Lemma (injective parse_u8) =
-  assert (forall (b1: bytes32 { Seq.length b1 == 1 }) (b2: bytes32 { Seq.length b2 == 1 }) .
-    Seq.index b1 0 == Seq.index b2 0 ==> Seq.equal b1 b2
-  );
-  make_total_constant_size_parser_injective 1 U8.t (fun b -> Seq.index b 0)
-
 (* TODO: move to FStar.Kremlin.Endianness *)
 
 let rec be_to_n_inj
@@ -61,30 +40,49 @@ let decode_u16_injective
   (b1: bytes32 { Seq.length b1 == 2 } )
   (b2: bytes32 { Seq.length b2 == 2 } )
 : Lemma
-  (decode_u16 b1 == decode_u16 b2 ==> b1 == b2)
+  (decode_u16 b1 == decode_u16 b2 ==> Seq.equal b1 b2)
 = if decode_u16 b1 = decode_u16 b2
-  then
+  then begin
+    E.lemma_be_to_n_is_bounded b1;
+    E.lemma_be_to_n_is_bounded b2;
+    assert (U32.v (U32.uint_to_t (E.be_to_n b1)) == E.be_to_n b1);
+    assert (U32.v (U32.uint_to_t (E.be_to_n b2)) == E.be_to_n b2);
+    assert (E.be_to_n b1 == E.be_to_n b2);
     be_to_n_inj b1 b2
-  else ()
+  end else ()
 
-let parse_u16_injective () : Lemma (injective parse_u16) =
+noextract
+let parse_u16: total_constant_size_parser 2 U16.t =
   Classical.forall_intro_2 decode_u16_injective;
-  make_total_constant_size_parser_injective 2 U16.t decode_u16
+  make_total_constant_size_parser 2 U16.t decode_u16
+
+noextract
+let decode_u32
+  (b: bytes32 { Seq.length b == 4 } )
+: Tot U32.t
+= E.lemma_be_to_n_is_bounded b;
+  U32.uint_to_t (E.be_to_n b)
 
 noextract
 let decode_u32_injective
   (b1: bytes32 { Seq.length b1 == 4 } )
   (b2: bytes32 { Seq.length b2 == 4 } )
 : Lemma
-  (decode_u32 b1 == decode_u32 b2 ==> b1 == b2)
+  (decode_u32 b1 == decode_u32 b2 ==> Seq.equal b1 b2)
 = if decode_u32 b1 = decode_u32 b2
-  then
+  then begin
+    E.lemma_be_to_n_is_bounded b1;
+    E.lemma_be_to_n_is_bounded b2;
+    assert (U32.v (U32.uint_to_t (E.be_to_n b1)) == E.be_to_n b1);
+    assert (U32.v (U32.uint_to_t (E.be_to_n b2)) == E.be_to_n b2);
+    assert (E.be_to_n b1 == E.be_to_n b2);
     be_to_n_inj b1 b2
-  else ()
+  end else ()
 
-let parse_u32_injective () : Lemma (injective parse_u32) =
+noextract
+let parse_u32: total_constant_size_parser 4 U32.t =
   Classical.forall_intro_2 decode_u32_injective;
-  make_total_constant_size_parser_injective 4 U32.t decode_u32
+  make_total_constant_size_parser 4 U32.t decode_u32
 
 [@"substitute"]
 inline_for_extraction

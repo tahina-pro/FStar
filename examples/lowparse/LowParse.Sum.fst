@@ -9,7 +9,6 @@ val parse_tagged_union
   (#tag: Type0)
   (#tu: tag -> Type0)
   (pt: parser tag)
-//  (p: parse_arrow (t: tag) (fun t -> parser (tu t)))
   (p: (t: tag) -> Tot (parser (tu t))) // Tot really needed here by validator
 : Tot (parser (t: tag & tu t))
 
@@ -19,33 +18,6 @@ let parse_tagged_union #tag #tu pt p =
     let synth : tu v -> Tot (t: tag & tu t) = fun (v': tu v) -> (| v, v' |) in
     parse_synth #(tu v) #(t: tag & tu t) pv synth
   )
-
-let parse_tagged_union_injective
-  (#tag: Type0)
-  (#tu: tag -> Type0)
-  (pt: parser tag)
-  (p: (t: tag) -> Tot (parser (tu t)))
-: Lemma
-  (requires (
-    injective pt /\
-    (forall t . injective (p t))
-  ))
-  (ensures (
-    injective (parse_tagged_union pt p)
-  ))
-= let pcases (v: tag) : Tot (parser (t: tag & tu t)) =
-    let pv : parser (tu v) = p v in
-    let synth : tu v -> Tot (t: tag & tu t) = fun (v': tu v) -> (| v, v' |) in
-    parse_synth #(tu v) #(t: tag & tu t) pv synth
-  in
-  let pcases_inj (v: tag) : Lemma
-    (injective (pcases v))
-  = let pv : parser (tu v) = p v in
-    let synth : tu v -> Tot (t: tag & tu t) = fun (v': tu v) -> (| v, v' |) in
-    parse_synth_injective #(tu v) #(t: tag & tu t) pv synth
-  in
-  Classical.forall_intro pcases_inj;
-  and_then_injective pt pcases
 
 inline_for_extraction
 let sum = (key: eqtype & (repr: eqtype & (e: enum key repr & ((x: enum_key e) -> Tot Type0))))
@@ -81,19 +53,6 @@ let parse_sum
     #(sum_cases t)
     (parse_enum_key p (sum_enum t))
     pc
-
-let parse_sum_injective
-  (t: sum)
-  (p: parser (sum_repr_type t))
-  (pc: ((x: sum_key t) -> Tot (parser (sum_cases t x))))
-: Lemma
-  (requires (
-    injective p /\
-    (forall x . injective (pc x))
-  ))
-  (ensures (injective (parse_sum t p pc)))
-= parse_enum_key_injective p (sum_enum t);
-  parse_tagged_union_injective #(sum_key t) #(sum_cases t) (parse_enum_key p (sum_enum t)) pc
 
 inline_for_extraction
 let make_sum
