@@ -101,6 +101,21 @@ let validate_u32_st = validate_total_constant_size 4ul parse_u32
 
 [@"substitute"]
 inline_for_extraction
+val validate_u8_st_nochk : stateful_validator_nochk parse_u8
+let validate_u8_st_nochk = validate_constant_size_nochk 1ul parse_u8
+
+[@"substitute"]
+inline_for_extraction
+val validate_u16_st_nochk: stateful_validator_nochk parse_u16
+let validate_u16_st_nochk = validate_constant_size_nochk 2ul parse_u16
+
+[@"substitute"]
+inline_for_extraction
+val validate_u32_st_nochk: stateful_validator_nochk parse_u32
+let validate_u32_st_nochk = validate_constant_size_nochk 4ul parse_u32
+
+[@"substitute"]
+inline_for_extraction
 let parse_u8_st_nochk :
     parser_st_nochk parse_u8 =
     parse_total_constant_size_nochk 1ul (fun (input: S.bslice) ->
