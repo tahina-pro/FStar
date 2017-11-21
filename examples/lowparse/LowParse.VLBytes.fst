@@ -132,67 +132,99 @@ let parse_bounded_integer i =
   Classical.forall_intro_2 (decode_bounded_integer_injective i);
   make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
 
-let parse_sized_and_then_cases_injective
-  (#b: bool)
+noextract
+let parse_vlbytes_payload
   (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (i: bounded_integer sz { f i == true } )
+: Tot (weak_parser t)
+= parse_sized p (U32.v i)
+
+let parse_sized_and_then_cases_injective
+  (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
   (#t: Type0)
   (p: parser' b t)
 : Lemma
-  (and_then_cases_injective (fun (i: bounded_integer sz) -> parse_sized p (U32.v i)))
-= let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
-    parse_sized p (U32.v len)
-  in
-  let g
-    (len1 len2: bounded_integer sz)
+  (and_then_cases_injective (parse_vlbytes_payload sz f p))
+= let g
+    (len1 len2: (len: bounded_integer sz { f len == true } ))
     (b1 b2: bytes32)
   : Lemma
-    (requires (and_then_cases_injective_precond parse_payload len1 len2 b1 b2))
+    (requires (and_then_cases_injective_precond (parse_vlbytes_payload sz f p) len1 len2 b1 b2))
     (ensures (len1 == len2))
   = assert (injective_precond p (Seq.slice b1 0 (U32.v len1)) (Seq.slice b2 0 (U32.v len2)));
     assert (injective_postcond p (Seq.slice b1 0 (U32.v len1)) (Seq.slice b2 0 (U32.v len2)));
     assert (len1 == len2)
   in
-  Classical.forall_intro_3 (fun (len1 len2: bounded_integer sz) (b1: bytes32) -> Classical.forall_intro (Classical.move_requires (g len1 len2 b1)))
+  let g'
+    (len1 len2: (len: bounded_integer sz { f len == true } ))
+    (b1: bytes32)
+  : Lemma
+    (forall (b2: bytes32) . and_then_cases_injective_precond (parse_vlbytes_payload sz f p) len1 len2 b1 b2 ==> len1 == len2)
+  = Classical.forall_intro (Classical.move_requires (g len1 len2 b1))
+  in
+  Classical.forall_intro_3 g'
 
 noextract
-let parse_vlbytes'
-  (#b: bool)
+let parse_vlbytes_gen'
   (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
   (#t: Type0)
   (p: parser' b t)
 : Tot (weak_parser t)
-= let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
-    parse_sized p (U32.v len)
-  in
-  parse_sized_and_then_cases_injective sz p;
-  (weaken (parse_bounded_integer sz))
+= parse_sized_and_then_cases_injective sz f p;
+  (weaken (parse_filter (parse_bounded_integer sz) f))
   `and_then`
-  parse_payload
+  parse_vlbytes_payload sz f p
 
-let parse_vlbytes_no_lookahead_on
-  (#b: bool)
+let parse_vlbytes_gen_no_lookahead_on
   (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
   (#t: Type0)
   (p: parser' b t)
   (x x' : bytes32)
 : Lemma
   (requires (
-    no_lookahead_on_precond t (parse_vlbytes' sz p) x x'
+    no_lookahead_on_precond t (parse_vlbytes_gen' sz f p) x x'
   ))
   (ensures (
-    no_lookahead_on_postcond t (parse_vlbytes' sz p) x x'
+    no_lookahead_on_postcond t (parse_vlbytes_gen' sz f p) x x'
   ))
 = admit ()
 
 noextract
-let parse_vlbytes
-  (#b: bool)
+let parse_vlbytes_gen
   (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
   (#t: Type0)
   (p: parser' b t)
 : Tot (parser t)
-= Classical.forall_intro_2 (fun (x: bytes32) -> Classical.move_requires (parse_vlbytes_no_lookahead_on #b sz p x));
-  strengthen (parse_vlbytes' sz p)
+= Classical.forall_intro_2 (fun (x: bytes32) -> Classical.move_requires (parse_vlbytes_gen_no_lookahead_on sz f p x));
+  strengthen (parse_vlbytes_gen' sz f p)
+
+inline_for_extraction
+let unconstrained_bounded_integer
+  (sz: integer_size)
+  (i: bounded_integer sz)
+: Tot bool
+= true
+
+noextract
+let parse_vlbytes
+  (sz: integer_size)
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+: Tot (parser t)
+= parse_vlbytes_gen sz (unconstrained_bounded_integer sz) p
 
 #set-options "--z3rlimit 16"
 
@@ -295,56 +327,99 @@ let parse_bounded_integer_st
 = parse_total_constant_size (U32.uint_to_t i) (parse_bounded_integer_st_nochk i)
 
 inline_for_extraction
-let validate_vlbytes
-  (#b: bool)
+let validate_vlbytes_payload
   (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (#p: parser' b t)
+  (pv: stateful_validator p)
+  (i: bounded_integer sz { f i == true } )
+: Tot (stateful_validator (parse_vlbytes_payload sz f p i))
+= validate_sized pv i
+
+inline_for_extraction
+let validate_vlbytes_gen
+  (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (#p: parser' b t)
+  (pv: stateful_validator p)
+: Tot (stateful_validator (parse_vlbytes_gen sz f p))
+= parse_sized_and_then_cases_injective sz f p;
+  parse_then_check
+    #false
+    #_
+    #(weaken (parse_filter (parse_bounded_integer sz) f))
+    (parse_filter_st (parse_bounded_integer_st sz) f)
+    #_
+    #(parse_vlbytes_payload sz f p)
+    (validate_vlbytes_payload sz f pv)
+
+inline_for_extraction
+val validate_vlbytes
+  (sz: integer_size)
+  (#b: bool)
   (#t: Type0)
   (#p: parser' b t)
   (pv: stateful_validator p)
 : Tot (stateful_validator (parse_vlbytes sz p))
-= let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
-    parse_sized p (U32.v len)
-  in
-  parse_sized_and_then_cases_injective sz p;
-  parse_then_check
-    #false
-    #_
-    #(weaken (parse_bounded_integer sz))
-    (parse_bounded_integer_st sz)
-    #_
-    #parse_payload
-    (fun (len: bounded_integer sz) -> validate_sized pv len)
+
+let validate_vlbytes sz #b #t #p pv =
+  validate_vlbytes_gen sz (unconstrained_bounded_integer sz) #b #t #p pv
 
 inline_for_extraction
-let validate_vlbytes_nochk
-  (#b: bool)
+let validate_vlbytes_payload_nochk
   (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
   (#t: Type0)
   (p: parser' b t)
-: Tot (stateful_validator_nochk (parse_vlbytes sz p))
-= let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
-    parse_sized p (U32.v len)
-  in
-  parse_sized_and_then_cases_injective sz p;
+  (len: bounded_integer sz { f len == true } )
+: Tot (stateful_validator_nochk (parse_vlbytes_payload sz f p len))
+= validate_sized_nochk p len
+
+inline_for_extraction
+let validate_vlbytes_gen_nochk
+  (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+: Tot (stateful_validator_nochk (parse_vlbytes_gen sz f p))
+= parse_sized_and_then_cases_injective sz f p;
   parse_nochk_then_nochk
     #false
     #_
-    #(weaken (parse_bounded_integer sz))
-    (parse_bounded_integer_st_nochk sz)
+    #(weaken (parse_filter (parse_bounded_integer sz) f))
+    (parse_filter_st_nochk (parse_bounded_integer_st_nochk sz) f)
     #_
-    #parse_payload
-    (fun (len: bounded_integer sz) -> validate_sized_nochk p len)
+    #(parse_vlbytes_payload sz f p)
+    (validate_vlbytes_payload_nochk sz f p)
 
 inline_for_extraction
-val point_to_vlbytes_contents
+val validate_vlbytes_nochk
+  (sz: integer_size)
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
+: Tot (stateful_validator_nochk (parse_vlbytes sz p))
+
+let validate_vlbytes_nochk sz #b #t p =
+  validate_vlbytes_gen_nochk sz (unconstrained_bounded_integer sz) p
+
+inline_for_extraction
+val point_to_vlbytes_contents
   (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
   (b: S.bslice)
 : HST.Stack S.bslice
   (requires (fun h ->
-    parses h (parse_vlbytes sz p) b (fun _ -> True)
+    parses h (parse_vlbytes_gen sz f p) b (fun _ -> True)
   ))
   (ensures (fun h0 b' h1 ->
     S.modifies_none h0 h1 /\
@@ -352,7 +427,7 @@ val point_to_vlbytes_contents
     let sz' = U32.uint_to_t sz in
     let b1 = S.truncated_slice b sz' in
     S.is_prefix_gen [b1; b'] b /\
-    parses h0 (parse_vlbytes sz p) b (fun (v, len) ->
+    parses h0 (parse_vlbytes_gen sz f p) b (fun (v, len) ->
     exactly_parses h0 p b' (fun v' ->
     U32.v sz' <= U32.v len /\
     S.length b' == U32.sub len sz' /\
@@ -361,7 +436,7 @@ val point_to_vlbytes_contents
 
 #set-options "--z3rlimit 32"
 
-let point_to_vlbytes_contents #b #t p sz b =
+let point_to_vlbytes_contents sz f #b #t p b =
   let (len, _) = parse_bounded_integer_st_nochk sz b in
   let b1 = S.advance_slice b (U32.uint_to_t sz) in
   S.truncate_slice b1 len
@@ -418,39 +493,24 @@ let in_bounds
 : Tot bool
 = not (U32.lt x min || U32.lt max x)
 
-(*
-noextract
-let parse_bounded_vlbytes'
-  (min: U32.t)
-  (max: U32.t { U32.v max > 0 } )
-  (#t: Type0)
-  (p: parser t)
-  (sz: integer_size { sz == log256 max } )
-: Tot (parser t)
-= parse_filter
-    (parse_bounded_integer sz)
-    (in_bounds min max)
-  `and_then`
-  (fun len ->
-    parse_sized p (U32.v len)
-  )
-
 noextract
 let parse_bounded_vlbytes
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
 : Tot (parser t)
 = let sz : integer_size = log256 max in
-  parse_bounded_vlbytes' min max p sz
+  parse_vlbytes_gen sz (in_bounds min max) p
 
 let parse_bounded_vlbytes_parse_vlbytes
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
+  (#b: bool)
   (#t: Type0)
   (h: HS.mem)
-  (p: parser t)
+  (p: parser' b t)
   (b: S.bslice)
   (pred: ((t * consumed_slice_length b) -> GTot Type0))
 : Lemma
@@ -459,55 +519,24 @@ let parse_bounded_vlbytes_parse_vlbytes
 = ()
 
 inline_for_extraction
-let validate_bounded_vlbytes'
-  (min: U32.t)
-  (max: U32.t { U32.v max > 0 } )
-  (#t: Type0)
-  (#p: parser t)
-  (pv: stateful_validator p)
-  (sz: integer_size { sz == log256 max } )
-: Tot (stateful_validator (parse_bounded_vlbytes' min max p sz))
-= parse_then_check
-    #_
-    #(parse_filter (parse_bounded_integer sz) (in_bounds min max))
-    (parse_filter_st (parse_bounded_integer_st sz) (in_bounds min max))
-    #_
-    #(fun len -> parse_sized p (U32.v len))
-    (fun len -> validate_sized pv len)
-
-inline_for_extraction
 let validate_bounded_vlbytes
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
+  (#b: bool)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' b t)
   (pv: stateful_validator p)
 : Tot (stateful_validator (parse_bounded_vlbytes min max p))
-= let sz = log256 max in
-  validate_bounded_vlbytes' min max pv sz
-
-inline_for_extraction
-let validate_bounded_vlbytes_nochk'
-  (min: U32.t)
-  (max: U32.t { U32.v max > 0 } )
-  (#t: Type0)
-  (p: parser t)
-  (sz: integer_size { sz == log256 max } )
-: Tot (stateful_validator_nochk (parse_bounded_vlbytes' min max p sz))
-= parse_nochk_then_nochk
-    #_
-    #(parse_filter (parse_bounded_integer sz) (in_bounds min max))
-    (parse_filter_st_nochk (parse_bounded_integer_st_nochk sz) (in_bounds min max))
-    #_
-    #(fun len -> parse_sized p (U32.v len))
-    (fun len -> validate_sized_nochk p len)
+= let sz : integer_size = log256 max in
+  validate_vlbytes_gen sz (in_bounds min max) #b #t #p pv
 
 inline_for_extraction
 let validate_bounded_vlbytes_nochk
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
 : Tot (stateful_validator_nochk (parse_bounded_vlbytes min max p))
 = let sz = log256 max in
-  validate_bounded_vlbytes_nochk' min max p sz
+  validate_vlbytes_gen_nochk sz (in_bounds min max) #b #t p

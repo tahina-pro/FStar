@@ -17,12 +17,10 @@ val parse_list_aux
   (#t: Type0)
   (p: bare_parser t)
   (b: bytes32)
-: Tot (parse_arrow unit (fun _ -> option (list t * (consumed_length b))))
+: GTot (option (list t * (consumed_length b)))
   (decreases (Seq.length b))
 
 let rec parse_list_aux #t p b =
-  let () = () in
-  fun () ->
   if Seq.length b = 0
   then 
     Some ([], (0 <: consumed_length b))
@@ -33,7 +31,7 @@ let rec parse_list_aux #t p b =
       if n = 0
       then None (* elements cannot be empty *)
       else
-        match parse_list_aux p (Seq.slice b n (Seq.length b)) () with
+        match parse_list_aux p (Seq.slice b n (Seq.length b)) with
 	| Some (l, n') -> Some (v :: l, (n + n' <: consumed_length b))
 	| _ -> None
 
@@ -43,7 +41,7 @@ val parse_list_bare
   (p: bare_parser t)
 : Tot (bare_parser (list t))
 
-let parse_list_bare #t p = (fun b -> parse_list_aux #t p b ()) <: bare_parser (list t)
+let parse_list_bare #t p = (fun b -> parse_list_aux #t p b) <: bare_parser (list t)
 
 noextract
 let rec parse_list_bare_consumed
@@ -164,7 +162,7 @@ let rec parse_list_tailrec
   (#t: Type0)
   (p: parser' b t)
   (b: bytes32)
-: Tot (parse_arrow (aux: list t) (fun _ -> option (list t)))
+: Tot ((aux: list t) -> GTot (option (list t)))
   (decreases (Seq.length b))
 = fun aux ->
   if Seq.length b = 0

@@ -26,14 +26,11 @@ let bytes32 = S.bytes32
 /// these parsers are used as specifications, and thus use unrepresentable types
 /// such as byte sequences and natural numbers and are always pure
 
-(* Switch to Tot if you want an OCaml executable model for parsers *)
-let parse_arrow (a: Type0) (b: (a -> Type0)) : Tot Type0 = (x: a) -> GTot (b x)
-
 [@"substitute"]
 inline_for_extraction
 let consumed_length (b: bytes32) : Tot Type0 = (n: nat { n <= Seq.length b } )
 
-//unfold
+// switch to Tot if you want OCaml extraction
 let bare_parser (t:Type0) : Tot Type0 = (b: bytes32) -> GTot (option (t * consumed_length b))
 
 let parse
@@ -48,12 +45,12 @@ let no_lookahead_weak_on
   (f: bare_parser t)
   (x x' : bytes32)
 : GTot Type0
-= Some? (f x) ==> (
-  let (Some v) = f x in
+= Some? (parse f x) ==> (
+  let (Some v) = parse f x in
   let (y, off) = v in (
   (off <= Seq.length x' /\ Seq.length x' <= Seq.length x /\ Seq.slice x' 0 off == Seq.slice x 0 off) ==>
-  Some? (f x') /\ (
-  let (Some v') = f x' in
+  Some? (parse f x') /\ (
+  let (Some v') = parse f x' in
   let (y', off') = v' in
   y == y' /\ (off <: nat) == (off' <: nat)
   )))
@@ -71,10 +68,10 @@ let injective_precond
   (p: bare_parser t)
   (b1 b2: bytes32)
 : GTot Type0
-= Some? (p b1) /\
-  Some? (p b2) /\ (
-    let (Some (v1, len1)) = p b1 in
-    let (Some (v2, len2)) = p b2 in
+= Some? (parse p b1) /\
+  Some? (parse p b2) /\ (
+    let (Some (v1, len1)) = parse p b1 in
+    let (Some (v2, len2)) = parse p b2 in
     v1 == v2
   )
 
@@ -83,10 +80,10 @@ let injective_postcond
   (p: bare_parser t)
   (b1 b2: bytes32)
 : GTot Type0
-= Some? (p b1) /\
-  Some? (p b2) /\ (
-    let (Some (v1, len1)) = p b1 in
-    let (Some (v2, len2)) = p b2 in
+= Some? (parse p b1) /\
+  Some? (parse p b2) /\ (
+    let (Some (v1, len1)) = parse p b1 in
+    let (Some (v2, len2)) = parse p b2 in
     (len1 <: nat) == (len2 <: nat) /\
     Seq.slice b1 0 len1 == Seq.slice b2 0 len2
   )
@@ -196,12 +193,12 @@ let parser_st_nochk #t (p: bare_parser t) : Tot Type0 =
   input: S.bslice -> HST.Stack (t * consumed_slice_length input)
   (requires (fun h0 -> S.live h0 input /\
                     (let bs = S.as_seq h0 input in
-                     Some? (p bs))))
+                     Some? (parse p bs))))
   (ensures (fun h0 r h1 -> S.live h1 input /\
                   S.modifies_none h0 h1 /\
                   (let bs = S.as_seq h1 input in
-                    Some? (p bs) /\
-                    (let (v, n) = Some?.v (p bs) in
+                    Some? (parse p bs) /\
+                    (let (v, n) = Some?.v (parse p bs) in
                      let (rv, off) = r in
                        v == rv /\
                        n == U32.v off))))
@@ -366,7 +363,7 @@ let validate_fail #t =
 noextract
 val and_then_bare : #t:Type -> #t':Type ->
                 p:bare_parser t ->
-                p': parse_arrow t (fun _ -> bare_parser t') ->
+                p': (t -> GTot (bare_parser t')) ->
                 Tot (bare_parser t')
 let and_then_bare #t #t' p p' =
     fun (b: bytes32) ->
@@ -386,7 +383,7 @@ val and_then_no_lookahead_weak_on
     (#t:Type)
     (#t':Type)
     (p: bare_parser t)
-    (p': parse_arrow t (fun _ -> bare_parser t'))
+    (p': (t -> GTot (bare_parser t')))
     (x: bytes32) 
     (x' : bytes32)
   : Lemma
@@ -394,10 +391,10 @@ val and_then_no_lookahead_weak_on
       no_lookahead_weak t p /\
       (forall (x: t) . no_lookahead_weak t' (p' x))
     ))
-    (ensures (no_lookahead_weak_on t' (and_then_bare p (fun (x: t) -> p' x)) x x'))
+    (ensures (no_lookahead_weak_on t' (and_then_bare p p') x x'))
 
 let and_then_no_lookahead_weak_on #t #t' p p' x x' =
-    let f = and_then_bare p (fun (x: t) -> p' x) in
+    let f = and_then_bare p p' in
     match f x with
     | Some v -> 
       let (y, off) = v in
@@ -409,27 +406,27 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 	let g () : Lemma
 	  (requires (Seq.length x' <= Seq.length x /\ Seq.slice x' 0 off_x' == Seq.slice x 0 off_x))
 	  (ensures (
-	    Some? (f x') /\ (
-	    let (Some v') = f x' in
+	    Some? (parse f x') /\ (
+	    let (Some v') = parse f x' in
 	    let (y', off') = v' in
 	    y == y' /\ (off <: nat) == (off' <: nat)
 	  )))
-	= assert (Some? (p x));
-	  let (Some (y1, off1)) = p x in
+	= assert (Some? (parse p x));
+	  let (Some (y1, off1)) = parse p x in
 	  assert (off1 <= off);
 	  assert (off1 <= Seq.length x');
 	  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off_x') 0 off1);
 	  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
 	  assert (no_lookahead_weak_on t p x x');
-	  assert (Some? (p x'));
-	  let (Some v1') = p x' in
+	  assert (Some? (parse p x'));
+	  let (Some v1') = parse p x' in
 	  let (y1', off1') = v1' in
 	  assert (y1 == y1' /\ (off1 <: nat) == (off1' <: nat));
 	  let x2 : bytes32 = Seq.slice x off1 (Seq.length x) in
 	  let x2' : bytes32 = Seq.slice x' off1 (Seq.length x') in
 	  let p2 = p' y1 in
-	  assert (Some? (p2 x2));
-	  let (Some (y', off2)) = p2 x2 in
+	  assert (Some? (parse p2 x2));
+	  let (Some (y', off2)) = parse p2 x2 in
 	  assert (off == off1 + off2);
 	  assert (off2 <= Seq.length x2);
 	  assert (off2 <= Seq.length x2');
@@ -446,7 +443,7 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 let and_then_cases_injective_precond
   (#t:Type)
   (#t':Type)
-  (p': parse_arrow t (fun _ -> bare_parser t'))
+  (p': (t -> GTot (bare_parser t')))
   (x1 x2: t)
   (b1 b2: bytes32)
 : GTot Type0
@@ -460,7 +457,7 @@ let and_then_cases_injective_precond
 let and_then_cases_injective
   (#t:Type)
   (#t':Type)
-  (p': parse_arrow t (fun _ -> bare_parser t'))
+  (p': (t -> GTot (bare_parser t')))
 : GTot Type0
 = forall (x1 x2: t) (b1 b2: bytes32) .
   and_then_cases_injective_precond p' x1 x2 b1 b2 ==>
@@ -470,7 +467,7 @@ val and_then_injective
   (#t:Type)
   (#t':Type)
   (p: bare_parser t)
-  (p': parse_arrow t (fun _ -> bare_parser t'))
+  (p': (t -> GTot (bare_parser t')))
 : Lemma
   (requires (
     injective p /\
@@ -478,11 +475,11 @@ val and_then_injective
     and_then_cases_injective p'
   ))
   (ensures (
-    injective (and_then_bare p (fun (x: t) -> p' x))
+    injective (and_then_bare p p')
   ))
 
 let and_then_injective #t #t' p p' =
-  let ps = and_then_bare p (fun (x: t) -> p' x) in
+  let ps = and_then_bare p p' in
   let f
     (b1 b2: bytes32)
   : Lemma
@@ -514,7 +511,7 @@ val and_then_no_lookahead_on
     (#t:Type)
     (#t':Type)
     (p: bare_parser t)
-    (p': parse_arrow t (fun _ -> bare_parser t'))
+    (p': (t -> GTot (bare_parser t')))
     (x: bytes32) 
     (x' : bytes32)
   : Lemma
@@ -523,10 +520,10 @@ val and_then_no_lookahead_on
       injective p /\
       (forall (x: t) . no_lookahead t' (p' x))
     ))
-    (ensures (no_lookahead_on t' (and_then_bare p (fun (x: t) -> p' x)) x x'))
+    (ensures (no_lookahead_on t' (and_then_bare p p') x x'))
 
 let and_then_no_lookahead_on #t #t' p p' x x' =
-    let f = and_then_bare p (fun (x: t) -> p' x) in
+    let f = and_then_bare p p' in
     match f x with
     | Some v -> 
       let (y, off) = v in
@@ -582,20 +579,19 @@ val and_then
   (#t:Type)
   (#t':Type)
   (p:parser' b t)
-  (p': parse_arrow t (fun _ -> parser' b t'))
+  (p': (t -> GTot (parser' b t')))
 : Pure (parser' b t')
   (requires (
-    and_then_cases_injective (fun (x: t) -> p' x <: bare_parser t')
+    and_then_cases_injective p'
   ))
   (ensures (fun _ -> True))
 		
 let and_then #b #t #t' p p' =
-  let q (x: t) : GTot (bare_parser t') = p' x in
-  let f = and_then_bare p q in
-  Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_weak_on p q x));
-  and_then_injective p q;
+  let f = and_then_bare p p' in
+  Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_weak_on p p' x));
+  and_then_injective p p';
   if b then begin
-    Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_on p q x));
+    Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_on p p' x));
     (f <: parser t')
   end else
     (f <: weak_parser t')
@@ -608,8 +604,8 @@ val parse_then_check
   (#p1: parser' b t1)
   (ps1: parser_st p1)
   (#t2: Type0)
-  (#p2: parse_arrow t1 (fun _ -> parser' b t2) {
-    and_then_cases_injective (fun (x: t1) -> p2 x <: bare_parser t2)
+  (#p2: t1 -> GTot (parser' b t2) {
+    and_then_cases_injective p2
   })
   (ps2: ((x1: t1) -> Tot (stateful_validator (p2 x1))))
 : Tot (stateful_validator (and_then p1 p2))
@@ -635,8 +631,8 @@ let parse_nochk_then_nochk
   (#p1: parser' b t1)
   (ps1: parser_st_nochk p1)
   (#t2: Type0)
-  (#p2: parse_arrow t1 (fun _ -> parser' b t2) {
-    and_then_cases_injective (fun (x: t1) -> p2 x)
+  (#p2: (t1 -> GTot (parser' b t2)) {
+    and_then_cases_injective p2
   })
   (ps2: ((x1: t1) -> Tot (stateful_validator_nochk (p2 x1))))
 : Tot (stateful_validator_nochk (and_then p1 p2))
@@ -747,7 +743,7 @@ let parse_synth
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser' b t1)
-  (f2: parse_arrow t1 (fun _ -> t2))
+  (f2: t1 -> GTot t2)
 : Pure (parser' b t2)
   (requires (
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'
@@ -767,7 +763,7 @@ let validate_synth
   (#t2: Type0)
   (#p1: parser' b t1)
   (v1: stateful_validator p1)
-  (f2: parse_arrow t1 (fun _ -> t2) {
+  (f2: (t1 -> GTot t2) {
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'  
   })
 : Tot (stateful_validator (parse_synth p1 f2))
@@ -781,7 +777,7 @@ let validate_synth_nochk
   (#t2: Type0)
   (#p1: parser' b t1)
   (v1: stateful_validator_nochk p1)
-  (f2: parse_arrow t1 (fun _ -> t2) {
+  (f2: (t1 -> GTot t2) {
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'  
   })
 : Tot (stateful_validator_nochk (parse_synth p1 f2))
@@ -952,7 +948,7 @@ let parse_filter
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
-  (f: parse_arrow t (fun _ -> bool))
+  (f: (t -> GTot bool))
 : Tot (parser' b (x: t { f x == true }))
 = p `and_then` (fun (v: t) -> weaken' b (
     if f v
@@ -966,7 +962,7 @@ let stateful_filter_validator
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
-  (f: parse_arrow t (fun _ -> bool))
+  (f: (t -> GTot bool))
 : Tot Type0
 = (v2: (
     (b: S.bslice) ->
@@ -993,7 +989,7 @@ let validate_filter
   (#t: Type0)
   (#p: parser' b t)
   (v1: stateful_validator p)
-  (#f: parse_arrow t (fun _ -> bool))
+  (#f: (t -> GTot bool))
   (v2: stateful_filter_validator p f)
 : Tot (stateful_validator (parse_filter p f))
 = fun b ->
@@ -1012,7 +1008,7 @@ let validate_filter_nochk
   (#t: Type0)
   (#p: parser' b t)
   (v1: stateful_validator_nochk p)
-  (f: parse_arrow t (fun _ -> bool))
+  (f: (t -> GTot bool))
 : Tot (stateful_validator_nochk (parse_filter p f))
 = fun b -> v1 b
 
@@ -1022,7 +1018,7 @@ let validate_filter_st
   (#t: Type0)
   (#p: parser' b t)
   (ps: parser_st p)
-  (f: parse_arrow t (fun _ -> bool))
+  (f: (t -> GTot bool))
   (f': ((x: t) -> Pure bool (requires True) (ensures (fun y -> y == f x)))) // checker MUST be total here (we do have a stateful parser)
 : Tot (stateful_validator (parse_filter p f))
 = fun input ->
@@ -1057,7 +1053,7 @@ let parse_filter_st_nochk
   (#t: Type0)
   (#p: parser' b t)
   (ps: parser_st_nochk p)
-  (f: parse_arrow t (fun _ -> bool))
+  (f: (t -> GTot bool))
 : Tot (parser_st_nochk (parse_filter p f))
 = fun (input: S.bslice) ->
   let (x, off) = ps input in
