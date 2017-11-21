@@ -183,6 +183,8 @@ let parse_vlbytes_gen'
   `and_then`
   parse_vlbytes_payload sz f p
 
+#set-options "--z3rlimit 16"
+
 let parse_vlbytes_gen_no_lookahead_on
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
@@ -197,7 +199,32 @@ let parse_vlbytes_gen_no_lookahead_on
   (ensures (
     no_lookahead_on_postcond t (parse_vlbytes_gen' sz f p) x x'
   ))
-= admit ()
+= assert (Some? (parse (parse_vlbytes_gen' sz f p) x));
+  let (Some v) = parse (parse_vlbytes_gen' sz f p) x in
+  let (y, off) = v in
+  assert (off <= Seq.length x');
+  assert (Seq.slice x' 0 off == Seq.slice x 0 off);
+  assert (Some? (parse (parse_filter (parse_bounded_integer sz) f) x));
+  let (Some v1) = parse (parse_filter (parse_bounded_integer sz) f) x in
+  let (len1, off1) = v1 in
+  assert (off1 <= off);
+  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off) 0 off1);
+  assert (Seq.slice x 0 off1 == Seq.slice (Seq.slice x 0 off) 0 off1);
+  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
+  assert (no_lookahead_on_precond _ (parse_filter (parse_bounded_integer sz) f) x x');
+  assert (no_lookahead_on_postcond _ (parse_filter (parse_bounded_integer sz) f) x x');
+  let (Some v2) = parse (parse_filter (parse_bounded_integer sz) f) x in
+  let (len2, off2) = v2 in
+  assert (len1 == len2);
+  assert ((off1 <: nat) == (off2 <: nat));
+  assert (off == off1 + U32.v len1);
+  assert (Seq.slice x off1 off == Seq.slice (Seq.slice x 0 off) off1 off);
+  assert (Seq.slice x' off2 off == Seq.slice (Seq.slice x' 0 off) off2 off);
+  assert (Seq.slice x' off2 off == Seq.slice x off1 off);
+  assert (Some? (parse (parse_vlbytes_gen' sz f p) x'));
+  let (Some v') = parse (parse_vlbytes_gen' sz f p) x' in
+  let (y', _) = v' in
+  assert (y' == y)
 
 noextract
 let parse_vlbytes_gen
