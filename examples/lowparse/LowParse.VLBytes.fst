@@ -461,12 +461,14 @@ val point_to_vlbytes_contents
     v == v'
   )))))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let point_to_vlbytes_contents sz f #b #t p b =
   let (len, _) = parse_bounded_integer_st_nochk sz b in
   let b1 = S.advance_slice b (U32.uint_to_t sz) in
   S.truncate_slice b1 len
+
+#set-options "--z3rlimit 32"
 
 (** Explicit bounds on size *)
 
