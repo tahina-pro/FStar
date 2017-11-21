@@ -630,13 +630,16 @@ let parse_then_check #b #t1 #p1 ps1 #t2 #p2 ps2 =
 [@"substitute"]
 inline_for_extraction
 let parse_nochk_then_nochk
+  (#b: bool)
   (#t1: Type0)
-  (#p1: bare_parser t1)
+  (#p1: parser' b t1)
   (ps1: parser_st_nochk p1)
   (#t2: Type0)
-  (#p2: parse_arrow t1 (fun _ -> bare_parser t2))
+  (#p2: parse_arrow t1 (fun _ -> parser' b t2) {
+    and_then_cases_injective (fun (x: t1) -> p2 x)
+  })
   (ps2: ((x1: t1) -> Tot (stateful_validator_nochk (p2 x1))))
-: Tot (stateful_validator_nochk (and_then_bare p1 p2))
+: Tot (stateful_validator_nochk (and_then p1 p2))
 = fun input ->
   let (v1, off1) = ps1 input in
   let input2 = S.advance_slice input off1 in
@@ -750,7 +753,11 @@ let parse_synth
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'
   ))
   (ensures (fun _ -> True))
-= and_then p1 (fun (v1: t1) -> weaken' b (parse_ret (f2 v1)))
+= let f (v1: t1) : GTot (parser' b t2) =
+    let v2 = f2 v1 in
+    weaken' b (parse_ret v2)
+  in
+  and_then p1 f
 
 [@"substitute"]
 inline_for_extraction
