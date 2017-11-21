@@ -33,8 +33,9 @@ let parse_sized' #t p sz =
     | _ -> None
 
 let parse_sized_injective
+  (#b: bool)
   (#t: Type0)
-  (p: weak_parser t)
+  (p: parser' b t)
   (sz: nat)
 : Lemma
   (ensures (injective (parse_sized' p sz)))
@@ -49,19 +50,21 @@ let parse_sized_injective
 
 noextract
 val parse_sized
+  (#b: bool)
   (#t: Type0)
-  (p: weak_parser t)
+  (p: parser' b t)
   (sz: nat)
-: Tot (weak_constant_size_parser sz t)
+: Tot (constant_size_parser false sz t)
 
-let parse_sized #t p sz =
+let parse_sized #b #t p sz =
   parse_sized_injective p sz;
   parse_sized' p sz  
 
 inline_for_extraction
 let validate_sized
+  (#b: bool)
   (#t: Type0)
-  (#p: weak_parser t)
+  (#p: parser' b t)
   (ps: stateful_validator p)
   (len': U32.t)
 : Tot (stateful_validator (parse_sized p (U32.v len')))
@@ -82,8 +85,9 @@ let validate_sized
 
 inline_for_extraction
 let validate_sized_nochk
+  (#b: bool)
   (#t: Type0)
-  (p: weak_parser t)
+  (p: parser' b t)
   (len: U32.t)
 : Tot (stateful_validator_nochk (parse_sized p (U32.v len)))
 = validate_constant_size_nochk len (parse_sized p (U32.v len))
@@ -129,9 +133,10 @@ let parse_bounded_integer i =
   make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
 
 let parse_sized_and_then_cases_injective
+  (#b: bool)
   (sz: integer_size)
   (#t: Type0)
-  (p: weak_parser t)
+  (p: parser' b t)
 : Lemma
   (and_then_cases_injective (fun (i: bounded_integer sz) -> parse_sized p (U32.v i)))
 = let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
@@ -151,19 +156,64 @@ let parse_sized_and_then_cases_injective
 
 noextract
 let parse_vlbytes'
+  (#b: bool)
   (sz: integer_size)
   (#t: Type0)
-  (p: weak_parser t)
+  (p: parser' b t)
 : Tot (weak_parser t)
 = let parse_payload (len: bounded_integer sz) : Tot (weak_parser t) =
     parse_sized p (U32.v len)
   in
   parse_sized_and_then_cases_injective sz p;
-  (parse_bounded_integer sz)
-  `and_then_weak`
+  (weaken (parse_bounded_integer sz))
+  `and_then`
   parse_payload
 
+let parse_vlbytes_no_lookahead_on
+  (#b: bool)
+  (sz: integer_size)
+  (#t: Type0)
+  (p: parser' b t)
+  (x x' : bytes32)
+: Lemma
+  (requires (
+    no_lookahead_on_precond t (parse_vlbytes' sz p) x x'
+  ))
+  (ensures (
+    no_lookahead_on_postcond t (parse_vlbytes' sz p) x x'
+  ))
+= admit ()
+
+noextract
+let parse_vlbytes
+  (#b: bool)
+  (sz: integer_size)
+  (#t: Type0)
+  (p: parser' b t)
+: Tot (parser t)
+= Classical.forall_intro_2 (fun (x: bytes32) -> Classical.move_requires (parse_vlbytes_no_lookahead_on #b sz p x));
+  strengthen (parse_vlbytes' sz p)
+
 #set-options "--z3rlimit 16"
+
+inline_for_extraction
+let parse_bounded_integer_1_synth
+  (x: U8.t)
+: Tot (bounded_integer 1)
+= Cast.uint8_to_uint32 x
+
+inline_for_extraction
+let parse_bounded_integer_2_synth
+  (x: U16.t)
+: Tot (bounded_integer 2)
+= Cast.uint16_to_uint32 x
+
+inline_for_extraction
+let parse_bounded_integer_3_synth
+  (hilo: U16.t * U8.t)
+: Tot (bounded_integer 3)
+= let (hi, lo) = hilo in
+  U32.add (Cast.uint8_to_uint32 lo) (U32.mul 256ul (Cast.uint16_to_uint32 hi))
 
 noextract
 val parse_bounded_integer'
@@ -171,13 +221,9 @@ val parse_bounded_integer'
 : parser (bounded_integer i)
 
 let parse_bounded_integer' = function
-  | 1 -> parse_synth IP.parse_u8 (fun x -> Cast.uint8_to_uint32 x <: bounded_integer 1)
-  | 2 -> parse_synth IP.parse_u16 (fun x -> Cast.uint16_to_uint32 x <: bounded_integer 2)
-  | 3 -> (IP.parse_u16 `nondep_then` IP.parse_u8)
-	`parse_synth` (fun (hilo : U16.t * U8.t) ->
-	  let (hi, lo) = hilo in
-	  U32.add (Cast.uint8_to_uint32 lo) (U32.mul 256ul (Cast.uint16_to_uint32 hi)) <: bounded_integer 3
-	)
+  | 1 -> parse_synth IP.parse_u8 parse_bounded_integer_1_synth
+  | 2 -> parse_synth IP.parse_u16 parse_bounded_integer_2_synth
+  | 3 -> (IP.parse_u16 `nondep_then` IP.parse_u8) `parse_synth` parse_bounded_integer_3_synth
   | 4 -> IP.parse_u32
 
 #set-options "--z3rlimit 64"
@@ -189,22 +235,28 @@ let parse_bounded_integer'_correct
   (parse (parse_bounded_integer' i) b == parse (parse_bounded_integer i) b)
 = ()
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 inline_for_extraction
 val parse_bounded_integer_st_nochk'
   (i: integer_size)
 : Tot (parser_st_nochk (parse_bounded_integer' i))
 
-let parse_bounded_integer_st_nochk' = function
-  | 1 -> parse_synth_st_nochk IP.parse_u8_st_nochk (fun x -> Cast.uint8_to_uint32 x <: bounded_integer 1)
-  | 2 -> parse_synth_st_nochk IP.parse_u16_st_nochk (fun x -> Cast.uint16_to_uint32 x <: bounded_integer 2)
-  | 3 -> parse_synth_st_nochk
-	  (parse_nondep_then_nochk IP.parse_u16_st_nochk IP.parse_u8_st_nochk)
-	  (fun (hilo : U16.t * U8.t) ->
-	    let (hi, lo) = hilo in
-	    U32.add (Cast.uint8_to_uint32 lo) (U32.mul 256ul (Cast.uint16_to_uint32 hi)) <: bounded_integer 3
-	  )
+let parse_bounded_integer_st_nochk' i = match i with
+  | 1 -> 
+    let g = parse_synth IP.parse_u8 parse_bounded_integer_1_synth in
+    assert (parse_bounded_integer' i == g);
+    parse_synth_st_nochk #true IP.parse_u8_st_nochk parse_bounded_integer_1_synth <: parser_st_nochk g
+  | 2 ->
+    let g = parse_synth IP.parse_u16 parse_bounded_integer_2_synth in
+    assert (parse_bounded_integer' i == g);
+    parse_synth_st_nochk #true IP.parse_u16_st_nochk parse_bounded_integer_2_synth <: parser_st_nochk g
+  | 3 -> 
+    let g = parse_synth (nondep_then IP.parse_u16 IP.parse_u8) parse_bounded_integer_3_synth in
+    assert (parse_bounded_integer' i == g);
+    parse_synth_st_nochk #true
+      (parse_nondep_then_nochk IP.parse_u16_st_nochk IP.parse_u8_st_nochk)
+      parse_bounded_integer_3_synth <: parser_st_nochk g
   | 4 -> IP.parse_u32_st_nochk
 
 inline_for_extraction

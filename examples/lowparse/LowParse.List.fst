@@ -15,7 +15,7 @@ module Classical = FStar.Classical
 noextract
 val parse_list_aux
   (#t: Type0)
-  (p: parser t)
+  (p: bare_parser t)
   (b: bytes32)
 : Tot (parse_arrow unit (fun _ -> option (list t * (consumed_length b))))
   (decreases (Seq.length b))
@@ -38,22 +38,22 @@ let rec parse_list_aux #t p b =
 	| _ -> None
 
 noextract
-val parse_list_weak
+val parse_list_bare
   (#t: Type0)
-  (p: parser t)
-: Tot (weak_parser (list t))
+  (p: bare_parser t)
+: Tot (bare_parser (list t))
 
-let parse_list_weak #t p = (fun b -> parse_list_aux #t p b ()) <: weak_parser (list t)
+let parse_list_bare #t p = (fun b -> parse_list_aux #t p b ()) <: bare_parser (list t)
 
 noextract
-let rec parse_list_weak_consumed
+let rec parse_list_bare_consumed
   (#t: Type0)
-  (p: parser t)
+  (p: bare_parser t)
   (b: bytes32)
 : Lemma
-  (requires (Some? (parse_list_weak p b)))
+  (requires (Some? (parse_list_bare p b)))
   (ensures (
-    let pb = parse_list_weak p b in (
+    let pb = parse_list_bare p b in (
     Some? pb /\ (
     let (Some (_, consumed)) = pb in
     consumed == Seq.length b
@@ -64,32 +64,76 @@ let rec parse_list_weak_consumed
   else
     let (Some (_, consumed1)) = p b in
     let b' = Seq.slice b consumed1 (Seq.length b) in
-    parse_list_weak_consumed p b'
+    parse_list_bare_consumed p b'
 
-let no_lookahead_weak_on_parse_list_weak
+let no_lookahead_weak_on_parse_list_bare
   (#t: Type0)
-  (p: parser t)
+  (p: bare_parser t)
   (x x' : bytes32)
 : Lemma
-  (no_lookahead_weak_on (list t) (parse_list_weak p) x x')
-= match parse_list_weak p x with
-  | Some _ -> parse_list_weak_consumed p x
+  (no_lookahead_weak_on (list t) (parse_list_bare p) x x')
+= match parse_list_bare p x with
+  | Some _ -> parse_list_bare_consumed p x
   | _ -> ()
+
+#set-options "--z3rlimit 32"
+
+let parse_list_bare_injective
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+: Lemma
+  (ensures (injective (parse_list_bare p)))
+= let f () : Lemma
+    (injective p)
+  = ()
+  in
+  let rec aux
+    (b1: bytes32)
+    (b2: bytes32)
+  : Lemma
+    (requires (injective_precond (parse_list_bare p) b1 b2))
+    (ensures (injective_postcond (parse_list_bare p) b1 b2))
+    (decreases (Seq.length b1 + Seq.length b2))
+  = if Seq.length b1 = 0
+    then begin
+      () // assert (Seq.equal b1 b2)
+    end else begin
+      assert (injective_precond p b1 b2);
+      f ();
+      assert (injective_postcond p b1 b2);
+      let (Some (_, len1)) = parse p b1 in
+      let (Some (_, len2)) = parse p b2 in
+      assert ((len1 <: nat) == (len2 <: nat));
+      let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
+      let b2' : bytes32 = Seq.slice b2 len2 (Seq.length b2) in
+      aux b1' b2';
+      let (Some (_, len1')) = parse (parse_list_bare p) b1' in
+      let (Some (_, len2')) = parse (parse_list_bare p) b2' in
+      Seq.lemma_split (Seq.slice b1 0 (len1 + len1')) len1;
+      Seq.lemma_split (Seq.slice b2 0 (len2 + len2')) len2;
+      assert (injective_postcond (parse_list_bare p) b1 b2)
+    end
+  in
+  Classical.forall_intro_2 (fun b -> Classical.move_requires (aux b))
 
 noextract
 val parse_list
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
-: Tot (parser (list t))
+  (p: parser' b t)
+: Tot (weak_parser (list t))
 
-let parse_list #t p =
-  Classical.forall_intro_2 (no_lookahead_weak_on_parse_list_weak p);
-  parse_list_weak p
+let parse_list #b #t p =
+  Classical.forall_intro_2 (no_lookahead_weak_on_parse_list_bare p);
+  parse_list_bare_injective p;
+  parse_list_bare p
 
 noextract
 let parse_list_consumed
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (b: bytes32)
 : Lemma
   (requires (Some? (parse (parse_list p) b)))
@@ -100,12 +144,13 @@ let parse_list_consumed
     consumed == Seq.length b
   ))))
   (decreases (Seq.length b))
-= parse_list_weak_consumed p b
+= parse_list_bare_consumed p b
 
 let parse_list_exactly_parses
   (h: HS.mem)
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (s: S.bslice)
   (pred: ((list t * consumed_slice_length s) -> GTot Type0))
 : Lemma
@@ -115,8 +160,9 @@ let parse_list_exactly_parses
 
 noextract
 let rec parse_list_tailrec
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (b: bytes32)
 : Tot (parse_arrow (aux: list t) (fun _ -> option (list t)))
   (decreases (Seq.length b))
@@ -135,8 +181,9 @@ let rec parse_list_tailrec
 
 noextract
 let rec parse_list_tailrec_append
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (b: bytes32)
   (auxl: list t)
   (auxr: list t)
@@ -164,8 +211,9 @@ let rec parse_list_tailrec_append
 
 noextract
 let rec parse_list_tailrec_correct
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (b: bytes32)
   (aux: list t)
 : Lemma
@@ -195,53 +243,13 @@ let rec parse_list_tailrec_correct
 	| None -> ()
       end
 
-#set-options "--z3rlimit 32"
-
-let parse_list_injective
-  (#t: Type0)
-  (p: parser t)
-: Lemma
-  (requires (injective p))
-  (ensures (injective (parse_list p)))
-= let f () : Lemma
-    (injective p)
-  = ()
-  in
-  let rec aux
-    (b1: bytes32)
-    (b2: bytes32)
-  : Lemma
-    (requires (injective_precond (parse_list p) b1 b2))
-    (ensures (injective_postcond (parse_list p) b1 b2))
-    (decreases (Seq.length b1 + Seq.length b2))
-  = if Seq.length b1 = 0
-    then begin
-      () // assert (Seq.equal b1 b2)
-    end else begin
-      assert (injective_precond p b1 b2);
-      f ();
-      assert (injective_postcond p b1 b2);
-      let (Some (_, len1)) = parse p b1 in
-      let (Some (_, len2)) = parse p b2 in
-      assert ((len1 <: nat) == (len2 <: nat));
-      let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
-      let b2' : bytes32 = Seq.slice b2 len2 (Seq.length b2) in
-      aux b1' b2';
-      let (Some (_, len1')) = parse (parse_list p) b1' in
-      let (Some (_, len2')) = parse (parse_list p) b2' in
-      Seq.lemma_split (Seq.slice b1 0 (len1 + len1')) len1;
-      Seq.lemma_split (Seq.slice b2 0 (len2 + len2')) len2;
-      assert (injective_postcond (parse_list p) b1 b2)
-    end
-  in
-  Classical.forall_intro_2 (fun b -> Classical.move_requires (aux b))
-
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
 
 inline_for_extraction
 val list_head_tail
+  (#b: bool)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
@@ -259,13 +267,14 @@ val list_head_tail
     l == a :: q
   ))))))
 
-let list_head_tail #t #p sv b =
+let list_head_tail #b #t #p sv b =
   split sv b
 
 inline_for_extraction
 val list_is_empty
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (b: S.bslice)
 : HST.Stack bool
   (requires (fun h ->
@@ -277,12 +286,13 @@ val list_is_empty
     b' == Nil? l
   )))
 
-let list_is_empty #t p b =
+let list_is_empty #b #t p b =
   S.length b = 0ul
 
 let list_nth_slice_precond
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -293,8 +303,9 @@ let list_nth_slice_precond
   )
 
 let list_nth_slice_inv
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -320,8 +331,9 @@ let list_nth_slice_inv
 
 inline_for_extraction
 val list_nth_slice_advance
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -339,7 +351,7 @@ val list_nth_slice_advance
     list_nth_slice_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
-let list_nth_slice_advance #t p sv b i h0 sl j =
+let list_nth_slice_advance #b #t p sv b i h0 sl j =
   let h1 = HST.get () in
   B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl (S.as_buffer b);
   let s = B.index sl 0ul in
@@ -361,8 +373,9 @@ let list_nth_slice_advance #t p sv b i h0 sl j =
 
 inline_for_extraction
 val list_nth_slice
+  (#b: bool)
   (#t: Type0)
-  (p: parser t)
+  (p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -380,7 +393,7 @@ val list_nth_slice
     v == L.index l (U32.v i)
   ))))
 
-let list_nth_slice #t p sv b i =
+let list_nth_slice #b #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
   let h1 = HST.get () in
@@ -409,8 +422,9 @@ let list_nth_slice #t p sv b i =
   res
 
 let validate_list_inv
+  (#b: bool)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' b t)
   (sv: stateful_validator p)
   (b: S.bslice)
   (h0: Ghost.erased HS.mem)
@@ -442,8 +456,9 @@ let validate_list_inv
 
 inline_for_extraction
 val validate_list_advance
+  (#b: bool)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' b t)
   (sv: stateful_validator p)
   (b: S.bslice)
   (h0: Ghost.erased HS.mem)
@@ -460,7 +475,7 @@ val validate_list_advance
     validate_list_inv sv b h0 sl h2 (U32.v j + 1) res
   ))
 
-let validate_list_advance #t #p sv b h0 sl j =
+let validate_list_advance #b #t #p sv b h0 sl j =
   let h1 = HST.get () in
   B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl (S.as_buffer b);
   let os = B.index sl 0ul in
@@ -492,12 +507,13 @@ let validate_list_advance #t #p sv b h0 sl j =
 
 inline_for_extraction
 val validate_list
+  (#b: bool)
   (#t: Type0)
-  (#p: parser t)
+  (#p: parser' b t)
   (sv: stateful_validator p)
 : Tot (stateful_validator (parse_list p))
 
-let validate_list #t #p sv =
+let validate_list #b #t #p sv =
   fun (b: S.bslice) ->
   let h0 = HST.get () in
   HST.push_frame ();
