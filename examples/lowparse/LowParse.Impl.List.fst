@@ -35,8 +35,12 @@ val list_head_tail
     l == a :: q
   ))))))
 
+#set-options "--z3rlimit 32"
+
 let list_head_tail #b #t #p sv b =
   split sv b
+
+#reset-options
 
 inline_for_extraction
 val list_is_empty
@@ -119,7 +123,7 @@ val list_nth_slice_advance
     list_nth_slice_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 64"
 
 let list_nth_slice_advance #b #t p sv b i h0 sl j =
   let h1 = HST.get () in
@@ -165,6 +169,8 @@ val list_nth_slice
     v == L.index l (U32.v i)
   ))))
 
+#set-options "--z3rlimit 32"
+
 let list_nth_slice #b #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
@@ -192,6 +198,8 @@ let list_nth_slice #b #t p sv b i =
   assert (S.as_seq h b == S.as_seq h0 b);
   assert (S.as_seq h res == S.as_seq h0 res);
   res
+
+#reset-options
 
 let validate_list_inv
   (#b: bool)
@@ -246,6 +254,8 @@ val validate_list_advance
     validate_list_inv sv b h0 sl h1 (U32.v j) false /\
     validate_list_inv sv b h0 sl h2 (U32.v j + 1) res
   ))
+
+#set-options "--z3rlimit 32"
 
 let validate_list_advance #b #t #p sv b h0 sl j =
   let h1 = HST.get () in
@@ -339,3 +349,5 @@ let validate_list #b #t #p sv =
   in
   Classical.move_requires f ();
   res
+
+#reset-options
