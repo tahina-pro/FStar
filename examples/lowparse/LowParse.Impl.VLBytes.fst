@@ -1,5 +1,5 @@
 module LowParse.Impl.VLBytes
-include LowParse.Impl.Combinators
+include LowParse.Impl.FLBytes
 include LowParse.Impl.Int
 include LowParse.Spec.VLBytes
 
@@ -12,38 +12,6 @@ module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module E = FStar.Kremlin.Endianness
 module Cast = FStar.Int.Cast
-
-inline_for_extraction
-let validate_sized
-  (#b: bool)
-  (#t: Type0)
-  (#p: parser' b t)
-  (ps: stateful_validator p)
-  (len': U32.t)
-: Tot (stateful_validator (parse_sized p (U32.v len')))
-= fun (input: S.bslice) ->
-  let blen = S.length input in
-  if U32.lt blen len'
-  then begin
-    None
-  end else begin
-    let input'  = S.truncate_slice input len'  in
-    match ps input' with
-    | Some consumed ->
-      if consumed = len'
-      then Some ((consumed <: U32.t) <: consumed_slice_length input)
-      else None
-    | _ -> None
-  end
-
-inline_for_extraction
-let validate_sized_nochk
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (len: U32.t)
-: Tot (stateful_validator_nochk (parse_sized p (U32.v len)))
-= validate_constant_size_nochk len (parse_sized p (U32.v len))
 
 inline_for_extraction
 let parse_bounded_integer_1_synth
@@ -94,7 +62,7 @@ let parse_bounded_integer' = function
   | 3 -> parse_bounded_integer_3
   | 4 -> parse_u32
 
-#set-options "--z3rlimit 256"
+#set-options "--z3rlimit 512"
 
 let parse_bounded_integer'_correct
   (i: integer_size)
@@ -157,7 +125,7 @@ let validate_vlbytes_payload
   (pv: stateful_validator p)
   (i: bounded_integer sz { f i == true } )
 : Tot (stateful_validator (parse_vlbytes_payload sz f p i))
-= validate_sized pv i
+= validate_flbytes pv i
 
 inline_for_extraction
 let validate_vlbytes_gen
@@ -168,11 +136,11 @@ let validate_vlbytes_gen
   (#p: parser' b t)
   (pv: stateful_validator p)
 : Tot (stateful_validator (parse_vlbytes_gen sz f p))
-= parse_sized_and_then_cases_injective sz f p;
+= parse_flbytes_and_then_cases_injective sz f p;
   parse_then_check
-    #false
+    #true
     #_
-    #(weaken (parse_filter (parse_bounded_integer sz) f))
+    #(parse_filter (parse_bounded_integer sz) f)
     (parse_filter_st (parse_bounded_integer_st sz) f)
     #_
     #(parse_vlbytes_payload sz f p)
@@ -199,7 +167,7 @@ let validate_vlbytes_payload_nochk
   (p: parser' b t)
   (len: bounded_integer sz { f len == true } )
 : Tot (stateful_validator_nochk (parse_vlbytes_payload sz f p len))
-= validate_sized_nochk p len
+= validate_flbytes_nochk p len
 
 inline_for_extraction
 let validate_vlbytes_gen_nochk
@@ -209,11 +177,11 @@ let validate_vlbytes_gen_nochk
   (#t: Type0)
   (p: parser' b t)
 : Tot (stateful_validator_nochk (parse_vlbytes_gen sz f p))
-= parse_sized_and_then_cases_injective sz f p;
+= parse_flbytes_and_then_cases_injective sz f p;
   parse_nochk_then_nochk
-    #false
+    #true
     #_
-    #(weaken (parse_filter (parse_bounded_integer sz) f))
+    #(parse_filter (parse_bounded_integer sz) f)
     (parse_filter_st_nochk (parse_bounded_integer_st_nochk sz) f)
     #_
     #(parse_vlbytes_payload sz f p)
@@ -255,14 +223,14 @@ val point_to_vlbytes_contents
     v == v'
   )))))
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128"
 
 let point_to_vlbytes_contents sz f #b #t p b =
   let (len, _) = parse_bounded_integer_st_nochk sz b in
   let b1 = S.advance_slice b (U32.uint_to_t sz) in
   S.truncate_slice b1 len
 
-#set-options "--z3rlimit 32"
+#reset-options
 
 inline_for_extraction
 let validate_bounded_vlbytes
