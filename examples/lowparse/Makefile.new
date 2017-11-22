@@ -1,0 +1,54 @@
+################################################################################
+# Customize these variables for your project
+################################################################################
+# The root files of your project, from which to begin scanning dependences
+
+include Makefile.include
+
+FSTAR_FILES = $(FSTAR_SOURCE_FILES)
+
+# The executable file you want to produce
+PROGRAM = lowparse_examples
+
+# A driver in ML to call into your program
+TOP_LEVEL_FILE ?=
+
+# A place to put all the emitted .ml files
+OUTPUT_DIRECTORY ?= _output
+
+FSTAR_OPTIONS ?= --z3rlimit_factor 4
+
+################################################################################
+
+MY_FSTAR=$(FSTAR_HOME)/bin/fstar.exe --use_hints --cache_checked_modules --odir $(OUTPUT_DIRECTORY) $(addprefix --include , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN)  $(FSTAR_OPTIONS)
+MY_KREMLIN=$(KREMLIN_HOME)/krml
+
+all: verify-all
+
+# a.fst.checked is the binary, checked version of a.fst
+%.checked: %
+	$(MY_FSTAR) $*
+	touch $@
+
+$(FSTAR_HOME)/bin/fstarlib/fstarlib.cmxa:
+	make -C $(FSTAR_HOME)/ulib/ml
+
+basic_clean:
+	rm -rf _build $(OUTPUT_DIRECTORY) *~ *.checked* $(OCAML_EXE) $(KREMLIN_EXE) .depend
+
+.depend: $(FSTAR_FILES)
+	$(MY_FSTAR) --dep full $(FSTAR_FILES) > .depend
+
+depend: .depend
+
+include .depend
+
+# The default target is to verify all files, without extracting anything
+# It needs to be here, because it reads the variable ALL_FST_FILES in .depend
+verify-all: $(addsuffix .checked, $(ALL_FST_FILES))
+
+extract-ocaml: $(EXTRACT_FILES:.fst=.fst.checked)
+	$(MY_FSTAR) $(EXTRACT_FILES) --codegen OCaml
+
+extract-c: $(EXTRACT_C_FILE:.fst=.fst.checked)
+	$(MY_KREMLIN) $(addprefix -I ,$(INCLUDE_PATHS)) -skip-linking -warn-error +11 -bundle $(patsubst %.fst,%,$(EXTRACT_C_FILE))=LowParseExamples,LowParse.* $(EXTRACT_C_FILE)
