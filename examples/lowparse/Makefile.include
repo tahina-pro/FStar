@@ -1,0 +1,30 @@
+FSTAR_SOURCE_FILES= \
+	LowParse.Slice.fst \
+	LowParse.Base.fst \
+	LowParse.Spec.Int.fst \
+	LowParse.Impl.Int.fst \
+	LowParse.Spec.VLBytes.fst \
+	LowParse.Impl.VLBytes.fst \
+	LowParse.Spec.Enum.fst \
+	LowParse.Impl.Enum.fst \
+	LowParse.Spec.Sum.fst \
+	LowParse.Impl.Sum.fst \
+	LowParse.Spec.List.fst \
+	LowParse.Impl.List.fst \
+	LowParse.fst \
+	LowParseExamples.fst \
+	LowParseExamples.Extract.fst \
+
+
+EXTRACT_FILES= \
+
+
+EXTRACT_C_FILE=LowParseExamples.Extract.fst
+
+INCLUDE_PATHS:=
+
+ifeq ($(KREMLIN_HOME),)
+  INCLUDE_KREMLIN=
+else
+  INCLUDE_KREMLIN=--include $(KREMLIN_HOME)/kremlib
+endif
