@@ -315,6 +315,8 @@ let is_prefix_is_concat_is_prefix
   ))
 = ()
 
+#set-options "--z3rlimit 16"
+
 let advanced_slice_is_prefix
   (short long: bslice)
   (i: U32.t)
@@ -329,6 +331,8 @@ let advanced_slice_is_prefix
     is_prefix (advanced_slice short i) (advanced_slice long i)
   ))
 = ()
+
+#reset-options
 
 let is_concat_gen_cons
   (b: bslice)
