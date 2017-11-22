@@ -1,5 +1,5 @@
 module LowParse.Spec.VLBytes
-include LowParse.Spec.Combinators
+include LowParse.Spec.FLBytes
 include LowParse.Spec.Int
 
 module Seq = FStar.Seq
@@ -11,54 +11,6 @@ module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module E = FStar.Kremlin.Endianness
 module Cast = FStar.Int.Cast
-
-noextract
-val parse_sized'
-  (#t: Type0)
-  (p: bare_parser t)
-  (sz: nat)
-: Tot (bare_parser t)
-
-let parse_sized' #t p sz =
-  let () = () in // Necessary to pass arity checking
-  fun (s: bytes32) ->
-  if Seq.length s < sz
-  then None
-  else
-    match p (Seq.slice s 0 sz) with
-    | Some (v, consumed) ->
-      if (consumed <: nat) = (sz <: nat)
-      then Some (v, (sz <: consumed_length s))
-      else None
-    | _ -> None
-
-let parse_sized_injective
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (sz: nat)
-: Lemma
-  (ensures (injective (parse_sized' p sz)))
-= let f
-    (b1 b2: bytes32)
-  : Lemma
-    (requires (injective_precond (parse_sized' p sz) b1 b2))
-    (ensures (injective_postcond (parse_sized' p sz) b1 b2))
-  = assert (injective_precond p (Seq.slice b1 0 sz) (Seq.slice b2 0 sz))
-  in
-  Classical.forall_intro_2 (fun b -> Classical.move_requires (f b))
-
-noextract
-val parse_sized
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (sz: nat)
-: Tot (constant_size_parser false sz t)
-
-let parse_sized #b #t p sz =
-  parse_sized_injective p sz;
-  parse_sized' p sz  
 
 let integer_size : Type0 = (sz: nat { 1 <= sz /\ sz <= 4 } )
 
@@ -112,10 +64,10 @@ let parse_vlbytes_payload
   (#t: Type0)
   (p: parser' b t)
   (i: bounded_integer sz { f i == true } )
-: Tot (weak_parser t)
-= parse_sized p (U32.v i)
+: Tot (parser t)
+= parse_flbytes p (U32.v i)
 
-let parse_sized_and_then_cases_injective
+let parse_flbytes_and_then_cases_injective
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
   (#b: bool)
@@ -143,64 +95,6 @@ let parse_sized_and_then_cases_injective
   Classical.forall_intro_3 g'
 
 noextract
-let parse_vlbytes_gen'
-  (sz: integer_size)
-  (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-: Tot (weak_parser t)
-= parse_sized_and_then_cases_injective sz f p;
-  (weaken (parse_filter (parse_bounded_integer sz) f))
-  `and_then`
-  parse_vlbytes_payload sz f p
-
-#set-options "--z3rlimit 64"
-
-let parse_vlbytes_gen_no_lookahead_on
-  (sz: integer_size)
-  (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (x x' : bytes32)
-: Lemma
-  (requires (
-    no_lookahead_on_precond t (parse_vlbytes_gen' sz f p) x x'
-  ))
-  (ensures (
-    no_lookahead_on_postcond t (parse_vlbytes_gen' sz f p) x x'
-  ))
-= assert (Some? (parse (parse_vlbytes_gen' sz f p) x));
-  let (Some v) = parse (parse_vlbytes_gen' sz f p) x in
-  let (y, off) = v in
-  assert (off <= Seq.length x');
-  assert (Seq.slice x' 0 off == Seq.slice x 0 off);
-  assert (Some? (parse (parse_filter (parse_bounded_integer sz) f) x));
-  let (Some v1) = parse (parse_filter (parse_bounded_integer sz) f) x in
-  let (len1, off1) = v1 in
-  assert (off1 <= off);
-  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off) 0 off1);
-  assert (Seq.slice x 0 off1 == Seq.slice (Seq.slice x 0 off) 0 off1);
-  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
-  assert (no_lookahead_on_precond _ (parse_filter (parse_bounded_integer sz) f) x x');
-  assert (no_lookahead_on_postcond _ (parse_filter (parse_bounded_integer sz) f) x x');
-  let (Some v2) = parse (parse_filter (parse_bounded_integer sz) f) x in
-  let (len2, off2) = v2 in
-  assert (len1 == len2);
-  assert ((off1 <: nat) == (off2 <: nat));
-  assert (off == off1 + U32.v len1);
-  assert (Seq.slice x off1 off == Seq.slice (Seq.slice x 0 off) off1 off);
-  assert (Seq.slice x' off2 off == Seq.slice (Seq.slice x' 0 off) off2 off);
-  assert (Seq.slice x' off2 off == Seq.slice x off1 off);
-  assert (Some? (parse (parse_vlbytes_gen' sz f p) x'));
-  let (Some v') = parse (parse_vlbytes_gen' sz f p) x' in
-  let (y', _) = v' in
-  assert (y' == y)
-
-#reset-options
-
-noextract
 let parse_vlbytes_gen
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
@@ -208,8 +102,10 @@ let parse_vlbytes_gen
   (#t: Type0)
   (p: parser' b t)
 : Tot (parser t)
-= Classical.forall_intro_2 (fun (x: bytes32) -> Classical.move_requires (parse_vlbytes_gen_no_lookahead_on sz f p x));
-  strengthen (parse_vlbytes_gen' sz f p)
+= parse_flbytes_and_then_cases_injective sz f p;
+  (parse_filter (parse_bounded_integer sz) f)
+  `and_then`
+  parse_vlbytes_payload sz f p
 
 inline_for_extraction
 let unconstrained_bounded_integer
