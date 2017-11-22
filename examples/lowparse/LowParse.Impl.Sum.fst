@@ -60,7 +60,7 @@ let parse_sum'
 : Tot (parser' b (sum_type t))
 = p `and_then` (parse_sum_payload t pc)
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 64"
 
 let parse_sum'_correct
   (#b: bool)

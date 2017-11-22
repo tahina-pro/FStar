@@ -67,12 +67,16 @@ let parse_bounded_integer_2
 : parser (bounded_integer 2)
 = parse_synth parse_u16 parse_bounded_integer_2_synth
 
+#set-options "--z3rlimit 32"
+
 inline_for_extraction
 let parse_bounded_integer_3_synth
   (hilo: U16.t * U8.t)
 : Tot (bounded_integer 3)
 = let (hi, lo) = hilo in
   U32.add (Cast.uint8_to_uint32 lo) (U32.mul 256ul (Cast.uint16_to_uint32 hi))
+
+#reset-options
 
 noextract
 let parse_bounded_integer_3
@@ -90,7 +94,7 @@ let parse_bounded_integer' = function
   | 3 -> parse_bounded_integer_3
   | 4 -> parse_u32
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 256"
 
 let parse_bounded_integer'_correct
   (i: integer_size)

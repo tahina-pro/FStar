@@ -5,7 +5,7 @@ include Makefile.include
 
 FST_FILES := $(FSTAR_SOURCE_FILES)
 
-OTHERFLAGS+=$(addprefix --include , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN) --z3rlimit_factor 4
+OTHERFLAGS+=$(addprefix --include , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN)
 
 all: $(FST_FILES:.fst=.uver)
 
