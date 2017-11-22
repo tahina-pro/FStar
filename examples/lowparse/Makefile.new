@@ -16,7 +16,7 @@ TOP_LEVEL_FILE ?=
 # A place to put all the emitted .ml files
 OUTPUT_DIRECTORY ?= _output
 
-FSTAR_OPTIONS ?= --z3rlimit_factor 4
+FSTAR_OPTIONS ?= 
 
 ################################################################################
 
