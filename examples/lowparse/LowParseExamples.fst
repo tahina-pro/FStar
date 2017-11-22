@@ -46,6 +46,8 @@ let univ_destr_gen_exa_strong
 
 module S = LowParse.Slice
 
+#set-options "--z3rlimit 32"
+
 inline_for_extraction
 let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
   let f =
@@ -63,6 +65,8 @@ let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
       (fun r -> Known? (maybe_unknown_key_of_repr exa r))
       (fun x -> f x)
       s
+
+#reset-options
 
 inline_for_extraction
 val univ_destr_exa
