@@ -24,6 +24,7 @@ micro-benchmarks \
 bytes \
 tactics \
 kv_parsing \
+lowparse \
 vale \
 hello \
 native_tactics \
