@@ -3,6 +3,8 @@ FSTAR_SOURCE_FILES= \
 	LowParse.Base.fst \
 	LowParse.Spec.Int.fst \
 	LowParse.Impl.Int.fst \
+	LowParse.Spec.FLBytes.fst \
+	LowParse.Impl.FLBytes.fst \
 	LowParse.Spec.VLBytes.fst \
 	LowParse.Impl.VLBytes.fst \
 	LowParse.Spec.Enum.fst \
