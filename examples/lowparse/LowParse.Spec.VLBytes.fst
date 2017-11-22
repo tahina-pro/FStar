@@ -75,6 +75,8 @@ let decode_bounded_integer
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
 
+#set-options "--z3rlimit 32"
+
 let decode_bounded_integer_injective
   (i: integer_size)
   (b1: bytes32 { Seq.length b1 == i } )
@@ -90,6 +92,8 @@ let decode_bounded_integer_injective
     assert (E.be_to_n b1 == E.be_to_n b2);
     be_to_n_inj b1 b2
   end else ()
+
+#reset-options
 
 noextract
 val parse_bounded_integer
@@ -151,7 +155,7 @@ let parse_vlbytes_gen'
   `and_then`
   parse_vlbytes_payload sz f p
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 64"
 
 let parse_vlbytes_gen_no_lookahead_on
   (sz: integer_size)
@@ -287,7 +291,7 @@ let parse_bounded_vlbytes
 = let sz : integer_size = log256 max in
   parse_vlbytes_gen sz (in_bounds min max) p
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 64"
 
 let parse_bounded_vlbytes_parse_vlbytes
   (min: U32.t)

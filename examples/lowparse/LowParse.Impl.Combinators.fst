@@ -130,6 +130,8 @@ let parse_nochk_then_nochk
   let off2 = ps2 v1 input2 in
   (U32.add off1 off2 <: consumed_slice_length input)
 
+#set-options "--z3rlimit 32"
+
 [@"substitute"]
 inline_for_extraction
 let validate_nondep_then
@@ -185,6 +187,8 @@ let parse_nondep_then_nochk
   let s2 = S.advance_slice s1 off1 in
   let (x2, off2) = v2 s2 in
   ((x1, x2), (U32.add off1 off2 <: consumed_slice_length s1))
+
+#reset-options
 
 inline_for_extraction
 val nondep_destruct
@@ -326,6 +330,7 @@ let parse_total_constant_size
   then None
   else Some (ps s)
 
+#set-options "--z3rlimit 32"
 
 let stateful_filter_validator
   (#b: bool)
@@ -370,6 +375,8 @@ let validate_filter
       then r1
       else None
     else None
+
+#reset-options
 
 inline_for_extraction
 let validate_filter_nochk
