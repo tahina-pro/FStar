@@ -293,11 +293,15 @@ let rec is_concat_gen
       is_concat_gen b' q
     )
 
+#set-options "--z3rlimit 16"
+
 let is_concat_is_concat_gen
   (b b1 b2: bslice)
 : Lemma
   (is_concat b b1 b2 <==> is_concat_gen b [b1; b2])
 = ()
+
+#reset-options
 
 let is_prefix_is_concat_is_prefix
   (b b12 b1 b2: bslice)
@@ -339,7 +343,7 @@ let is_concat_gen_cons
   (ensures (is_concat_gen b (b1 :: q)))
 = ()
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 128"
 
 let rec is_concat_gen_append_intro_l
   (b bl: bslice)
@@ -382,7 +386,7 @@ let rec is_concat_gen_append_intro
   | b' :: ll' ->
     is_concat_gen_append_intro (advanced_slice b (length b')) bm ll' lm lr
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 64"
 
 let rec is_concat_gen_append_elim_l
   (b bl: bslice)
