@@ -83,6 +83,8 @@ val gen_validate_sum_partial'
   (vs' : ((x: sum_repr_type t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) x)))))
 : Tot (stateful_validator (parse_sum' t p pc))
 
+#set-options "--z3rlimit 16"
+
 let gen_validate_sum_partial' #b t p ps pc vs' =
   let g' (v: sum_repr_type t) : Tot (stateful_validator (parse_sum_payload t pc v)) =
     validate_synth
@@ -101,6 +103,8 @@ let gen_validate_sum_partial' #b t p ps pc vs' =
     #(sum_type t)
     #(parse_sum_payload t pc)
     g'
+
+#reset-options
 
 inline_for_extraction
 val gen_validate_sum_partial

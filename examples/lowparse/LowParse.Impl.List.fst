@@ -35,7 +35,7 @@ val list_head_tail
     l == a :: q
   ))))))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let list_head_tail #b #t #p sv b =
   split sv b
