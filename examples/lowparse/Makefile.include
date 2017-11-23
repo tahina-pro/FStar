@@ -8,6 +8,10 @@ FSTAR_SOURCE_FILES= \
 	LowParse.Spec.VLBytes.fst \
 	LowParse.Impl.VLBytes.Part1.fst \
 	LowParse.Impl.VLBytes.Part2.fsti \
+	LowParse.Impl.VLBytes.Part2.Subpart1.fst \
+	LowParse.Impl.VLBytes.Part2.Subpart2.fst \
+	LowParse.Impl.VLBytes.Part2.Subpart3.fst \
+	LowParse.Impl.VLBytes.Part2.Subpart4.fst \
 	LowParse.Impl.VLBytes.Part2.fst \
 	LowParse.Impl.VLBytes.Part3.fst \
 	LowParse.Impl.VLBytes.Part4.fsti \
