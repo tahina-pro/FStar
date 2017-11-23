@@ -29,6 +29,8 @@ val point_to_vlbytes_contents
     point_to_vlbytes_contents_postcond sz f p b h0 b'
   ))
 
+#set-options "--z3rlimit 16"
+
 let point_to_vlbytes_contents sz f #b #t p b =
   let h = HST.get () in
   let (len, _) = parse_bounded_integer_st_nochk sz b in
@@ -37,3 +39,5 @@ let point_to_vlbytes_contents sz f #b #t p b =
   assert (point_to_vlbytes_contents_correct_precond sz f p b h len b1 b');
   point_to_vlbytes_contents_correct sz f p b h len b1 b';
   b'
+
+#reset-options
