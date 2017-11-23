@@ -299,6 +299,10 @@ let is_concat_is_concat_gen
   (b b1 b2: bslice)
 : Lemma
   (is_concat b b1 b2 <==> is_concat_gen b [b1; b2])
+  [SMTPatOr [
+    [SMTPat (is_concat b b1 b2)];
+    [SMTPat (is_concat_gen b [b1; b2])];
+  ]]
 = ()
 
 #reset-options
