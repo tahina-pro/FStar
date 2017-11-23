@@ -35,12 +35,8 @@ val list_head_tail
     l == a :: q
   ))))))
 
-#set-options "--z3rlimit 128"
-
 let list_head_tail #b #t #p sv b =
   split sv b
-
-#reset-options
 
 inline_for_extraction
 val list_is_empty
@@ -123,7 +119,7 @@ val list_nth_slice_advance
     list_nth_slice_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128"
 
 let list_nth_slice_advance #b #t p sv b i h0 sl j =
   let h1 = HST.get () in
