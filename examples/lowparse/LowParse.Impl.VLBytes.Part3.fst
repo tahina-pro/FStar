@@ -21,12 +21,16 @@ let parse_bounded_integer_st_nochk_2
 : parser_st_nochk parse_bounded_integer_2
 = parse_synth_st_nochk parse_u16_st_nochk parse_bounded_integer_2_synth
 
+#set-options "--z3rlimit 16"
+
 inline_for_extraction
 let parse_bounded_integer_st_nochk_3
 : parser_st_nochk parse_bounded_integer_3
 = parse_synth_st_nochk
     (parse_nondep_then_nochk parse_u16_st_nochk parse_u8_st_nochk)
     parse_bounded_integer_3_synth
+
+#reset-options
 
 inline_for_extraction
 val parse_bounded_integer_st_nochk'
