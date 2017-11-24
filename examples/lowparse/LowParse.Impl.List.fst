@@ -57,6 +57,118 @@ val list_is_empty
 let list_is_empty #b #t p b =
   S.length b = 0ul
 
+let list_length_inv
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (sv: stateful_validator_nochk p)
+  (b: S.bslice)
+  (h0: Ghost.erased HS.mem)
+  (sl: B.buffer S.bslice)
+  (h: HS.mem)
+  (j: nat)
+  (interrupt: bool)
+: GTot Type0
+= B.modifies_1 sl (Ghost.reveal h0) h /\
+  B.disjoint sl (S.as_buffer b) /\
+  B.length sl == 1 /\
+  B.live h sl /\ (
+  let s = Seq.index (B.as_seq h sl) 0 in
+  S.includes b s /\
+  j + U32.v (S.length s) <= U32.v (S.length b) /\
+  parses (Ghost.reveal h0) (parse_list p) b (fun (l, _) ->
+  parses (Ghost.reveal h0) (parse_list p) s (fun (l', _) ->
+    if interrupt
+    then
+      (L.length l + 1 == j)
+    else
+      L.length l == j + L.length l'
+  )))
+
+inline_for_extraction
+val list_length_advance
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (sv: stateful_validator_nochk p)
+  (b: S.bslice)
+  (h0: Ghost.erased HS.mem)
+  (sl: B.buffer S.bslice)
+  (j: U32.t)
+: HST.Stack bool
+  (requires (fun h ->
+    U32.v j < U32.v (S.length b) /\
+    list_length_inv p sv b h0 sl h (U32.v j) false
+  ))
+  (ensures (fun h interrupt h' ->
+    U32.v j < U32.v (S.length b) /\
+    list_length_inv p sv b h0 sl h (U32.v j) false /\
+    list_length_inv p sv b h0 sl h' (U32.v j + 1) interrupt
+  ))
+
+#set-options "--z3rlimit 32"
+
+let list_length_advance #b #t p sv b h0 sl j =
+  let s = B.index sl 0ul in
+  if S.length s = 0ul
+  then true
+  else begin
+    let h = HST.get () in
+    let len = sv s in
+    let s' = S.advance_slice s len in
+    let h2 = HST.get () in
+    assert (B.modifies_none h h2);
+    B.lemma_intro_modifies_1 sl h h2;
+    B.upd sl 0ul s' ;
+    false
+  end
+
+#reset-options
+
+val list_length
+  (#b: bool)
+  (#t: Type0)
+  (#p: parser' b t)
+  (sv: stateful_validator_nochk p)
+  (b: S.bslice)
+: HST.Stack U32.t
+  (requires (fun h ->
+    parses h (parse_list p) b (fun _ -> True)
+  ))
+  (ensures (fun h i h' ->
+    S.modifies_none h h' /\
+    parses h (parse_list p) b (fun (l, _) ->
+    L.length l == U32.v i
+  )))
+
+#set-options "--z3rlimit 32"
+
+let list_length #b #t #p sv b =
+  let h0 = HST.get () in
+  HST.push_frame () ;
+  let h1 = HST.get () in
+  let sl : B.buffer S.bslice = B.create b 1ul in
+  let h2 = HST.get () in
+  let len = S.length b in
+  let (j, interrupt) = C.Loops.interruptible_for
+    0ul
+    len
+    (fun h j -> list_length_inv p sv b (Ghost.hide h2) sl h j)
+    (fun j -> list_length_advance p sv b (Ghost.hide h2) sl j)
+  in
+  let res =
+    if interrupt
+    then U32.sub j 1ul
+    else j
+  in
+  let h3 = HST.get () in
+  HST.pop_frame () ;
+  let h4 = HST.get () in
+  B.lemma_modifies_0_push_pop h0 h1 h3 h4;
+  res
+
+#reset-options
+
 let list_nth_slice_precond
   (#b: bool)
   (#t: Type0)
