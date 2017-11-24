@@ -70,6 +70,18 @@ let validate_vlbytes_payload
 = validate_flbytes pv i
 
 inline_for_extraction
+let validate_vlbytes_payload_consumes_all
+  (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (#p: parser' b t)
+  (pv: stateful_validator p { consumes_all p } )
+  (i: bounded_integer sz { f i == true } )
+: Tot (stateful_validator (parse_vlbytes_payload sz f p i))
+= validate_flbytes_consumes_all pv i
+
+inline_for_extraction
 let validate_vlbytes_gen
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
@@ -89,6 +101,25 @@ let validate_vlbytes_gen
     (validate_vlbytes_payload sz f pv)
 
 inline_for_extraction
+let validate_vlbytes_gen_consumes_all
+  (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (#p: parser' b t)
+  (pv: stateful_validator p { consumes_all p } )
+: Tot (stateful_validator (parse_vlbytes_gen sz f p))
+= parse_flbytes_and_then_cases_injective sz f p;
+  parse_then_check
+    #true
+    #_
+    #(parse_filter (parse_bounded_integer sz) f)
+    (parse_filter_st (parse_bounded_integer_st sz) f)
+    #_
+    #(parse_vlbytes_payload sz f p)
+    (validate_vlbytes_payload_consumes_all sz f pv)
+
+inline_for_extraction
 val validate_vlbytes
   (sz: integer_size)
   (#b: bool)
@@ -99,6 +130,18 @@ val validate_vlbytes
 
 let validate_vlbytes sz #b #t #p pv =
   validate_vlbytes_gen sz (unconstrained_bounded_integer sz) #b #t #p pv
+
+inline_for_extraction
+val validate_vlbytes_consumes_all
+  (sz: integer_size)
+  (#b: bool)
+  (#t: Type0)
+  (#p: parser' b t)
+  (pv: stateful_validator p { consumes_all p } )
+: Tot (stateful_validator (parse_vlbytes sz p))
+
+let validate_vlbytes_consumes_all sz #b #t #p pv =
+  validate_vlbytes_gen_consumes_all sz (unconstrained_bounded_integer sz) #b #t #p pv
 
 inline_for_extraction
 let validate_vlbytes_payload_nochk
@@ -151,6 +194,18 @@ let validate_bounded_vlbytes
 : Tot (stateful_validator (parse_bounded_vlbytes min max p))
 = let sz : integer_size = log256 max in
   validate_vlbytes_gen sz (in_bounds min max) #b #t #p pv
+
+inline_for_extraction
+let validate_bounded_vlbytes_consumes_all
+  (min: U32.t)
+  (max: U32.t { U32.v max > 0 } )
+  (#b: bool)
+  (#t: Type0)
+  (#p: parser' b t)
+  (pv: stateful_validator p { consumes_all p } )
+: Tot (stateful_validator (parse_bounded_vlbytes min max p))
+= let sz : integer_size = log256 max in
+  validate_vlbytes_gen_consumes_all sz (in_bounds min max) #b #t #p pv
 
 inline_for_extraction
 let validate_bounded_vlbytes_nochk
