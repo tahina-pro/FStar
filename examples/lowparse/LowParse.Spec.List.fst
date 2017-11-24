@@ -142,6 +142,15 @@ let parse_list_consumed
   (decreases (Seq.length b))
 = parse_list_bare_consumed p b
 
+let parse_list_consumes_all
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+: Lemma
+  (consumes_all (parse_list p))
+  [SMTPat (consumes_all (parse_list p))]
+= Classical.forall_intro (Classical.move_requires (parse_list_consumed p))
+
 let parse_list_exactly_parses
   (h: HS.mem)
   (#b: bool)

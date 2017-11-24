@@ -157,6 +157,17 @@ let strengthen
   (ensures (fun _ -> True))
 = (p <: bare_parser t) <: parser t
 
+(** A parser that always consumes all its input *)
+
+let consumes_all
+  (#t: Type0)
+  (p: bare_parser t)
+: GTot Type0
+= forall (b: bytes32) . Some? (parse p b) ==> (
+    let (Some (_, len)) = parse p b in
+    Seq.length b == len
+  )
+
 [@"substitute"]
 inline_for_extraction
 let consumed_slice_length (input: S.bslice) : Tot Type0 =
@@ -230,6 +241,18 @@ let exactly_parses
   (k: (t -> GTot Type0))
 : GTot Type0
 = parses h p s (fun (v, len) -> S.length s == len /\ k v)
+
+let parses_consumes_all_exactly_parses
+  (#t: Type0)
+  (h: HS.mem)
+  (p: bare_parser t)
+  (s: S.bslice)
+  (k: ((t * consumed_slice_length s) -> GTot Type0))
+: Lemma
+  (requires (parses h p s k /\ consumes_all p))
+  (ensures (exactly_parses h p s (fun v -> k (v, S.length s))))
+= ()
+
 
 /// A validation is an [option U32.t], where [Some off] indicates success and
 /// consumes [off] bytes. A validation checks a parse result if it returns [Some
