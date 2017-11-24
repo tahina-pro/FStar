@@ -50,3 +50,32 @@ val parse_flbytes
 let parse_flbytes #b #t p sz =
   parse_flbytes_injective p sz;
   parse_flbytes' p sz  
+
+noextract
+val parse_flbytes_consumes_all
+  (#t: Type0)
+  (p: bare_parser t)
+  (sz: nat)
+: Pure (bare_parser t)
+  (requires (consumes_all p))
+  (ensures (fun _ -> True))
+
+let parse_flbytes_consumes_all #t p sz =
+  let () = () in // Necessary to pass arity checking
+  fun (s: bytes32) ->
+  if Seq.length s < sz
+  then None
+  else
+    match p (Seq.slice s 0 sz) with
+    | Some (v, _) ->
+      Some (v, (sz <: consumed_length s))
+    | _ -> None
+
+let parse_flbytes_consumes_all_correct
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (sz: nat)
+: Lemma
+  (consumes_all p ==> (forall b . parse (parse_flbytes p sz) b == parse (parse_flbytes_consumes_all p sz) b))
+= ()
