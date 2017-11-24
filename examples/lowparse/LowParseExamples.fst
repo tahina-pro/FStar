@@ -166,7 +166,8 @@ let validate_list_fstar_test
 inline_for_extraction
 let test_function
 : stateful_validator (parse_vlbytes 3 (parse_list parse_fstar_test))
-=  (validate_vlbytes 3 validate_list_fstar_test)
+=  (validate_vlbytes_consumes_all 3 validate_list_fstar_test)
+
 
 (* TODO: convert the following example into new style 
 
