@@ -1,7 +1,7 @@
 module LowParse.Impl.VLBytes.Part2.Subpart2
 include LowParse.Impl.VLBytes.Part1
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let parse_bounded_integer'_2_correct
   (b: bytes32)
