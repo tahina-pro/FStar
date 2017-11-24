@@ -1,5 +1,5 @@
 [
-  "Å;0Ù™¨\u0010(]\u0013rÏQs",
+  "'0n-q¿x{‰`ﬂ4LìÁ«",
   [
     [
       "LowParse.Impl.VLBytes.Part3.parse_bounded_integer_st_nochk_1",
@@ -15,7 +15,7 @@
         "typing_FStar.Int.Cast.uint8_to_uint32"
       ],
       0,
-      "61b0c5aea201664f3237d0dc98d8820e"
+      "e9644920738f542666fb43024bf4476a"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.parse_bounded_integer_st_nochk_2",
@@ -31,7 +31,7 @@
         "typing_FStar.Int.Cast.uint16_to_uint32"
       ],
       0,
-      "9de080e3731e0905fc6b7990eccd1fec"
+      "a1bd9ad2433fa2575e290a185f2b472b"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.parse_bounded_integer_st_nochk_3",
@@ -81,7 +81,7 @@
         "typing_LowParse.Impl.VLBytes.Part1.parse_bounded_integer_3_synth"
       ],
       0,
-      "3c71bd9e4ef079327f1dbccfdb69deec"
+      "76ed0dff3a698c40d9f14d06d13346c7"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.parse_bounded_integer_st_nochk'",
@@ -128,7 +128,7 @@
         "unit_typing"
       ],
       0,
-      "f52700df2cecd406a06e8f9bf8a831f0"
+      "f28173b00043821326f4e99ad99a2ab6"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.parse_bounded_integer_st_nochk",
@@ -148,7 +148,7 @@
         "typing_LowParse.Slice.as_seq"
       ],
       0,
-      "24f03bbfa84b5ca4b392538df97e457c"
+      "0485de113657312506c09a9e302b038e"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.parse_bounded_integer_st",
@@ -171,7 +171,7 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "8db380a6bb62a725a05c7e299a31ca9a"
+      "bc3b1133ecf9c0950dfc29ce0bebf32c"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.parse_bounded_integer_st",
@@ -197,7 +197,7 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "32887a5f608f64a4a32c876ad0d92619"
+      "681b75c7cf5d67ce7ad88f6984931582"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_vlbytes_payload",
@@ -209,7 +209,19 @@
         "equation_LowParse.Spec.VLBytes.parse_vlbytes_payload"
       ],
       0,
-      "3b5e4eb3939d969ea96f2a8bbf3e3deb"
+      "ffbe04ea102e7943731204f2c969d1d0"
+    ],
+    [
+      "LowParse.Impl.VLBytes.Part3.validate_vlbytes_payload_consumes_all",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_LowParse.Spec.FLBytes.parse_flbytes",
+        "equation_LowParse.Spec.VLBytes.parse_vlbytes_payload"
+      ],
+      0,
+      "a40a2b20a1fa7405219474eff68d9273"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_vlbytes_gen",
@@ -218,7 +230,16 @@
       1,
       [ "@query", "equation_LowParse.Spec.VLBytes.parse_vlbytes_gen" ],
       0,
-      "e9f756e7ac16d8d55b34589eea1ff02a"
+      "74fa82ccf82c2f20b6a2244a9ec88d86"
+    ],
+    [
+      "LowParse.Impl.VLBytes.Part3.validate_vlbytes_gen_consumes_all",
+      1,
+      2,
+      1,
+      [ "@query", "equation_LowParse.Spec.VLBytes.parse_vlbytes_gen" ],
+      0,
+      "8396ea85b71c87df002a3b007c571d71"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_vlbytes",
@@ -227,7 +248,16 @@
       1,
       [ "@query", "equation_LowParse.Spec.VLBytes.parse_vlbytes" ],
       0,
-      "4016fbb8f4cb2ee1c88add09fa345eb8"
+      "936d7d782cf067216542950ee7d0fc3c"
+    ],
+    [
+      "LowParse.Impl.VLBytes.Part3.validate_vlbytes_consumes_all",
+      1,
+      2,
+      1,
+      [ "@query", "equation_LowParse.Spec.VLBytes.parse_vlbytes" ],
+      0,
+      "c079eae33d627413954c04de1112c6ef"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_vlbytes_payload_nochk",
@@ -236,7 +266,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.VLBytes.parse_vlbytes_payload" ],
       0,
-      "13029df0e1f69a65e65db9db7d9cd2d6"
+      "e884e583d6c4b1bb9e4d1657bc959a92"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_vlbytes_gen_nochk",
@@ -245,7 +275,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.VLBytes.parse_vlbytes_gen" ],
       0,
-      "91df871ae0f9c179842cc152027416c4"
+      "ab138e4bc1fb2c4f2bc0160fee74389a"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_vlbytes_nochk",
@@ -254,7 +284,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.VLBytes.parse_vlbytes" ],
       0,
-      "a67866bf5db1b751e12d2e3ef0206714"
+      "5b021041013507ad9fc2093dedc2fb4f"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_bounded_vlbytes",
@@ -267,7 +297,20 @@
         "refinement_interpretation_LowParse.Spec.VLBytes_Tm_refine_484a6e6064fc1ae01de63e2e98020bbf"
       ],
       0,
-      "042e927d3b26041f27f2381ebff5aaf3"
+      "e222db25661794d32832920004d61102"
+    ],
+    [
+      "LowParse.Impl.VLBytes.Part3.validate_bounded_vlbytes_consumes_all",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query", "bool_inversion",
+        "equation_LowParse.Spec.VLBytes.parse_bounded_vlbytes",
+        "refinement_interpretation_LowParse.Spec.VLBytes_Tm_refine_484a6e6064fc1ae01de63e2e98020bbf"
+      ],
+      0,
+      "23c517280f4a72c31cc9a2820b27e27a"
     ],
     [
       "LowParse.Impl.VLBytes.Part3.validate_bounded_vlbytes_nochk",
@@ -280,7 +323,7 @@
         "refinement_interpretation_LowParse.Spec.VLBytes_Tm_refine_484a6e6064fc1ae01de63e2e98020bbf"
       ],
       0,
-      "402e01d4cbed6b913e258087c56d9b65"
+      "79aee69d73eed18987d62bd4ea9ca8a9"
     ]
   ]
 ]
