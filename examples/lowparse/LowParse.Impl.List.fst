@@ -169,7 +169,134 @@ let list_length #b #t #p sv b =
 
 #reset-options
 
-let list_nth_slice_precond
+val list_nth_spec
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (i: U32.t)
+  (h: HS.mem)
+: Ghost S.bslice
+  (requires (
+    parses h (parse_list p) b (fun (l, _) ->
+    U32.v i < L.length l
+  )))
+  (ensures (fun b' ->
+    S.includes b b' /\
+    parses h (parse_list p) b (fun (l, _) ->
+    exactly_parses h p b' (fun (x) ->
+    U32.v i < L.length l /\
+    x == L.index l (U32.v i)
+  ))))
+  (decreases (U32.v i))
+
+#set-options "--z3rlimit 16"
+
+let rec list_nth_spec #b #t p b i h =
+  let s = S.as_seq h b in
+  let (Some (v, len)) = parse p s in
+  if i = 0ul
+  then begin
+    let b' = S.truncated_slice b (U32.uint_to_t len) in
+    let s' = S.as_seq h b' in
+    assert (no_lookahead_weak_on _ p s s');
+    b'
+  end else
+    let b' = S.advanced_slice b (U32.uint_to_t len) in
+    list_nth_spec p b' (U32.sub i 1ul) h
+
+#reset-options
+
+val list_nth_spec_ext
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (i: U32.t)
+  (h h': HS.mem)
+: Lemma
+  (requires (
+    parses h (parse_list p) b (fun (l, _) -> U32.v i < L.length l) /\
+    S.live h' b /\
+    S.as_seq h' b == S.as_seq h b
+  ))
+  (ensures (
+    parses h (parse_list p) b (fun (l, _) -> U32.v i < L.length l) /\
+    parses h' (parse_list p) b (fun (l, _) -> U32.v i < L.length l) /\
+    list_nth_spec p b i h' == list_nth_spec p b i h
+  ))
+  (decreases (U32.v i))
+
+let rec list_nth_spec_ext #b #t p b i h h' =
+  if i = 0ul
+  then ()
+  else
+    let s = S.as_seq h b in
+    let (Some (v, len)) = parse p s in
+    let b' = S.advanced_slice b (U32.uint_to_t len) in
+    list_nth_spec_ext p b' (U32.sub i 1ul) h h'
+
+val list_nth_spec_lt_disjoint
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (i j: U32.t)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    U32.v i < U32.v j /\
+    parses h (parse_list p) b (fun (l, _) ->
+    U32.v j < L.length l
+  )))
+  (ensures (
+    U32.v i < U32.v j /\
+    parses h (parse_list p) b (fun (l, _) ->
+    U32.v j < L.length l /\
+    S.disjoint (list_nth_spec p b i h) (list_nth_spec p b j h)
+  )))
+  (decreases (U32.v i))
+
+let rec list_nth_spec_lt_disjoint #b #t p b i j h =
+  let s = S.as_seq h b in
+  let (Some (v, len)) = parse p s in
+  let b' = S.advanced_slice b (U32.uint_to_t len) in
+  if i = 0ul
+  then begin
+    assert (list_nth_spec p b j h == list_nth_spec p b' (U32.sub j 1ul) h);
+    assert (S.includes b' (list_nth_spec p b j h));
+    assert (S.disjoint (list_nth_spec p b i h) b')
+  end else
+    list_nth_spec_lt_disjoint p b' (U32.sub i 1ul) (U32.sub j 1ul) h
+
+val list_nth_spec_disjoint
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (i j: U32.t)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    U32.v i <> U32.v j /\
+    parses h (parse_list p) b (fun (l, _) ->
+    U32.v i < L.length l /\
+    U32.v j < L.length l
+  )))
+  (ensures (
+    U32.v i <> U32.v j /\
+    parses h (parse_list p) b (fun (l, _) ->
+    U32.v i < L.length l /\
+    U32.v j < L.length l /\
+    S.disjoint (list_nth_spec p b i h) (list_nth_spec p b j h)
+  )))
+
+let list_nth_spec_disjoint #b #t p b i j h =
+  if U32.lt i j
+  then list_nth_spec_lt_disjoint p b i j h
+  else list_nth_spec_lt_disjoint p b j i h
+
+let list_nth_precond
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
@@ -182,7 +309,7 @@ let list_nth_slice_precond
     U32.v i < L.length l
   )
 
-let list_nth_slice_inv
+let list_nth_inv
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
@@ -196,7 +323,7 @@ let list_nth_slice_inv
 : GTot Type0
 = B.disjoint (S.as_buffer b) sl /\
   B.length sl == 1 /\
-  list_nth_slice_precond p sv b i (Ghost.reveal h0) /\
+  list_nth_precond p sv b i (Ghost.reveal h0) /\
   B.modifies_1 sl (Ghost.reveal h0) h /\
   j <= U32.v i /\
   B.live h sl /\ (
@@ -204,13 +331,14 @@ let list_nth_slice_inv
   S.includes b b' /\ (
   parses (Ghost.reveal h0) (parse_list p) b (fun (l, _) ->
   parses (Ghost.reveal h0) (parse_list p) b' (fun (lr, _) ->
-  U32.v i < L.length l /\
-  L.length lr == L.length l - j /\
-  L.index l (U32.v i) == L.index lr (U32.v i - j)
-  )))))
+    U32.v i < L.length l /\
+    L.length lr == L.length l - j
+  ))) /\
+  list_nth_spec p b i (Ghost.reveal h0) == list_nth_spec p b' (U32.sub i (U32.uint_to_t j)) (Ghost.reveal h0)
+  ))
 
 inline_for_extraction
-val list_nth_slice_advance
+val list_nth_advance
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
@@ -222,41 +350,32 @@ val list_nth_slice_advance
   (j: U32.t)
 : HST.Stack unit
   (requires (fun h ->
-    list_nth_slice_inv p sv b i h0 sl h (U32.v j) /\
+    list_nth_inv p sv b i h0 sl h (U32.v j) /\
     U32.v j < U32.v i
   ))
   (ensures (fun h1 _ h2 ->
-    list_nth_slice_inv p sv b i h0 sl h1 (U32.v j) /\
+    list_nth_inv p sv b i h0 sl h1 (U32.v j) /\
     U32.v j < U32.v i /\
-    list_nth_slice_inv p sv b i h0 sl h2 (U32.v j + 1)
+    list_nth_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
 #set-options "--z3rlimit 128"
 
-let list_nth_slice_advance #b #t p sv b i h0 sl j =
-  let h1 = HST.get () in
-  B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl (S.as_buffer b);
+let list_nth_advance #b #t p sv b i h0 sl j =
   let s = B.index sl 0ul in
-  assert (S.as_seq h1 s == S.as_seq (Ghost.reveal h0) s);
+  let h1 = HST.get () in
+  let len = sv s in
+  let s' = S.advance_slice s len in
   let h2 = HST.get () in
-  assert (B.modifies_1 sl h1 h2);
-  assert (S.as_seq h2 s == S.as_seq (Ghost.reveal h0) s);
-  let (_, s') = list_head_tail sv s in
-  let h3 = HST.get () in
-  assert (B.modifies_none h2 h3);
-  assert (S.as_seq h3 s == S.as_seq (Ghost.reveal h0) s);
-  assert (S.as_seq h3 s' == S.as_seq (Ghost.reveal h0) s');
-  B.lemma_intro_modifies_1 sl h2 h3;
+  assert (B.modifies_none h1 h2);
   B.upd sl 0ul s';
-  let h = HST.get () in
-  assert (B.modifies_1 sl (Ghost.reveal h0) h);
-  S.includes_trans b s s';
-  ()
+  let h3 = HST.get () in
+  B.lemma_modifies_none_1_trans sl h1 h2 h3
 
 #reset-options
 
 inline_for_extraction
-val list_nth_slice
+val list_nth
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
@@ -272,39 +391,38 @@ val list_nth_slice
     S.modifies_none h h' /\
     S.includes b b' /\
     parses h (parse_list p) b (fun (l, _) ->
-    exactly_parses h p b' (fun v ->
-    U32.v i < L.length l /\
-    v == L.index l (U32.v i)
-  ))))
+      U32.v i < L.length l
+    ) /\
+    b' == list_nth_spec p b i h
+  ))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 16"
 
-let list_nth_slice #b #t p sv b i =
+let list_nth #b #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
   let h1 = HST.get () in
   let sl : B.buffer S.bslice = B.create b 1ul in
   let h2 = HST.get () in
-  B.lemma_reveal_modifies_0 h1 h2; // I really need to switch to my new modifies clauses very soon!
-  assert (S.as_seq h2 b == S.as_seq h0 b);
-  assert (list_nth_slice_inv p sv b i (Ghost.hide h2) sl h2 0);
   C.Loops.for
     0ul
     i
-    (fun h j -> list_nth_slice_inv p sv b i (Ghost.hide h2) sl h j)
-    (fun j -> list_nth_slice_advance p sv b i (Ghost.hide h2) sl j)
+    (fun h j -> list_nth_inv p sv b i (Ghost.hide h2) sl h j)
+    (fun j -> list_nth_advance p sv b i (Ghost.hide h2) sl j)
   ;
   let h3 = HST.get () in
-  B.lemma_reveal_modifies_1 sl h2 h3;
   let tail = B.index sl 0ul in
-  let (res, _) = list_head_tail sv tail in
+  let len = sv tail in
+  let res = S.truncate_slice tail len in
   let h4 = HST.get () in
-  assert (S.as_seq h4 b == S.as_seq h0 b);
-  assert (S.as_seq h4 res == S.as_seq h0 res);
+  assert (B.modifies_none h3 h4);
+  B.lemma_intro_modifies_1 sl h3 h4;
+  B.lemma_modifies_1_trans sl h2 h3 h4;
+  B.lemma_modifies_0_1' sl h1 h2 h4;
   HST.pop_frame ();
-  let h = HST.get () in
-  assert (S.as_seq h b == S.as_seq h0 b);
-  assert (S.as_seq h res == S.as_seq h0 res);
+  let h5 = HST.get () in
+  B.lemma_modifies_0_push_pop h0 h1 h4 h5;
+  list_nth_spec_ext p b i h2 h0;
   res
 
 #reset-options
