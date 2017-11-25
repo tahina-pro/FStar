@@ -141,6 +141,9 @@ let includes_trans (b1 b2 b3: bslice) : Lemma
   (ensures (includes b1 b3))
 = B.includes_trans b1.p b2.p b3.p
 
+let disjoint b b' = B.disjoint b.p b'.p
+
+
 (*! Framing slices *)
 
 let modifies_none = B.modifies_none
