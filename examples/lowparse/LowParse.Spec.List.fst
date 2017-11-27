@@ -13,7 +13,7 @@ val parse_list_aux
   (#t: Type0)
   (p: bare_parser t)
   (b: bytes32)
-: GTot (option (list t * (consumed_length b)))
+: Tot (option (list t * (consumed_length b)))
   (decreases (Seq.length b))
 
 let rec parse_list_aux #t p b =
@@ -153,7 +153,7 @@ let rec parse_list_tailrec
   (#t: Type0)
   (p: parser' b t)
   (b: bytes32)
-: Tot ((aux: list t) -> GTot (option (list t)))
+: Tot ((aux: list t) -> Tot (option (list t)))
   (decreases (Seq.length b))
 = fun aux ->
   if Seq.length b = 0
