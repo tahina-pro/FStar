@@ -44,6 +44,7 @@ let decode_bounded_integer_injective
 
 #reset-options
 
+inline_for_extraction
 val parse_bounded_integer
   (i: integer_size)
 : Tot (total_constant_size_parser i (bounded_integer i))
@@ -52,6 +53,7 @@ let parse_bounded_integer i =
   Classical.forall_intro_2 (decode_bounded_integer_injective i);
   make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
 
+inline_for_extraction
 let parse_vlbytes_payload
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
@@ -89,6 +91,7 @@ let parse_flbytes_and_then_cases_injective
   in
   Classical.forall_intro_3 g'
 
+inline_for_extraction
 let parse_vlbytes_gen
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
@@ -108,6 +111,7 @@ let unconstrained_bounded_integer
 : Tot bool
 = true
 
+inline_for_extraction
 let parse_vlbytes
   (sz: integer_size)
   (#b: bool)
@@ -119,6 +123,7 @@ let parse_vlbytes
 
 (** Explicit bounds on size *)
 
+inline_for_extraction
 val log256
   (n: U32.t)
 : Pure nat
@@ -169,6 +174,7 @@ let in_bounds
 : Tot bool
 = not (U32.lt x min || U32.lt max x)
 
+inline_for_extraction
 let parse_bounded_vlbytes
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
