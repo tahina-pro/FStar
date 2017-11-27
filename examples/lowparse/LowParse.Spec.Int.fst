@@ -8,6 +8,7 @@ module U8  = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 
+inline_for_extraction
 let parse_u8: total_constant_size_parser 1 U8.t =
   make_total_constant_size_parser 1 U8.t (fun b -> Seq.index b 0)
 
@@ -48,6 +49,7 @@ let decode_u16_injective
     be_to_n_inj b1 b2
   end else ()
 
+inline_for_extraction
 let parse_u16: total_constant_size_parser 2 U16.t =
   Classical.forall_intro_2 decode_u16_injective;
   make_total_constant_size_parser 2 U16.t decode_u16
@@ -73,6 +75,7 @@ let decode_u32_injective
     be_to_n_inj b1 b2
   end else ()
 
+inline_for_extraction
 let parse_u32: total_constant_size_parser 4 U32.t =
   Classical.forall_intro_2 decode_u32_injective;
   make_total_constant_size_parser 4 U32.t decode_u32
