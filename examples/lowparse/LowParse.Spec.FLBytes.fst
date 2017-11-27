@@ -3,6 +3,9 @@
 module LowParse.Spec.FLBytes
 include LowParse.Spec.Combinators
 
+module Seq = FStar.Seq
+module Classical = FStar.Classical
+
 noextract
 val parse_flbytes'
   (#t: Type0)
