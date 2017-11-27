@@ -1,5 +1,6 @@
 module LowParse.Impl.VLBytes.Part4
 include LowParse.Spec.VLBytes
+open LowParse.Impl.Base
 
 module Seq = FStar.Seq
 module S = LowParse.Slice
