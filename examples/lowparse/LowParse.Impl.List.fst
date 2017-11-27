@@ -10,7 +10,7 @@ module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module U32 = FStar.UInt32
 module Classical = FStar.Classical
-module Ghost = FStar.Ghost
+module G = FStar.Ghost
 
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
 
@@ -76,21 +76,21 @@ let list_length_inv
   (p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
-  (h0: Ghost.erased HS.mem)
+  (h0: G.erased HS.mem)
   (sl: B.buffer S.bslice)
   (h: HS.mem)
   (j: nat)
   (interrupt: bool)
 : GTot Type0
-= B.modifies_1 sl (Ghost.reveal h0) h /\
+= B.modifies_1 sl (G.reveal h0) h /\
   B.disjoint sl (S.as_buffer b) /\
   B.length sl == 1 /\
   B.live h sl /\ (
   let s = Seq.index (B.as_seq h sl) 0 in
   S.includes b s /\
   j + U32.v (S.length s) <= U32.v (S.length b) /\
-  parses (Ghost.reveal h0) (parse_list p) b (fun (l, _) ->
-  parses (Ghost.reveal h0) (parse_list p) s (fun (l', _) ->
+  parses (G.reveal h0) (parse_list p) b (fun (l, _) ->
+  parses (G.reveal h0) (parse_list p) s (fun (l', _) ->
     if interrupt
     then
       (L.length l + 1 == j)
@@ -105,7 +105,7 @@ val list_length_advance
   (p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
-  (h0: Ghost.erased HS.mem)
+  (h0: G.erased HS.mem)
   (sl: B.buffer S.bslice)
   (j: U32.t)
 : HST.Stack bool
@@ -166,8 +166,8 @@ let list_length #b #t #p sv b =
   let (j, interrupt) = C.Loops.interruptible_for
     0ul
     len
-    (fun h j -> list_length_inv p sv b (Ghost.hide h2) sl h j)
-    (fun j -> list_length_advance p sv b (Ghost.hide h2) sl j)
+    (fun h j -> list_length_inv p sv b (G.hide h2) sl h j)
+    (fun j -> list_length_advance p sv b (G.hide h2) sl j)
   in
   let res =
     if interrupt
@@ -245,7 +245,9 @@ val list_nth_spec
   (b: S.bslice)
   (i: U32.t)
   (h: HS.mem)
-: Ghost S.bslice
+: Ghost(* Do not remove this comment or add any whitespace before it,
+    this is to guard against gtot_to_tot.sh *)
+    S.bslice
   (requires (
     parses h (parse_list p) b (fun (l, _) ->
     U32.v i < L.length l
@@ -385,25 +387,25 @@ let list_nth_inv
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
-  (h0: Ghost.erased HS.mem)
+  (h0: G.erased HS.mem)
   (sl: B.buffer S.bslice)
   (h: HS.mem)
   (j: nat)
 : GTot Type0
 = B.disjoint (S.as_buffer b) sl /\
   B.length sl == 1 /\
-  list_nth_precond p sv b i (Ghost.reveal h0) /\
-  B.modifies_1 sl (Ghost.reveal h0) h /\
+  list_nth_precond p sv b i (G.reveal h0) /\
+  B.modifies_1 sl (G.reveal h0) h /\
   j <= U32.v i /\
   B.live h sl /\ (
   let b' = Seq.index (B.as_seq h sl) 0 in (
   S.includes b b' /\ (
-  parses (Ghost.reveal h0) (parse_list p) b (fun (l, _) ->
-  parses (Ghost.reveal h0) (parse_list p) b' (fun (lr, _) ->
+  parses (G.reveal h0) (parse_list p) b (fun (l, _) ->
+  parses (G.reveal h0) (parse_list p) b' (fun (lr, _) ->
     U32.v i < L.length l /\
     L.length lr == L.length l - j
   ))) /\
-  list_nth_spec p b i (Ghost.reveal h0) == list_nth_spec p b' (U32.sub i (U32.uint_to_t j)) (Ghost.reveal h0)
+  list_nth_spec p b i (G.reveal h0) == list_nth_spec p b' (U32.sub i (U32.uint_to_t j)) (G.reveal h0)
   ))
 
 inline_for_extraction
@@ -414,7 +416,7 @@ val list_nth_advance
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
-  (h0: Ghost.erased HS.mem)
+  (h0: G.erased HS.mem)
   (sl: B.buffer S.bslice)
   (j: U32.t)
 : HST.Stack unit
@@ -476,8 +478,8 @@ let list_nth #b #t p sv b i =
   C.Loops.for
     0ul
     i
-    (fun h j -> list_nth_inv p sv b i (Ghost.hide h2) sl h j)
-    (fun j -> list_nth_advance p sv b i (Ghost.hide h2) sl j)
+    (fun h j -> list_nth_inv p sv b i (G.hide h2) sl h j)
+    (fun j -> list_nth_advance p sv b i (G.hide h2) sl j)
   ;
   let h3 = HST.get () in
   let tail = B.index sl 0ul in
@@ -617,7 +619,7 @@ let validate_list_inv
   (#p: parser' b t)
   (sv: stateful_validator p)
   (b: S.bslice)
-  (h0: Ghost.erased HS.mem)
+  (h0: G.erased HS.mem)
   (sl: B.buffer (option S.bslice))
   (h: HS.mem)
   (j: nat)
@@ -625,10 +627,10 @@ let validate_list_inv
 : GTot Type0
 = B.disjoint (S. as_buffer b) sl /\
   B.length sl == 1 /\
-  S.live (Ghost.reveal h0) b /\
-  B.modifies_1 sl (Ghost.reveal h0) h /\
+  S.live (G.reveal h0) b /\
+  B.modifies_1 sl (G.reveal h0) h /\
   B.live h sl /\ (
-  let sq = S.as_seq (Ghost.reveal h0) b in
+  let sq = S.as_seq (G.reveal h0) b in
   let slo = Seq.index (B.as_seq h sl) 0 in
   if interrupt
   then
@@ -637,10 +639,10 @@ let validate_list_inv
     Some? slo /\ (
     let (Some sl) = slo in (
     S.includes b sl /\
-    S.live (Ghost.reveal h0) sl /\
+    S.live (G.reveal h0) sl /\
     j <= U32.v (S.length b) /\
     U32.v (S.length sl) <= U32.v (S.length b) - j /\ (
-    let sq' = S.as_seq (Ghost.reveal h0) sl in
+    let sq' = S.as_seq (G.reveal h0) sl in
     (Some? (parse (parse_list p) sq') ==> Some? (parse (parse_list p) sq))
   )))))
 
@@ -651,7 +653,7 @@ val validate_list_advance
   (#p: parser' b t)
   (sv: stateful_validator p)
   (b: S.bslice)
-  (h0: Ghost.erased HS.mem)
+  (h0: G.erased HS.mem)
   (sl: B.buffer (option S.bslice))
   (j: U32.t)
 : HST.Stack bool
@@ -669,16 +671,16 @@ val validate_list_advance
 
 let validate_list_advance #b #t #p sv b h0 sl j =
   let h1 = HST.get () in
-  B.no_upd_lemma_1 (Ghost.reveal h0) h1 sl (S.as_buffer b);
+  B.no_upd_lemma_1 (G.reveal h0) h1 sl (S.as_buffer b);
   let os = B.index sl 0ul in
   let (Some s) = os in
-  assert (S.as_seq h1 s == S.as_seq (Ghost.reveal h0) s);
+  assert (S.as_seq h1 s == S.as_seq (G.reveal h0) s);
   if S.length s = 0ul
   then true
   else begin
     let svs = sv s in
     let h2 = HST.get () in
-    assert (S.as_seq h2 s == S.as_seq (Ghost.reveal h0) s);
+    assert (S.as_seq h2 s == S.as_seq (G.reveal h0) s);
     B.lemma_intro_modifies_1 sl h1 h2;
     match svs with
     | None ->
@@ -691,7 +693,7 @@ let validate_list_advance #b #t #p sv b h0 sl j =
 	true
       end else begin
 	let s' = S.advance_slice s off in
-	assert (S.as_seq h2 s' == S.as_seq (Ghost.reveal h0) s');
+	assert (S.as_seq h2 s' == S.as_seq (G.reveal h0) s');
 	B.upd sl 0ul (Some s');
 	false
       end
@@ -714,13 +716,13 @@ let validate_list #b #t #p sv =
   let h2 = HST.get () in
   B.lemma_reveal_modifies_0 h1 h2; // I really need to switch to my new modifies clauses very soon!
   assert (S.as_seq h2 b == S.as_seq h0 b);
-  assert (validate_list_inv sv b (Ghost.hide h2) sl h2 0 false);
+  assert (validate_list_inv sv b (G.hide h2) sl h2 0 false);
   let slen = S.length b in
   let (_, interrupt) = C.Loops.interruptible_for
     0ul
     slen
-    (fun h j inter -> validate_list_inv sv b (Ghost.hide h2) sl h j inter)
-    (fun j -> validate_list_advance sv b (Ghost.hide h2) sl j)
+    (fun h j inter -> validate_list_inv sv b (G.hide h2) sl h j inter)
+    (fun j -> validate_list_advance sv b (G.hide h2) sl j)
   in
   let h3 = HST.get () in
   B.lemma_reveal_modifies_1 sl h2 h3;
