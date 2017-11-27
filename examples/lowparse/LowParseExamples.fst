@@ -110,13 +110,11 @@ let test : sum =
     | "K_HJEU" -> U16.t
   )
 
-noextract
 let parse_test_cases (x: sum_key test) : Tot (parser (sum_cases test x)) =
   match x with
     | "K_HJEU" -> parse_u16
     | "K_EREF" -> parse_u8
 
-noextract
 let parse_test
 : parser (sum_type test)
 = parse_sum test parse_u32 parse_test_cases
@@ -142,7 +140,6 @@ type fstar_test =
   | K_HJEU of U16.t
   | K_EREF of U8.t
 
-noextract
 let parse_fstar_test
 : parser fstar_test
 = parse_test `parse_synth` (fun (x: sum_type test) -> match x with

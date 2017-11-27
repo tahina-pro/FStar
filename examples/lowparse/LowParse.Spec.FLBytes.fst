@@ -6,7 +6,6 @@ include LowParse.Spec.Combinators
 module Seq = FStar.Seq
 module Classical = FStar.Classical
 
-noextract
 val parse_flbytes'
   (#t: Type0)
   (p: bare_parser t)
@@ -42,7 +41,6 @@ let parse_flbytes_injective
   in
   Classical.forall_intro_2 (fun b -> Classical.move_requires (f b))
 
-noextract
 val parse_flbytes
   (#b: bool)
   (#t: Type0)
@@ -54,7 +52,6 @@ let parse_flbytes #b #t p sz =
   parse_flbytes_injective p sz;
   parse_flbytes' p sz  
 
-noextract
 val parse_flbytes_consumes_all
   (#t: Type0)
   (p: bare_parser t)
