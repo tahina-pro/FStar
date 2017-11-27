@@ -10,6 +10,7 @@ module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module U32 = FStar.UInt32
 module Classical = FStar.Classical
+module Ghost = FStar.Ghost
 
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
 
