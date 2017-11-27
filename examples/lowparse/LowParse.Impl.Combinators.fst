@@ -1,5 +1,6 @@
 module LowParse.Impl.Combinators
 include LowParse.Spec.Combinators
+include LowParse.Impl.Base
 
 module S = LowParse.Slice
 module Seq = FStar.Seq

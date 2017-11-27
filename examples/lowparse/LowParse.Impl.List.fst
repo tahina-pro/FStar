@@ -13,6 +13,18 @@ module Classical = FStar.Classical
 
 (* No stateful parser for lists, because we do not know how to extract the resulting list -- or even the list while it is being constructed *)
 
+let parse_list_exactly_parses
+  (h: HS.mem)
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (s: S.bslice)
+  (pred: ((list t * consumed_slice_length s) -> GTot Type0))
+: Lemma
+  (requires (parses h (parse_list p) s pred))
+  (ensures (exactly_parses h (parse_list p) s (fun v -> pred (v, S.length s))))
+= parse_list_consumed p (S.as_seq h s)
+
 inline_for_extraction
 val list_head_tail
   (#b: bool)
@@ -415,7 +427,7 @@ val list_nth_advance
     list_nth_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
-#set-options "--z3rlimit 128"
+#set-options "--z3rlimit 256"
 
 let list_nth_advance #b #t p sv b i h0 sl j =
   let s = B.index sl 0ul in

@@ -3,12 +3,9 @@ include LowParse.Spec.FLBytes
 include LowParse.Spec.Int
 
 module Seq = FStar.Seq
-module S = LowParse.Slice
 module U8 = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
-module HS = FStar.HyperStack
-module HST = FStar.HyperStack.ST
 module E = FStar.Kremlin.Endianness
 module Cast = FStar.Int.Cast
 
@@ -186,21 +183,3 @@ let parse_bounded_vlbytes
 : Tot (parser t)
 = let sz : integer_size = log256 max in
   parse_vlbytes_gen sz (in_bounds min max) p
-
-#set-options "--z3rlimit 64"
-
-let parse_bounded_vlbytes_parse_vlbytes
-  (min: U32.t)
-  (max: U32.t { U32.v max > 0 } )
-  (#b: bool)
-  (#t: Type0)
-  (h: HS.mem)
-  (p: parser' b t)
-  (b: S.bslice)
-  (pred: ((t * consumed_slice_length b) -> GTot Type0))
-: Lemma
-  (requires (parses h (parse_bounded_vlbytes min max p) b pred))
-  (ensures (parses h (parse_vlbytes (log256 max) p) b pred))
-= ()
-
-#reset-options

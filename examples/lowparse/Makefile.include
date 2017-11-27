@@ -1,6 +1,10 @@
 FSTAR_SOURCE_FILES= \
+	LowParse.Bytes.fst \
 	LowParse.Slice.fst \
-	LowParse.Base.fst \
+	LowParse.Spec.Base.fst \
+	LowParse.Impl.Base.fst \
+	LowParse.Spec.Combinators.fst \
+	LowParse.Impl.Combinators.fst \
 	LowParse.Spec.Int.fst \
 	LowParse.Impl.Int.fst \
 	LowParse.Spec.FLBytes.fst \
