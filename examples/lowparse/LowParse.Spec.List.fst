@@ -106,6 +106,7 @@ let parse_list_bare_injective
   in
   Classical.forall_intro_2 (fun b -> Classical.move_requires (aux b))
 
+inline_for_extraction
 val parse_list
   (#b: bool)
   (#t: Type0)
