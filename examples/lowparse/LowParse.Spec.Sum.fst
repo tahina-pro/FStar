@@ -1,7 +1,6 @@
 module LowParse.Spec.Sum
 include LowParse.Spec.Enum
 
-module S = LowParse.Slice
 module T = FStar.Tactics
 
 noextract

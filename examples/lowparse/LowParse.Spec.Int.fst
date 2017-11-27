@@ -2,7 +2,6 @@ module LowParse.Spec.Int
 include LowParse.Spec.Combinators
 
 module Seq = FStar.Seq
-module S = LowParse.Slice
 module E = FStar.Kremlin.Endianness
 module C = C
 module U8  = FStar.UInt8
