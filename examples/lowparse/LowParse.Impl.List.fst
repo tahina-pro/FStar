@@ -199,7 +199,7 @@ val list_length_constant_size_parser_correct
   )))
   (decreases (U32.v (S.length b)))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 128"
 
 let rec list_length_constant_size_parser_correct #n #b #t p b h =
   if S.length b = 0ul
@@ -467,7 +467,7 @@ val list_nth
     b' == list_nth_spec p b i h
   ))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let list_nth #b #t p sv b i =
   let h0 = HST.get () in
