@@ -96,6 +96,11 @@ let advanced_slice (b: bslice) (off:U32.t) : Ghost bslice
   (ensures (fun _ -> True))
 = BSlice (U32.sub (length b) off) (B.sub (as_buffer b) off (U32.sub (length b) off))
 
+let advanced_slice_zero (b: bslice) : Lemma
+  (advanced_slice b 0ul == b)
+  [SMTPat (advanced_slice b 0ul)]
+= ()
+
 inline_for_extraction
 let advance_slice (b:bslice) (off:U32.t) : HST.Stack bslice
   (requires (fun h -> live h b /\ U32.v off <= U32.v (length b)))
