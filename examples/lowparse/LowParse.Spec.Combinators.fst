@@ -8,20 +8,17 @@ module U32 = FStar.UInt32
 (** Combinators *)
  
 /// monadic return for the parser monad
-noextract
 let parse_ret (#t:Type) (v:t) : Tot (parser t) =
   ((fun (b: bytes32) ->
     let z : consumed_length b = 0 in
     Some (v, z)) <: parser t)
 
 /// parser that always fails
-noextract
 let fail_parser (#t: Type0) : Tot (parser t) =
   (fun b -> None) <: parser t
 
 /// monadic bind for the parser monad
 
-noextract
 val and_then_bare : #t:Type -> #t':Type ->
                 p:bare_parser t ->
                 p': (t -> Tot (bare_parser t')) ->
@@ -234,7 +231,6 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
       else ()
     | _ -> ()
 
-noextract
 val and_then
   (#b: bool)
   (#t:Type)
@@ -259,7 +255,6 @@ let and_then #b #t #t' p p' =
 
 (* Special case for non-dependent parsing *)
 
-noextract
 let nondep_then
   (#b: bool)
   (#t1 #t2: Type0)
@@ -270,7 +265,6 @@ let nondep_then
 
 (** Apply a total transformation on parsed data *)
 
-noextract
 let parse_synth
   (#b: bool)
   (#t1: Type0)
@@ -309,7 +303,6 @@ let constant_size_parser
 : Tot Type0
 = (f: parser' b t { constant_size_parser_prop sz t f } )
 
-noextract
 let make_constant_size_parser
   (sz: nat)
   (t: Type0)
@@ -352,7 +345,6 @@ let total_constant_size_parser
     (Seq.length s < sz) == (None? (f s))
   })
 
-noextract
 let make_total_constant_size_parser
   (sz: nat)
   (t: Type0)
@@ -365,7 +357,6 @@ let make_total_constant_size_parser
 
 (** Refinements *)
 
-noextract
 let parse_filter
   (#b: bool)
   (#t: Type0)
