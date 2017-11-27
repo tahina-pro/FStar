@@ -3,10 +3,6 @@ include LowParse.Spec.Combinators
 
 module Seq = FStar.Seq
 module L = FStar.List.Tot
-module S = LowParse.Slice
-module B = FStar.Buffer
-module HS = FStar.HyperStack
-module HST = FStar.HyperStack.ST
 module U32 = FStar.UInt32
 module Classical = FStar.Classical
 
@@ -150,18 +146,6 @@ let parse_list_consumes_all
   (consumes_all (parse_list p))
   [SMTPat (consumes_all (parse_list p))]
 = Classical.forall_intro (Classical.move_requires (parse_list_consumed p))
-
-let parse_list_exactly_parses
-  (h: HS.mem)
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (s: S.bslice)
-  (pred: ((list t * consumed_slice_length s) -> GTot Type0))
-: Lemma
-  (requires (parses h (parse_list p) s pred))
-  (ensures (exactly_parses h (parse_list p) s (fun v -> pred (v, S.length s))))
-= parse_list_consumed p (S.as_seq h s)
 
 noextract
 let rec parse_list_tailrec
