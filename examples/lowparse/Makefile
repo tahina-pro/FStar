@@ -12,8 +12,8 @@ all: $(FST_FILES:.fst=.uver)
 %.fst-in:
 	@echo $(OTHERFLAGS)
 
-extract-ocaml: $(EXTRACT_FILES)
-	$(FSTAR_HOME)/bin/fstar.exe $(addprefix -I , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN) --lax --codegen OCaml $(EXTRACT_FILES)
+extract-ocaml: $(EXTRACT_OCAML_FILE)
+	$(FSTAR_HOME)/bin/fstar.exe $(addprefix -I , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN) --lax --codegen OCaml $(EXTRACT_OCAML_FILE)
 
 extract-c: $(EXTRACT_C_FILE)
 	$(KREMLIN_HOME)/krml $(addprefix -I , $(INCLUDE_PATHS)) -skip-linking -warn-error +11 -bundle $(patsubst %.fst,%,$(EXTRACT_C_FILE))=LowParseExamples,LowParse.* $(EXTRACT_C_FILE)
