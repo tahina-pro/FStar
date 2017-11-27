@@ -106,7 +106,7 @@ val list_length_advance
     list_length_inv p sv b h0 sl h' (U32.v j + 1) interrupt
   ))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let list_length_advance #b #t p sv b h0 sl j =
   let s = B.index sl 0ul in
@@ -452,7 +452,7 @@ val list_nth
     b' == list_nth_spec p b i h
   ))
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let list_nth #b #t p sv b i =
   let h0 = HST.get () in
@@ -481,7 +481,24 @@ let list_nth #b #t p sv b i =
   list_nth_spec_ext p b i h2 h0;
   res
 
-#reset-options
+let list_nth_constant_size_parser_postcond
+  (#n: nat)
+  (#b: bool)
+  (#t: Type0)
+  (p: constant_size_parser b n t)
+  (b: S.bslice)
+  (i: U32.t)
+  (h: HS.mem)
+: GTot Type0
+=    parses h (parse_list p) b (fun (l, _) ->
+      U32.v i < L.length l
+    ) /\
+    Prims.op_Multiply (U32.v i) n <= U32.v (S.length b) /\ (
+    let b1 = S.advanced_slice b (U32.mul i (U32.uint_to_t n)) in
+    n <= U32.v (S.length b1) /\ (
+    let b2 = S.truncated_slice b1 (U32.uint_to_t n) in
+    list_nth_spec p b i h == b2
+  ))
 
 val list_nth_constant_size_parser_correct
   (#n: nat)
@@ -497,32 +514,51 @@ val list_nth_constant_size_parser_correct
     U32.v i < L.length l
   )))
   (ensures (
-    parses h (parse_list p) b (fun (l, _) ->
-      U32.v i < L.length l
-    ) /\
-    FStar.Mul.op_Star (U32.v i) n <= U32.v (S.length b) /\ (
-    let b1 = S.advanced_slice b (U32.mul i (U32.uint_to_t n)) in
-    n <= U32.v (S.length b1) /\ (
-    let b2 = S.truncated_slice b1 (U32.uint_to_t n) in
-    list_nth_spec p b i h == b2
-  ))))
+    list_nth_constant_size_parser_postcond p b i h
+  ))
   (decreases (U32.v i))
 
-#set-options "--z3rlimit 128"
+inline_for_extraction
+let bounded_mult (a b c: U32.t) 
+  (l: unit -> Lemma (Prims.op_Multiply (U32.v a) (U32.v b) <= U32.v c))
+: Pure U32.t
+  (requires True)
+  (ensures (fun y ->
+     FStar.UInt.size (Prims.op_Multiply (U32.v a) (U32.v b)) U32.n /\
+     U32.v y == Prims.op_Multiply (U32.v a) (U32.v b) /\
+     U32.v y <= U32.v c /\
+     y == U32.mul a b
+  ))
+= l ();
+  U32.mul a b
+
+#set-options "--z3rlimit 512"
 
 let rec list_nth_constant_size_parser_correct #n #b #t p b i h =
   if i = 0ul
-  then ()
-  else begin
+  then begin
+    S.advanced_slice_zero b;
+    assert (list_nth_constant_size_parser_postcond p b i h)
+  end else begin
     let b' = S.advanced_slice b (U32.uint_to_t n) in
     assert (list_nth_spec p b i h == list_nth_spec p b' (U32.sub i 1ul) h);
     list_nth_constant_size_parser_correct p b' (U32.sub i 1ul) h;
-    assert (FStar.Mul.op_Star (U32.v i) n <= U32.v (S.length b));
-    assert (FStar.Mul.op_Star (U32.v (U32.sub i 1ul)) n <= U32.v (S.length b'));
-    let b1 = S.advanced_slice b (U32.mul i (U32.uint_to_t n)) in
-    let b1' = S.advanced_slice b' (U32.mul (U32.sub i 1ul) (U32.uint_to_t n)) in
-    S.advanced_slice_advanced_slice b (U32.uint_to_t n) (U32.mul (U32.sub i 1ul) (U32.uint_to_t n)); // FIXME: WHY WHY WHY does this pattern NOT trigger?
-    assert (b1 == b1')
+    assert (list_nth_constant_size_parser_postcond p b' (U32.sub i 1ul) h);
+    let ka : U32.t = U32.sub i 1ul in
+    let kb : U32.t = U32.uint_to_t n in
+    let nj : nat = Prims.op_Multiply (U32.v ka) (U32.v kb) in
+    let lemma1 () : Lemma (nj <= U32.v (S.length b')) = () in
+    lemma1 ();
+    let b1' = S.advanced_slice b' (U32.mul ka kb) in
+    FStar.Math.Lemmas.distributivity_add_left 1 (U32.v i - 1) n;
+    assert (n + Prims.op_Multiply (U32.v i - 1) n == Prims.op_Multiply (U32.v i) n);
+    assert (Prims.op_Multiply (U32.v i) n <= n + U32.v (S.length b'));
+    let l () : Lemma (Prims.op_Multiply (U32.v i) n <= U32.v (S.length b)) = () in
+    let m : U32.t = bounded_mult i (U32.uint_to_t n) (S.length b) l in
+    assert (U32.v m <= U32.v (S.length b));
+    let b1 = S.advanced_slice b m in
+    assert (b1 == b1');
+    assert (list_nth_constant_size_parser_postcond p b i h)
   end
 
 #reset-options
@@ -549,6 +585,8 @@ val list_nth_constant_size_parser
     b' == list_nth_spec p b i h
   ))
 
+#set-options "--z3rlimit 32"
+
 let list_nth_constant_size_parser #n #b #t p b i =
   let h = HST.get () in
   list_nth_constant_size_parser_correct p b i h;
@@ -557,6 +595,8 @@ let list_nth_constant_size_parser #n #b #t p b i =
   let h' = HST.get () in
   list_nth_spec_ext p b i h h' ;
   b2
+
+#reset-options
 
 let validate_list_inv
   (#b: bool)
