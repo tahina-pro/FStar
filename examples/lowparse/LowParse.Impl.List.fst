@@ -186,7 +186,7 @@ val list_length_constant_size_parser_correct
   )))
   (decreases (U32.v (S.length b)))
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let rec list_length_constant_size_parser_correct #n #b #t p b h =
   if S.length b = 0ul
