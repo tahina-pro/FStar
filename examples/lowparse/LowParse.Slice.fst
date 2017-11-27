@@ -30,7 +30,6 @@ let bslice = bslice_
 
 inline_for_extraction
 let length (b: bslice) : Tot U32.t = b.len
-let live h (b: bslice) = B.live h b.p
 
 inline_for_extraction
 let as_buffer
@@ -38,14 +37,30 @@ let as_buffer
 : Tot (lbuffer (U32.v (length b)))
 = b.p
 
+let live h (b: bslice) = B.live h (as_buffer b)
+
+let live_as_buffer (h: HS.mem) (b: bslice) : Lemma
+  (live h b <==> B.live h (as_buffer b))
+  [SMTPatOr [
+    [SMTPat (live h b)];
+    [SMTPat (B.live h (as_buffer b))]
+  ]]
+= ()
+
 noextract
 let as_seq h (b: bslice) : Ghost (s:bytes32)
   (requires (live h b))
-  (ensures (fun s -> Seq.length s == U32.v b.len)) = B.as_seq h b.p
+  (ensures (fun s -> Seq.length s == U32.v (length b))) = B.as_seq h (as_buffer b)
 
 let length_as_seq h (b: bslice) : Lemma
   (requires (live h b))
   (ensures (Seq.length (as_seq h b) == U32.v (length b)))
+  [SMTPat (Seq.length (as_seq h b))]
+= ()
+
+let length_as_buffer (b: bslice) : Lemma
+  (B.length (as_buffer b) == U32.v (length b))
+  [SMTPat (B.length (as_buffer b))]
 = ()
 
 noextract
@@ -56,10 +71,7 @@ let buffer_as_seq_as_buffer (h: HS.mem) (b: bslice) : Lemma
     B.live h (as_buffer b) /\
     B.as_seq h (as_buffer b) == as_seq h b
   ))
-  [SMTPatOr [
-    [SMTPat (B.live h (as_buffer b))];
-    [SMTPat (B.as_seq h (as_buffer b))];
-  ]]
+  [SMTPat (B.as_seq h (as_buffer b))]
 = ()
 
 inline_for_extraction
@@ -77,71 +89,163 @@ let index
     U32.v i < U32.v (length b) /\
     v == Seq.index (as_seq h b) (U32.v i)
   ))
-= B.index b.p i
+= B.index (as_buffer b) i
 
-let advanced_slice (b: bslice) (off:U32.t{U32.v off <= U32.v b.len}) : GTot bslice =
-  BSlice (U32.sub b.len off) (B.sub b.p off (U32.sub b.len off))
+let advanced_slice (b: bslice) (off:U32.t) : Ghost bslice
+  (requires (U32.v off <= U32.v (length b)))
+  (ensures (fun _ -> True))
+= BSlice (U32.sub (length b) off) (B.sub (as_buffer b) off (U32.sub (length b) off))
 
 inline_for_extraction
-let advance_slice (b:bslice) (off:U32.t{U32.v off <= U32.v b.len}) : HST.Stack bslice
-  (requires (fun h -> live h b))
+let advance_slice (b:bslice) (off:U32.t) : HST.Stack bslice
+  (requires (fun h -> live h b /\ U32.v off <= U32.v (length b)))
   (ensures (fun h b' h' ->
     h' == h /\
+    U32.v off <= U32.v (length b) /\
     b' == advanced_slice b off
   ))
-= BSlice (U32.sub b.len off) (B.sub b.p off (U32.sub b.len off))
+= BSlice (U32.sub (length b) off) (B.sub (as_buffer b) off (U32.sub (length b) off))
 
-let advanced_slice_spec (b:bslice) (off:U32.t{U32.v off <= U32.v b.len}) h :
-  Lemma (requires (live h b))
-        (ensures (live h (advanced_slice b off) /\
-		  as_buffer (advanced_slice b off) == B.sub (as_buffer b) off (U32.sub (length b) off) /\
-                  as_seq h (advanced_slice b off) == Seq.slice (as_seq h b) (U32.v off) (Seq.length (as_seq h b))))
-  = ()
+let length_advanced_slice (b: bslice) (off: U32.t) : Lemma
+  (requires (
+    U32.v off <= U32.v (length b)
+  ))
+  (ensures (
+    U32.v off <= U32.v (length b) /\
+    length (advanced_slice b off) == U32.sub (length b) off
+  ))
+  [SMTPat (length (advanced_slice b off))]
+= ()
+
+let as_buffer_advanced_slice (b: bslice) (off: U32.t) : Lemma
+  (requires (
+    U32.v off <= U32.v (length b)
+  ))
+  (ensures (
+    U32.v off <= U32.v (length b) /\
+    as_buffer (advanced_slice b off) == B.sub (as_buffer b) off (U32.sub (length b) off)
+  ))
+//  [SMTPat (as_buffer (advanced_slice b off))] // does not typecheck
+= ()
+
+let as_buffer_advanced_slice' (b: bslice) (off: U32.t { U32.v off <= U32.v (length b) } ) : Lemma
+  (ensures (
+    as_buffer (advanced_slice b off) == B.sub (as_buffer b) off (U32.sub (length b) off)
+  ))
+  [SMTPat (as_buffer (advanced_slice b off))]
+= ()
+
+let live_advanced_slice (b: bslice) (off: U32.t) h:
+  Lemma
+  (requires (U32.v off <= U32.v (length b)))
+  (ensures (U32.v off <= U32.v (length b) /\ (live h (advanced_slice b off) <==> live h b)))
+  [SMTPat (live h (advanced_slice b off))]
+= ()
+
+let as_seq_advanced_slice (b:bslice) (off:U32.t) h :
+  Lemma (requires (live h b /\ U32.v off <= U32.v (length b)))
+        (ensures (
+	  U32.v off <= U32.v (length b) /\
+	  as_seq h (advanced_slice b off) == Seq.slice (as_seq h b) (U32.v off) (Seq.length (as_seq h b))
+        ))
+  [SMTPat (as_seq h (advanced_slice b off))]
+= ()
 
 let advanced_slice_advanced_slice
   (b: bslice)
-  (off1: U32.t {U32.v off1 <= U32.v (length b) } )
-  (off2: U32.t {U32.v off2 <= U32.v (advanced_slice b off1).len } )
+  (off1: U32.t)
+  (off2: U32.t)
 : Lemma
   (requires (
-    True
+    U32.v off1 <= U32.v (length b) /\
+    U32.v off2 <= U32.v (U32.sub (length b) off1)
   ))
   (ensures (
+    U32.v off1 <= U32.v (length b) /\
+    U32.v off2 <= U32.v (U32.sub (length b) off1) /\
     advanced_slice (advanced_slice b off1) off2 == advanced_slice b (U32.add off1 off2)
   ))
+  [SMTPat (advanced_slice (advanced_slice b off1) off2)]
 = let s1 = advanced_slice b off1 in
   let s2 = advanced_slice s1 off2 in
-  B.sub_sub (BSlice?.p b) off1 (BSlice?.len s1) off2 (BSlice?.len s2)
+  B.sub_sub (as_buffer b) off1 (length s1) off2 (length s2)
 
 // pure version of truncate_slice (which is in Stack)
-val truncated_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> GTot bslice
-let truncated_slice b len = BSlice len (B.sub b.p (U32.uint_to_t 0) len)
+val truncated_slice : b:bslice -> len:U32.t -> Ghost bslice (requires (U32.v len <= U32.v (length b))) (ensures (fun _ -> True))
+let truncated_slice b len = BSlice len (B.sub (as_buffer b) (U32.uint_to_t 0) len)
 
 inline_for_extraction
-val truncate_slice : b:bslice -> len:U32.t{U32.v len <= U32.v b.len} -> HST.Stack bslice
-  (requires (fun h0 -> live h0 b))
+val truncate_slice : b:bslice -> len:U32.t -> HST.Stack bslice
+  (requires (fun h0 -> live h0 b /\ U32.v len <= U32.v (length b)))
   (ensures (fun h0 r h1 -> live h1 b /\
                         live h1 r /\
+			U32.v len <= U32.v (length b) /\
                         h0 == h1 /\
 			r == truncated_slice b len /\
                         as_seq h1 r == Seq.slice (as_seq h1 b) 0 (U32.v len)))
-let truncate_slice b len = BSlice len (B.sub b.p (U32.uint_to_t 0) len)
+let truncate_slice b len = BSlice len (B.sub (as_buffer b) (U32.uint_to_t 0) len)
 
 let as_buffer_truncated_slice
   (b: bslice)
-  (len: U32.t{U32.v len <= U32.v b.len})
+  (len: U32.t)
 : Lemma
-  (as_buffer (truncated_slice b len) == B.sub (as_buffer b) 0ul len)
+  (requires (U32.v len <= U32.v (length b)))
+  (ensures (U32.v len <= U32.v (length b) /\ as_buffer (truncated_slice b len) == B.sub (as_buffer b) 0ul len))
+//  [SMTPat (as_buffer (truncated_slice b len))] // does not typecheck
 = ()
 
-let includes b b' = B.includes b.p b'.p
+let as_buffer_truncated_slice'
+  (b: bslice)
+  (len: U32.t {U32.v len <= U32.v (length b)} )
+: Lemma
+  (as_buffer (truncated_slice b len) == B.sub (as_buffer b) 0ul len)
+  [SMTPat (as_buffer (truncated_slice b len))]
+= ()
+
+let length_truncated_slice
+  (b: bslice)
+  (len: U32.t)
+: Lemma
+  (requires (U32.v len <= U32.v (length b)))
+  (ensures (U32.v len <= U32.v (length b) /\ length (truncated_slice b len) == len))
+  [SMTPat (length (truncated_slice b len))]
+= ()
+
+let live_truncated_slice
+  (h: HS.mem)
+  (b: bslice)
+  (len: U32.t)
+: Lemma
+  (requires (U32.v len <= U32.v (length b)))
+  (ensures (
+    U32.v len <= U32.v (length b) /\
+    (live h (truncated_slice b len) <==> live h b)
+  ))
+  [SMTPat (live h (truncated_slice b len))]
+= ()
+
+let as_seq_truncated_slice
+  (h: HS.mem)
+  (b: bslice)
+  (len: U32.t)
+: Lemma
+  (requires (U32.v len <= U32.v (length b) /\ live h b))
+  (ensures (
+    U32.v len <= U32.v (length b) /\
+    live h b /\
+    as_seq h (truncated_slice b len) == Seq.slice (as_seq h b) 0 (U32.v len)
+  ))
+  [SMTPat (as_seq h (truncated_slice b len))]
+= ()
+
+let includes b b' = B.includes (as_buffer b) (as_buffer b')
 
 let includes_trans (b1 b2 b3: bslice) : Lemma
   (requires (includes b1 b2 /\ includes b2 b3))
   (ensures (includes b1 b3))
-= B.includes_trans b1.p b2.p b3.p
+= B.includes_trans (as_buffer b1) (as_buffer b2) (as_buffer b3)
 
-let disjoint b b' = B.disjoint b.p b'.p
+let disjoint b b' = B.disjoint (as_buffer b) (as_buffer b')
 
 
 (*! Framing slices *)
