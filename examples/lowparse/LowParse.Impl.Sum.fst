@@ -27,7 +27,6 @@ let lift_parser_cases
   | Known k' -> pc k'
   | _ -> weaken' b fail_parser
 
-noextract
 let parse_sum_synth
   (t: sum)
   (v: sum_repr_type t)
@@ -37,7 +36,6 @@ let parse_sum_synth
   | Known k -> (| k, v' |)
   | _ -> false_elim ()
 
-noextract
 let parse_sum_payload
   (#b: bool)
   (t: sum)
@@ -51,7 +49,6 @@ let parse_sum_payload
     (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) v))
     (parse_sum_synth t v)
 
-noextract
 let parse_sum'
   (#b: bool)
   (t: sum)

@@ -110,7 +110,6 @@ let rec enum_key_of_repr
   L.assoc_mem k e;
   (k <: enum_key e)
 
-noextract
 let rec parse_enum_key
   (#b: bool)
   (#key #repr: eqtype)

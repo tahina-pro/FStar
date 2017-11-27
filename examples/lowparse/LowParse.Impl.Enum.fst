@@ -89,7 +89,6 @@ let enum_repr_cons_coerce_recip
   (ensures (fun _ -> True))
 = (k <: repr) <: enum_repr e'
 
-noextract
 let mk_coercion
   (from_value: T.term)
   (to_typ: T.term)
@@ -99,7 +98,6 @@ let mk_coercion
     T.return res
   )
 
-noextract
 let rec gen_enum_univ_destr_body
   (#key #repr: eqtype)
   (e: enum key repr)
@@ -145,7 +143,6 @@ let rec gen_enum_univ_destr_body
           T.return m
   ))))))))
 
-noextract
 let rec gen_enum_univ_destr
   (#key #repr: eqtype)
   (e: enum key repr)
@@ -203,7 +200,6 @@ let maybe_unknown_key_or_excluded_of_repr
 : Tot (maybe_unknown_key_or_excluded e excluded)
 = maybe_unknown_key_of_repr e r
 
-noextract
 let rec gen_enum_univ_destr_gen_body
   (#key #repr: eqtype)
   (e: enum key repr)
@@ -276,7 +272,6 @@ let rec gen_enum_univ_destr_gen_body
           T.return m
   ))))))))))
 
-noextract
 let rec gen_enum_univ_destr_gen
   (#key #repr: eqtype)
   (e: enum key repr)
