@@ -24,6 +24,7 @@ let consumed_length (b: bytes32) : Tot Type0 = (n: nat { n <= Seq.length b } )
 // switch to Tot if you want OCaml extraction
 let bare_parser (t:Type0) : Tot Type0 = (b: bytes32) -> Tot (option (t * consumed_length b))
 
+inline_for_extraction
 let parse
   (#t: Type0)
   (p: bare_parser t)
