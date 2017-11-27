@@ -92,7 +92,7 @@ val parse_then_check
   (#p1: parser' b t1)
   (ps1: parser_st p1)
   (#t2: Type0)
-  (#p2: t1 -> GTot (parser' b t2) {
+  (#p2: t1 -> Tot (parser' b t2) {
     and_then_cases_injective p2
   })
   (ps2: ((x1: t1) -> Tot (stateful_validator (p2 x1))))
@@ -119,7 +119,7 @@ let parse_nochk_then_nochk
   (#p1: parser' b t1)
   (ps1: parser_st_nochk p1)
   (#t2: Type0)
-  (#p2: (t1 -> GTot (parser' b t2)) {
+  (#p2: (t1 -> Tot (parser' b t2)) {
     and_then_cases_injective p2
   })
   (ps2: ((x1: t1) -> Tot (stateful_validator_nochk (p2 x1))))
@@ -228,7 +228,7 @@ let validate_synth
   (#t2: Type0)
   (#p1: parser' b t1)
   (v1: stateful_validator p1)
-  (f2: (t1 -> GTot t2) {
+  (f2: (t1 -> Tot t2) {
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'  
   })
 : Tot (stateful_validator (parse_synth p1 f2))
@@ -242,7 +242,7 @@ let validate_synth_nochk
   (#t2: Type0)
   (#p1: parser' b t1)
   (v1: stateful_validator_nochk p1)
-  (f2: (t1 -> GTot t2) {
+  (f2: (t1 -> Tot t2) {
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'  
   })
 : Tot (stateful_validator_nochk (parse_synth p1 f2))
@@ -336,7 +336,7 @@ let stateful_filter_validator
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
-  (f: (t -> GTot bool))
+  (f: (t -> Tot bool))
 : Tot Type0
 = (v2: (
     (b: S.bslice) ->
@@ -363,7 +363,7 @@ let validate_filter
   (#t: Type0)
   (#p: parser' b t)
   (v1: stateful_validator p)
-  (#f: (t -> GTot bool))
+  (#f: (t -> Tot bool))
   (v2: stateful_filter_validator p f)
 : Tot (stateful_validator (parse_filter p f))
 = fun b ->
@@ -384,7 +384,7 @@ let validate_filter_nochk
   (#t: Type0)
   (#p: parser' b t)
   (v1: stateful_validator_nochk p)
-  (f: (t -> GTot bool))
+  (f: (t -> Tot bool))
 : Tot (stateful_validator_nochk (parse_filter p f))
 = fun b -> v1 b
 
@@ -394,7 +394,7 @@ let validate_filter_st
   (#t: Type0)
   (#p: parser' b t)
   (ps: parser_st p)
-  (f: (t -> GTot bool))
+  (f: (t -> Tot bool))
   (f': ((x: t) -> Pure bool (requires True) (ensures (fun y -> y == f x)))) // checker MUST be total here (we do have a stateful parser)
 : Tot (stateful_validator (parse_filter p f))
 = fun input ->
@@ -429,7 +429,7 @@ let parse_filter_st_nochk
   (#t: Type0)
   (#p: parser' b t)
   (ps: parser_st_nochk p)
-  (f: (t -> GTot bool))
+  (f: (t -> Tot bool))
 : Tot (parser_st_nochk (parse_filter p f))
 = fun (input: S.bslice) ->
   let (x, off) = ps input in
@@ -442,7 +442,7 @@ let parse_filter_st'
   (#t: Type0)
   (#p: parser' b t)
   (ps: parser_st p)
-  (f: (t -> GTot bool))
+  (f: (t -> Tot bool))
   (f' : ((x: t) -> Tot (y: bool { y == f x } )))
 : Tot (parser_st (parse_filter p f))
 = fun input ->

@@ -24,7 +24,7 @@ let fail_parser (#t: Type0) : Tot (parser t) =
 noextract
 val and_then_bare : #t:Type -> #t':Type ->
                 p:bare_parser t ->
-                p': (t -> GTot (bare_parser t')) ->
+                p': (t -> Tot (bare_parser t')) ->
                 Tot (bare_parser t')
 let and_then_bare #t #t' p p' =
     fun (b: bytes32) ->
@@ -44,7 +44,7 @@ val and_then_no_lookahead_weak_on
     (#t:Type)
     (#t':Type)
     (p: bare_parser t)
-    (p': (t -> GTot (bare_parser t')))
+    (p': (t -> Tot (bare_parser t')))
     (x: bytes32) 
     (x' : bytes32)
   : Lemma
@@ -104,7 +104,7 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 let and_then_cases_injective_precond
   (#t:Type)
   (#t':Type)
-  (p': (t -> GTot (bare_parser t')))
+  (p': (t -> Tot (bare_parser t')))
   (x1 x2: t)
   (b1 b2: bytes32)
 : GTot Type0
@@ -118,7 +118,7 @@ let and_then_cases_injective_precond
 let and_then_cases_injective
   (#t:Type)
   (#t':Type)
-  (p': (t -> GTot (bare_parser t')))
+  (p': (t -> Tot (bare_parser t')))
 : GTot Type0
 = forall (x1 x2: t) (b1 b2: bytes32) .
   and_then_cases_injective_precond p' x1 x2 b1 b2 ==>
@@ -128,7 +128,7 @@ val and_then_injective
   (#t:Type)
   (#t':Type)
   (p: bare_parser t)
-  (p': (t -> GTot (bare_parser t')))
+  (p': (t -> Tot (bare_parser t')))
 : Lemma
   (requires (
     injective p /\
@@ -172,7 +172,7 @@ val and_then_no_lookahead_on
     (#t:Type)
     (#t':Type)
     (p: bare_parser t)
-    (p': (t -> GTot (bare_parser t')))
+    (p': (t -> Tot (bare_parser t')))
     (x: bytes32) 
     (x' : bytes32)
   : Lemma
@@ -240,7 +240,7 @@ val and_then
   (#t:Type)
   (#t':Type)
   (p:parser' b t)
-  (p': (t -> GTot (parser' b t')))
+  (p': (t -> Tot (parser' b t')))
 : Pure (parser' b t')
   (requires (
     and_then_cases_injective p'
@@ -276,13 +276,13 @@ let parse_synth
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser' b t1)
-  (f2: t1 -> GTot t2)
+  (f2: t1 -> Tot t2)
 : Pure (parser' b t2)
   (requires (
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'
   ))
   (ensures (fun _ -> True))
-= let f (v1: t1) : GTot (parser' b t2) =
+= let f (v1: t1) : Tot (parser' b t2) =
     let v2 = f2 v1 in
     weaken' b (parse_ret v2)
   in
@@ -370,7 +370,7 @@ let parse_filter
   (#b: bool)
   (#t: Type0)
   (p: parser' b t)
-  (f: (t -> GTot bool))
+  (f: (t -> Tot bool))
 : Tot (parser' b (x: t { f x == true }))
 = p `and_then` (fun (v: t) -> weaken' b (
     if f v
