@@ -1,10 +1,7 @@
 module LowParse.Spec.Combinators
-include LowParse.Base
+include LowParse.Spec.Base
 
-module S = LowParse.Slice
 module Seq = FStar.Seq
-module HS = FStar.HyperStack
-module HST = FStar.HyperStack.ST
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 module Ghost = FStar.Ghost

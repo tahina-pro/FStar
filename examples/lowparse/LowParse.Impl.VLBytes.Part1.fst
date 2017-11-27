@@ -13,6 +13,24 @@ module HST = FStar.HyperStack.ST
 module E = FStar.Kremlin.Endianness
 module Cast = FStar.Int.Cast
 
+#set-options "--z3rlimit 64"
+
+let parse_bounded_vlbytes_parse_vlbytes
+  (min: U32.t)
+  (max: U32.t { U32.v max > 0 } )
+  (#b: bool)
+  (#t: Type0)
+  (h: HS.mem)
+  (p: parser' b t)
+  (b: S.bslice)
+  (pred: ((t * consumed_slice_length b) -> GTot Type0))
+: Lemma
+  (requires (parses h (parse_bounded_vlbytes min max p) b pred))
+  (ensures (parses h (parse_vlbytes (log256 max) p) b pred))
+= ()
+
+#reset-options
+
 inline_for_extraction
 let parse_bounded_integer_1_synth
   (x: U8.t)

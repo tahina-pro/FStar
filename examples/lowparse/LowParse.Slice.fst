@@ -1,4 +1,5 @@
 module LowParse.Slice
+open LowParse.Bytes
 
 // TODO: this is only for truncate_slice, which could probably be replaced with
 // truncated_slice, possibly needing an SMTPat
@@ -9,12 +10,6 @@ module B = FStar.Buffer
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 module L = FStar.List.Tot
-
-type byte = U8.byte
-type bytes = Seq.seq byte
-/// the abstract model of input is a sequence of bytes, with a limit on size so
-/// offsets always fit in a U32.t
-let bytes32 = bs:bytes{ Seq.length bs < pow2 32}
 
 (*** Slices: buffers with runtime length *)
 
