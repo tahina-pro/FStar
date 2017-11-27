@@ -1,0 +1,9 @@
+module LowParse.Spec
+include LowParse.Spec.Base
+include LowParse.Spec.Combinators
+include LowParse.Spec.Int
+include LowParse.Spec.FLBytes
+include LowParse.Spec.VLBytes
+include LowParse.Spec.Enum
+include LowParse.Spec.Sum
+include LowParse.Spec.List

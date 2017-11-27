@@ -28,7 +28,9 @@ FSTAR_SOURCE_FILES= \
 	LowParse.Impl.Sum.fst \
 	LowParse.Spec.List.fst \
 	LowParse.Impl.List.fst \
+	LowParse.Spec.fst \
 	LowParse.fst \
+	LowParseMLExamples.fst \
 	LowParseExamples.fst \
 	LowParseExamples.Extract.fst \
 
@@ -37,6 +39,8 @@ EXTRACT_FILES= \
 
 
 EXTRACT_C_FILE=LowParseExamples.Extract.fst
+
+EXTRACT_OCAML_FILE=LowParseMLExamples.fst
 
 INCLUDE_PATHS:=
 
