@@ -8,7 +8,6 @@ module Classical = FStar.Classical
 
 (* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
 
-noextract
 val parse_list_aux
   (#t: Type0)
   (p: bare_parser t)
@@ -31,7 +30,6 @@ let rec parse_list_aux #t p b =
 	| Some (l, n') -> Some (v :: l, (n + n' <: consumed_length b))
 	| _ -> None
 
-noextract
 val parse_list_bare
   (#t: Type0)
   (p: bare_parser t)
@@ -39,7 +37,6 @@ val parse_list_bare
 
 let parse_list_bare #t p = (fun b -> parse_list_aux #t p b) <: bare_parser (list t)
 
-noextract
 let rec parse_list_bare_consumed
   (#t: Type0)
   (p: bare_parser t)
@@ -109,7 +106,6 @@ let parse_list_bare_injective
   in
   Classical.forall_intro_2 (fun b -> Classical.move_requires (aux b))
 
-noextract
 val parse_list
   (#b: bool)
   (#t: Type0)
@@ -121,7 +117,6 @@ let parse_list #b #t p =
   parse_list_bare_injective p;
   parse_list_bare p
 
-noextract
 let parse_list_consumed
   (#b: bool)
   (#t: Type0)
@@ -147,7 +142,6 @@ let parse_list_consumes_all
   [SMTPat (consumes_all (parse_list p))]
 = Classical.forall_intro (Classical.move_requires (parse_list_consumed p))
 
-noextract
 let rec parse_list_tailrec
   (#b: bool)
   (#t: Type0)
@@ -168,7 +162,6 @@ let rec parse_list_tailrec
       else
 	parse_list_tailrec p (Seq.slice b n (Seq.length b)) (L.append aux [v])
 
-noextract
 let rec parse_list_tailrec_append
   (#b: bool)
   (#t: Type0)
@@ -198,7 +191,6 @@ let rec parse_list_tailrec_append
 	L.append_assoc auxl auxr [v]
       end
 
-noextract
 let rec parse_list_tailrec_correct
   (#b: bool)
   (#t: Type0)

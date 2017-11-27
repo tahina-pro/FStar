@@ -42,7 +42,6 @@ let live_as_buffer (h: HS.mem) (b: bslice) : Lemma
   ]]
 = ()
 
-noextract
 let as_seq h (b: bslice) : Ghost (s:bytes32)
   (requires (live h b))
   (ensures (fun s -> Seq.length s == U32.v (length b))) = B.as_seq h (as_buffer b)
@@ -58,7 +57,6 @@ let length_as_buffer (b: bslice) : Lemma
   [SMTPat (B.length (as_buffer b))]
 = ()
 
-noextract
 let buffer_as_seq_as_buffer (h: HS.mem) (b: bslice) : Lemma
   (requires (live h b))
   (ensures (

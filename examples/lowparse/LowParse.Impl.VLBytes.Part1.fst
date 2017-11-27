@@ -37,7 +37,6 @@ let parse_bounded_integer_1_synth
 : Tot (bounded_integer 1)
 = Cast.uint8_to_uint32 x
 
-noextract
 let parse_bounded_integer_1
 : parser (bounded_integer 1)
 = parse_synth parse_u8 parse_bounded_integer_1_synth
@@ -48,7 +47,6 @@ let parse_bounded_integer_2_synth
 : Tot (bounded_integer 2)
 = Cast.uint16_to_uint32 x
 
-noextract
 let parse_bounded_integer_2
 : parser (bounded_integer 2)
 = parse_synth parse_u16 parse_bounded_integer_2_synth
@@ -64,12 +62,10 @@ let parse_bounded_integer_3_synth
 
 #reset-options
 
-noextract
 let parse_bounded_integer_3
 : parser (bounded_integer 3)
 = (parse_u16 `nondep_then` parse_u8) `parse_synth` parse_bounded_integer_3_synth
 
-noextract
 val parse_bounded_integer'
   (i: integer_size)
 : parser (bounded_integer i)
