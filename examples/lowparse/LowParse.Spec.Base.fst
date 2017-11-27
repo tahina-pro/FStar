@@ -4,7 +4,6 @@ include LowParse.Bytes
 module Seq = FStar.Seq
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
-module Ghost = FStar.Ghost
 
 /// parse a value of type t
 ///
