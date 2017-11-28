@@ -54,6 +54,8 @@ let parse_u8_st :
     parser_st parse_u8 =
     parse_total_constant_size 1ul parse_u8_st_nochk
 
+#set-options "--z3rlimit 16"
+
 [@"substitute"]
 inline_for_extraction
 let parse_u16_st_nochk :
@@ -62,6 +64,8 @@ let parse_u16_st_nochk :
     let s = S.truncate_slice input 2ul in
     C.load16_be (S.as_buffer s)
   )
+
+#reset-options
 
 [@"substitute"]
 inline_for_extraction
