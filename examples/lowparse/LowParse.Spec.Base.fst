@@ -228,10 +228,12 @@ let weak_parser (t: Type0) : Tot Type0 = parser' false t
 let parser (t: Type0) : Tot Type0 = parser' true t
 
 unfold
-let weaken (#t: Type0) (p: parser t) : Tot (weak_parser t) = (p <: bare_parser t) <: weak_parser t
+let weaken (#t: Type0) (p: parser t) : Tot (weak_parser t) =
+  let p' : bare_parser t = p in (p' <: weak_parser t)
 
 unfold
-let weaken' (b: bool) (#t: Type0) (p: parser t) : Tot (parser' b t) = (p <: bare_parser t) <: parser' b t
+let weaken' (b: bool) (#t: Type0) (p: parser t) : Tot (parser' b t) =
+  let p' : bare_parser t = p in (p' <: parser' b t)
 
 unfold
 let strengthen
@@ -240,7 +242,8 @@ let strengthen
 : Pure (parser t)
   (requires (no_lookahead t p))
   (ensures (fun _ -> True))
-= (p <: bare_parser t) <: parser t
+= let p' : bare_parser t = p in
+  (p' <: parser t)
 
 (** A parser that always consumes all its input *)
 
