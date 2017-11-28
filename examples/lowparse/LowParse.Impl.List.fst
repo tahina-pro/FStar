@@ -547,7 +547,9 @@ let bounded_mult (a b c: U32.t)
 = l ();
   U32.mul a b
 
-#set-options "--z3rlimit 512"
+#set-options "--z3rlimit 128 --smtencoding.elim_box true"
+
+//  --smtencoding.nl_arith_repr native --smtencoding.l_arith_repr native
 
 let rec list_nth_constant_size_parser_correct #n #b #t p b i h =
   if i = 0ul
