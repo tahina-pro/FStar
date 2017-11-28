@@ -7,3 +7,4 @@ include LowParse.Spec.VLBytes
 include LowParse.Spec.Enum
 include LowParse.Spec.Sum
 include LowParse.Spec.List
+include LowParse.Spec.Seq

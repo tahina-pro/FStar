@@ -28,6 +28,8 @@ FSTAR_SOURCE_FILES= \
 	LowParse.Impl.Sum.fst \
 	LowParse.Spec.List.fst \
 	LowParse.Impl.List.fst \
+	LowParse.Spec.Seq.fst \
+	LowParse.Impl.Seq.fst \
 	LowParse.Spec.fst \
 	LowParse.fst \
 	LowParseMLExamples.fst \
