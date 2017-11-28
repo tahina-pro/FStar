@@ -46,7 +46,7 @@ let univ_destr_gen_exa_strong
 
 module S = LowParse.Slice
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 inline_for_extraction
 let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =

@@ -23,7 +23,7 @@ let validate_flbytes
     match ps input' with
     | Some consumed ->
       if consumed = len
-      then Some ((consumed <: U32.t) <: consumed_slice_length input)
+      then Some (let x : U32.t = consumed in (x <: consumed_slice_length input))
       else None
     | _ -> None
   end
