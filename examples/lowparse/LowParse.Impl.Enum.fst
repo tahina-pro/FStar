@@ -74,7 +74,8 @@ let enum_key_cons_coerce
 : Pure (enum_key e)
   (requires (e == (k', r') :: e'))
   (ensures (fun _ -> True))
-= (k <: key) <: enum_key e
+= let k' : key = k in
+  k'
 
 inline_for_extraction
 let enum_repr_cons_coerce_recip
@@ -87,7 +88,8 @@ let enum_repr_cons_coerce_recip
 : Pure (enum_repr e')
   (requires (e == (k', r') :: e' /\ r' <> k))
   (ensures (fun _ -> True))
-= (k <: repr) <: enum_repr e'
+= let k' : repr = k in
+  k'
 
 let mk_coercion
   (from_value: T.term)
@@ -189,8 +191,8 @@ let maybe_unknown_key_or_excluded_cons_coerce
   (requires (e == (k', r') :: e'))
   (ensures (fun _ -> True))
 = match k with
-  | Known r -> Known ((r <: key) <: enum_key e)
-  | Unknown r -> Unknown ((r <: repr) <: unknown_enum_key e)
+  | Known r -> Known (let k' : key = r in k')
+  | Unknown r -> Unknown (let r' : repr = r in r')
 
 let maybe_unknown_key_or_excluded_of_repr
   (#key #repr: eqtype)
