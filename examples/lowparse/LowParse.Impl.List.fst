@@ -228,7 +228,7 @@ val list_length_constant_size_parser
     L.length l == U32.v i
   )))
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let list_length_constant_size_parser #n #b #t p b =
   let h = HST.get () in

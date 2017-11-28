@@ -9,15 +9,23 @@ module U32 = FStar.UInt32
  
 /// monadic return for the parser monad
 inline_for_extraction
-let parse_ret (#t:Type) (v:t) : Tot (parser t) =
-  ((fun (b: bytes32) ->
+let parse_ret' (#t:Type) (v:t) : Tot (bare_parser t) =
+  (fun (b: bytes32) ->
     let z : consumed_length b = 0 in
-    Some (v, z)) <: parser t)
+    Some (v, z))
+
+inline_for_extraction
+let parse_ret (#t:Type) (v:t) : Tot (parser t) =
+  parse_ret' v
 
 /// parser that always fails
 inline_for_extraction
+let fail_parser' (#t: Type0) : Tot (bare_parser t) =
+  (fun b -> None)
+
+inline_for_extraction
 let fail_parser (#t: Type0) : Tot (parser t) =
-  (fun b -> None) <: parser t
+  fail_parser' #t
 
 /// monadic bind for the parser monad
 
@@ -299,7 +307,7 @@ let constant_size_parser_prop
 = forall (s: bytes32) .
   Some? (f s) ==> (
     let (_, consumed) = Some?.v (f s) in
-    sz == consumed
+    sz == (consumed <: nat)
   )
   
 let constant_size_parser
@@ -310,28 +318,12 @@ let constant_size_parser
 = (f: parser' b t { constant_size_parser_prop sz t f } )
 
 inline_for_extraction
-let make_constant_size_parser
+let make_constant_size_parser'
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)) {
-    forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
-    ((Some? (f s1) \/ Some? (f s2)) /\ f s1 == f s2) ==> Seq.equal s1 s2
-  })
-: Tot (constant_size_parser true sz t)
-= let () = () in
-  let prf
-    (s1: bytes32 {Seq.length s1 == sz})
-    (s2: bytes32 {Seq.length s2 == sz})
-  : Lemma
-    (requires (
-      (Some? (f s1) \/ Some? (f s2)) /\
-      f s1 == f s2
-    ))
-    (ensures (s1 == s2))
-  = assert (Seq.equal s1 s2)
-  in
-  Classical.forall_intro_2 (fun x -> Classical.move_requires (prf x));
-  fun (s: bytes32) ->
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+: Tot (bare_parser t)
+= fun (s: bytes32) ->
   if Seq.length s < sz
   then None
   else begin
@@ -343,25 +335,94 @@ let make_constant_size_parser
       Some (v, sz)
   end
 
+let make_constant_size_parser_precond_precond
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+  (s1: bytes32 { Seq.length s1 == sz } )
+  (s2: bytes32 { Seq.length s2 == sz } )
+: GTot Type0
+= (Some? (f s1) \/ Some? (f s2)) /\ f s1 == f s2
+
+let make_constant_size_parser_precond
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+: GTot Type0
+= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+    make_constant_size_parser_precond_precond sz t f s1 s2 ==> Seq.equal s1 s2
+
+let make_constant_size_parser_precond'
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+: GTot Type0
+= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+    make_constant_size_parser_precond_precond sz t f s1 s2 ==> s1 == s2
+
+inline_for_extraction
+let make_constant_size_parser
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)) {
+    make_constant_size_parser_precond sz t f
+  })
+: Tot (constant_size_parser false sz t) // (constant_size_parser false sz t)
+= let p : bare_parser t = make_constant_size_parser' sz t f in
+  let prf1
+    (b1 b2: bytes32)
+  : Lemma
+    (requires (injective_precond p b1 b2))
+    (ensures (injective_postcond p b1 b2))
+  = assert (Some? (parse p b1));
+    assert (Some? (parse p b2));
+    let (Some (v1, len1)) = parse p b1 in
+    let (Some (v2, len2)) = parse p b2 in
+    assert ((len1 <: nat) == (len2 <: nat));
+    assert ((len1 <: nat) == sz);
+    assert ((len2 <: nat) == sz);
+    assert (make_constant_size_parser_precond_precond sz t f (Seq.slice b1 0 len1) (Seq.slice b2 0 len2));
+    assert (make_constant_size_parser_precond' sz t f)
+  in
+  Classical.forall_intro_2 (fun (b1: bytes32) -> Classical.move_requires (prf1 b1));
+  assert (injective p);
+  assert (no_lookahead_weak _ p);
+  p
+
+let total_constant_size_parser_cond
+  (sz: nat)
+  (t: Type0)
+  (f: constant_size_parser true sz t)
+: GTot Type0
+= forall (s: bytes32) . {:pattern (f s) }
+  (Seq.length s < sz) == (None? (f s))
+
 let total_constant_size_parser
   (sz: nat)
   (t: Type0)
 : Tot Type0
 = (f: constant_size_parser true sz t {
-    forall (s: bytes32) . {:pattern (f s) }
-    (Seq.length s < sz) == (None? (f s))
+    total_constant_size_parser_cond sz t f
   })
+
+let make_total_constant_size_parser_precond
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t))
+: GTot Type0
+= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+  f s1 == f s2 ==> Seq.equal s1 s2
 
 inline_for_extraction
 let make_total_constant_size_parser
   (sz: nat)
   (t: Type0)
   (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t) {
-    forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
-    f s1 == f s2 ==> Seq.equal s1 s2
+    make_total_constant_size_parser_precond sz t f
   })
 : Tot (total_constant_size_parser sz t)
-= make_constant_size_parser sz t (fun x -> Some (f x))
+= let p : bare_parser t = make_constant_size_parser sz t (fun x -> Some (f x)) in
+  p
 
 (** Refinements *)
 

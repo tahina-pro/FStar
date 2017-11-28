@@ -63,6 +63,8 @@ let id
 : Tot t
 = x
 
+#set-options "--use_two_phase_tc false"
+
 inline_for_extraction
 let enum_key_cons_coerce
   (#key #repr: eqtype)
@@ -88,6 +90,8 @@ let enum_repr_cons_coerce_recip
   (requires (e == (k', r') :: e' /\ r' <> k))
   (ensures (fun _ -> True))
 = (k <: repr) <: enum_repr e'
+
+#reset-options
 
 let mk_coercion
   (from_value: T.term)
@@ -176,6 +180,8 @@ let maybe_unknown_key_or_excluded
     | Unknown r -> L.mem r excluded == false
   })
 
+#set-options "--use_two_phase_tc false"
+
 inline_for_extraction
 let maybe_unknown_key_or_excluded_cons_coerce
   (#key #repr: eqtype)
@@ -191,6 +197,8 @@ let maybe_unknown_key_or_excluded_cons_coerce
 = match k with
   | Known r -> Known ((r <: key) <: enum_key e)
   | Unknown r -> Unknown ((r <: repr) <: unknown_enum_key e)
+
+#reset-options
 
 let maybe_unknown_key_or_excluded_of_repr
   (#key #repr: eqtype)
