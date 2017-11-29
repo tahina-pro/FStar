@@ -63,8 +63,6 @@ let id
 : Tot t
 = x
 
-#set-options "--use_two_phase_tc false"
-
 inline_for_extraction
 let enum_key_cons_coerce
   (#key #repr: eqtype)
@@ -76,7 +74,8 @@ let enum_key_cons_coerce
 : Pure (enum_key e)
   (requires (e == (k', r') :: e'))
   (ensures (fun _ -> True))
-= (k <: key) <: enum_key e
+= let k_ : key = k in
+  k_ <: enum_key e
 
 inline_for_extraction
 let enum_repr_cons_coerce_recip
@@ -89,9 +88,8 @@ let enum_repr_cons_coerce_recip
 : Pure (enum_repr e')
   (requires (e == (k', r') :: e' /\ r' <> k))
   (ensures (fun _ -> True))
-= (k <: repr) <: enum_repr e'
-
-#reset-options
+= let k_ : repr = k in
+  k_ <: enum_repr e'
 
 let mk_coercion
   (from_value: T.term)
