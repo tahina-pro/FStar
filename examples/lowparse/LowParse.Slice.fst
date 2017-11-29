@@ -236,6 +236,54 @@ let as_seq_truncated_slice
   [SMTPat (as_seq h (truncated_slice b len))]
 = ()
 
+let truncated_slice_truncated_slice
+  (b: bslice)
+  (len1 len2: U32.t)
+: Lemma
+  (requires (
+    U32.v len2 <= U32.v len1 /\
+    U32.v len1 <= U32.v (length b)
+  ))
+  (ensures (
+    U32.v len2 <= U32.v len1 /\
+    U32.v len1 <= U32.v (length b) /\
+    truncated_slice (truncated_slice b len1) len2 == truncated_slice b len2
+  ))
+  [SMTPat (truncated_slice (truncated_slice b len1) len2)]
+= ()
+
+let advanced_slice_truncated_slice
+  (b: bslice)
+  (len1 len2: U32.t)
+: Lemma
+  (requires (
+    U32.v len2 <= U32.v len1 /\
+    U32.v len1 <= U32.v (length b)
+  ))
+  (ensures (
+    U32.v len2 <= U32.v len1 /\
+    U32.v len1 <= U32.v (length b) /\
+    advanced_slice (truncated_slice b len1) len2 == truncated_slice (advanced_slice b len2) (U32.sub len1 len2)
+  ))
+  [SMTPat (advanced_slice (truncated_slice b len1) len2)]
+= ()
+
+let truncated_slice_advanced_slice
+  (b: bslice)
+  (len1 len2: U32.t)
+: Lemma
+  (requires (
+    U32.v len1 <= U32.v (length b) /\
+    U32.v len2 <= U32.v (length b) - U32.v len1
+  ))
+  (ensures (
+    U32.v len1 <= U32.v (length b) /\
+    U32.v len2 <= U32.v (length b) - U32.v len1 /\
+    truncated_slice (advanced_slice b len1) len2 == advanced_slice (truncated_slice b (U32.add len1 len2)) len1
+  ))
+  [SMTPat (truncated_slice (advanced_slice b len1) len2)]
+= ()
+
 let includes b b' = B.includes (as_buffer b) (as_buffer b')
 
 let includes_trans (b1 b2 b3: bslice) : Lemma
@@ -245,6 +293,31 @@ let includes_trans (b1 b2 b3: bslice) : Lemma
 
 let disjoint b b' = B.disjoint (as_buffer b) (as_buffer b')
 
+let disjoint_includes (b1 b2 b1' b2' : bslice) : Lemma
+  (requires (disjoint b1 b2 /\ includes b1 b1' /\ includes b2 b2'))
+  (ensures (disjoint b1' b2'))
+= ()
+
+let includes_advanced_slice (b: bslice) (len: U32.t) : Lemma
+  (requires (U32.v len <= U32.v (length b)))
+  (ensures (U32.v len <= U32.v (length b) /\ includes b (advanced_slice b len)))
+= ()
+
+let includes_truncated_slice (b: bslice) (len: U32.t) : Lemma
+  (requires (U32.v len <= U32.v (length b)))
+  (ensures (U32.v len <= U32.v (length b) /\ includes b (truncated_slice b len)))
+= ()
+
+let disjoint_truncated_slice_advanced_slice
+  (b: bslice)
+  (len1 len2: U32.t)
+: Lemma
+  (requires (U32.v len1 <= U32.v len2 /\ U32.v len2 <= U32.v (length b)))
+  (ensures (
+    U32.v len1 <= U32.v len2 /\ U32.v len2 <= U32.v (length b) /\
+    disjoint (truncated_slice b len1) (advanced_slice b len2)
+  ))
+= ()
 
 (*! Framing slices *)
 

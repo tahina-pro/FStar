@@ -479,6 +479,38 @@ let rec seq_prefix_length_spec_nat_add #b #t p input i1 i2 =
 
 #reset-options
 
+val seq_prefix_length_spec_nat_increases
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (input: bytes32)
+  (i1 i2: nat)
+: Lemma
+  (requires (
+    i1 <= i2 /\ (
+    let v = parse (parse_seq p) input in
+    Some? v /\ (
+    let (Some (s, _)) = v in
+    i2 <= Seq.length s
+  ))))
+  (ensures (
+    i1 <= i2 /\ (
+    let v = parse (parse_seq p) input in
+    Some? v /\ (
+    let (Some (s, _)) = v in
+    i2 <= Seq.length s /\
+    seq_prefix_length_spec_nat p input i1 <= seq_prefix_length_spec_nat p input i2
+  ))))
+  (decreases i1)
+
+let rec seq_prefix_length_spec_nat_increases #b #t p input i1 i2 =
+  if i1 = 0
+  then ()
+  else
+    let (Some (_, len)) = parse p input in
+    let input' = Seq.slice input len (Seq.length input) in
+    seq_prefix_length_spec_nat_increases p input' (i1 - 1) (i2 - 1)
+
 let seq_offset_at_inv
   (#b: bool)
   (#t: Type0)
@@ -584,3 +616,157 @@ let seq_offset_at #b #t p sv b i =
   let h4 = HST.get () in
   B.lemma_modifies_0_push_pop h0 h1 h3 h4;
   res
+
+val seq_slice_spec
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (h: HS.mem)
+  (lo hi: U32.t)
+: Ghost S.bslice
+  (requires (
+    U32.v lo <= U32.v hi /\
+    parses h (parse_seq p) b (fun (s, _) ->
+    U32.v hi <= Seq.length s
+  )))
+  (ensures (fun res ->
+    S.includes b res /\
+    U32.v lo <= U32.v hi /\
+    parses h (parse_seq p) b (fun (s, _) ->
+    U32.v hi <= Seq.length s /\
+    parses h (parse_seq p) res (fun (s', _) ->
+    s' == Seq.slice s (U32.v lo) (U32.v hi)
+  ))))
+
+#set-options "--z3rlimit 16"
+
+let seq_slice_spec #b #t p b h lo hi =
+  let len1 = seq_prefix_length_spec p b h lo in
+  seq_prefix_length_spec_nat_correct p (S.as_seq h b) (U32.v lo);
+  let b1 = S.advanced_slice b len1 in
+  let len2 = seq_prefix_length_spec p b1 h (U32.sub hi lo) in
+  seq_prefix_length_spec_nat_correct p (S.as_seq h b1) (U32.v hi - U32.v lo);
+  let b2 = S.truncated_slice b1 len2 in
+  seq_prefix_length_spec_nat_add p (S.as_seq h b) (U32.v lo) (U32.v hi - U32.v lo);
+  b2
+
+#reset-options
+
+val seq_slice_spec'
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (h: HS.mem)
+  (lo hi: U32.t)
+: Ghost S.bslice
+  (requires (
+    U32.v lo <= U32.v hi /\
+    parses h (parse_seq p) b (fun (s, _) ->
+    U32.v hi <= Seq.length s
+  )))
+  (ensures (fun res ->
+    U32.v lo <= U32.v hi /\
+    parses h (parse_seq p) b (fun (s, _) ->
+      U32.v hi <= Seq.length s
+    ) /\
+    res == seq_slice_spec p b h lo hi
+  ))
+
+#set-options "--z3rlimit 16"
+
+let seq_slice_spec' #b #t p b h lo hi =
+  let hi_ = seq_prefix_length_spec p b h hi in
+  let b1 = S.truncated_slice b hi_ in
+  let lo_ = seq_prefix_length_spec p b h lo in
+  seq_prefix_length_spec_nat_increases p (S.as_seq h b) (U32.v lo) (U32.v hi);
+  let b2 = S.advanced_slice b1 lo_ in
+  S.advanced_slice_truncated_slice b hi_ lo_;
+  seq_prefix_length_spec_nat_add p (S.as_seq h b) (U32.v lo) (U32.v hi - U32.v lo);
+  b2
+
+let seq_slice_spec_le_disjoint
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (h: HS.mem)
+  (lo1 hi1 lo2 hi2: U32.t)
+: Lemma
+  (requires (
+    U32.v lo1 <= U32.v hi1 /\
+    U32.v hi1 <= U32.v lo2 /\
+    U32.v lo2 <= U32.v hi2 /\
+    parses h (parse_seq p) b (fun (s, _) ->
+    U32.v hi2 <= Seq.length s
+  )))
+  (ensures (
+    U32.v lo1 <= U32.v hi1 /\
+    U32.v hi1 <= U32.v lo2 /\
+    U32.v lo2 <= U32.v hi2 /\
+    parses h (parse_seq p) b (fun (s, _) ->
+      U32.v hi2 <= Seq.length s
+    ) /\
+    S.disjoint (seq_slice_spec p b h lo1 hi1) (seq_slice_spec p b h lo2 hi2)
+  ))
+= let b1 = seq_slice_spec' p b h lo1 hi1 in
+  let b2 = seq_slice_spec p b h lo2 hi2 in
+  let hi1_ = seq_prefix_length_spec p b h hi1 in
+  let bl1_ = S.truncated_slice b hi1_ in
+  let lo1_ = seq_prefix_length_spec p b h lo1 in
+  seq_prefix_length_spec_nat_increases p (S.as_seq h b) (U32.v lo1) (U32.v hi1);
+  assert (b1 == S.advanced_slice bl1_ lo1_);
+  let lo2_ = seq_prefix_length_spec p b h lo2 in
+  let bl2_ = S.advanced_slice b lo2_ in
+  let hi2_ = seq_prefix_length_spec p bl2_ h (U32.sub hi2 lo2) in
+  seq_prefix_length_spec_nat_correct p (S.as_seq h bl2_) (U32.v hi2 - U32.v lo2);
+  assert (b2 == S.truncated_slice bl2_ hi2_);
+  let inc1 () : Lemma (S.includes bl1_ b1) =
+    S.includes_advanced_slice bl1_ lo1_
+  in
+  let inc2 () : Lemma (S.includes bl2_ b2) =
+    S.includes_truncated_slice bl2_ hi2_
+  in
+  let disj () : Lemma (S.disjoint bl1_ bl2_) =
+    seq_prefix_length_spec_nat_increases p (S.as_seq h b) (U32.v hi1) (U32.v lo2);
+    S.disjoint_truncated_slice_advanced_slice b hi1_ lo2_
+  in
+  let f () : Lemma (S.disjoint b1 b2) =
+    inc1 (); inc2 (); disj ();
+    S.disjoint_includes bl1_ bl2_ b1 b2
+  in
+  f ()
+
+#reset-options
+
+val seq_slice_spec_disjoint
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (h: HS.mem)
+  (lo1 hi1 lo2 hi2: U32.t)
+: Lemma
+  (requires (
+    U32.v lo1 <= U32.v hi1 /\
+    U32.v lo2 <= U32.v hi2 /\
+    (U32.v hi1 <= U32.v lo2 \/ U32.v hi2 <= U32.v lo1) /\
+    parses h (parse_seq p) b (fun (s, _) ->
+    U32.v hi1 <= Seq.length s /\
+    U32.v hi2 <= Seq.length s
+  )))
+  (ensures (
+    U32.v lo1 <= U32.v hi1 /\
+    U32.v lo2 <= U32.v hi2 /\
+    parses h (parse_seq p) b (fun (s, _) ->
+      U32.v hi1 <= Seq.length s /\
+      U32.v hi2 <= Seq.length s
+    ) /\
+    S.disjoint (seq_slice_spec p b h lo1 hi1) (seq_slice_spec p b h lo2 hi2)
+  ))
+
+let seq_slice_spec_disjoint #b #t p b h lo1 hi1 lo2 hi2 =
+  if U32.v hi1 <= U32.v lo2
+  then seq_slice_spec_le_disjoint p b h lo1 hi1 lo2 hi2
+  else seq_slice_spec_le_disjoint p b h lo2 hi2 lo1 hi1
