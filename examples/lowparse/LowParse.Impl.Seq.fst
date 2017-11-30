@@ -534,7 +534,6 @@ let rec seq_offset_at_spec_nat_last #b #t p input =
     let input' : bytes32 = Seq.slice input len (Seq.length input) in
     seq_offset_at_spec_nat_last p input'
 
-assume
 val seq_offset_at_spec_nat_truncate
   (#b: bool)
   (#t: Type0)
@@ -565,21 +564,31 @@ val seq_offset_at_spec_nat_truncate
   ))))))
   (decreases i)
 
-(*
 #set-options "--z3rlimit 64"
 
 let rec seq_offset_at_spec_nat_truncate #b #t p input i j =
   if i = 0
   then ()
   else begin
-    let (Some (v, len)) = parse p input in
-    let input_ = Seq.slice input len (Seq.length input) in
     let (Some (s, _)) = parse (parse_seq p) input in
-    let (Some (s_, _)) = parse (parse_seq p) input_ in
-    assert (s == Seq.cons v s_);
-    seq_offset_at_spec_nat_truncate p input_ (i - 1) (j - 1)
+    let j_ = seq_offset_at_spec_nat p input j in
+    seq_offset_at_spec_nat_correct p input j;
+    let (Some (v, len)) = parse p input in
+    let inputq : bytes32 = Seq.slice input len (Seq.length input) in
+    let (Some (sq, _)) = parse (parse_seq p) inputq in
+    assert (s == Seq.cons v sq);
+    let j_q = seq_offset_at_spec_nat p inputq (j - 1) in
+    seq_offset_at_spec_nat_correct p inputq (j - 1);
+    assert (j_ == len + j_q);
+    let input' : bytes32 = Seq.slice input 0 j_ in
+    assert (no_lookahead_weak_on _ p input input');
+    let (Some (v', len')) = parse p input' in
+    assert (v == v');
+    assert ((len <: nat) == (len' <: nat));
+    seq_offset_at_spec_nat_truncate p inputq (i - 1) (j - 1)
   end
-*)
+
+#reset-options
 
 let seq_offset_at_inv
   (#b: bool)
