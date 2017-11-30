@@ -8,7 +8,7 @@ module HS = FStar.HyperStack
 module HST = FStar.HyperStack.ST
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
-
+module B = FStar.Buffer
 
 inline_for_extraction
 val validate_and_split
@@ -217,6 +217,90 @@ val nondep_destruct
 
 let nondep_destruct #b #t1 #p1 st1 #t2 p2 input =
   split st1 input
+
+#reset-options
+
+val serialize_nondep_then_correct
+  (#t1: Type0)
+  (p1: parser t1)
+  (#k2: bool)
+  (#t2: Type0)
+  (p2: parser' k2 t2)
+  (b b1 b2: S.bslice)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    S.is_concat b b1 b2 /\
+    exactly_parses h p1 b1 (fun _ -> True) /\
+    exactly_parses h p2 b2 (fun _ -> True)
+  ))
+  (ensures (
+    exactly_parses h p1 b1 (fun v1 ->
+    exactly_parses h p2 b2 (fun v2 ->
+    exactly_parses h (nondep_then #k2 (weaken' k2 p1) p2) b (fun v ->
+    v == (v1, v2)
+  )))))
+
+#set-options "--z3rlimit 32"
+
+let serialize_nondep_then_correct #t1 p1 #k2 #t2 p2 b b1 b2 h =
+  assert (no_lookahead_on _ p1 (S.as_seq h b1) (S.as_seq h b));
+  assert (injective_postcond p1 (S.as_seq h b1) (S.as_seq h b))
+
+#reset-options
+
+inline_for_extraction
+val serialize_nondep_then
+  (#t1: Type0)
+  (p1: parser t1)
+  (#k2: bool)
+  (#t2: Type0)
+  (p2: parser' k2 t2)
+  (dest src1 src2: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.disjoint dest src1 /\
+    S.disjoint dest src2 /\
+    S.live h dest /\
+    U32.v (S.length dest) >= U32.v (S.length src1) + U32.v (S.length src2) /\
+    exactly_parses h p1 src1 (fun _ -> True) /\
+    exactly_parses h p2 src2 (fun _ -> True)
+  ))
+  (ensures (fun h (destl, destr) h' ->
+    U32.v (S.length dest) >= U32.v (S.length src1) + U32.v (S.length src2) /\
+    S.is_concat dest destl destr /\
+    S.length destl == U32.add (S.length src1) (S.length src2) /\
+    S.live h' destr /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    exactly_parses h p1 src1 (fun v1 ->
+    exactly_parses h p2 src2 (fun v2 ->
+    exactly_parses h' p1 src1 (fun v1' ->
+    exactly_parses h' p2 src2 (fun v2' ->
+    exactly_parses h' (nondep_then (weaken' k2 p1) p2) destl (fun v ->
+    v1 == v1' /\ v2 == v2' /\ v == (v1, v2)
+  )))))))
+
+#set-options "--z3rlimit 256 --smtencoding.elim_box true"
+
+let serialize_nondep_then #t1 p1 #k2 #t2 p2 dest src1 src2 =
+  let h = HST.get () in
+  let len1 = S.length src1 in
+  let len2 = S.length src2 in
+  let bdest1 = B.sub (S.as_buffer dest) 0ul len1 in
+  B.blit (S.as_buffer src1) 0ul bdest1 0ul len1;
+  let bdest2 = B.sub (S.as_buffer dest) len1 len2 in
+  B.blit (S.as_buffer src2) 0ul bdest2 0ul len2;
+  let len = U32.add len1 len2 in
+  let destl = S.truncate_slice dest len in
+  let dest1 = S.truncate_slice destl len1 in
+  let dest2 = S.advance_slice destl len1 in
+  assert (S.as_buffer dest1 == bdest1);
+  assert (S.as_buffer dest2 == bdest2);
+  let destr = S.advance_slice dest len in
+  let h' = HST.get () in
+  assert (B.modifies_1 (S.as_buffer destl) h h');
+  serialize_nondep_then_correct p1 p2 destl dest1 dest2 h';
+  (destl, destr)
 
 #reset-options
 
