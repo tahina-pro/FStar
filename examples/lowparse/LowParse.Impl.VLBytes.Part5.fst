@@ -41,3 +41,30 @@ let point_to_vlbytes_contents sz f #b #t p b =
   b'
 
 #reset-options
+
+#set-options "--z3rlimit 128"
+
+let serialize_vlbytes_gen_correct
+  (sz: integer_size)
+  (f: (bounded_integer sz -> Tot bool))
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b b1 b2: S.bslice)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    S.is_concat b b1 b2 /\ (
+    let len = S.length b2 in
+    U32.v len < pow2 (FStar.Mul.op_Star 8 sz) /\
+    f (len <: bounded_integer sz) == true /\
+    exactly_parses h (parse_bounded_integer sz) b1 (fun v -> (v <: U32.t) == len) /\
+    exactly_parses h p b2 (fun _ -> True)
+  )))
+  (ensures (
+    exactly_parses h (parse_vlbytes_gen sz f p) b (fun v ->
+    exactly_parses h p b2 (fun v' ->
+    v == v'
+  ))))
+= assert (no_lookahead_on _ (parse_bounded_integer sz) (S.as_seq h b1) (S.as_seq h b));
+  assert (injective_postcond (parse_bounded_integer sz) (S.as_seq h b1) (S.as_seq h b))
