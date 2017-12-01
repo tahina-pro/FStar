@@ -56,3 +56,25 @@ let validate_flbytes_consumes_all
     | Some _ -> Some (len <: consumed_slice_length input)
     | _ -> None
   end
+
+module HS = FStar.HyperStack
+
+inline_for_extraction
+let serialize_flbytes_correct
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (len: nat)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    exactly_parses h p b (fun _ -> True) /\
+    len == U32.v (S.length b)
+  ))
+  (ensures (
+    exactly_parses h p b (fun v ->
+    exactly_parses h (parse_flbytes p len) b (fun v' ->
+    v == v'
+  ))))
+= ()
