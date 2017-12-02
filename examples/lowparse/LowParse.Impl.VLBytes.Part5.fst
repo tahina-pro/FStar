@@ -68,3 +68,90 @@ let serialize_vlbytes_gen_correct
   ))))
 = assert (no_lookahead_on _ (parse_bounded_integer sz) (S.as_seq h b1) (S.as_seq h b));
   assert (injective_postcond (parse_bounded_integer sz) (S.as_seq h b1) (S.as_seq h b))
+
+#reset-options
+
+module B = FStar.Buffer
+
+inline_for_extraction
+val serialize_bounded_integer_3
+  (i: bounded_integer 3)
+  (dest: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.live h dest /\
+    U32.v (S.length dest) >= 3
+  ))
+  (ensures (fun h (destl, destr) h' ->
+    S.is_concat dest destl destr /\
+    U32.v (S.length destl) == 3 /\
+    S.live h' destr /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    exactly_parses h' parse_bounded_integer_3 destl (fun i' ->
+    i' == i
+  )))
+
+#set-options "--z3rlimit 128 --smtencoding.elim_box true --smtencoding.l_arith_repr native --smtencoding.nl_arith_repr native"
+
+let serialize_bounded_integer_3 i dest =
+  let h = HST.get () in
+  let lo = Cast.uint32_to_uint8 (U32.rem i 256ul) in
+  let i' = U32.div i 256ul in
+  assert (U32.v i' < pow2 16);
+  assert (U32.v i' % pow2 16 == U32.v i');
+  let hi = Cast.uint32_to_uint16 i' in
+  assert (i == U32.add (Cast.uint8_to_uint32 lo) (U32.mul 256ul (Cast.uint16_to_uint32 hi)));
+  let (dhi, d1) = serialize_u16 hi dest in
+  let h1 = HST.get () in
+  let (dlo, destr) = serialize_u8 lo d1 in
+  let destl = S.truncate_slice dest 3ul in
+  assume (S.is_concat destl dhi dlo);
+  assume (S.is_concat dest destl destr);
+  let h' = HST.get () in
+  assume (S.as_seq h' dhi == S.as_seq h1 dhi);
+  serialize_nondep_then_correct parse_u16 parse_u8 destl dhi dlo h';
+  assume (B.modifies_1 (S.as_buffer destl) h h');
+  (destl, destr)
+
+#reset-options
+
+inline_for_extraction
+val serialize_bounded_integer
+  (sz: integer_size)
+  (i: bounded_integer sz)
+  (dest: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.live h dest /\
+    U32.v (S.length dest) >= sz
+  ))
+  (ensures (fun h (destl, destr) h' ->
+    S.is_concat dest destl destr /\
+    U32.v (S.length destl) == sz /\
+    S.live h' destr /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    exactly_parses h' (parse_bounded_integer sz) destl (fun i' ->
+    i' == i
+  )))
+
+let serialize_bounded_integer sz i dest =
+  Classical.forall_intro (parse_bounded_integer'_correct sz);
+  match sz with
+  | 1 -> 
+    assert (U32.v i < pow2 8);
+    assert (U32.v i % pow2 8 == U32.v i);
+    assert (Cast.uint8_to_uint32 (Cast.uint32_to_uint8 i) == i);
+    let (destl, destr) = serialize_u8 (Cast.uint32_to_uint8 i) dest in
+    (destl, destr)
+  | 2 ->
+    assert (U32.v i < pow2 16);
+    assert (U32.v i % pow2 16 == U32.v i);
+    assert (Cast.uint16_to_uint32 (Cast.uint32_to_uint16 i) == i);
+    let (destl, destr) = serialize_u16 (Cast.uint32_to_uint16 i) dest in
+    (destl, destr)
+  | 4 ->
+    let (destl, destr) = serialize_u32 i dest in
+    (destl, destr)
+  | 3 ->
+    let (destl, destr) = serialize_bounded_integer_3 i dest in
+    (destl, destr)
