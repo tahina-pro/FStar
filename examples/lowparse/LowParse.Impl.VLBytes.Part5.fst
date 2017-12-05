@@ -169,3 +169,129 @@ let serialize_bounded_integer sz i dest =
     (destl, destr)
 
 #reset-options
+
+#set-options "--z3rlimit 16"
+
+module B = FStar.Buffer
+
+inline_for_extraction
+val serialize_vlbytes_gen
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (sz: integer_size)
+  (sz' : U32.t)
+  (f: (bounded_integer sz -> Tot bool))
+  (src: S.bslice)
+  (dest: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.live h dest /\
+    S.disjoint dest src /\
+    exactly_parses h p src (fun _ -> True) /\ (
+    let len = S.length src in
+    let len' = U32.v len in
+    len' < pow2 (FStar.Mul.op_Star 8 sz) /\
+    sz + len' <= U32.v (S.length dest) /\
+    U32.v sz' == sz /\
+    f len == true
+  )))
+  (ensures (fun h (destl, destr) h' ->
+    S.is_concat dest destl destr /\
+    U32.v (S.length destl) == sz + U32.v (S.length src) /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    S.live h' destr /\
+    exactly_parses h p src (fun v ->
+    exactly_parses h' p src (fun v' ->
+    exactly_parses h' (parse_vlbytes_gen sz f p) destl (fun v'' ->
+    v == v' /\ v == v''
+  )))))
+
+#reset-options
+
+#set-options "--z3rlimit 128 --smtencoding.elim_box true"
+
+let serialize_vlbytes_gen #b #t p sz sz' f src dest =
+  let len = S.length src in
+  let len' = U32.add sz' len in
+  let destl = S.truncate_slice dest len' in
+  let destr = S.advance_slice dest len' in
+  let (d1, d2) = serialize_bounded_integer sz len destl in
+  let (d2', _) = serialize_copy p d2 src in
+  assert (d2' == d2);
+  let h' = HST.get () in
+  serialize_vlbytes_gen_correct sz f p destl d1 d2 h' ;
+  (destl, destr)
+
+#reset-options
+
+inline_for_extraction
+val serialize_vlbytes
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (sz: integer_size)
+: (src: S.bslice) ->
+  (dest: S.bslice) ->
+  HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.live h dest /\
+    S.disjoint dest src /\
+    exactly_parses h p src (fun _ -> True) /\ (
+    let len = S.length src in
+    let len' = U32.v len in
+    len' < pow2 (FStar.Mul.op_Star 8 sz) /\
+    sz + len' <= U32.v (S.length dest)
+  )))
+  (ensures (fun h (destl, destr) h' ->
+    S.is_concat dest destl destr /\
+    U32.v (S.length destl) == sz + U32.v (S.length src) /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    S.live h' destr /\
+    exactly_parses h p src (fun v ->
+    exactly_parses h' p src (fun v' ->
+    exactly_parses h' (parse_vlbytes sz p) destl (fun v'' ->
+    v == v' /\ v == v''
+  )))))
+  
+let serialize_vlbytes #b #t p sz =
+  let sz' = U32.uint_to_t sz in
+  serialize_vlbytes_gen p sz sz' (unconstrained_bounded_integer sz)
+
+inline_for_extraction
+val serialize_bounded_vlbytes
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (min: U32.t)
+  (max: U32.t { U32.v max > 0 } )
+: (src: S.bslice) ->
+  (dest: S.bslice) ->
+  HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.live h dest /\
+    S.disjoint dest src /\
+    exactly_parses h p src (fun _ -> True) /\ (
+    let len = S.length src in
+    let len' = U32.v len in
+    let sz : integer_size = log256 max in
+    U32.v min <= len' /\
+    len' <= U32.v max /\
+    sz + len' <= U32.v (S.length dest)
+  )))
+  (ensures (fun h (destl, destr) h' ->
+    let sz : integer_size = log256 max in
+    S.is_concat dest destl destr /\
+    U32.v (S.length destl) == sz + U32.v (S.length src) /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    S.live h' destr /\
+    exactly_parses h p src (fun v ->
+    exactly_parses h' p src (fun v' ->
+    exactly_parses h' (parse_bounded_vlbytes min max p) destl (fun v'' ->
+    v == v' /\ v == v''
+  )))))
+  
+let serialize_bounded_vlbytes #b #t p min max =
+  let sz : integer_size = log256 max in
+  let sz' : U32.t = U32.uint_to_t sz in
+  serialize_vlbytes_gen p sz sz' (in_bounds min max)

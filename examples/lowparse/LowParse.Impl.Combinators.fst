@@ -220,6 +220,38 @@ let nondep_destruct #b #t1 #p1 st1 #t2 p2 input =
 
 #reset-options
 
+inline_for_extraction
+val serialize_copy
+  (#k: bool)
+  (#t: Type0)
+  (p: parser' k t)
+  (dest src: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.disjoint dest src /\
+    S.live h dest /\
+    U32.v (S.length dest) >= U32.v (S.length src) /\
+    exactly_parses h p src (fun _ -> True)
+  ))
+  (ensures (fun h (destl, destr) h' ->
+    U32.v (S.length dest) >= U32.v (S.length src) /\
+    S.is_concat dest destl destr /\
+    S.length destl == S.length src /\
+    S.live h' destr /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    exactly_parses h p src (fun v ->
+    exactly_parses h' p src (fun v' ->
+    exactly_parses h' p destl (fun v'' ->
+    v == v' /\ v' == v''
+  )))))
+
+let serialize_copy #k #t p dest src =
+  let len = S.length src in
+  let destl = S.truncate_slice dest len in
+  let destr = S.advance_slice dest len in
+  B.blit (S.as_buffer src) 0ul (S.as_buffer destl) 0ul len ;
+  (destl, destr)
+
 val serialize_nondep_then_correct
   (#t1: Type0)
   (p1: parser t1)
@@ -286,19 +318,13 @@ let serialize_nondep_then #t1 p1 #k2 #t2 p2 dest src1 src2 =
   let h = HST.get () in
   let len1 = S.length src1 in
   let len2 = S.length src2 in
-  let bdest1 = B.sub (S.as_buffer dest) 0ul len1 in
-  B.blit (S.as_buffer src1) 0ul bdest1 0ul len1;
-  let bdest2 = B.sub (S.as_buffer dest) len1 len2 in
-  B.blit (S.as_buffer src2) 0ul bdest2 0ul len2;
   let len = U32.add len1 len2 in
   let destl = S.truncate_slice dest len in
-  let dest1 = S.truncate_slice destl len1 in
-  let dest2 = S.advance_slice destl len1 in
-  assert (S.as_buffer dest1 == bdest1);
-  assert (S.as_buffer dest2 == bdest2);
   let destr = S.advance_slice dest len in
+  let (dest1, dest2) = serialize_copy p1 destl src1 in
+  let (d2, _) = serialize_copy p2 dest2 src2 in
+  assert (d2 == dest2);
   let h' = HST.get () in
-  assert (B.modifies_1 (S.as_buffer destl) h h');
   serialize_nondep_then_correct p1 p2 destl dest1 dest2 h';
   (destl, destr)
 
