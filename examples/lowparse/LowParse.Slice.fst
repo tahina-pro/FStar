@@ -395,10 +395,11 @@ let is_concat
   (b: bslice)
   (b1 b2: bslice)
 : GTot Type0
-= buffer_is_concat (as_buffer b) (as_buffer b1) (as_buffer b2)
+= U32.v (length b1) <= U32.v (length b) /\
+  b1 == truncated_slice b (length b1) /\
+  b2 == advanced_slice b (length b1)
 
 let is_concat_intro
-  (#t: Type)
   (b: bslice)
   (i: U32.t)
 : Lemma
@@ -409,8 +410,16 @@ let is_concat_intro
   ))
 = ()
 
+let is_concat_intro'
+  (b b1 b2: bslice)
+: Lemma
+  (requires (buffer_is_concat (as_buffer b) (as_buffer b1) (as_buffer b2)))
+  (ensures (is_concat b b1 b2))
+= ()
+
+#set-options "--z3rlimit 16"
+
 let is_concat_assoc
-  (#t: Type)
   (b123 b12 b23 b1 b2 b3: bslice)
 : Lemma
   (requires (
@@ -421,6 +430,8 @@ let is_concat_assoc
     is_concat b123 b1 b23 <==> is_concat b123 b12 b3
   ))
 = ()
+
+#reset-options
 
 let is_concat_live
   (h: HS.mem)
@@ -440,10 +451,8 @@ let is_concat_live
 = ()
 
 let is_prefix (short long: bslice) : GTot Type0 =
-  U32.v (length short) <= U32.v (length long) /\ (
-    let tail = advanced_slice long (length short) in
-    is_concat long short tail
-  )
+  U32.v (length short) <= U32.v (length long) /\
+  short == truncated_slice long (length short)
 
 let is_prefix_refl (b: bslice) : Lemma (is_prefix b b) = ()
 
@@ -572,7 +581,7 @@ let rec is_concat_gen_append_intro
   | b' :: ll' ->
     is_concat_gen_append_intro (advanced_slice b (length b')) bm ll' lm lr
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128"
 
 let rec is_concat_gen_append_elim_l
   (b bl: bslice)
