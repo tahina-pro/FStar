@@ -30,16 +30,7 @@
         "projection_inverse_Prims.Mkdtuple2__2"
       ],
       0,
-      "f6479d90710e9ddfeaac406ef92bb71c"
-    ],
-    [
-      "LowParse.Spec.Sum.sum",
-      1,
-      2,
-      1,
-      [ "@query" ],
-      0,
-      "e9178f879d200aae8c2ca27f6d083b58"
+      "e67459c815bc8c7a12646f0caef60bfc"
     ],
     [
       "LowParse.Spec.Sum.sum_key_type",
@@ -48,7 +39,7 @@
       1,
       [ "@query" ],
       0,
-      "8d7aefca00a76d18fe385695e17d64ae"
+      "2d5179e689c9f947ead2d1837f2c2b39"
     ],
     [
       "LowParse.Spec.Sum.sum_repr_type",
@@ -57,7 +48,7 @@
       1,
       [ "@query" ],
       0,
-      "5dec05e705db07f10fd7115cac80edf4"
+      "8bf7a61089daf4addfce360a4ccea060"
     ],
     [
       "LowParse.Spec.Sum.sum_enum",
@@ -71,7 +62,7 @@
         "projection_inverse_Prims.Mkdtuple2__2"
       ],
       0,
-      "9e993fc694039bd267a6dc33aaf576ff"
+      "b707606f68be198d7c2ef9ae60f60c78"
     ],
     [
       "LowParse.Spec.Sum.sum_cases",
@@ -87,7 +78,7 @@
         "projection_inverse_Prims.Mkdtuple2__2"
       ],
       0,
-      "c67f7e94f5535d0a01569c44a3ed91ca"
+      "a0253ea867a230db798747b9d4fbfdfc"
     ],
     [
       "LowParse.Spec.Sum.parse_sum",
@@ -96,7 +87,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.Sum.sum_key" ],
       0,
-      "4a25e2d7d13db5a8fb825fff556cfc7e"
+      "d3a7042075bead35302b61a916ddf2dc"
     ],
     [
       "LowParse.Spec.Sum.make_sum",
@@ -105,7 +96,34 @@
       1,
       [ "@query" ],
       0,
-      "971191cfd5c6628ad3ca767e21877139"
+      "0789a064fa528aeeee53fc94abeeb884"
+    ],
+    [
+      "LowParse.Spec.Sum.make_sum",
+      2,
+      2,
+      1,
+      [ "@query" ],
+      0,
+      "e9894754adf6fc6621f736d0b5c8e2fd"
+    ],
+    [
+      "LowParse.Spec.Sum.make_sum",
+      3,
+      2,
+      1,
+      [ "@query" ],
+      0,
+      "4589a41678a1d87805be112091e0e387"
+    ],
+    [
+      "LowParse.Spec.Sum.make_sum",
+      4,
+      2,
+      1,
+      [ "@query" ],
+      0,
+      "f9129b01c80b91f55699174dafb3541d"
     ]
   ]
 ]

@@ -23,7 +23,7 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "21fd181bf75e38967c71482a3df1c2cc"
+      "9664aa6bf8554d0a462808fc0a8bacfb"
     ],
     [
       "LowParse.Spec.Int.decode_u16",
@@ -44,7 +44,7 @@
         "refinement_interpretation_LowParse.Spec.Int_Tm_refine_77c014063b2dfee7b49c5f91ef79f44c"
       ],
       0,
-      "f092a7e474b4b32a59b2ecc97c07c567"
+      "d9e993a9f4c1fb73c50af90f2ca29e40"
     ],
     [
       "LowParse.Spec.Int.be_to_n_inj",
@@ -102,7 +102,16 @@
         "well-founded-ordering-on-nat"
       ],
       0,
-      "bcc8abab94086dbb3b0f8a5e1c2da4b7"
+      "1d12aba5015df0d25eca5d7c0f82bd26"
+    ],
+    [
+      "LowParse.Spec.Int.be_to_n_inj",
+      2,
+      2,
+      1,
+      [ "@query", "assumption_Prims.HasEq_int" ],
+      0,
+      "3aad4141f302c8c9c1a928e59801053a"
     ],
     [
       "LowParse.Spec.Int.decode_u16_injective",
@@ -136,7 +145,16 @@
         "typing_FStar.Kremlin.Endianness.be_to_n"
       ],
       0,
-      "0fea1c4a608c35c93a64674ae3e424cb"
+      "999a21f5688354e5372a946d03ec264a"
+    ],
+    [
+      "LowParse.Spec.Int.decode_u16_injective",
+      2,
+      2,
+      1,
+      [ "@query", "assumption_FStar.UInt16.t_haseq" ],
+      0,
+      "7b14788be7d386f0328c20c18f50e5f3"
     ],
     [
       "LowParse.Spec.Int.parse_u16",
@@ -152,7 +170,7 @@
         "token_correspondence_LowParse.Spec.Int.decode_u16"
       ],
       0,
-      "bbfdedf96a3c552b8d14acc74307010e"
+      "0f66fe0de181f20cc994b3d989eff86a"
     ],
     [
       "LowParse.Spec.Int.decode_u32",
@@ -173,7 +191,7 @@
         "refinement_interpretation_LowParse.Spec.Int_Tm_refine_35748923fe3fdc58b29eade706e1b8ea"
       ],
       0,
-      "742afd76b297da6a7b41516a5307b063"
+      "52c9cec7ff34164bc340b9332ca410f2"
     ],
     [
       "LowParse.Spec.Int.decode_u32_injective",
@@ -202,7 +220,16 @@
         "typing_FStar.Kremlin.Endianness.be_to_n"
       ],
       0,
-      "f96ece75256477204414302a4b3b69b8"
+      "f444ae6a6338d47363bc0b7d6d2a6cec"
+    ],
+    [
+      "LowParse.Spec.Int.decode_u32_injective",
+      2,
+      2,
+      1,
+      [ "@query", "assumption_FStar.UInt32.t_haseq" ],
+      0,
+      "df876ad15d95c8b77660ff766efb29f2"
     ],
     [
       "LowParse.Spec.Int.parse_u32",
@@ -218,7 +245,7 @@
         "token_correspondence_LowParse.Spec.Int.decode_u32"
       ],
       0,
-      "9bd4c69b70b965356b94938027a08dbb"
+      "d03ac7891eb74dd9b224a3ea93638c96"
     ]
   ]
 ]

@@ -39,7 +39,25 @@
         "well-founded-ordering-on-nat"
       ],
       0,
-      "dbd24e55f2085350510f2d8fda46b3ca"
+      "29848237315b046acd233669c031c309"
+    ],
+    [
+      "LowParse.Spec.Seq.parse_seq_aux",
+      2,
+      2,
+      1,
+      [ "@query", "assumption_Prims.HasEq_int" ],
+      0,
+      "5ca8f1a7103ae765fd399488a25659b2"
+    ],
+    [
+      "LowParse.Spec.Seq.parse_seq_aux",
+      3,
+      2,
+      1,
+      [ "@query", "assumption_Prims.HasEq_int" ],
+      0,
+      "9d588822f2780b5f09664c125909fedb"
     ],
     [
       "LowParse.Spec.Seq.seq_of_list_inj",
@@ -54,7 +72,22 @@
         "haseqPrims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "77cb27683e2ca1fb00a4e5175e1bc3dc"
+      "e64af001e8f5698a63d4cd6170982e80"
+    ],
+    [
+      "LowParse.Spec.Seq.seq_of_list_inj",
+      2,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "Prims_pretyping_ae567c2fb75be05905677af440075565",
+        "assumption_Prims.HasEq_int", "equation_FStar.UInt32.n",
+        "equation_Prims.nat", "function_token_typing_FStar.UInt32.n",
+        "haseqPrims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
+      ],
+      0,
+      "f6c69c22f6ff05467b0ad2f2d8a79b27"
     ],
     [
       "LowParse.Spec.Seq.parse_seq'",
@@ -63,7 +96,7 @@
       1,
       [ "@query" ],
       0,
-      "9ec894fa038bf2a5224d9e5b45d1b7d9"
+      "ff372e10757d431f87f9221f3c3e5c60"
     ],
     [
       "LowParse.Spec.Seq.parse_seq_aux_correct",
@@ -153,7 +186,25 @@
         "unit_typing", "well-founded-ordering-on-nat"
       ],
       0,
-      "f78a21a1ea3b16c1e2480620125a5c5a"
+      "f73e2d98a18fe612e2065a7b9dda4f58"
+    ],
+    [
+      "LowParse.Spec.Seq.parse_seq_aux_correct",
+      2,
+      2,
+      1,
+      [ "@query", "assumption_Prims.HasEq_int" ],
+      0,
+      "15733261677cd4a80299cba6ff8dd271"
+    ],
+    [
+      "LowParse.Spec.Seq.parse_seq_aux_correct",
+      3,
+      2,
+      1,
+      [ "@query", "assumption_Prims.HasEq_int" ],
+      0,
+      "bff9290f1e95c784f52126316668d457"
     ],
     [
       "LowParse.Spec.Seq.parse_seq",
@@ -169,7 +220,7 @@
         "typing_LowParse.Spec.Seq.parse_seq_"
       ],
       0,
-      "eebb2fff2261bc9bda50e6c2aa47fc61"
+      "9da3d4c7830b1248f7c0c6b15c3d4f72"
     ],
     [
       "LowParse.Spec.Seq.parse_seq_correct",
@@ -178,7 +229,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.Seq.parse_seq" ],
       0,
-      "ef5e898d0e0badc907758453c7e2fa1d"
+      "a149a3c332a26326d52e55a50be29cf5"
     ]
   ]
 ]
