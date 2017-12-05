@@ -348,7 +348,7 @@ val seq_offset_at_spec_nat_correct
   (decreases i)
   [SMTPat (seq_offset_at_spec_nat p input i)]
 
-#set-options "--z3rlimit 128  --smtencoding.l_arith_repr native"
+#set-options "--z3rlimit 256  --smtencoding.l_arith_repr native"
 
 let rec seq_offset_at_spec_nat_correct #b #t p input i =
   if i = 0
