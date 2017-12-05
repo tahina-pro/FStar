@@ -581,7 +581,7 @@ let rec is_concat_gen_append_intro
   | b' :: ll' ->
     is_concat_gen_append_intro (advanced_slice b (length b')) bm ll' lm lr
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128"
 
 let rec is_concat_gen_append_elim_l
   (b bl: bslice)
