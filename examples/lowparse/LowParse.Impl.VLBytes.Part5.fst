@@ -42,7 +42,7 @@ let point_to_vlbytes_contents sz f #b #t p b =
 
 #reset-options
 
-#set-options "--z3rlimit 128"
+#set-options "--z3rlimit 256"
 
 let serialize_vlbytes_gen_correct
   (sz: integer_size)
@@ -105,12 +105,22 @@ let serialize_bounded_integer_3 i dest =
   let h1 = HST.get () in
   let (dlo, destr) = serialize_u8 lo d1 in
   let destl = S.truncate_slice dest 3ul in
-  assume (S.is_concat destl dhi dlo);
-  assume (S.is_concat dest destl destr);
+  let f1 () : Lemma (S.is_concat destl dhi dlo) =
+    assert (dhi == S.truncated_slice destl 2ul);
+    assert (dlo == S.advanced_slice destl 2ul);
+    S.is_concat_intro destl 2ul
+  in
+  f1 ();
+  let f2 () : Lemma (S.is_concat dest destl destr) =
+    assert (destl == S.truncated_slice dest 3ul);
+    assert (destr == S.advanced_slice dest 3ul);
+    S.is_concat_intro dest 3ul
+  in
+  f2 ();
   let h' = HST.get () in
-  assume (S.as_seq h' dhi == S.as_seq h1 dhi);
+  assert (S.as_seq h' dhi == S.as_seq h1 dhi);
   serialize_nondep_then_correct parse_u16 parse_u8 destl dhi dlo h';
-  assume (B.modifies_1 (S.as_buffer destl) h h');
+  assert (B.modifies_1 (S.as_buffer destl) h h');
   (destl, destr)
 
 #reset-options
@@ -134,6 +144,8 @@ val serialize_bounded_integer
     i' == i
   )))
 
+#set-options "--z3rlimit 16"
+
 let serialize_bounded_integer sz i dest =
   Classical.forall_intro (parse_bounded_integer'_correct sz);
   match sz with
@@ -155,3 +167,5 @@ let serialize_bounded_integer sz i dest =
   | 3 ->
     let (destl, destr) = serialize_bounded_integer_3 i dest in
     (destl, destr)
+
+#reset-options
