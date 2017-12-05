@@ -448,7 +448,7 @@ val seq_offset_at_spec_nat_add
   ))))
   (decreases i1)
 
-#set-options "--z3rlimit 64 --smtencoding.l_arith_repr native"
+#set-options "--z3rlimit 128 --smtencoding.l_arith_repr native"
 
 let rec seq_offset_at_spec_nat_add #b #t p input i1 i2 =
   if i1 = 0
@@ -636,7 +636,7 @@ val seq_offset_at_advance
     seq_offset_at_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
-#set-options "--z3rlimit 128"
+#set-options "--z3rlimit 256"
 
 let seq_offset_at_advance #b #t p sv b i h0 sl j =
   let h1 = HST.get () in
@@ -655,28 +655,40 @@ let seq_offset_at_advance #b #t p sv b i h0 sl j =
 
 #reset-options
 
+let seq_offset_at_pcond
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (i: U32.t)
+  (h: HS.mem)
+  (res: U32.t)
+: GTot Type0
+=   parses h (parse_seq p) b (fun (s, _) ->
+      U32.v i <= Seq.length s
+    ) /\
+    res == seq_offset_at_spec p b h i
+
 inline_for_extraction
 val seq_offset_at
   (#b: bool)
   (#t: Type0)
-  (#p: parser' b t)
+  (p: parser' b t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
 : HST.Stack U32.t
   (requires (fun h ->
     parses h (parse_seq p) b (fun (s, _) ->
-    U32.v i <= Seq.length s
-  )))
+      U32.v i <= Seq.length s
+    )
+  ))
   (ensures (fun h1 res h2 ->
     S.modifies_none h1 h2 /\
-    parses h1 (parse_seq p) b (fun (s, _) ->
-      U32.v i <= Seq.length s
-    ) /\
-    res == seq_offset_at_spec p b h1 i
+    seq_offset_at_pcond p b i h1 res
   ))
 
-let seq_offset_at #b #t #p sv b i =
+let seq_offset_at #b #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
   let h1 = HST.get () in
@@ -718,7 +730,7 @@ val seq_slice_spec
     s' == Seq.slice s (U32.v lo) (U32.v hi)
   ))))
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 512"
 
 let seq_slice_spec #b #t p b h lo hi =
   let len1 = seq_offset_at_spec p b h lo in
@@ -850,6 +862,8 @@ let seq_slice_spec_disjoint #b #t p b h lo1 hi1 lo2 hi2 =
   then seq_slice_spec_le_disjoint p b h lo1 hi1 lo2 hi2
   else seq_slice_spec_le_disjoint p b h lo2 hi2 lo1 hi1
 
+#set-options "--z3rlimit 16"
+
 val seq_slice_seq_slice
   (#b: bool)
   (#t: Type0)
@@ -876,7 +890,7 @@ val seq_slice_seq_slice
     seq_slice_spec p b h (U32.add lo1 lo2) (U32.add lo1 hi2)
   ))
 
-#set-options "--z3rlimit 128"
+#set-options "--z3rlimit 512"
 
 let seq_slice_seq_slice #b #t p b h lo1 hi1 lo2 hi2 =
   let b1 = seq_slice_spec' p b h lo1 hi1 in
@@ -924,6 +938,7 @@ let seq_slice_seq_slice #b #t p b h lo1 hi1 lo2 hi2 =
 
 #reset-options
 
+
 inline_for_extraction
 val seq_slice
   (#b: bool)
@@ -951,12 +966,20 @@ val seq_slice
 
 let seq_slice #b #t #p sv b lo hi =
   let h = HST.get () in
-  let len1 = seq_offset_at sv b lo in
+  let len1 = seq_offset_at p sv b lo in
+  let h1 = HST.get () in
+  assert (U32.v len1 == seq_offset_at_spec_nat p (S.as_seq h b) (U32.v lo));
   seq_offset_at_spec_nat_correct p (S.as_seq h b) (U32.v lo);
+  assert (Seq.length (S.as_seq h b) == U32.v (S.length b));
   let b1 = S.advance_slice b len1 in
-  let len2 = seq_offset_at sv b1 (U32.sub hi lo) in
+  let h1 = HST.get () in
+  assert (S.as_seq h1 b1 == S.as_seq h b1);
+  assert (Seq.length (S.as_seq h b1) == U32.v (S.length b1));
+  let len2 = seq_offset_at p sv b1 (U32.sub hi lo) in
+  assert (U32.v len2 == seq_offset_at_spec_nat p (S.as_seq h b1) (U32.v hi - U32.v lo));
   seq_offset_at_spec_nat_correct p (S.as_seq h b1) (U32.v hi - U32.v lo);
   let b2 = S.truncate_slice b1 len2 in
+  assert (b2 == seq_slice_spec p b h lo hi);
   b2
 
 #reset-options
