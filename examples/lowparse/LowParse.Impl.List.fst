@@ -765,3 +765,178 @@ let validate_list #b #t #p sv =
   res
 
 #reset-options
+
+(* Serialization: only works if the parser for elements has the prefix property *)
+
+let serialize_list_nil_correct
+  (#b: bool)
+  (#t: Type0)
+  (p: parser' b t)
+  (b: S.bslice)
+  (h: HS.mem)
+: Lemma
+  (requires (S.length b == 0ul /\ S.live h b))
+  (ensures (parses h (parse_list p) b (fun (l, _) -> l == [])))
+= ()
+
+let serialize_list_cons_correct
+  (#t: Type0)
+  (p: parser t)
+  (b bhd btl: S.bslice)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    S.is_concat b bhd btl /\
+    exactly_parses h p bhd (fun _ -> True) /\
+    U32.v (S.length bhd) > 0 /\
+    parses h (parse_list p) btl (fun _ -> True)
+  ))
+  (ensures (
+    exactly_parses h p bhd (fun hd ->
+    parses h (parse_list p) btl (fun (tl, _) ->
+    parses h (parse_list p) b (fun (l, _) ->
+    l == hd :: tl
+  )))))
+= assert (no_lookahead_on _ p (S.as_seq h bhd) (S.as_seq h b));
+  assert (injective_postcond p (S.as_seq h bhd) (S.as_seq h b))
+
+inline_for_extraction
+val serialize_list_cons
+  (#t: Type0)
+  (p: parser t)
+  (src_hd src_tl: S.bslice)
+  (dest: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.disjoint dest src_hd /\
+    S.disjoint dest src_tl /\
+    S.live h dest /\
+    U32.v (S.length dest) >= U32.v (S.length src_hd) + U32.v (S.length src_tl) /\
+    exactly_parses h p src_hd (fun _ -> True) /\
+    U32.v (S.length src_hd) > 0 /\
+    parses h (parse_list p) src_tl (fun _ -> True)
+  ))
+  (ensures (fun h (destl, destr) h' ->
+    S.is_concat dest destl destr /\
+    U32.v (S.length dest) >= U32.v (S.length src_hd) + U32.v (S.length src_tl) /\
+    S.length destl == U32.add (S.length src_hd) (S.length src_tl) /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    S.live h destr /\
+    exactly_parses h p src_hd (fun hd ->
+    parses h (parse_list p) src_tl (fun (tl, _) ->
+    exactly_parses h' p src_hd (fun hd' ->
+    parses h' (parse_list p) src_tl (fun (tl', _) ->
+    parses h' (parse_list p) destl (fun (l, _) ->
+    hd == hd' /\ tl == tl' /\ l == hd :: tl
+  )))))))
+
+#set-options "--z3rlimit 32"
+
+let serialize_list_cons #t p src_hd src_tl dest =
+  let h = HST.get () in
+  parse_list_exactly_parses h p src_tl (fun _ -> True);
+  let len_hd = S.length src_hd in
+  let len_tl = S.length src_tl in
+  let len = U32.add len_hd len_tl in
+  let destl = S.truncate_slice dest len in
+  let destr = S.advance_slice dest len in
+  let (dest_hd, dest_tl) = serialize_copy p destl src_hd in
+  let (dest_tl', _) = serialize_copy (parse_list p) dest_tl src_tl in
+  assert (dest_tl' == dest_tl);
+  let h' = HST.get () in
+  serialize_list_cons_correct p destl dest_hd dest_tl h' ;
+  (destl, destr)
+
+#reset-options
+
+val serialize_list_append_correct
+  (#t: Type0)
+  (p: parser t)
+  (b bl br: S.bslice)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    S.is_concat b bl br /\
+    parses h (parse_list p) bl (fun _ -> True) /\
+    parses h (parse_list p) br (fun _ -> True)
+  ))
+  (ensures (
+    parses h (parse_list p) bl (fun (ll, _) ->
+    parses h (parse_list p) br (fun (lr, _) ->
+    parses h (parse_list p) b (fun (l, _) ->
+    l == List.Tot.append ll lr
+  )))))
+  (decreases (U32.v (S.length bl)))
+
+#set-options "--z3rlimit 64"
+
+let rec serialize_list_append_correct #t p b bl br h =
+  if S.length bl = 0ul
+  then ()
+  else begin
+    let sl = S.as_seq h bl in
+    let (Some (hd, len)) = parse p sl in
+    assert (no_lookahead_on _ p (S.as_seq h bl) (S.as_seq h b));
+    assert (injective_postcond p (S.as_seq h bl) (S.as_seq h b));
+    let s = S.as_seq h b in
+    let (Some (hd', len')) = parse p s in
+    assert (hd == hd');
+    assert ((len <: nat) == (len' <: nat));
+    let len_ = U32.uint_to_t len in
+    let bhd = S.truncated_slice bl len_ in
+    assert (bhd == S.truncated_slice b len_);
+    let b_ = S.advanced_slice b len_ in
+    let bl_ = S.advanced_slice bl len_ in
+    serialize_list_append_correct p b_ bl_ br h
+  end
+
+#reset-options
+
+inline_for_extraction
+val serialize_list_append
+  (#t: Type0)
+  (p: parser t)
+  (srcl srcr: S.bslice)
+  (dest: S.bslice)
+: HST.Stack (S.bslice * S.bslice)
+  (requires (fun h ->
+    S.disjoint dest srcl /\
+    S.disjoint dest srcr /\
+    S.live h dest /\
+    U32.v (S.length dest) >= U32.v (S.length srcl) + U32.v (S.length srcr) /\
+    parses h (parse_list p) srcl (fun _ -> True) /\
+    parses h (parse_list p) srcr (fun _ -> True)
+  ))
+  (ensures (fun h (destl, destr) h' ->
+    S.is_concat dest destl destr /\
+    U32.v (S.length dest) >= U32.v (S.length srcl) + U32.v (S.length srcr) /\
+    S.length destl == U32.add (S.length srcl) (S.length srcr) /\
+    B.modifies_1 (S.as_buffer destl) h h' /\
+    S.live h destr /\
+    parses h (parse_list p) srcl (fun (ll, _) ->
+    parses h (parse_list p) srcr (fun (lr, _) ->
+    parses h' (parse_list p) srcl (fun (ll', _) ->
+    parses h' (parse_list p) srcr (fun (lr', _) ->
+    parses h' (parse_list p) destl (fun (l, _) ->
+    ll == ll' /\ lr == lr' /\ l == List.Tot.append ll lr
+  )))))))
+
+#set-options "--z3rlimit 32"
+
+let serialize_list_append #t p srcl srcr dest =
+  let h = HST.get () in
+  parse_list_exactly_parses h p srcl (fun _ -> True);
+  parse_list_exactly_parses h p srcr (fun _ -> True);
+  let lenl = S.length srcl in
+  let lenr = S.length srcr in
+  let len = U32.add lenl lenr in
+  let destl = S.truncate_slice dest len in
+  let destr = S.advance_slice dest len in
+  let (destll, destlr) = serialize_copy (parse_list p) destl srcl in
+  let (destlr', _) = serialize_copy (parse_list p) destlr srcr in
+  assert (destlr' == destlr);
+  let h' = HST.get () in
+  serialize_list_append_correct p destl destll destlr h' ;
+  (destl, destr)
+
+#reset-options
