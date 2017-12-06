@@ -111,7 +111,7 @@
       1,
       [ "@query", "assumption_Prims.HasEq_int" ],
       0,
-      "3aad4141f302c8c9c1a928e59801053a"
+      "58387b3b8c9c5e72e9ab4e9135bdb8c3"
     ],
     [
       "LowParse.Spec.Int.decode_u16_injective",
@@ -154,7 +154,7 @@
       1,
       [ "@query", "assumption_FStar.UInt16.t_haseq" ],
       0,
-      "7b14788be7d386f0328c20c18f50e5f3"
+      "66fe422a07858993a26714b80f7dab75"
     ],
     [
       "LowParse.Spec.Int.parse_u16",
@@ -229,7 +229,7 @@
       1,
       [ "@query", "assumption_FStar.UInt32.t_haseq" ],
       0,
-      "df876ad15d95c8b77660ff766efb29f2"
+      "94aef6f2b303cab10cb1a3fc8548b48b"
     ],
     [
       "LowParse.Spec.Int.parse_u32",
