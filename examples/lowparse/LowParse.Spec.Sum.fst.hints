@@ -105,7 +105,7 @@
       1,
       [ "@query" ],
       0,
-      "e9894754adf6fc6621f736d0b5c8e2fd"
+      "362ee9992f5cfbdf7a194d54ec6d9288"
     ],
     [
       "LowParse.Spec.Sum.make_sum",
@@ -114,7 +114,7 @@
       1,
       [ "@query" ],
       0,
-      "4589a41678a1d87805be112091e0e387"
+      "7a00c337764eda92107ef2f4b378da4b"
     ],
     [
       "LowParse.Spec.Sum.make_sum",
@@ -123,7 +123,7 @@
       1,
       [ "@query" ],
       0,
-      "f9129b01c80b91f55699174dafb3541d"
+      "70005cfb0e8634a29b11e01914e6f201"
     ]
   ]
 ]
