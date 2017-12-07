@@ -5,27 +5,137 @@ module Seq = FStar.Seq
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 
+(** Constant-size parsers *)
+
+inline_for_extraction
+let make_constant_size_parser_aux
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+: Tot (bare_parser t)
+= fun (s: bytes32) ->
+  if Seq.length s < sz
+  then None
+  else begin
+    let s' : bytes32 = Seq.slice s 0 sz in
+    match f s' with
+    | None -> None
+    | Some v ->
+      let (sz: consumed_length s) = sz in
+      Some (v, sz)
+  end
+
+let make_constant_size_parser_precond_precond
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+  (s1: bytes32 { Seq.length s1 == sz } )
+  (s2: bytes32 { Seq.length s2 == sz } )
+: GTot Type0
+= (Some? (f s1) \/ Some? (f s2)) /\ f s1 == f s2
+
+let make_constant_size_parser_precond
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+: GTot Type0
+= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+    make_constant_size_parser_precond_precond sz t f s1 s2 ==> Seq.equal s1 s2
+
+let make_constant_size_parser_precond'
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+: GTot Type0
+= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+    make_constant_size_parser_precond_precond sz t f s1 s2 ==> s1 == s2
+
+inline_for_extraction
+let make_constant_size_parser
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)) {
+    make_constant_size_parser_precond sz t f
+  })
+: Tot (parser (ParserStrong (StrongConstantSize sz ConstantSizeUnknown)) t)
+= let p : bare_parser t = make_constant_size_parser_aux sz t f in
+  let prf1
+    (b1 b2: bytes32)
+  : Lemma
+    (requires (injective_precond p b1 b2))
+    (ensures (injective_postcond p b1 b2))
+  = assert (Some? (parse p b1));
+    assert (Some? (parse p b2));
+    let (Some (v1, len1)) = parse p b1 in
+    let (Some (v2, len2)) = parse p b2 in
+    assert ((len1 <: nat) == (len2 <: nat));
+    assert ((len1 <: nat) == sz);
+    assert ((len2 <: nat) == sz);
+    assert (make_constant_size_parser_precond_precond sz t f (Seq.slice b1 0 len1) (Seq.slice b2 0 len2));
+    assert (make_constant_size_parser_precond' sz t f)
+  in
+  Classical.forall_intro_2 (fun (b1: bytes32) -> Classical.move_requires (prf1 b1));
+  p
+
+let make_total_constant_size_parser_precond
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t))
+: GTot Type0
+= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+  f s1 == f s2 ==> Seq.equal s1 s2
+
+inline_for_extraction
+let make_total_constant_size_parser
+  (sz: nat)
+  (t: Type0)
+  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t) {
+    make_total_constant_size_parser_precond sz t f
+  })
+: Tot (parser (ParserStrong (StrongConstantSize sz ConstantSizeTotal)) t)
+= let p : bare_parser t = make_constant_size_parser sz t (fun x -> Some (f x)) in
+  p
+
 (** Combinators *)
  
 /// monadic return for the parser monad
 inline_for_extraction
-let parse_ret' (#t:Type) (v:t) : Tot (bare_parser t) =
-  (fun (b: bytes32) ->
-    let z : consumed_length b = 0 in
-    Some (v, z))
+let parse_ret (#t:Type) (v:t) : Tot (parser (ParserStrong (StrongConstantSize 0 ConstantSizeTotal)) t) =
+  make_total_constant_size_parser 0 t (fun _ -> v)
+
+#set-options "--z3rlimit 16"
+
+let fail_parser_kind_precond
+  (k: parser_kind)
+: GTot Type0
+= match k with
+  | ParserStrong ks ->
+    begin match ks with
+    | StrongConstantSize _ kc ->
+      begin match kc with
+      | ConstantSizeTotal -> False
+      | _ -> True
+      end
+    | _ -> True
+    end
+  | _ -> True
 
 inline_for_extraction
-let parse_ret (#t:Type) (v:t) : Tot (parser t) =
-  parse_ret' v
-
-/// parser that always fails
-inline_for_extraction
-let fail_parser' (#t: Type0) : Tot (bare_parser t) =
-  (fun b -> None)
+let fail_parser'
+  (t: Type0)
+: Tot (bare_parser t)
+= fun _ -> None
 
 inline_for_extraction
-let fail_parser (#t: Type0) : Tot (parser t) =
-  fail_parser' #t
+let fail_parser
+  (k: parser_kind)
+  (t: Type0)
+: Pure (parser k t)
+  (requires (fail_parser_kind_precond k))
+  (ensures (fun _ -> True))
+= let p = fail_parser' t in
+  assert (forall (sz: nat) . is_constant_size_parser sz p);
+  p
 
 /// monadic bind for the parser monad
 
@@ -40,7 +150,8 @@ let and_then_bare #t #t' p p' =
     | Some (v, l) ->
       begin
 	let p'v = p' v in
-	match p'v (Seq.slice b l (Seq.length b)) with
+	let s' : bytes32 = Seq.slice b l (Seq.length b) in
+	match parse p'v s' with
 	| Some (v', l') ->
 	  let res : consumed_length b = l + l' in
 	  Some (v', res)
@@ -57,10 +168,10 @@ val and_then_no_lookahead_weak_on
     (x' : bytes32)
   : Lemma
     (requires (
-      no_lookahead_weak t p /\
-      (forall (x: t) . no_lookahead_weak t' (p' x))
+      no_lookahead_weak p /\
+      (forall (x: t) . no_lookahead_weak (p' x))
     ))
-    (ensures (no_lookahead_weak_on t' (and_then_bare p p') x x'))
+    (ensures (no_lookahead_weak_on (and_then_bare p p') x x'))
 
 let and_then_no_lookahead_weak_on #t #t' p p' x x' =
     let f = and_then_bare p p' in
@@ -86,7 +197,7 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 	  assert (off1 <= Seq.length x');
 	  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off_x') 0 off1);
 	  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
-	  assert (no_lookahead_weak_on t p x x');
+	  assert (no_lookahead_weak_on p x x');
 	  assert (Some? (parse p x'));
 	  let (Some v1') = parse p x' in
 	  let (y1', off1') = v1' in
@@ -102,7 +213,7 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 	  assert (Seq.length x2' <= Seq.length x2);
 	  assert (Seq.slice x2' 0 off2 == Seq.slice (Seq.slice x' 0 off_x') off1 (off1 + off2));
 	  assert (Seq.slice x2' 0 off2 == Seq.slice x2 0 off2);
-	  assert (no_lookahead_weak_on t' p2 x2 x2');
+	  assert (no_lookahead_weak_on p2 x2 x2');
 	  ()
 	in
 	Classical.move_requires g ()
@@ -185,11 +296,11 @@ val and_then_no_lookahead_on
     (x' : bytes32)
   : Lemma
     (requires (
-      no_lookahead t p /\
+      no_lookahead p /\
       injective p /\
-      (forall (x: t) . no_lookahead t' (p' x))
+      (forall (x: t) . no_lookahead (p' x))
     ))
-    (ensures (no_lookahead_on t' (and_then_bare p p') x x'))
+    (ensures (no_lookahead_on (and_then_bare p p') x x'))
 
 let and_then_no_lookahead_on #t #t' p p' x x' =
     let f = and_then_bare p p' in
@@ -215,7 +326,7 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
 	  assert (off1 <= Seq.length x');
 	  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off_x') 0 off1);
 	  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
-	  assert (no_lookahead_on t p x x');
+	  assert (no_lookahead_on p x x');
 	  assert (Some? (p x'));
 	  let (Some v1') = p x' in
 	  let (y1', off1') = v1' in
@@ -232,7 +343,7 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
 	  assert (off2 <= Seq.length x2');
 	  assert (Seq.slice x2' 0 off2 == Seq.slice (Seq.slice x' 0 off_x') off1 (off1 + off2));
 	  assert (Seq.slice x2' 0 off2 == Seq.slice x2 0 off2);
-	  assert (no_lookahead_on t' p2 x2 x2');
+	  assert (no_lookahead_on p2 x2 x2');
 	  assert (Some? (p2 x2'));
 	  let (Some v2') = p2 x2' in
 	  let (y2', _) = v2' in
@@ -242,204 +353,128 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
       else ()
     | _ -> ()
 
+let and_then_kind
+  (k1 k2: parser_kind)
+: Tot parser_kind
+= match k1 with
+  | ParserStrong k1s ->
+    begin match k2 with
+    | ParserStrong k2s -> ParserStrong
+      begin match k1s with
+      | StrongConstantSize sz1 k1c ->
+	begin match k2s with
+	| StrongConstantSize sz2 k2c -> StrongConstantSize (sz1 + sz2)
+	  begin match k1c with
+	  | ConstantSizeTotal ->
+	    begin match k2c with
+	    | ConstantSizeTotal -> ConstantSizeTotal
+	    | _ -> ConstantSizeUnknown
+	    end
+	  | _ -> ConstantSizeUnknown
+	  end
+	| _ -> StrongUnknown
+	end
+      | _ -> StrongUnknown
+      end
+    | ParserConsumesAll -> ParserConsumesAll
+    | _ -> ParserUnknown
+    end
+  | _ ->
+    begin match k2 with
+    | ParserConsumesAll -> ParserConsumesAll
+    | ParserStrong k2s ->
+      begin match k2s with
+      | StrongConstantSize sz2 k2c ->
+	if sz2 = 0
+	then k1
+	else ParserUnknown
+      | _ -> ParserUnknown
+      end
+    | _ -> ParserUnknown
+    end
+
 inline_for_extraction
 val and_then
-  (#b: bool)
+  (#k: parser_kind)
   (#t:Type)
+  (p:parser k t)
+  (#k': parser_kind)
   (#t':Type)
-  (p:parser' b t)
-  (p': (t -> Tot (parser' b t')))
-: Pure (parser' b t')
+  (p': (t -> Tot (parser k' t')))
+: Pure (parser (and_then_kind k k') t')
   (requires (
     and_then_cases_injective p'
   ))
   (ensures (fun _ -> True))
 		
-let and_then #b #t #t' p p' =
-  let f = and_then_bare p p' in
+let and_then #k #t p #k' #t' p' =
+  let f : bare_parser t' = and_then_bare p p' in
   Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_weak_on p p' x));
   and_then_injective p p';
-  if b then begin
-    Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_on p p' x));
-    (f <: parser t')
-  end else
-    (f <: weak_parser t')
+  let prf () : Lemma
+    (ensures ((ParserStrong? k /\ ParserStrong? k') ==> no_lookahead f))
+  = if ParserStrong? k && ParserStrong? k' then
+      Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_on p p' x))
+    else ()
+  in
+  prf ();
+  f
 
 (* Special case for non-dependent parsing *)
 
 inline_for_extraction
 let nondep_then
-  (#b: bool)
-  (#t1 #t2: Type0)
-  (p1: parser' b t1)
-  (p2: parser' b t2)
-: Tot (parser' b (t1 * t2))
-= p1 `and_then` (fun v1 -> p2 `and_then` (fun v2 -> (weaken' b (parse_ret (v1, v2)))))
+  (#k1: parser_kind)
+  (#t1: Type0)
+  (p1: parser k1 t1)
+  (#k2: parser_kind)
+  (#t2: Type0)
+  (p2: parser k2 t2)
+: Tot (parser (and_then_kind k1 k2) (t1 * t2))
+= p1 `and_then` (fun v1 -> p2 `and_then` (fun v2 -> (parse_ret (v1, v2))))
 
 (** Apply a total transformation on parsed data *)
 
 inline_for_extraction
 let parse_synth
-  (#b: bool)
+  (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
-  (p1: parser' b t1)
+  (p1: parser k t1)
   (f2: t1 -> Tot t2)
-: Pure (parser' b t2)
+: Pure (parser k t2)
   (requires (
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'
   ))
   (ensures (fun _ -> True))
-= let f (v1: t1) : Tot (parser' b t2) =
-    let v2 = f2 v1 in
-    weaken' b (parse_ret v2)
-  in
-  and_then p1 f
-
-
-(** Parsing data of constant size *)
-
-let constant_size_parser_prop
-  (sz: nat)
-  (t: Type0)
-  (f: bare_parser t)
-: GTot Type0
-= forall (s: bytes32) .
-  Some? (f s) ==> (
-    let (_, consumed) = Some?.v (f s) in
-    sz == (consumed <: nat)
-  )
-  
-let constant_size_parser
-  (b: bool)
-  (sz: nat)
-  (t: Type0)
-: Tot Type0
-= (f: parser' b t { constant_size_parser_prop sz t f } )
-
-inline_for_extraction
-let make_constant_size_parser'
-  (sz: nat)
-  (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
-: Tot (bare_parser t)
-= fun (s: bytes32) ->
-  if Seq.length s < sz
-  then None
-  else begin
-    let s' : bytes32 = Seq.slice s 0 sz in
-    match f s' with
-    | None -> None
-    | Some v ->
-      let (sz: consumed_length s) = sz in
-      Some (v, sz)
-  end
-
-let make_constant_size_parser_precond_precond
-  (sz: nat)
-  (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
-  (s1: bytes32 { Seq.length s1 == sz } )
-  (s2: bytes32 { Seq.length s2 == sz } )
-: GTot Type0
-= (Some? (f s1) \/ Some? (f s2)) /\ f s1 == f s2
-
-let make_constant_size_parser_precond
-  (sz: nat)
-  (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
-: GTot Type0
-= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
-    make_constant_size_parser_precond_precond sz t f s1 s2 ==> Seq.equal s1 s2
-
-let make_constant_size_parser_precond'
-  (sz: nat)
-  (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
-: GTot Type0
-= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
-    make_constant_size_parser_precond_precond sz t f s1 s2 ==> s1 == s2
-
-inline_for_extraction
-let make_constant_size_parser
-  (sz: nat)
-  (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)) {
-    make_constant_size_parser_precond sz t f
-  })
-: Tot (constant_size_parser false sz t) // (constant_size_parser false sz t)
-= let p : bare_parser t = make_constant_size_parser' sz t f in
-  let prf1
-    (b1 b2: bytes32)
-  : Lemma
-    (requires (injective_precond p b1 b2))
-    (ensures (injective_postcond p b1 b2))
-  = assert (Some? (parse p b1));
-    assert (Some? (parse p b2));
-    let (Some (v1, len1)) = parse p b1 in
-    let (Some (v2, len2)) = parse p b2 in
-    assert ((len1 <: nat) == (len2 <: nat));
-    assert ((len1 <: nat) == sz);
-    assert ((len2 <: nat) == sz);
-    assert (make_constant_size_parser_precond_precond sz t f (Seq.slice b1 0 len1) (Seq.slice b2 0 len2));
-    assert (make_constant_size_parser_precond' sz t f)
-  in
-  Classical.forall_intro_2 (fun (b1: bytes32) -> Classical.move_requires (prf1 b1));
-  assert (injective p);
-  assert (no_lookahead_weak _ p);
-  p
-
-let total_constant_size_parser_cond
-  (sz: nat)
-  (t: Type0)
-  (f: constant_size_parser true sz t)
-: GTot Type0
-= forall (s: bytes32) . {:pattern (f s) }
-  (Seq.length s < sz) == (None? (f s))
-
-let total_constant_size_parser
-  (sz: nat)
-  (t: Type0)
-: Tot Type0
-= (f: constant_size_parser true sz t {
-    total_constant_size_parser_cond sz t f
-  })
-
-let make_total_constant_size_parser_precond
-  (sz: nat)
-  (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t))
-: GTot Type0
-= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
-  f s1 == f s2 ==> Seq.equal s1 s2
-
-inline_for_extraction
-let make_total_constant_size_parser
-  (sz: nat)
-  (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t) {
-    make_total_constant_size_parser_precond sz t f
-  })
-: Tot (total_constant_size_parser sz t)
-= let p : bare_parser t = make_constant_size_parser sz t (fun x -> Some (f x)) in
-  p
+= and_then p1 (fun v1 -> parse_ret (f2 v1))
 
 (** Refinements *)
 
+let parse_filter_kind (k: parser_kind) : Tot parser_kind =
+  match k with
+  | ParserStrong ks -> ParserStrong
+    begin match ks with
+    | StrongConstantSize sz _ -> StrongConstantSize sz ConstantSizeUnknown
+    | _ -> ks
+    end
+  | _ -> k
+
 inline_for_extraction
 let parse_filter
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (f: (t -> Tot bool))
-: Tot (parser' b (x: t { f x == true }))
-= p `and_then` (fun (v: t) -> weaken' b (
+: Tot (parser (parse_filter_kind k) (x: t { f x == true }))
+= let k' = ParserStrong (StrongConstantSize 0 ConstantSizeUnknown) in
+  p `and_then` (fun (v: t) -> 
     if f v
     then
-      let (v' : t { f v' == true } ) = v in
-      parse_ret v'
-    else fail_parser
-  ))
+      let v' : (x: t { f x == true } ) = v in
+      weaken k' (parse_ret v')
+    else fail_parser k' (x: t {f x == true} )
+  )
 
 (* Helpers to define `if` combinators *)
 

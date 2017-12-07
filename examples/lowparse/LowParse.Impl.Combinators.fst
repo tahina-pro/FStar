@@ -12,9 +12,9 @@ module B = FStar.Buffer
 
 inline_for_extraction
 val validate_and_split
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator p)
   (s: S.bslice)
 : HST.Stack (option (S.bslice * S.bslice))
@@ -33,21 +33,21 @@ val validate_and_split
     v == v'
   ))))))
 
-let validate_and_split #b #t #p sv s =
+let validate_and_split #k #t #p sv s =
   match sv s with
   | Some consumed ->
     let sl = S.truncate_slice s consumed in
     let sr = S.advance_slice s consumed in
     let h = HST.get () in
-    assert (no_lookahead_weak_on t p (S.as_seq h s) (S.as_seq h sl));
+    assert (no_lookahead_weak_on p (S.as_seq h s) (S.as_seq h sl));
     Some (sl, sr)
   | _ -> None
 
 inline_for_extraction
 val split
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator_nochk p)
   (s: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
@@ -66,39 +66,42 @@ val split
     v == v'
   )))))
 
-let split #b #t #p sv s =
+let split #k #t #p sv s =
   let consumed = sv s in
   let sl = S.truncate_slice s consumed in
   let sr = S.advance_slice s consumed in
   let h = HST.get () in
-  assert (no_lookahead_weak_on t p (S.as_seq h s) (S.as_seq h sl));
+  assert (no_lookahead_weak_on p (S.as_seq h s) (S.as_seq h sl));
   (sl, sr)
 
 [@"substitute"]
 inline_for_extraction
-val validate_fail (#t: Type0) : Tot (stateful_validator (fail_parser #t))
+val validate_fail
+  (k: parser_kind { fail_parser_kind_precond k } )
+  (t: Type0)
+: Tot (stateful_validator (fail_parser k t))
 
-let validate_fail #t =
+let validate_fail k t =
   (fun (input: S.bslice) -> (
     let h = HST.get () in
     None #(consumed_slice_length input)
-  )) <: stateful_validator (fail_parser #t)
+  )) <: stateful_validator (fail_parser k t)
 
 [@"substitute"]
 inline_for_extraction
-val parse_then_check
-  (#b: bool)
+val parse_then_check'
+  (#k1: parser_kind)
   (#t1: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k1 t1)
   (ps1: parser_st p1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (#p2: t1 -> Tot (parser' b t2) {
-    and_then_cases_injective p2
-  })
+  (#p2: t1 -> Tot (parser k2 t2))
+  (prf: unit -> Lemma (and_then_cases_injective p2))
   (ps2: ((x1: t1) -> Tot (stateful_validator (p2 x1))))
-: Tot (stateful_validator (and_then p1 p2))
+: Tot (prf (); stateful_validator (and_then p1 p2))
 
-let parse_then_check #b #t1 #p1 ps1 #t2 #p2 ps2 =
+let parse_then_check' #k1 #t1 #p1 ps1 #k2 #t2 #p2 prf ps2 =
   fun input ->
   match ps1 input with
   | Some (v1, off1) ->
@@ -113,13 +116,32 @@ let parse_then_check #b #t1 #p1 ps1 #t2 #p2 ps2 =
 
 [@"substitute"]
 inline_for_extraction
-let parse_nochk_then_nochk
-  (#b: bool)
+val parse_then_check
+  (#k1: parser_kind)
   (#t1: Type0)
-  (#p1: parser' b t1)
-  (ps1: parser_st_nochk p1)
+  (#p1: parser k1 t1)
+  (ps1: parser_st p1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (#p2: (t1 -> Tot (parser' b t2)) {
+  (#p2: t1 -> Tot (parser k2 t2) {
+    and_then_cases_injective p2
+  })
+  (ps2: ((x1: t1) -> Tot (stateful_validator (p2 x1))))
+: Tot (stateful_validator (and_then p1 p2))
+
+let parse_then_check #k1 #t1 #p1 ps1 #k2 #t2 #p2 ps2 =
+  parse_then_check' ps1 (fun _ -> ()) ps2
+
+[@"substitute"]
+inline_for_extraction
+let parse_nochk_then_nochk
+  (#k1: parser_kind)
+  (#t1: Type0)
+  (#p1: parser k1 t1)
+  (ps1: parser_st_nochk p1)
+  (#k2: parser_kind)
+  (#t2: Type0)
+  (#p2: (t1 -> Tot (parser k2 t2)) {
     and_then_cases_injective p2
   })
   (ps2: ((x1: t1) -> Tot (stateful_validator_nochk (p2 x1))))
@@ -135,12 +157,13 @@ let parse_nochk_then_nochk
 [@"substitute"]
 inline_for_extraction
 let validate_nondep_then
-  (#b: bool)
+  (#k1: parser_kind)
   (#t1: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k1 t1)
   (v1: stateful_validator p1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (#p2: parser' b t2)
+  (#p2: parser k2 t2)
   (v2: stateful_validator p2)
 : Tot (stateful_validator (nondep_then p1 p2))
 = fun input ->
@@ -157,12 +180,13 @@ let validate_nondep_then
 [@"substitute"]
 inline_for_extraction
 let validate_nondep_then_nochk
-  (#b: bool)
+  (#k1: parser_kind)
   (#t1: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k1 t1)
   (v1: stateful_validator_nochk p1)
   (#t2: Type0)
-  (#p2: parser' b t2)
+  (#k2: parser_kind)
+  (#p2: parser k2 t2)
   (v2: stateful_validator_nochk p2)
 : Tot (stateful_validator_nochk (nondep_then p1 p2))
 = fun s1 ->
@@ -174,12 +198,13 @@ let validate_nondep_then_nochk
 [@"substitute"]
 inline_for_extraction
 let parse_nondep_then_nochk
-  (#b: bool)
+  (#k1: parser_kind)
   (#t1: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k1 t1)
   (v1: parser_st_nochk p1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (#p2: parser' b t2)
+  (#p2: parser k2 t2)
   (v2: parser_st_nochk p2)
 : Tot (parser_st_nochk (nondep_then p1 p2))
 = fun s1 ->
@@ -192,12 +217,13 @@ let parse_nondep_then_nochk
 
 inline_for_extraction
 val nondep_destruct
-  (#b: bool)
+  (#k1: parser_kind)
   (#t1: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k1 t1)
   (st1: stateful_validator_nochk p1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (p2: parser' b t2)
+  (p2: parser k2 t2)
   (input: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
   (requires (fun h ->
@@ -215,16 +241,16 @@ val nondep_destruct
 
 #set-options "--z3rlimit 32"
 
-let nondep_destruct #b #t1 #p1 st1 #t2 p2 input =
+let nondep_destruct #k1 #t1 #p1 st1 #k2 #t2 p2 input =
   split st1 input
 
 #reset-options
 
 inline_for_extraction
 val serialize_copy
-  (#k: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' k t)
+  (p: parser k t)
   (dest src: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
   (requires (fun h ->
@@ -253,11 +279,12 @@ let serialize_copy #k #t p dest src =
   (destl, destr)
 
 val serialize_nondep_then_correct
+  (#k1: strong_parser_kind)
   (#t1: Type0)
-  (p1: parser t1)
-  (#k2: bool)
+  (p1: parser (ParserStrong k1) t1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (p2: parser' k2 t2)
+  (p2: parser k2 t2)
   (b b1 b2: S.bslice)
   (h: HS.mem)
 : Lemma
@@ -269,25 +296,26 @@ val serialize_nondep_then_correct
   (ensures (
     exactly_parses h p1 b1 (fun v1 ->
     exactly_parses h p2 b2 (fun v2 ->
-    exactly_parses h (nondep_then #k2 (weaken' k2 p1) p2) b (fun v ->
+    exactly_parses h (nondep_then p1 p2) b (fun v ->
     v == (v1, v2)
   )))))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
-let serialize_nondep_then_correct #t1 p1 #k2 #t2 p2 b b1 b2 h =
-  assert (no_lookahead_on _ p1 (S.as_seq h b1) (S.as_seq h b));
+let serialize_nondep_then_correct #k1 #t1 p1 #k2 #t2 p2 b b1 b2 h =
+  assert (no_lookahead_on p1 (S.as_seq h b1) (S.as_seq h b));
   assert (injective_postcond p1 (S.as_seq h b1) (S.as_seq h b))
 
 #reset-options
 
 inline_for_extraction
 val serialize_nondep_then
+  (#k1: strong_parser_kind)
   (#t1: Type0)
-  (p1: parser t1)
-  (#k2: bool)
+  (p1: parser (ParserStrong k1) t1)
+  (#k2: parser_kind)
   (#t2: Type0)
-  (p2: parser' k2 t2)
+  (p2: parser k2 t2)
   (dest src1 src2: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
   (requires (fun h ->
@@ -308,13 +336,13 @@ val serialize_nondep_then
     exactly_parses h p2 src2 (fun v2 ->
     exactly_parses h' p1 src1 (fun v1' ->
     exactly_parses h' p2 src2 (fun v2' ->
-    exactly_parses h' (nondep_then (weaken' k2 p1) p2) destl (fun v ->
+    exactly_parses h' (nondep_then p1 p2) destl (fun v ->
     v1 == v1' /\ v2 == v2' /\ v == (v1, v2)
   )))))))
 
 #set-options "--z3rlimit 256 --smtencoding.elim_box true"
 
-let serialize_nondep_then #t1 p1 #k2 #t2 p2 dest src1 src2 =
+let serialize_nondep_then #k1 #t1 p1 #k2 #t2 p2 dest src1 src2 =
   let h = HST.get () in
   let len1 = S.length src1 in
   let len2 = S.length src2 in
@@ -330,27 +358,31 @@ let serialize_nondep_then #t1 p1 #k2 #t2 p2 dest src1 src2 =
 
 #reset-options
 
+#set-options "--z3rlimit 32"
+
 [@"substitute"]
 inline_for_extraction
 let validate_synth
-  (#b: bool)
+  (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k t1)
   (v1: stateful_validator p1)
   (f2: (t1 -> Tot t2) {
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'  
   })
 : Tot (stateful_validator (parse_synth p1 f2))
-= fun b -> v1 b
+= fun (b: S.bslice) -> v1 b
+
+#reset-options
 
 [@"substitute"]
 inline_for_extraction
 let validate_synth_nochk
-  (#b: bool)
+  (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k t1)
   (v1: stateful_validator_nochk p1)
   (f2: (t1 -> Tot t2) {
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'  
@@ -361,10 +393,10 @@ let validate_synth_nochk
 [@"substitute"]
 inline_for_extraction
 let parse_synth_st_nochk
-  (#b: bool)
+  (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
-  (#p1: parser' b t1)
+  (#p1: parser k t1)
   (ps1: parser_st_nochk p1)
   (f2: (t1 -> Tot t2) { // Tot necessary here
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'  
@@ -376,10 +408,10 @@ let parse_synth_st_nochk
 
 inline_for_extraction
 let validate_constant_size_nochk
-  (#b: bool)
+  (#k: constant_size_parser_kind)
   (sz: U32.t)
   (#t: Type0)
-  (p: constant_size_parser b (U32.v sz) t)
+  (p: parser (ParserStrong (StrongConstantSize (U32.v sz) k)) t)
 : Tot (stateful_validator_nochk p)
 = fun input -> 
     let h = HST.get () in
@@ -390,14 +422,14 @@ inline_for_extraction
 let validate_total_constant_size
   (sz: U32.t)
   (#t: Type0)
-  (p: total_constant_size_parser (U32.v sz) t)
+  (p: parser (ParserStrong (StrongConstantSize (U32.v sz) ConstantSizeTotal)) t)
 : Tot (stateful_validator p)
 = fun s ->
   if U32.lt (S.length s) sz
   then None
   else begin
     let h = HST.get () in
-    assert (let s' = S.as_seq h s in Some? ((p <: parser t) s'));
+    assert (let s' = S.as_seq h s in Some? (parse p s'));
     Some (sz <: consumed_slice_length s)
   end
 
@@ -405,7 +437,7 @@ inline_for_extraction
 let parse_total_constant_size_nochk
   (sz: U32.t)
   (#t: Type0)
-  (#p: total_constant_size_parser (U32.v sz) t)
+  (#p: parser (ParserStrong (StrongConstantSize (U32.v sz) ConstantSizeTotal)) t)
   (ps: (
     (input: S.bslice) ->
     HST.Stack t
@@ -432,7 +464,7 @@ inline_for_extraction
 let parse_total_constant_size
   (sz: U32.t)
   (#t: Type0)
-  (#p: total_constant_size_parser (U32.v sz) t)
+  (#p: parser (ParserStrong (StrongConstantSize (U32.v sz) ConstantSizeTotal)) t)
   (ps: (parser_st_nochk p))
 : Tot (parser_st p)
 = fun s ->
@@ -443,9 +475,9 @@ let parse_total_constant_size
 #set-options "--z3rlimit 32"
 
 let stateful_filter_validator
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (f: (t -> Tot bool))
 : Tot Type0
 = (v2: (
@@ -469,9 +501,9 @@ let stateful_filter_validator
 
 inline_for_extraction
 let validate_filter
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (v1: stateful_validator p)
   (#f: (t -> Tot bool))
   (v2: stateful_filter_validator p f)
@@ -488,21 +520,23 @@ let validate_filter
 
 #reset-options
 
+#set-options "--z3rlimit 16"
+
 inline_for_extraction
 let validate_filter_nochk
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (v1: stateful_validator_nochk p)
   (f: (t -> Tot bool))
 : Tot (stateful_validator_nochk (parse_filter p f))
-= fun b -> v1 b
+= fun (b: S.bslice) -> v1 b
 
 inline_for_extraction
 let validate_filter_st
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (ps: parser_st p)
   (f: (t -> Tot bool))
   (f': ((x: t) -> Pure bool (requires True) (ensures (fun y -> y == f x)))) // checker MUST be total here (we do have a stateful parser)
@@ -517,9 +551,9 @@ let validate_filter_st
 
 inline_for_extraction
 let parse_filter_st
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (ps: parser_st p)
   (f: (t -> Tot bool)) // checker MUST be total here (we do have a stateful parser)
 : Tot (parser_st (parse_filter p f))
@@ -533,11 +567,13 @@ let parse_filter_st
     else None
   | _ -> None
 
+#reset-options
+
 inline_for_extraction
 let parse_filter_st_nochk
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (ps: parser_st_nochk p)
   (f: (t -> Tot bool))
 : Tot (parser_st_nochk (parse_filter p f))
@@ -546,16 +582,18 @@ let parse_filter_st_nochk
   let (x: t { f x == true } ) = x in
   (x, off)
 
+#set-options "--z3rlimit 16"
+
 inline_for_extraction
 let parse_filter_st'
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (ps: parser_st p)
   (f: (t -> Tot bool))
   (f' : ((x: t) -> Tot (y: bool { y == f x } )))
 : Tot (parser_st (parse_filter p f))
-= fun input ->
+= fun (input: S.bslice) ->
   match ps input with
   | Some (v, off) ->
     if f' v
@@ -564,6 +602,8 @@ let parse_filter_st'
       Some (v, off)
     else None
   | _ -> None
+
+#reset-options
 
 inline_for_extraction
 let validate_if

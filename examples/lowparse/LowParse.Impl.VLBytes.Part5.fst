@@ -16,9 +16,9 @@ inline_for_extraction
 val point_to_vlbytes_contents
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
 : HST.Stack S.bslice
   (requires (fun h ->
@@ -29,9 +29,9 @@ val point_to_vlbytes_contents
     point_to_vlbytes_contents_postcond sz f p b h0 b'
   ))
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
-let point_to_vlbytes_contents sz f #b #t p b =
+let point_to_vlbytes_contents sz f #k #t p b =
   let h = HST.get () in
   let (len, _) = parse_bounded_integer_st_nochk sz b in
   let b1 = S.advance_slice b (U32.uint_to_t sz) in
@@ -47,9 +47,9 @@ let point_to_vlbytes_contents sz f #b #t p b =
 let serialize_vlbytes_gen_correct
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b b1 b2: S.bslice)
   (h: HS.mem)
 : Lemma
@@ -66,7 +66,7 @@ let serialize_vlbytes_gen_correct
     exactly_parses h p b2 (fun v' ->
     v == v'
   ))))
-= assert (no_lookahead_on _ (parse_bounded_integer sz) (S.as_seq h b1) (S.as_seq h b));
+= assert (no_lookahead_on (parse_bounded_integer sz) (S.as_seq h b1) (S.as_seq h b));
   assert (injective_postcond (parse_bounded_integer sz) (S.as_seq h b1) (S.as_seq h b))
 
 #reset-options
@@ -176,9 +176,9 @@ module B = FStar.Buffer
 
 inline_for_extraction
 val serialize_vlbytes_gen
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sz: integer_size)
   (sz' : U32.t)
   (f: (bounded_integer sz -> Tot bool))
@@ -211,7 +211,7 @@ val serialize_vlbytes_gen
 
 #set-options "--z3rlimit 128 --smtencoding.elim_box true"
 
-let serialize_vlbytes_gen #b #t p sz sz' f src dest =
+let serialize_vlbytes_gen #k #t p sz sz' f src dest =
   let len = S.length src in
   let len' = U32.add sz' len in
   let destl = S.truncate_slice dest len' in
@@ -227,9 +227,9 @@ let serialize_vlbytes_gen #b #t p sz sz' f src dest =
 
 inline_for_extraction
 val serialize_vlbytes
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sz: integer_size)
 : (src: S.bslice) ->
   (dest: S.bslice) ->
@@ -254,15 +254,15 @@ val serialize_vlbytes
     v == v' /\ v == v''
   )))))
   
-let serialize_vlbytes #b #t p sz =
+let serialize_vlbytes #k #t p sz =
   let sz' = U32.uint_to_t sz in
   serialize_vlbytes_gen p sz sz' (unconstrained_bounded_integer sz)
 
 inline_for_extraction
 val serialize_bounded_vlbytes
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
 : (src: S.bslice) ->
@@ -291,7 +291,7 @@ val serialize_bounded_vlbytes
     v == v' /\ v == v''
   )))))
   
-let serialize_bounded_vlbytes #b #t p min max =
+let serialize_bounded_vlbytes #k #t p min max =
   let sz : integer_size = log256 max in
   let sz' : U32.t = U32.uint_to_t sz in
   serialize_vlbytes_gen p sz sz' (in_bounds min max)
