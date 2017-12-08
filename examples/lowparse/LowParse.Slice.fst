@@ -54,6 +54,7 @@ let live_as_buffer (h: HS.mem) (b: bslice) : Lemma
   ]]
 = ()
 
+inline_for_extraction
 let of_buffer
   (b: B.buffer byte)
   (len: U32.t)
