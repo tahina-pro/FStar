@@ -32,6 +32,18 @@ let as_buffer
 : Tot (lbuffer (U32.v (length b)))
 = b.p
 
+let of_buffer_spec
+  (b: B.buffer byte)
+  (len: U32.t)
+: Ghost bslice
+  (requires (U32.v len <= B.length b))
+  (ensures (fun y ->
+    U32.v len <= B.length b /\
+    length y == len /\
+    as_buffer y == B.sub b 0ul len
+  ))
+= BSlice len (B.sub b 0ul len)
+
 let live h (b: bslice) = B.live h (as_buffer b)
 
 let live_as_buffer (h: HS.mem) (b: bslice) : Lemma
@@ -41,6 +53,23 @@ let live_as_buffer (h: HS.mem) (b: bslice) : Lemma
     [SMTPat (B.live h (as_buffer b))]
   ]]
 = ()
+
+let of_buffer
+  (b: B.buffer byte)
+  (len: U32.t)
+: HST.Stack bslice
+  (requires (fun h ->
+    B.live h b /\
+    U32.v len <= B.length b
+  ))
+  (ensures (fun h y h' ->
+    h' == h /\
+    U32.v len <= B.length b /\
+    live h y /\
+    y == of_buffer_spec b len
+  ))
+= let b' = B.sub b 0ul len in
+  BSlice len b'
 
 let as_seq h (b: bslice) : Ghost (s:bytes32)
   (requires (live h b))
