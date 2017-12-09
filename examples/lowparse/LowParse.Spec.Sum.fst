@@ -43,6 +43,25 @@ let sum_cases (t: sum) : Tot ((x: sum_key t) -> Tot Type0) =
 let sum_type (t: sum) : Tot Type0 =
   (x: sum_key t & sum_cases t x)
 
+let weaken_parse_cases_kind
+  (s: sum)
+  (f: (x: sum_key s) -> Tot (k: parser_kind & parser k (sum_cases s x)))
+: Tot parser_kind
+= let keys : list (sum_key_type s) = List.Tot.map fst (sum_enum s) in
+  glb_list_of #(sum_key_type s) (fun (x: sum_key_type s) ->
+    if List.Tot.mem x keys
+    then let (| k, _ |) = f x in k
+    else ParserUnknown
+  ) (List.Tot.map fst (sum_enum s))
+
+let parse_sum_cases
+  (s: sum)
+  (f: (x: sum_key s) -> Tot (k: parser_kind & parser k (sum_cases s x)))
+  (x: sum_key s)
+: Tot (parser _ (sum_cases s x))
+= let (| _, p |) = f x in
+  weaken (weaken_parse_cases_kind s f) p
+
 inline_for_extraction
 let parse_sum
   (#kt: parser_kind)
