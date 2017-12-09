@@ -18,13 +18,13 @@ let test : sum =
     | "K_HJEU" -> U16.t
   )
 
-let parse_test_cases (x: sum_key test) : Tot (parser (sum_cases test x)) =
+let parse_test_cases (x: sum_key test) : Tot (parser _ (sum_cases test x)) =
   match x with
-    | "K_HJEU" -> parse_u16
-    | "K_EREF" -> parse_u8
+    | "K_HJEU" -> weaken (ParserStrong StrongUnknown) parse_u16
+    | "K_EREF" -> weaken (ParserStrong StrongUnknown) parse_u8
 
 let parse_test
-: parser (sum_type test)
+: parser _ (sum_type test)
 = parse_sum test parse_u32 parse_test_cases
 
 noeq
@@ -33,7 +33,7 @@ type fstar_test =
   | K_EREF of U8.t
 
 let parse_fstar_test
-: parser fstar_test
+: parser _ fstar_test
 = parse_test `parse_synth` (fun (x: sum_type test) -> match x with
   | (| "K_HJEU", x |) -> K_HJEU x
   | (| "K_EREF", y |) -> K_EREF y

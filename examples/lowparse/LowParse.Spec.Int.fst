@@ -9,7 +9,7 @@ module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 
 inline_for_extraction
-let parse_u8: total_constant_size_parser 1 U8.t =
+let parse_u8: parser _ U8.t =
   make_total_constant_size_parser 1 U8.t (fun b -> Seq.index b 0)
 
 let decode_u16
@@ -50,7 +50,7 @@ let decode_u16_injective
   end else ()
 
 inline_for_extraction
-let parse_u16: total_constant_size_parser 2 U16.t =
+let parse_u16: parser _ U16.t =
   Classical.forall_intro_2 decode_u16_injective;
   make_total_constant_size_parser 2 U16.t decode_u16
 
@@ -76,6 +76,6 @@ let decode_u32_injective
   end else ()
 
 inline_for_extraction
-let parse_u32: total_constant_size_parser 4 U32.t =
+let parse_u32: parser _ U32.t =
   Classical.forall_intro_2 decode_u32_injective;
   make_total_constant_size_parser 4 U32.t decode_u32
