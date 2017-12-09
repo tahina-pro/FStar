@@ -111,10 +111,30 @@ let test : sum =
     | "K_HJEU" -> U16.t
   )
 
-let parse_test_cases (x: sum_key test) : Tot (parser _ (sum_cases test x)) =
-  match x with
-    | "K_HJEU" -> weaken (ParserStrong StrongUnknown) parse_u16
-    | "K_EREF" -> weaken (ParserStrong StrongUnknown) parse_u8
+let weaken_parse_cases_kind
+  (s: sum)
+  (f: (x: sum_key s) -> Tot (k: parser_kind & parser k (sum_cases s x)))
+: Tot parser_kind
+= let keys : list (sum_key_type s) = List.Tot.map fst (sum_enum s) in
+  glb_list_of #(sum_key_type s) (fun (x: sum_key_type s) ->
+    if List.Tot.mem x keys
+    then let (| k, _ |) = f x in k
+    else ParserUnknown
+  ) (List.Tot.map fst (sum_enum s))
+
+let parse_sum_cases
+  (s: sum)
+  (f: (x: sum_key s) -> Tot (k: parser_kind & parser k (sum_cases s x)))
+  (x: sum_key s)
+: Tot (parser _ (sum_cases s x))
+= let (| _, p |) = f x in
+  weaken (weaken_parse_cases_kind s f) p
+
+let parse_test_cases : (x: sum_key test) -> Tot (parser _ (sum_cases test x)) =
+  parse_sum_cases test (fun (x: sum_key test) -> match x with
+    | "K_HJEU" -> (| _, parse_u16 |)
+    | "K_EREF" -> (| _, parse_u8 |)
+  )
 
 let parse_test
 : parser _ (sum_type test)
