@@ -111,11 +111,11 @@ let rec enum_key_of_repr
   (k <: enum_key e)
 
 let rec parse_enum_key
-  (#b: bool)
+  (#k: parser_kind)
   (#key #repr: eqtype)
-  (p: parser' b repr)
+  (p: parser k repr)
   (e: enum key repr)
-: Tot (parser' b (enum_key e))
+: Tot (parser (parse_filter_kind k) (enum_key e))
 = (p
     `parse_filter`
     (fun (r: repr) -> L.mem r (L.map snd e))

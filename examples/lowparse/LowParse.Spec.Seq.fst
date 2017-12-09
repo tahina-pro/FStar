@@ -38,17 +38,17 @@ let seq_of_list_inj
 = Classical.forall_intro (Seq.lemma_list_seq_bij #t)
 
 let parse_seq'
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
-: Tot (weak_parser (Seq.seq t))
+  (p: parser k t)
+: Tot (parser ParserConsumesAll (Seq.seq t))
 = seq_of_list_inj t;
   parse_synth (PL.parse_list p) (Seq.seq_of_list)
 
 val parse_seq_aux_correct
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: bytes32)
 : Lemma
   (ensures (
@@ -56,11 +56,13 @@ val parse_seq_aux_correct
   ))
   (decreases (Seq.length b))
 
-let rec parse_seq_aux_correct #b #t p b =
+#set-options "--z3rlimit 32"
+
+let rec parse_seq_aux_correct #k #t p b =
   if Seq.length b = 0
   then ()
   else
-    match p b with
+    match parse p b with
     | Some (v, n) ->
       if n = 0
       then ()
@@ -69,11 +71,13 @@ let rec parse_seq_aux_correct #b #t p b =
 	parse_seq_aux_correct p b'
     | _ -> ()
 
+#reset-options
+
 let parse_seq
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
-: Tot (weak_parser (Seq.seq t))
+  (p: parser k t)
+: Tot (parser ParserConsumesAll (Seq.seq t))
 = Classical.forall_intro (parse_seq_aux_correct p);
   no_lookahead_weak_ext (parse_seq' p) (parse_seq_aux p);
   injective_ext (parse_seq' p) (parse_seq_aux p);
@@ -81,9 +85,9 @@ let parse_seq
   parse_seq_aux p
 
 let parse_seq_correct
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: bytes32)
 : Lemma
   (parse (parse_seq p) b == parse (parse_seq' p) b)

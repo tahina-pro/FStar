@@ -16,21 +16,21 @@ module G = FStar.Ghost
 
 let parse_list_exactly_parses
   (h: HS.mem)
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (s: S.bslice)
   (pred: ((list t * consumed_slice_length s) -> GTot Type0))
 : Lemma
   (requires (parses h (parse_list p) s pred))
   (ensures (exactly_parses h (parse_list p) s (fun v -> pred (v, S.length s))))
-= parse_list_consumed p (S.as_seq h s)
+= parses_consumes_all_exactly_parses h (parse_list p) s pred
 
 inline_for_extraction
 val list_head_tail
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
@@ -48,14 +48,14 @@ val list_head_tail
     l == a :: q
   ))))))
 
-let list_head_tail #b #t #p sv b =
+let list_head_tail #k #t #p sv b =
   split sv b
 
 inline_for_extraction
 val list_is_empty
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
 : HST.Stack bool
   (requires (fun h ->
@@ -67,13 +67,13 @@ val list_is_empty
     b' == Nil? l
   )))
 
-let list_is_empty #b #t p b =
+let list_is_empty #k #t p b =
   S.length b = 0ul
 
 let list_length_inv
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (h0: G.erased HS.mem)
@@ -100,9 +100,9 @@ let list_length_inv
 
 inline_for_extraction
 val list_length_advance
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (h0: G.erased HS.mem)
@@ -119,9 +119,9 @@ val list_length_advance
     list_length_inv p sv b h0 sl h' (U32.v j + 1) interrupt
   ))
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 256"
 
-let list_length_advance #b #t p sv b h0 sl j =
+let list_length_advance #k #t p sv b h0 sl j =
   let s = B.index sl 0ul in
   if S.length s = 0ul
   then true
@@ -138,10 +138,11 @@ let list_length_advance #b #t p sv b h0 sl j =
 
 #reset-options
 
+inline_for_extraction
 val list_length
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
 : HST.Stack U32.t
@@ -154,9 +155,9 @@ val list_length
     L.length l == U32.v i
   )))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
-let list_length #b #t #p sv b =
+let list_length #k #t #p sv b =
   let h0 = HST.get () in
   HST.push_frame () ;
   let h1 = HST.get () in
@@ -184,9 +185,9 @@ let list_length #b #t #p sv b =
 
 val list_length_constant_size_parser_correct
   (#n: nat)
-  (#b: bool)
+  (#k: constant_size_parser_kind)
   (#t: Type0)
-  (p: constant_size_parser b n t)
+  (p: parser (ParserStrong (StrongConstantSize n k)) t)
   (b: S.bslice)
   (h: HS.mem)
 : Lemma
@@ -201,7 +202,7 @@ val list_length_constant_size_parser_correct
 
 #set-options "--z3rlimit 128"
 
-let rec list_length_constant_size_parser_correct #n #b #t p b h =
+let rec list_length_constant_size_parser_correct #n #k #t p b h =
   if S.length b = 0ul
   then ()
   else
@@ -210,12 +211,38 @@ let rec list_length_constant_size_parser_correct #n #b #t p b h =
 
 #reset-options
 
+val list_length_constant_size_parser_correct'
+  (#n: U32.t)
+  (#k: constant_size_parser_kind)
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongConstantSize (U32.v n) k)) t)
+  (b: S.bslice)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    U32.v n <> 0 /\
+    parses h (parse_list p) b (fun _ -> True)
+  ))
+  (ensures (
+    U32.v n <> 0 /\
+    parses h (parse_list p) b (fun (l, _) ->
+    FStar.Mul.op_Star (L.length l) (U32.v n) == U32.v (S.length b) /\
+    L.length l == U32.v (U32.div (S.length b) n)
+  )))
+  (decreases (U32.v (S.length b)))
+
+let list_length_constant_size_parser_correct' #n #k #t p b h =
+  list_length_constant_size_parser_correct p b h;
+  let s = S.as_seq h b in
+  let (Some (l, _)) = parse (parse_list p) s in
+  FStar.Math.Lemmas.multiple_division_lemma (L.length l) (U32.v n)
+
 inline_for_extraction
 val list_length_constant_size_parser
   (#n: U32.t)
-  (#b: bool)
+  (#k: constant_size_parser_kind)
   (#t: Type0)
-  (p: constant_size_parser b (U32.v n) t)
+  (p: parser (ParserStrong (StrongConstantSize (U32.v n) k)) t)
   (b: S.bslice)
 : HST.Stack U32.t
   (requires (fun h ->
@@ -228,20 +255,16 @@ val list_length_constant_size_parser
     L.length l == U32.v i
   )))
 
-#set-options "--z3rlimit 32"
-
 let list_length_constant_size_parser #n #b #t p b =
   let h = HST.get () in
-  list_length_constant_size_parser_correct p b h;
+  list_length_constant_size_parser_correct' p b h;
   let len = S.length b in
   U32.div len n
 
-#reset-options
-
 val list_nth_spec
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i: U32.t)
   (h: HS.mem)
@@ -263,14 +286,14 @@ val list_nth_spec
 
 #set-options "--z3rlimit 16"
 
-let rec list_nth_spec #b #t p b i h =
+let rec list_nth_spec #k #t p b i h =
   let s = S.as_seq h b in
   let (Some (v, len)) = parse p s in
   if i = 0ul
   then begin
     let b' = S.truncated_slice b (U32.uint_to_t len) in
     let s' = S.as_seq h b' in
-    assert (no_lookahead_weak_on _ p s s');
+    assert (no_lookahead_weak_on p s s');
     b'
   end else
     let b' = S.advanced_slice b (U32.uint_to_t len) in
@@ -279,9 +302,9 @@ let rec list_nth_spec #b #t p b i h =
 #reset-options
 
 val list_nth_spec_ext
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i: U32.t)
   (h h': HS.mem)
@@ -298,7 +321,7 @@ val list_nth_spec_ext
   ))
   (decreases (U32.v i))
 
-let rec list_nth_spec_ext #b #t p b i h h' =
+let rec list_nth_spec_ext #k #t p b i h h' =
   if i = 0ul
   then ()
   else
@@ -308,9 +331,9 @@ let rec list_nth_spec_ext #b #t p b i h h' =
     list_nth_spec_ext p b' (U32.sub i 1ul) h h'
 
 val list_nth_spec_lt_disjoint
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i j: U32.t)
   (h: HS.mem)
@@ -328,7 +351,7 @@ val list_nth_spec_lt_disjoint
   )))
   (decreases (U32.v i))
 
-let rec list_nth_spec_lt_disjoint #b #t p b i j h =
+let rec list_nth_spec_lt_disjoint #k #t p b i j h =
   let s = S.as_seq h b in
   let (Some (v, len)) = parse p s in
   let b' = S.advanced_slice b (U32.uint_to_t len) in
@@ -341,9 +364,9 @@ let rec list_nth_spec_lt_disjoint #b #t p b i j h =
     list_nth_spec_lt_disjoint p b' (U32.sub i 1ul) (U32.sub j 1ul) h
 
 val list_nth_spec_disjoint
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i j: U32.t)
   (h: HS.mem)
@@ -362,15 +385,15 @@ val list_nth_spec_disjoint
     S.disjoint (list_nth_spec p b i h) (list_nth_spec p b j h)
   )))
 
-let list_nth_spec_disjoint #b #t p b i j h =
+let list_nth_spec_disjoint #k #t p b i j h =
   if U32.lt i j
   then list_nth_spec_lt_disjoint p b i j h
   else list_nth_spec_lt_disjoint p b j i h
 
 let list_nth_precond
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -381,9 +404,9 @@ let list_nth_precond
   )
 
 let list_nth_inv
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -410,9 +433,9 @@ let list_nth_inv
 
 inline_for_extraction
 val list_nth_advance
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -430,9 +453,9 @@ val list_nth_advance
     list_nth_inv p sv b i h0 sl h2 (U32.v j + 1)
   ))
 
-#set-options "--z3rlimit 256"
+#set-options "--z3rlimit 1024"
 
-let list_nth_advance #b #t p sv b i h0 sl j =
+let list_nth_advance #k #t p sv b i h0 sl j =
   let s = B.index sl 0ul in
   let h1 = HST.get () in
   let len = sv s in
@@ -447,9 +470,9 @@ let list_nth_advance #b #t p sv b i h0 sl j =
 
 inline_for_extraction
 val list_nth
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -469,7 +492,7 @@ val list_nth
 
 #set-options "--z3rlimit 64"
 
-let list_nth #b #t p sv b i =
+let list_nth #k #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
   let h1 = HST.get () in
@@ -498,9 +521,9 @@ let list_nth #b #t p sv b i =
 
 let list_nth_constant_size_parser_postcond
   (#n: nat)
-  (#b: bool)
+  (#k: constant_size_parser_kind)
   (#t: Type0)
-  (p: constant_size_parser b n t)
+  (p: parser (ParserStrong (StrongConstantSize n k)) t)
   (b: S.bslice)
   (i: U32.t)
   (h: HS.mem)
@@ -514,24 +537,6 @@ let list_nth_constant_size_parser_postcond
     let b2 = S.truncated_slice b1 (U32.uint_to_t n) in
     list_nth_spec p b i h == b2
   ))
-
-val list_nth_constant_size_parser_correct
-  (#n: nat)
-  (#b: bool)
-  (#t: Type0)
-  (p: constant_size_parser b n t)
-  (b: S.bslice)
-  (i: U32.t)
-  (h: HS.mem)
-: Lemma
-  (requires (
-    parses h (parse_list p) b (fun (l, _) ->
-    U32.v i < L.length l
-  )))
-  (ensures (
-    list_nth_constant_size_parser_postcond p b i h
-  ))
-  (decreases (U32.v i))
 
 inline_for_extraction
 let bounded_mult (a b c: U32.t) 
@@ -547,11 +552,29 @@ let bounded_mult (a b c: U32.t)
 = l ();
   U32.mul a b
 
-#set-options "--z3rlimit 256 --smtencoding.elim_box true"
+val list_nth_constant_size_parser_correct
+  (#n: nat)
+  (#k: constant_size_parser_kind)
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongConstantSize n k)) t)
+  (b: S.bslice)
+  (i: U32.t)
+  (h: HS.mem)
+: Lemma
+  (requires (
+    parses h (parse_list p) b (fun (l, _) ->
+    U32.v i < L.length l
+  )))
+  (ensures (
+    list_nth_constant_size_parser_postcond p b i h
+  ))
+  (decreases (U32.v i))
+
+#set-options "--z3rlimit 1024 --smtencoding.elim_box true"
 
 //  --smtencoding.nl_arith_repr native --smtencoding.l_arith_repr native
 
-let rec list_nth_constant_size_parser_correct #n #b #t p b i h =
+let rec list_nth_constant_size_parser_correct #n #k #t p b i h =
   if i = 0ul
   then begin
     S.advanced_slice_zero b;
@@ -583,9 +606,9 @@ let rec list_nth_constant_size_parser_correct #n #b #t p b i h =
 inline_for_extraction
 val list_nth_constant_size_parser
   (#n: U32.t)
-  (#b: bool)
+  (#k: constant_size_parser_kind)
   (#t: Type0)
-  (p: constant_size_parser b (U32.v n) t)
+  (p: parser (ParserStrong (StrongConstantSize (U32.v n) k)) t)
   (b: S.bslice)
   (i: U32.t)
 : HST.Stack S.bslice
@@ -602,9 +625,9 @@ val list_nth_constant_size_parser
     b' == list_nth_spec p b i h
   ))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
-let list_nth_constant_size_parser #n #b #t p b i =
+let list_nth_constant_size_parser #n #k #t p b i =
   let h = HST.get () in
   list_nth_constant_size_parser_correct p b i h;
   let b1 = S.advance_slice b (U32.mul i n) in
@@ -616,9 +639,9 @@ let list_nth_constant_size_parser #n #b #t p b i =
 #reset-options
 
 let validate_list_inv
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator p)
   (b: S.bslice)
   (h0: G.erased HS.mem)
@@ -650,9 +673,9 @@ let validate_list_inv
 
 inline_for_extraction
 val validate_list_advance
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator p)
   (b: S.bslice)
   (h0: G.erased HS.mem)
@@ -671,7 +694,7 @@ val validate_list_advance
 
 #set-options "--z3rlimit 32"
 
-let validate_list_advance #b #t #p sv b h0 sl j =
+let validate_list_advance #k #t #p sv b h0 sl j =
   let h1 = HST.get () in
   B.no_upd_lemma_1 (G.reveal h0) h1 sl (S.as_buffer b);
   let os = B.index sl 0ul in
@@ -703,13 +726,13 @@ let validate_list_advance #b #t #p sv b h0 sl j =
 
 inline_for_extraction
 val validate_list
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator p)
 : Tot (stateful_validator (parse_list p))
 
-let validate_list #b #t #p sv =
+let validate_list #k #t #p sv =
   fun (b: S.bslice) ->
   let h0 = HST.get () in
   HST.push_frame ();
@@ -759,7 +782,7 @@ let validate_list #b #t #p sv =
     (requires pre)
     (ensures post)
   = let s = S.as_seq h0 b in
-    parse_list_consumed p s
+    parse_list_bare_consumed p s
   in
   Classical.move_requires f ();
   res
@@ -769,9 +792,9 @@ let validate_list #b #t #p sv =
 (* Serialization: only works if the parser for elements has the prefix property *)
 
 let serialize_list_nil_correct
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
 : Lemma
@@ -780,8 +803,9 @@ let serialize_list_nil_correct
 = ()
 
 let serialize_list_cons_correct
+  (#k: strong_parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser (ParserStrong k) t)
   (b bhd btl: S.bslice)
   (h: HS.mem)
 : Lemma
@@ -797,13 +821,14 @@ let serialize_list_cons_correct
     parses h (parse_list p) b (fun (l, _) ->
     l == hd :: tl
   )))))
-= assert (no_lookahead_on _ p (S.as_seq h bhd) (S.as_seq h b));
+= assert (no_lookahead_on p (S.as_seq h bhd) (S.as_seq h b));
   assert (injective_postcond p (S.as_seq h bhd) (S.as_seq h b))
 
 inline_for_extraction
 val serialize_list_cons
+  (#k: strong_parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser (ParserStrong k) t)
   (src_hd src_tl: S.bslice)
   (dest: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
@@ -832,7 +857,7 @@ val serialize_list_cons
 
 #set-options "--z3rlimit 32"
 
-let serialize_list_cons #t p src_hd src_tl dest =
+let serialize_list_cons #k #t p src_hd src_tl dest =
   let h = HST.get () in
   parse_list_exactly_parses h p src_tl (fun _ -> True);
   let len_hd = S.length src_hd in
@@ -850,8 +875,9 @@ let serialize_list_cons #t p src_hd src_tl dest =
 #reset-options
 
 val serialize_list_append_correct
+  (#k: strong_parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser (ParserStrong k) t)
   (b bl br: S.bslice)
   (h: HS.mem)
 : Lemma
@@ -870,13 +896,13 @@ val serialize_list_append_correct
 
 #set-options "--z3rlimit 64"
 
-let rec serialize_list_append_correct #t p b bl br h =
+let rec serialize_list_append_correct #k #t p b bl br h =
   if S.length bl = 0ul
   then ()
   else begin
     let sl = S.as_seq h bl in
     let (Some (hd, len)) = parse p sl in
-    assert (no_lookahead_on _ p (S.as_seq h bl) (S.as_seq h b));
+    assert (no_lookahead_on p (S.as_seq h bl) (S.as_seq h b));
     assert (injective_postcond p (S.as_seq h bl) (S.as_seq h b));
     let s = S.as_seq h b in
     let (Some (hd', len')) = parse p s in
@@ -894,8 +920,9 @@ let rec serialize_list_append_correct #t p b bl br h =
 
 inline_for_extraction
 val serialize_list_append
+  (#k: strong_parser_kind)
   (#t: Type0)
-  (p: parser t)
+  (p: parser (ParserStrong k) t)
   (srcl srcr: S.bslice)
   (dest: S.bslice)
 : HST.Stack (S.bslice * S.bslice)
@@ -923,7 +950,7 @@ val serialize_list_append
 
 #set-options "--z3rlimit 32"
 
-let serialize_list_append #t p srcl srcr dest =
+let serialize_list_append #k #t p srcl srcr dest =
   let h = HST.get () in
   parse_list_exactly_parses h p srcl (fun _ -> True);
   parse_list_exactly_parses h p srcr (fun _ -> True);

@@ -13,27 +13,10 @@ module U32 = FStar.UInt32
 module Classical = FStar.Classical
 module G = FStar.Ghost
 
-let parse_seq_exactly_parses
-  (h: HS.mem)
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (s: S.bslice)
-  (pred: ((Seq.seq t * consumed_slice_length s) -> GTot Type0))
-: Lemma
-  (requires (parses h (parse_seq p) s pred))
-  (ensures (exactly_parses h (parse_seq p) s (fun v -> pred (v, S.length s))))
-= parse_seq_correct p (S.as_seq h s);
-  let pred' (input: list t * consumed_slice_length s) : GTot Type0 =
-    let (l, len) = input in
-    pred (Seq.seq_of_list l, len)
-  in
-  PL.parse_list_exactly_parses h p s pred'
-
 val seq_length
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
 : HST.Stack U32.t
@@ -46,33 +29,10 @@ val seq_length
     Seq.length l == U32.v i
   )))
 
-let seq_length #b #t #p sv b =
+let seq_length #k #t #p sv b =
   let h = HST.get () in
   parse_seq_correct p (S.as_seq h b);
   PL.list_length sv b
-
-inline_for_extraction
-val seq_length_constant_size_parser
-  (#n: U32.t)
-  (#b: bool)
-  (#t: Type0)
-  (p: constant_size_parser b (U32.v n) t)
-  (b: S.bslice)
-: HST.Stack U32.t
-  (requires (fun h ->
-    U32.v n <> 0 /\
-    parses h (parse_seq p) b (fun _ -> True)
-  ))
-  (ensures (fun h i h' ->
-    S.modifies_none h h' /\
-    parses h (parse_seq p) b (fun (l, _) ->
-    Seq.length l == U32.v i
-  )))
-
-let seq_length_constant_size_parser #n #b #t p b =
-  let h = HST.get () in
-  parse_seq_correct p (S.as_seq h b);
-  PL.list_length_constant_size_parser p b
 
 (* TODO: move to FStar.Seq.Properties *)
 
@@ -98,9 +58,9 @@ let rec index_seq_of_list #a l i =
     index_seq_of_list l' (i - 1)
 
 val seq_index_spec
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i: U32.t)
   (h: HS.mem)
@@ -119,14 +79,18 @@ val seq_index_spec
     x == Seq.index l (U32.v i)
   ))))
 
-let seq_index_spec #b #t p b i h =
+#set-options "--z3rlimit 32"
+
+let seq_index_spec #k #t p b i h =
   parse_seq_correct p (S.as_seq h b);
   PL.list_nth_spec p b i h
 
+#reset-options
+
 val seq_index_spec_ext
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i: U32.t)
   (h h': HS.mem)
@@ -142,14 +106,14 @@ val seq_index_spec_ext
     seq_index_spec p b i h' == seq_index_spec p b i h
   ))
 
-let seq_index_spec_ext #b #t p b i h h' =
+let seq_index_spec_ext #k #t p b i h h' =
   parse_seq_correct p (S.as_seq h b);
   PL.list_nth_spec_ext p b i h h'
 
 val seq_index_spec_disjoint
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i j: U32.t)
   (h: HS.mem)
@@ -168,15 +132,15 @@ val seq_index_spec_disjoint
     S.disjoint (seq_index_spec p b i h) (seq_index_spec p b j h)
   )))
 
-let seq_index_spec_disjoint #b #t p b i j h =
+let seq_index_spec_disjoint #k #t p b i j h =
   parse_seq_correct p (S.as_seq h b);
   PL.list_nth_spec_disjoint p b i j h
 
 inline_for_extraction
 val seq_index
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -194,47 +158,20 @@ val seq_index
     b' == seq_index_spec p b i h
   ))
 
-let seq_index #b #t p sv b i =
+let seq_index #k #t p sv b i =
   let h = HST.get () in
   parse_seq_correct p (S.as_seq h b);
   PL.list_nth p sv b i
 
 inline_for_extraction
-val seq_index_constant_size_parser
-  (#n: U32.t)
-  (#b: bool)
-  (#t: Type0)
-  (p: constant_size_parser b (U32.v n) t)
-  (b: S.bslice)
-  (i: U32.t)
-: HST.Stack S.bslice
-  (requires (fun h ->
-    parses h (parse_seq p) b (fun (l, _) ->
-    U32.v i < Seq.length l
-  )))
-  (ensures (fun h b' h' ->
-    S.modifies_none h h' /\
-    S.includes b b' /\
-    parses h (parse_seq p) b (fun (l, _) ->
-      U32.v i < Seq.length l
-    ) /\
-    b' == seq_index_spec p b i h
-  ))
-
-let seq_index_constant_size_parser #n #b #t p b i =
-  let h = HST.get () in
-  parse_seq_correct p (S.as_seq h b);
-  PL.list_nth_constant_size_parser p b i
-
-inline_for_extraction
 val validate_seq
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator p)
 : Tot (stateful_validator (parse_seq p))
 
-let validate_seq #b #t #p sv =
+let validate_seq #k #t #p sv =
   fun (input: S.bslice) ->
     let h = HST.get () in
     parse_seq_correct p (S.as_seq h input);
@@ -242,9 +179,9 @@ let validate_seq #b #t #p sv =
     validate_synth (PL.validate_list sv) (Seq.seq_of_list) input
 
 let seq_offset_at_spec_nat_postcond
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: bytes32)
   (i: nat)
   (result: nat)
@@ -301,9 +238,9 @@ let slice_cons_l
 = assert (Seq.equal (Seq.slice (Seq.cons hd tl) 0 hi) (Seq.cons hd (Seq.slice tl 0 (hi - 1))))
 
 val seq_offset_at_spec_nat
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: bytes32)
   (i: nat)
 : Ghost nat
@@ -316,7 +253,7 @@ val seq_offset_at_spec_nat
   (ensures (fun _ -> True))
   (decreases i)
 
-let rec seq_offset_at_spec_nat #b #t p input i =
+let rec seq_offset_at_spec_nat #k #t p input i =
   if i = 0
   then 0
   else
@@ -326,9 +263,9 @@ let rec seq_offset_at_spec_nat #b #t p input i =
     len + len'
 
 val seq_offset_at_spec_nat_correct
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: bytes32)
   (i: nat)
 : Lemma
@@ -350,7 +287,7 @@ val seq_offset_at_spec_nat_correct
 
 #set-options "--z3rlimit 256  --smtencoding.l_arith_repr native"
 
-let rec seq_offset_at_spec_nat_correct #b #t p input i =
+let rec seq_offset_at_spec_nat_correct #k #t p input i =
   if i = 0
   then ()
   else begin
@@ -365,7 +302,7 @@ let rec seq_offset_at_spec_nat_correct #b #t p input i =
     assert (result <= Seq.length input);
     let inputl : bytes32 = Seq.slice input 0 result in
     let inputr : bytes32 = Seq.slice input result (Seq.length input) in
-    assert (no_lookahead_weak_on _ p input inputl);
+    assert (no_lookahead_weak_on p input inputl);
     let (Some (hd', len')) = parse p inputl in
     assert (hd == hd');
     assert ((len <: nat) == (len' <: nat));
@@ -395,9 +332,9 @@ let rec seq_offset_at_spec_nat_correct #b #t p input i =
 #reset-options
 
 val seq_offset_at_spec
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: S.bslice)
   (h: HS.mem)
   (i: U32.t)
@@ -418,13 +355,13 @@ val seq_offset_at_spec
     sr == Seq.slice s (U32.v i) (Seq.length s)
   ))))))
 
-let seq_offset_at_spec #b #t p input h i =
+let seq_offset_at_spec #k #t p input h i =
   U32.uint_to_t (seq_offset_at_spec_nat p (S.as_seq h input) (U32.v i))
 
 val seq_offset_at_spec_nat_add
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: bytes32)
   (i1 i2: nat)
 : Lemma
@@ -450,7 +387,7 @@ val seq_offset_at_spec_nat_add
 
 #set-options "--z3rlimit 128 --smtencoding.l_arith_repr native"
 
-let rec seq_offset_at_spec_nat_add #b #t p input i1 i2 =
+let rec seq_offset_at_spec_nat_add #k #t p input i1 i2 =
   if i1 = 0
   then ()
   else begin
@@ -480,9 +417,9 @@ let rec seq_offset_at_spec_nat_add #b #t p input i1 i2 =
 #reset-options
 
 val seq_offset_at_spec_nat_increases
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: bytes32)
   (i1 i2: nat)
 : Lemma
@@ -503,7 +440,7 @@ val seq_offset_at_spec_nat_increases
   ))))
   (decreases i1)
 
-let rec seq_offset_at_spec_nat_increases #b #t p input i1 i2 =
+let rec seq_offset_at_spec_nat_increases #k #t p input i1 i2 =
   if i1 = 0
   then ()
   else
@@ -512,9 +449,9 @@ let rec seq_offset_at_spec_nat_increases #b #t p input i1 i2 =
     seq_offset_at_spec_nat_increases p input' (i1 - 1) (i2 - 1)
 
 val seq_offset_at_spec_nat_last
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: bytes32)
 : Lemma
   (requires (Some? (parse (parse_seq p) input)))
@@ -526,7 +463,7 @@ val seq_offset_at_spec_nat_last
   )))
   (decreases (Seq.length input))
 
-let rec seq_offset_at_spec_nat_last #b #t p input =
+let rec seq_offset_at_spec_nat_last #k #t p input =
   if Seq.length input = 0
   then ()
   else
@@ -535,9 +472,9 @@ let rec seq_offset_at_spec_nat_last #b #t p input =
     seq_offset_at_spec_nat_last p input'
 
 val seq_offset_at_spec_nat_truncate
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (input: bytes32)
   (i j: nat)
 : Lemma
@@ -566,7 +503,7 @@ val seq_offset_at_spec_nat_truncate
 
 #set-options "--z3rlimit 64"
 
-let rec seq_offset_at_spec_nat_truncate #b #t p input i j =
+let rec seq_offset_at_spec_nat_truncate #k #t p input i j =
   if i = 0
   then ()
   else begin
@@ -581,7 +518,7 @@ let rec seq_offset_at_spec_nat_truncate #b #t p input i j =
     seq_offset_at_spec_nat_correct p inputq (j - 1);
     assert (j_ == len + j_q);
     let input' : bytes32 = Seq.slice input 0 j_ in
-    assert (no_lookahead_weak_on _ p input input');
+    assert (no_lookahead_weak_on p input input');
     let (Some (v', len')) = parse p input' in
     assert (v == v');
     assert ((len <: nat) == (len' <: nat));
@@ -591,9 +528,9 @@ let rec seq_offset_at_spec_nat_truncate #b #t p input i j =
 #reset-options
 
 let seq_offset_at_inv
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -616,9 +553,9 @@ let seq_offset_at_inv
 
 inline_for_extraction
 val seq_offset_at_advance
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -638,7 +575,7 @@ val seq_offset_at_advance
 
 #set-options "--z3rlimit 256"
 
-let seq_offset_at_advance #b #t p sv b i h0 sl j =
+let seq_offset_at_advance #k #t p sv b i h0 sl j =
   let h1 = HST.get () in
   let i1 = B.index sl 0ul in
   let b' = S.advance_slice b i1 in
@@ -656,9 +593,9 @@ let seq_offset_at_advance #b #t p sv b i h0 sl j =
 #reset-options
 
 let seq_offset_at_pcond
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (i: U32.t)
   (h: HS.mem)
@@ -671,9 +608,9 @@ let seq_offset_at_pcond
 
 inline_for_extraction
 val seq_offset_at
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (i: U32.t)
@@ -688,7 +625,7 @@ val seq_offset_at
     seq_offset_at_pcond p b i h1 res
   ))
 
-let seq_offset_at #b #t p sv b i =
+let seq_offset_at #k #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
   let h1 = HST.get () in
@@ -709,9 +646,9 @@ let seq_offset_at #b #t p sv b i =
   res
 
 val seq_slice_spec
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (lo hi: U32.t)
@@ -732,7 +669,7 @@ val seq_slice_spec
 
 #set-options "--z3rlimit 512"
 
-let seq_slice_spec #b #t p b h lo hi =
+let seq_slice_spec #k #t p b h lo hi =
   let len1 = seq_offset_at_spec p b h lo in
   seq_offset_at_spec_nat_correct p (S.as_seq h b) (U32.v lo);
   let b1 = S.advanced_slice b len1 in
@@ -745,9 +682,9 @@ let seq_slice_spec #b #t p b h lo hi =
 #reset-options
 
 val seq_slice_spec'
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (lo hi: U32.t)
@@ -767,7 +704,7 @@ val seq_slice_spec'
 
 #set-options "--z3rlimit 32"
 
-let seq_slice_spec' #b #t p b h lo hi =
+let seq_slice_spec' #k #t p b h lo hi =
   let hi_ = seq_offset_at_spec p b h hi in
   let b1 = S.truncated_slice b hi_ in
   let lo_ = seq_offset_at_spec p b h lo in
@@ -778,9 +715,9 @@ let seq_slice_spec' #b #t p b h lo hi =
   b2
 
 let seq_slice_spec_le_disjoint
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (lo1 hi1 lo2 hi2: U32.t)
@@ -832,9 +769,9 @@ let seq_slice_spec_le_disjoint
 #reset-options
 
 val seq_slice_spec_disjoint
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (lo1 hi1 lo2 hi2: U32.t)
@@ -857,7 +794,7 @@ val seq_slice_spec_disjoint
     S.disjoint (seq_slice_spec p b h lo1 hi1) (seq_slice_spec p b h lo2 hi2)
   ))
 
-let seq_slice_spec_disjoint #b #t p b h lo1 hi1 lo2 hi2 =
+let seq_slice_spec_disjoint #k #t p b h lo1 hi1 lo2 hi2 =
   if U32.v hi1 <= U32.v lo2
   then seq_slice_spec_le_disjoint p b h lo1 hi1 lo2 hi2
   else seq_slice_spec_le_disjoint p b h lo2 hi2 lo1 hi1
@@ -865,9 +802,9 @@ let seq_slice_spec_disjoint #b #t p b h lo1 hi1 lo2 hi2 =
 #set-options "--z3rlimit 16"
 
 val seq_slice_seq_slice
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (lo1 hi1 lo2 hi2: U32.t)
@@ -892,7 +829,7 @@ val seq_slice_seq_slice
 
 #set-options "--z3rlimit 512"
 
-let seq_slice_seq_slice #b #t p b h lo1 hi1 lo2 hi2 =
+let seq_slice_seq_slice #k #t p b h lo1 hi1 lo2 hi2 =
   let b1 = seq_slice_spec' p b h lo1 hi1 in
   let b2 = seq_slice_spec' p b1 h lo2 hi2 in
   let hi1_ = seq_offset_at_spec p b h hi1 in
@@ -941,9 +878,9 @@ let seq_slice_seq_slice #b #t p b h lo1 hi1 lo2 hi2 =
 
 inline_for_extraction
 val seq_slice
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (sv: stateful_validator_nochk p)
   (b: S.bslice)
   (lo hi: U32.t)
@@ -964,7 +901,7 @@ val seq_slice
 
 #set-options "--z3rlimit 16"
 
-let seq_slice #b #t #p sv b lo hi =
+let seq_slice #k #t #p sv b lo hi =
   let h = HST.get () in
   let len1 = seq_offset_at p sv b lo in
   let h1 = HST.get () in
