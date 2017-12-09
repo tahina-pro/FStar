@@ -304,3 +304,40 @@ let is_known
 = match k with
   | Known _ -> true
   | _ -> false
+
+module S = LowParse.Slice
+
+#set-options "--z3rlimit 32"
+
+inline_for_extraction
+let validate_enum_key
+  (#key #repr: eqtype)
+  (e: enum key repr)
+  (univ_destr_gen: (
+    (t: ((k: maybe_unknown_key e) -> Tot Type0)) ->
+    (f: ((k: maybe_unknown_key e) -> Tot (t k))) ->
+    (combine_if: ((k: maybe_unknown_key e) -> Tot (if_combinator (t k)))) ->
+    (k: repr) ->
+    Tot (t (maybe_unknown_key_of_repr e k))
+  ))
+  (#k: parser_kind)
+  (#p: parser k repr)
+  (ps: parser_st p)
+: Tot (stateful_validator (parse_enum_key p e))
+= let f =
+    univ_destr_gen
+      (fun k -> (b: bool { b == Known? k } ))
+      (fun k -> is_known e k)
+      (fun k -> default_if _)
+  in
+  fun (s: S.bslice) ->
+    validate_filter_st
+      #_
+      #repr
+      #p
+      ps
+      (fun r -> Known? (maybe_unknown_key_of_repr e r))
+      (fun x -> f x)
+      s
+
+#reset-options
