@@ -1,5 +1,5 @@
 [
-  "£9g±¸Ž%\u0016\u0004=ä_[)–u",
+  "¶\u001d•\u0000h›c1„\reâò~¶ÿ",
   [
     [
       "LowParse.Impl.Sum.lift_cases",
@@ -8,7 +8,7 @@
       1,
       [ "@query", "equation_Prims.l_False" ],
       0,
-      "2515b018683dbd52d2d046971a3e1b01"
+      "52d5fd993d41b3705e541b661bf702ef"
     ],
     [
       "LowParse.Impl.Sum.lift_parser_cases",
@@ -47,7 +47,7 @@
         "typing_LowParse.Spec.Combinators.parse_filter_kind"
       ],
       0,
-      "ad867f50b32f88ddf00a89c5a5677dd4"
+      "826afdd63b4c53e3e707e3b164fe516a"
     ],
     [
       "LowParse.Impl.Sum.parse_sum_synth",
@@ -70,7 +70,7 @@
         "token_correspondence_LowParse.Spec.Sum.sum_cases"
       ],
       0,
-      "19b2035d4dbbdd026eefeff91cb8acb7"
+      "7fc91bc29c6c4f5d716460e49a6c231c"
     ],
     [
       "LowParse.Impl.Sum.parse_sum_payload",
@@ -92,7 +92,7 @@
         "typing_LowParse.Impl.Sum.parse_sum_synth"
       ],
       0,
-      "0f8f076b78cfcd6e4776f6674b6b9d2f"
+      "63e73d2c4bb6e18466bd3b2ec598537f"
     ],
     [
       "LowParse.Impl.Sum.parse_sum_payload_and_then_cases_injective",
@@ -149,7 +149,7 @@
         "typing_LowParse.Spec.Sum.sum_repr_type"
       ],
       0,
-      "c4b66563b2f267e37a340a5cb0939e94"
+      "056a23f43fb183c6ccba2af54c8f707d"
     ],
     [
       "LowParse.Impl.Sum.parse_sum'_correct",
@@ -272,7 +272,7 @@
         "typing_LowParse.Spec.Sum.sum_type", "unit_typing"
       ],
       0,
-      "fdafaa3e0534cde3d8c73e74767eae8b"
+      "0ac0ac7b071fb0361a1a6457f7301ca8"
     ],
     [
       "LowParse.Impl.Sum.gen_validate_sum_partial'",
@@ -281,7 +281,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.Sum.sum_key" ],
       0,
-      "0244dd900ee99601f614506828d3c693"
+      "a5d49ece462c3fee377a7e7b4b525d41"
     ],
     [
       "LowParse.Impl.Sum.gen_validate_sum_partial'",
@@ -294,7 +294,7 @@
         "fuel_guarded_inversion_Prims.dtuple2"
       ],
       0,
-      "d82e27ea989cee4bc1029c5a1495bf38"
+      "3534cbedd2793e5c9d0e0c5a1488ad8f"
     ],
     [
       "LowParse.Impl.Sum.gen_validate_sum_partial'",
@@ -317,7 +317,7 @@
         "typing_LowParse.Impl.Sum.parse_sum_synth"
       ],
       0,
-      "9ad384bd3da99ffd09c2354728470084"
+      "fc8eb703d0992a4831b4bdbc1a4dd63f"
     ],
     [
       "LowParse.Impl.Sum.gen_validate_sum_partial",
@@ -326,7 +326,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.Sum.sum_key" ],
       0,
-      "e4e0e64d59319f6344c5eca45bea1ea2"
+      "b701faa3067b523fc5bb1bbef61c800c"
     ],
     [
       "LowParse.Impl.Sum.gen_validate_sum_partial",
@@ -339,7 +339,7 @@
         "fuel_guarded_inversion_Prims.dtuple2"
       ],
       0,
-      "61ccd4ec4d2c7bbf13df1217047cf855"
+      "21c33926b0bfd423516313b259fe1857"
     ],
     [
       "LowParse.Impl.Sum.gen_validate_sum_partial",
@@ -362,7 +362,7 @@
         "typing_LowParse.Slice.as_seq"
       ],
       0,
-      "cfbc496f52e3a28f04694cb7801bcba0"
+      "7a2d25ccdc5ae8761d5194558c8deeef"
     ],
     [
       "LowParse.Impl.Sum.lift_validator_cases",
@@ -389,7 +389,51 @@
         "projection_inverse_LowParse.Spec.Enum.Known__0", "true_interp"
       ],
       0,
-      "d988231599327cbf100ea32b9b7a7b78"
+      "383353202aa7b8d679bc1597726fad6e"
+    ],
+    [
+      "LowParse.Impl.Sum.validate_sum_cases_type",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query", "equation_LowParse.Spec.Sum.sum",
+        "equation_LowParse.Spec.Sum.sum_key", "equation_Prims.eqtype",
+        "fuel_guarded_inversion_Prims.dtuple2"
+      ],
+      0,
+      "4af692c54465c6d31c5e3f51580697ea"
+    ],
+    [
+      "LowParse.Impl.Sum.validate_sum_cases_type",
+      2,
+      2,
+      1,
+      [ "@query", "equation_LowParse.Spec.Sum.sum_key" ],
+      0,
+      "9b76a36374c88a7637bc3ff4a6db9f21"
+    ],
+    [
+      "LowParse.Impl.Sum.validate_sum",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query", "equation_LowParse.Spec.Sum.sum",
+        "equation_LowParse.Spec.Sum.sum_key", "equation_Prims.eqtype",
+        "fuel_guarded_inversion_Prims.dtuple2"
+      ],
+      0,
+      "64a354a1a4b1b6f0aaa4a036b54edb46"
+    ],
+    [
+      "LowParse.Impl.Sum.validate_sum",
+      2,
+      2,
+      1,
+      [ "@query", "equation_LowParse.Spec.Sum.sum_key" ],
+      0,
+      "ae14f8018e1dfc1f6b620a2d07e5acfb"
     ]
   ]
 ]
