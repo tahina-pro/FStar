@@ -51,4 +51,4 @@ extract-ocaml: $(EXTRACT_OCAML_FILE:.fst=.fst.checked)
 	$(MY_FSTAR) $(EXTRACT_OCAML_FILE) --codegen OCaml
 
 extract-c: $(EXTRACT_C_FILE:.fst=.fst.checked)
-	$(MY_KREMLIN) $(addprefix -I ,$(INCLUDE_PATHS)) -skip-linking -warn-error +11 -bundle $(patsubst %.fst,%,$(EXTRACT_C_FILE))=LowParseExamples,LowParse.* $(EXTRACT_C_FILE)
+	$(MY_KREMLIN) $(addprefix -I ,$(INCLUDE_PATHS)) -skip-linking -warn-error +11 -bundle $(patsubst %.fst,%,$(EXTRACT_C_FILE))=LowParseExamples.*,LowParse.* $(EXTRACT_C_FILE)
