@@ -328,3 +328,73 @@ let strengthen (k: parser_kind) (#t: Type0) (f: bare_parser t) : Pure (parser k 
   (requires (no_lookahead_weak f /\ injective f /\ parser_kind_prop k f))
   (ensures (fun _ -> True))
 = f
+
+let glb
+  (k1 k2: parser_kind)
+: Pure parser_kind
+  (requires True)
+  (ensures (fun k ->
+    k `is_weaker_than` k1 /\
+    k `is_weaker_than` k2 /\
+    (forall k' . (k' `is_weaker_than` k1 /\ k' `is_weaker_than` k2) ==> k' `is_weaker_than` k)
+  ))
+= match k1 with
+  | ParserStrong k1s ->
+    begin match k2 with
+    | ParserStrong k2s -> ParserStrong
+      begin match k1s with
+      | StrongConstantSize sz1 k1c ->
+	begin match k2s with
+	| StrongConstantSize sz2 k2c ->
+	  if sz1 = sz2
+	  then StrongConstantSize sz1
+	    begin match k1c with
+	    | ConstantSizeTotal -> k2c
+	    | _ -> ConstantSizeUnknown
+	    end
+	  else StrongUnknown
+	| _ -> StrongUnknown
+	end
+      | _ -> StrongUnknown
+      end
+    | _ -> ParserUnknown
+    end
+  | ParserConsumesAll ->
+    begin match k2 with
+    | ParserConsumesAll -> ParserConsumesAll
+    | _ -> ParserUnknown
+    end
+  | _ -> ParserUnknown
+
+module L = FStar.List.Tot
+
+#set-options "--max_fuel 8 --max_ifuel 8"
+
+let rec glb_list_of
+  (#t: eqtype)
+  (f: (t -> Tot parser_kind))
+  (l: list t)
+: Pure parser_kind
+  (requires True)
+  (ensures (fun k ->
+    (forall kl . L.mem kl l ==> k `is_weaker_than` (f kl)) /\
+    (forall k' . (Cons? l /\ (forall kl . L.mem kl l ==> k' `is_weaker_than` (f kl))) ==> k' `is_weaker_than` k)
+  ))
+= match l with
+  | [] -> ParserUnknown
+  | [k] -> f k
+  | k1 :: q ->
+    let k' = glb_list_of f q in
+    glb (f k1) k'
+
+#reset-options
+
+let glb_list
+  (l: list parser_kind)
+: Pure parser_kind
+  (requires True)
+  (ensures (fun k ->
+    (forall kl . L.mem kl l ==> k `is_weaker_than` kl) /\
+    (forall k' . (Cons? l /\ (forall kl . L.mem kl l ==> k' `is_weaker_than` kl)) ==> k' `is_weaker_than` k)
+  ))
+= glb_list_of id l
