@@ -18,6 +18,8 @@ let exa_discr_K_EREF'
 = let f = normalize_term (discr exa "K_EREF") in
   normalize_term (f x)
 
+#set-options "--z3rlimit 16"
+
 inline_for_extraction
 let univ_destr_gen_exa
   (t: ((k: maybe_unknown_key exa) -> Tot Type0))
@@ -26,6 +28,8 @@ let univ_destr_gen_exa
 : (k: U32.t) ->
   Tot (t (maybe_unknown_key_of_repr exa k))
 = T.synth_by_tactic (gen_enum_univ_destr_gen exa t f combine_if)
+
+#reset-options
 
 inline_for_extraction
 let univ_destr_gen_exa_strong
@@ -42,27 +46,9 @@ let univ_destr_gen_exa_strong
 
 module S = LowParse.Slice
 
-#set-options "--z3rlimit 128"
-
 inline_for_extraction
 let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
-  let f =
-    univ_destr_gen_exa
-      (fun k -> (b: bool { b == Known? k } ))
-      (fun k -> is_known exa k)
-      (fun k -> default_if _)
-  in
-  fun (s: S.bslice) ->
-    validate_filter_st
-      #_
-      #U32.t
-      #parse_u32
-      parse_u32_st
-      (fun r -> Known? (maybe_unknown_key_of_repr exa r))
-      (fun x -> f x)
-      s
-
-#reset-options
+  validate_enum_key exa univ_destr_gen_exa parse_u32_st
 
 inline_for_extraction
 val univ_destr_exa
@@ -71,8 +57,12 @@ val univ_destr_exa
 : (r: enum_repr exa) ->
   Tot (t (enum_key_of_repr exa r))
 
+#set-options "--z3rlimit 16"
+
 let univ_destr_exa t f =
   T.synth_by_tactic (gen_enum_univ_destr exa t f)
+
+#reset-options
 
 inline_for_extraction
 val univ_destr_exa_strong
