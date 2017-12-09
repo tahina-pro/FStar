@@ -46,7 +46,7 @@ let univ_destr_gen_exa_strong
 
 module S = LowParse.Slice
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128"
 
 inline_for_extraction
 let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
@@ -92,12 +92,13 @@ let univ_destr_exa_strong t f =
 
 inline_for_extraction
 val repr_lift_validator_cases_exa
+  (#k: parser_kind)
   (cases: (enum_key exa -> Tot Type0))
-  (pc: ((x: enum_key exa) -> Tot (parser (cases x))))
+  (pc: ((x: enum_key exa) -> Tot (parser k (cases x))))
   (vs: ((x: enum_key exa) -> Tot (stateful_validator (pc x))))
 : Tot ((x: U32.t) -> Tot (stateful_validator (lift_parser_cases (exa) (cases) pc (maybe_unknown_key_of_repr (exa) x))))  
 
-let repr_lift_validator_cases_exa cases pc vs =
+let repr_lift_validator_cases_exa #k cases pc vs =
   univ_destr_gen_exa
   (fun k -> stateful_validator (lift_parser_cases exa cases pc k))
   (lift_validator_cases exa cases pc vs)
@@ -110,13 +111,13 @@ let test : sum =
     | "K_HJEU" -> U16.t
   )
 
-let parse_test_cases (x: sum_key test) : Tot (parser (sum_cases test x)) =
+let parse_test_cases (x: sum_key test) : Tot (parser _ (sum_cases test x)) =
   match x with
-    | "K_HJEU" -> parse_u16
-    | "K_EREF" -> parse_u8
+    | "K_HJEU" -> weaken (ParserStrong StrongUnknown) parse_u16
+    | "K_EREF" -> weaken (ParserStrong StrongUnknown) parse_u8
 
 let parse_test
-: parser (sum_type test)
+: parser _ (sum_type test)
 = parse_sum test parse_u32 parse_test_cases
 
 inline_for_extraction
@@ -141,7 +142,7 @@ type fstar_test =
   | K_EREF of U8.t
 
 let parse_fstar_test
-: parser fstar_test
+: parser _ fstar_test
 = parse_test `parse_synth` (fun (x: sum_type test) -> match x with
   | (| "K_HJEU", x |) -> K_HJEU x
   | (| "K_EREF", y |) -> K_EREF y
@@ -163,7 +164,7 @@ let validate_list_fstar_test
 inline_for_extraction
 let test_function
 : stateful_validator (parse_vlbytes 3 (parse_list parse_fstar_test))
-=  (validate_vlbytes_consumes_all 3 validate_list_fstar_test)
+=  (validate_vlbytes 3 validate_list_fstar_test)
 
 
 (* TODO: convert the following example into new style 

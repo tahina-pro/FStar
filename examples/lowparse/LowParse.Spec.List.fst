@@ -57,20 +57,28 @@ let rec parse_list_bare_consumed
     let b' = Seq.slice b consumed1 (Seq.length b) in
     parse_list_bare_consumed p b'
 
+let parse_list_bare_consumes_all
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Lemma
+  (consumes_all (parse_list_bare p))
+= Classical.forall_intro (Classical.move_requires (parse_list_bare_consumed p))
+
 let no_lookahead_weak_on_parse_list_bare
   (#t: Type0)
   (p: bare_parser t)
   (x x' : bytes32)
 : Lemma
-  (no_lookahead_weak_on (list t) (parse_list_bare p) x x')
+  (no_lookahead_weak_on (parse_list_bare p) x x')
 = match parse_list_bare p x with
   | Some _ -> parse_list_bare_consumed p x
   | _ -> ()
 
 let parse_list_bare_injective
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
 : Lemma
   (ensures (injective (parse_list_bare p)))
 = let f () : Lemma
@@ -108,45 +116,21 @@ let parse_list_bare_injective
 
 inline_for_extraction
 val parse_list
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
-: Tot (weak_parser (list t))
+  (p: parser k t)
+: Tot (parser ParserConsumesAll (list t))
 
-let parse_list #b #t p =
+let parse_list #k #t p =
   Classical.forall_intro_2 (no_lookahead_weak_on_parse_list_bare p);
   parse_list_bare_injective p;
+  parse_list_bare_consumes_all p;
   parse_list_bare p
 
-let parse_list_consumed
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (b: bytes32)
-: Lemma
-  (requires (Some? (parse (parse_list p) b)))
-  (ensures (
-    let pb = parse (parse_list p) b in (
-    Some? pb /\ (
-    let (Some (_, consumed)) = pb in
-    consumed == Seq.length b
-  ))))
-  (decreases (Seq.length b))
-= parse_list_bare_consumed p b
-
-let parse_list_consumes_all
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-: Lemma
-  (consumes_all (parse_list p))
-  [SMTPat (consumes_all (parse_list p))]
-= Classical.forall_intro (Classical.move_requires (parse_list_consumed p))
-
 let rec parse_list_tailrec
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: bytes32)
 : Tot ((aux: list t) -> Tot (option (list t)))
   (decreases (Seq.length b))
@@ -164,9 +148,9 @@ let rec parse_list_tailrec
 	parse_list_tailrec p (Seq.slice b n (Seq.length b)) (L.append aux [v])
 
 let rec parse_list_tailrec_append
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: bytes32)
   (auxl: list t)
   (auxr: list t)
@@ -193,9 +177,9 @@ let rec parse_list_tailrec_append
       end
 
 let rec parse_list_tailrec_correct
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: bytes32)
   (aux: list t)
 : Lemma

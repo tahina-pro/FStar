@@ -27,9 +27,9 @@ let parse_flbytes' #t p sz =
     | _ -> None
 
 let parse_flbytes_injective
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sz: nat)
 : Lemma
   (ensures (injective (parse_flbytes' p sz)))
@@ -44,11 +44,11 @@ let parse_flbytes_injective
 
 inline_for_extraction
 val parse_flbytes
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (sz: nat)
-: Tot (constant_size_parser true sz t)
+: Tot (parser (ParserStrong (StrongConstantSize sz ConstantSizeUnknown)) t)
 
 let parse_flbytes #b #t p sz =
   parse_flbytes_injective p sz;
@@ -74,10 +74,9 @@ let parse_flbytes_consumes_all #t p sz =
     | _ -> None
 
 let parse_flbytes_consumes_all_correct
-  (#b: bool)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser ParserConsumesAll t)
   (sz: nat)
 : Lemma
-  (consumes_all p ==> (forall b . parse (parse_flbytes p sz) b == parse (parse_flbytes_consumes_all p sz) b))
+  (forall b . parse (parse_flbytes p sz) b == parse (parse_flbytes_consumes_all p sz) b)
 = ()

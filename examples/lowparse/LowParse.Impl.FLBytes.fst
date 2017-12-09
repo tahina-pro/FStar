@@ -6,10 +6,10 @@ module U32 = FStar.UInt32
 module S = LowParse.Slice
 
 inline_for_extraction
-let validate_flbytes
-  (#b: bool)
+let validate_flbytes_gen
+  (#k: parser_kind)
   (#t: Type0)
-  (#p: parser' b t)
+  (#p: parser k t)
   (ps: stateful_validator p)
   (len: U32.t)
 : Tot (stateful_validator (parse_flbytes p (U32.v len)))
@@ -29,20 +29,10 @@ let validate_flbytes
   end
 
 inline_for_extraction
-let validate_flbytes_nochk
-  (#b: bool)
-  (#t: Type0)
-  (p: parser' b t)
-  (len: U32.t)
-: Tot (stateful_validator_nochk (parse_flbytes p (U32.v len)))
-= validate_constant_size_nochk len (parse_flbytes p (U32.v len))
-
-inline_for_extraction
 let validate_flbytes_consumes_all
-  (#b: bool)
   (#t: Type0)
-  (#p: parser' b t)
-  (ps: stateful_validator p { consumes_all p } )
+  (#p: parser ParserConsumesAll t)
+  (ps: stateful_validator p)
   (len: U32.t)
 : Tot (stateful_validator (parse_flbytes p (U32.v len)))
 = fun (input: S.bslice) ->
@@ -57,13 +47,34 @@ let validate_flbytes_consumes_all
     | _ -> None
   end
 
+inline_for_extraction
+let validate_flbytes
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (ps: stateful_validator p)
+  (len: U32.t)
+: Tot (stateful_validator (parse_flbytes p (U32.v len)))
+= match k with
+  | ParserConsumesAll -> validate_flbytes_consumes_all #t #p ps len
+  | _ -> validate_flbytes_gen ps len
+
+inline_for_extraction
+let validate_flbytes_nochk
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (len: U32.t)
+: Tot (stateful_validator_nochk (parse_flbytes p (U32.v len)))
+= validate_constant_size_nochk len (parse_flbytes p (U32.v len))
+
 module HS = FStar.HyperStack
 
 inline_for_extraction
 let serialize_flbytes_correct
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (len: nat)
   (h: HS.mem)

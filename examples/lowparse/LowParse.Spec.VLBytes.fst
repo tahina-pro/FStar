@@ -26,7 +26,7 @@ let decode_bounded_integer
 
 #set-options "--z3rlimit 32"
 
-let decode_bounded_integer_injective
+let decode_bounded_integer_injective'
   (i: integer_size)
   (b1: bytes32 { Seq.length b1 == i } )
   (b2: bytes32 { Seq.length b2 == i } )
@@ -44,32 +44,40 @@ let decode_bounded_integer_injective
 
 #reset-options
 
-inline_for_extraction
-val parse_bounded_integer
+let decode_bounded_integer_injective
   (i: integer_size)
-: Tot (total_constant_size_parser i (bounded_integer i))
+: Lemma
+  (forall
+    (b1: bytes32 { Seq.length b1 == i } )
+    (b2: bytes32 { Seq.length b2 == i } )
+  . decode_bounded_integer i b1 == decode_bounded_integer i b2 ==> Seq.equal b1 b2
+  )
+= Classical.forall_intro_2 (decode_bounded_integer_injective' i)
 
-let parse_bounded_integer i =
-  Classical.forall_intro_2 (decode_bounded_integer_injective i);
+inline_for_extraction
+let parse_bounded_integer
+  (i: integer_size)
+: Tot (parser _ (bounded_integer i))
+= decode_bounded_integer_injective i;
   make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
 
 inline_for_extraction
 let parse_vlbytes_payload
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (i: bounded_integer sz { f i == true } )
-: Tot (parser t)
-= parse_flbytes p (U32.v i)
+: Tot (parser (ParserStrong StrongUnknown) t)
+= weaken (ParserStrong StrongUnknown) (parse_flbytes p (U32.v i))
 
 let parse_flbytes_and_then_cases_injective
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
 : Lemma
   (and_then_cases_injective (parse_vlbytes_payload sz f p))
 = let g
@@ -95,10 +103,10 @@ inline_for_extraction
 let parse_vlbytes_gen
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
-: Tot (parser t)
+  (p: parser k t)
+: Tot (parser (ParserStrong StrongUnknown) t)
 = parse_flbytes_and_then_cases_injective sz f p;
   (parse_filter (parse_bounded_integer sz) f)
   `and_then`
@@ -114,10 +122,10 @@ let unconstrained_bounded_integer
 inline_for_extraction
 let parse_vlbytes
   (sz: integer_size)
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
-: Tot (parser t)
+  (p: parser k t)
+: Tot (parser _ t)
 = parse_vlbytes_gen sz (unconstrained_bounded_integer sz) p
 
 
@@ -178,9 +186,9 @@ inline_for_extraction
 let parse_bounded_vlbytes
   (min: U32.t)
   (max: U32.t { U32.v max > 0 } )
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
-: Tot (parser t)
+  (p: parser k t)
+: Tot (parser _ t)
 = let sz : integer_size = log256 max in
   parse_vlbytes_gen sz (in_bounds min max) p
