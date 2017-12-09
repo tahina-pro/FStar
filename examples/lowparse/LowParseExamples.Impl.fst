@@ -20,6 +20,7 @@ let exa_discr_K_EREF'
 
 #set-options "--z3rlimit 16"
 
+[@"substitute"]
 inline_for_extraction
 let univ_destr_gen_exa
   (t: ((k: maybe_unknown_key exa) -> Tot Type0))
@@ -31,6 +32,7 @@ let univ_destr_gen_exa
 
 #reset-options
 
+[@"substitute"]
 inline_for_extraction
 let univ_destr_gen_exa_strong
   (t: ((k: maybe_unknown_key exa) -> Tot Type0))
@@ -50,6 +52,7 @@ inline_for_extraction
 let validate_exa_key_3 : stateful_validator (parse_enum_key parse_u32 exa) =
   validate_enum_key exa univ_destr_gen_exa parse_u32_st
 
+[@"substitute"]
 inline_for_extraction
 val univ_destr_exa
   (t: ((k: enum_key exa) -> Tot Type0))
@@ -77,34 +80,21 @@ let univ_destr_exa_strong t f =
   univ_destr_exa t' f'
 
 inline_for_extraction
-val repr_lift_validator_cases_exa
-  (#k: parser_kind)
-  (cases: (enum_key exa -> Tot Type0))
-  (pc: ((x: enum_key exa) -> Tot (parser k (cases x))))
-  (vs: ((x: enum_key exa) -> Tot (stateful_validator (pc x))))
-: Tot ((x: U32.t) -> Tot (stateful_validator (lift_parser_cases (exa) (cases) pc (maybe_unknown_key_of_repr (exa) x))))  
-
-let repr_lift_validator_cases_exa #k cases pc vs =
-  univ_destr_gen_exa
-  (fun k -> stateful_validator (lift_parser_cases exa cases pc k))
-  (lift_validator_cases exa cases pc vs)
-  (fun k -> validate_if _)
-
-inline_for_extraction
 val validate_test
 : stateful_validator parse_test
 
 let validate_test =
-  gen_validate_sum_partial
+  validate_sum
     test
-    parse_u32
     parse_u32_st
     parse_test_cases
-    (repr_lift_validator_cases_exa (sum_cases test) parse_test_cases
-      (function
+    (univ_destr_gen_exa (validate_sum_cases_type test parse_test_cases))
+    (function
 	"K_HJEU" -> validate_u16_st
       | "K_EREF" -> validate_u8_st
-    ))
+    )
+
+#set-options "--z3rlimit 16"
 
 inline_for_extraction
 let validate_fstar_test
@@ -113,6 +103,8 @@ let validate_fstar_test
   | (| "K_HJEU", x |) -> K_HJEU x
   | (| "K_EREF", y |) -> K_EREF y
   )
+
+#reset-options
 
 // inline_for_extraction // FIXME: if set, then KreMLin produces no code
 let validate_list_fstar_test

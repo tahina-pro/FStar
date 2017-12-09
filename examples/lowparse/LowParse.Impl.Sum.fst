@@ -151,3 +151,65 @@ let lift_validator_cases
 = match k with
   | Known k' -> vs k'
   | _ -> validate_fail (parse_filter_kind pk) False
+
+inline_for_extraction
+let validate_sum_cases_type
+  (s: sum)
+  (#pk: parser_kind)
+  (pc: ((x: sum_key s) -> Tot (parser pk (sum_cases s x))))
+  (k: maybe_unknown_key (sum_enum s))
+: Tot Type0
+= stateful_validator (lift_parser_cases (sum_enum s) (sum_cases s) pc k)
+
+inline_for_extraction
+val validate_sum
+  (s: sum)
+  (#kt: parser_kind)
+  (#p: parser kt (sum_repr_type s))
+  (ps: parser_st p)
+  (#k: parser_kind)
+  (pc: ((x: sum_key s) -> Tot (parser k (sum_cases s x))))
+  (destr: (
+    (f: ((k: maybe_unknown_key (sum_enum s)) -> Tot (validate_sum_cases_type s pc k))) ->
+    (combine_if: ((k: maybe_unknown_key (sum_enum s)) -> Tot (if_combinator (validate_sum_cases_type s pc k)))) ->
+    (k: sum_repr_type s) ->
+    Tot (validate_sum_cases_type s pc (maybe_unknown_key_of_repr (sum_enum s) k))
+  ))
+  (vs : ((x: sum_key s) -> Tot (stateful_validator (pc x))))
+: Tot (stateful_validator (parse_sum s p pc))
+
+let validate_sum s #kt #p ps #k pc destr vs =
+  gen_validate_sum_partial
+    s
+    p
+    ps
+    pc
+    (destr
+      (lift_validator_cases (sum_enum s) (sum_cases s) pc vs)
+      (fun k -> validate_if (lift_parser_cases (sum_enum s) (sum_cases s) pc k))
+    )
+
+(*
+
+inline_for_extraction
+let validate_sum_cases
+  (s: sum)
+  (univ_destr_gen: (
+    (t: ((k: maybe_unknown_key (sum_enum s)) -> Tot Type0)) ->
+    (f: ((k: maybe_unknown_key (sum_enum s)) -> Tot (t k))) ->
+    (combine_if: ((k: maybe_unknown_key (sum_enum s)) -> Tot (if_combinator (t k)))) ->
+    (k: sum_repr_type s) ->
+    Tot (t (maybe_unknown_key_of_repr (sum_enum s) k))
+  ))
+  (#k: parser_kind)
+  (pc: ((x: sum_key s) -> Tot (parser k (sum_cases s x))))
+  (vs : ((x: sum_key s) -> Tot (stateful_validator (pc x))))
+: (r: sum_repr_type s) ->
+  Tot (stateful_validator (lift_parser_cases (sum_enum s) (sum_cases s) pc (maybe_unknown_key_of_repr (sum_enum s) r)))
+= let t (k: maybe_unknown_key (sum_enum s)) : Tot Type0 =
+    stateful_validator (lift_parser_cases (sum_enum s) (sum_cases s) pc k)
+  in
+  univ_destr_gen
+    t
+    (lift_validator_cases (sum_enum s) (sum_cases s) pc vs)
+    (fun k -> validate_if (lift_parser_cases (sum_enum s) (sum_cases s) pc k))
