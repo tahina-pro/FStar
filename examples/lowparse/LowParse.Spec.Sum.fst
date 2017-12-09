@@ -5,18 +5,19 @@ module T = FStar.Tactics
 
 inline_for_extraction
 val parse_tagged_union
-  (#b: bool)
+  (#kt: parser_kind)
   (#tag: Type0)
   (#tu: tag -> Type0)
-  (pt: parser' b tag)
-  (p: (t: tag) -> Tot (parser' b (tu t))) // Tot really needed here by validator
-: Tot (parser' b (t: tag & tu t))
+  (pt: parser kt tag)
+  (#k: parser_kind)
+  (p: (t: tag) -> Tot (parser k (tu t))) // Tot really needed here by validator
+: Tot (parser (and_then_kind kt k) (t: tag & tu t))
 
-let parse_tagged_union #b #tag #tu pt p =
+let parse_tagged_union #kt #tag #tu pt #k p =
   pt `and_then` (fun (v: tag) ->
-    let pv : parser' b (tu v) = p v in
+    let pv : parser k (tu v) = p v in
     let synth : tu v -> Tot (t: tag & tu t) = fun (v': tu v) -> (| v, v' |) in
-    parse_synth #b #(tu v) #(t: tag & tu t) pv synth
+    parse_synth #k #(tu v) #(t: tag & tu t) pv synth
   )
 
 inline_for_extraction
@@ -44,16 +45,18 @@ let sum_type (t: sum) : Tot Type0 =
 
 inline_for_extraction
 let parse_sum
-  (#b: bool)
+  (#kt: parser_kind)
   (t: sum)
-  (p: parser' b (sum_repr_type t))
-  (pc: ((x: sum_key t) -> Tot (parser' b (sum_cases t x))))
-: Tot (parser' b (sum_type t))
+  (p: parser kt (sum_repr_type t))
+  (#k: parser_kind)
+  (pc: ((x: sum_key t) -> Tot (parser k (sum_cases t x))))
+: Tot (parser (and_then_kind (parse_filter_kind kt) k) (sum_type t))
 = parse_tagged_union
-    #b
+    #(parse_filter_kind kt)
     #(sum_key t)
     #(sum_cases t)
     (parse_enum_key p (sum_enum t))
+    #k
     pc
 
 inline_for_extraction

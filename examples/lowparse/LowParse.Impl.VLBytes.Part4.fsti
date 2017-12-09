@@ -15,9 +15,9 @@ module Cast = FStar.Int.Cast
 let point_to_vlbytes_contents_correct_precond
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (len: bounded_integer sz { f len == true } )
@@ -36,17 +36,17 @@ let point_to_vlbytes_contents_correct_precond
 let point_to_vlbytes_contents_postcond
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (b': S.bslice)
 : GTot Type0
 = sz <= U32.v (S.length b) /\ (
   let sz' = U32.uint_to_t sz in
-  let b1 = S.truncated_slice b sz' in
-  S.is_prefix_gen [b1; b'] b /\
+  let b0 = S.truncated_slice b sz' in
+  S.is_prefix_gen [b0; b'] b /\
   parses h (parse_vlbytes_gen sz f p) b (fun (v, len) ->
   exactly_parses h p b' (fun v' ->
     U32.v sz' <= U32.v len /\
@@ -57,9 +57,9 @@ let point_to_vlbytes_contents_postcond
 val point_to_vlbytes_contents_correct
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
-  (#b: bool)
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser' b t)
+  (p: parser k t)
   (b: S.bslice)
   (h: HS.mem)
   (len: bounded_integer sz { f len == true } )
