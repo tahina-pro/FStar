@@ -183,34 +183,6 @@ let list_length #k #t #p sv b =
 
 #reset-options
 
-val list_length_constant_size_parser_correct
-  (#n: nat)
-  (#k: constant_size_parser_kind)
-  (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize n k)) t)
-  (b: S.bslice)
-  (h: HS.mem)
-: Lemma
-  (requires (
-    parses h (parse_list p) b (fun _ -> True)
-  ))
-  (ensures (
-    parses h (parse_list p) b (fun (l, _) ->
-    FStar.Mul.op_Star (L.length l) n == U32.v (S.length b)
-  )))
-  (decreases (U32.v (S.length b)))
-
-#set-options "--z3rlimit 128"
-
-let rec list_length_constant_size_parser_correct #n #k #t p b h =
-  if S.length b = 0ul
-  then ()
-  else
-    let b' = S.advanced_slice b (U32.uint_to_t n) in
-    list_length_constant_size_parser_correct p b' h
-
-#reset-options
-
 val list_length_constant_size_parser_correct'
   (#n: U32.t)
   (#k: constant_size_parser_kind)
@@ -232,8 +204,8 @@ val list_length_constant_size_parser_correct'
   (decreases (U32.v (S.length b)))
 
 let list_length_constant_size_parser_correct' #n #k #t p b h =
-  list_length_constant_size_parser_correct p b h;
   let s = S.as_seq h b in
+  list_length_constant_size_parser_correct p s;
   let (Some (l, _)) = parse (parse_list p) s in
   FStar.Math.Lemmas.multiple_division_lemma (L.length l) (U32.v n)
 

@@ -208,3 +208,34 @@ let rec parse_list_tailrec_correct
 	  L.append_assoc aux [v] l
 	| None -> ()
       end
+
+val list_length_constant_size_parser_correct
+  (#n: nat)
+  (#k: constant_size_parser_kind)
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongConstantSize n k)) t)
+  (b: bytes32)
+: Lemma
+  (requires (
+    Some? (parse (parse_list p) b)
+  ))
+  (ensures (
+    let pb = parse (parse_list p) b in
+    Some? pb /\ (
+    let (Some (l, _)) = pb in
+    FStar.Mul.op_Star (L.length l) n == Seq.length b
+  )))
+  (decreases (Seq.length b))
+
+let rec list_length_constant_size_parser_correct #n #k #t p b =
+  if Seq.length b = 0
+  then ()
+  else begin
+    let (Some (_, consumed)) = parse p b in
+    assert ((consumed <: nat) == n);
+    assert (n > 0);
+    let b' : bytes32 = Seq.slice b n (Seq.length b) in
+    list_length_constant_size_parser_correct p b';
+    let (Some (l', _)) = parse (parse_list p) b' in
+    FStar.Math.Lemmas.distributivity_add_left 1 (L.length l') n
+  end
