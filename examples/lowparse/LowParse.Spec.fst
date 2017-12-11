@@ -8,3 +8,4 @@ include LowParse.Spec.Enum
 include LowParse.Spec.Sum
 include LowParse.Spec.List
 include LowParse.Spec.Seq
+include LowParse.Spec.Array

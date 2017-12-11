@@ -8,3 +8,4 @@ include LowParse.Impl.Enum
 include LowParse.Impl.Sum
 include LowParse.Impl.List
 include LowParse.Impl.Seq
+include LowParse.Impl.Array

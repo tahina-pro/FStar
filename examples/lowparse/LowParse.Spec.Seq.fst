@@ -92,3 +92,24 @@ let parse_seq_correct
 : Lemma
   (parse (parse_seq p) b == parse (parse_seq' p) b)
 = parse_seq_aux_correct p b
+
+val seq_length_constant_size_parser_correct
+  (#n: nat)
+  (#k: constant_size_parser_kind)
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongConstantSize n k)) t)
+  (b: bytes32)
+: Lemma
+  (requires (
+    Some? (parse (parse_seq p) b)
+  ))
+  (ensures (
+    let pb = parse (parse_seq p) b in
+    Some? pb /\ (
+    let (Some (l, _)) = pb in
+    FStar.Mul.op_Star (Seq.length l) n == Seq.length b
+  )))
+
+let seq_length_constant_size_parser_correct #n #k #t p b =
+  parse_seq_correct p b;
+  PL.list_length_constant_size_parser_correct p b
