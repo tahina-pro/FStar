@@ -23,11 +23,11 @@ let exa_discr_K_EREF'
 [@"substitute"]
 inline_for_extraction
 let univ_destr_gen_exa
-  (t: ((k: maybe_unknown_key exa) -> Tot Type0))
-  (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
-  (combine_if: ((k: maybe_unknown_key exa) -> Tot (if_combinator (t k))))
+  (t: ((k: maybe_enum_key exa) -> Tot Type0))
+  (f: ((k: maybe_enum_key exa) -> Tot (t k)))
+  (combine_if: ((k: maybe_enum_key exa) -> Tot (if_combinator (t k))))
 : (k: U32.t) ->
-  Tot (t (maybe_unknown_key_of_repr exa k))
+  Tot (t (maybe_enum_key_of_repr exa k))
 = T.synth_by_tactic (gen_enum_univ_destr_gen exa t f combine_if)
 
 #reset-options
@@ -35,13 +35,13 @@ let univ_destr_gen_exa
 [@"substitute"]
 inline_for_extraction
 let univ_destr_gen_exa_strong
-  (t: ((k: maybe_unknown_key exa) -> Tot Type0))
-  (f: ((k: maybe_unknown_key exa) -> Tot (t k)))
+  (t: ((k: maybe_enum_key exa) -> Tot Type0))
+  (f: ((k: maybe_enum_key exa) -> Tot (t k)))
 : (k: U32.t) ->
-  Tot (y: t (maybe_unknown_key_of_repr exa k) { y == f (maybe_unknown_key_of_repr exa k) } )
-= let t' (k : maybe_unknown_key exa) : Tot Type0 = (u: t k { u == f k } ) in
-  let f' (k : maybe_unknown_key exa) : Tot (t' k) = f k in
-  let combine_if' (k : maybe_unknown_key exa) : Tot (if_combinator (t' k)) =
+  Tot (y: t (maybe_enum_key_of_repr exa k) { y == f (maybe_enum_key_of_repr exa k) } )
+= let t' (k : maybe_enum_key exa) : Tot Type0 = (u: t k { u == f k } ) in
+  let f' (k : maybe_enum_key exa) : Tot (t' k) = f k in
+  let combine_if' (k : maybe_enum_key exa) : Tot (if_combinator (t' k)) =
     default_if (t' k)
   in
   univ_destr_gen_exa t' f' combine_if'
