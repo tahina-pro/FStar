@@ -3,14 +3,17 @@ include LowParse.Spec.Combinators
 
 module L = FStar.List.Tot
 
+unfold
+let eqtype : Type u#1 = eqtype u#0
+
 type enum (key: eqtype) (repr: eqtype) = (l: list (key * repr) {
   L.noRepeats (L.map fst l) /\
   L.noRepeats (L.map snd l)
 })
 
-type enum_key (#key #repr: eqtype) (e: enum key repr) = (s: key { L.mem s (L.map fst e) } )
+let enum_key (#key #repr: eqtype) (e: enum key repr) : Tot eqtype = (s: key { L.mem s (L.map fst e) } )
 
-type enum_repr (#key #repr: eqtype) (e: enum key repr) = (r: repr { L.mem r (L.map snd e) } )
+let enum_repr (#key #repr: eqtype) (e: enum key repr) : Tot eqtype = (r: repr { L.mem r (L.map snd e) } )
 
 let flip (#a #b: Type) (c: (a * b)) : Tot (b * a) = let (ca, cb) = c in (cb, ca)
 
@@ -153,18 +156,80 @@ let enum_key_of_repr_of_key
   (enum_key_of_repr e (enum_repr_of_key e k) == k)
 = assoc_flip_intro e (enum_repr_of_key e k) k
 
-let unknown_enum_key (#key #repr: eqtype) (e: enum key repr) : Tot Type0 =
+let unknown_enum_repr (#key #repr: eqtype) (e: enum key repr) : Tot Type0 =
   (r: repr { L.mem r (L.map snd e) == false } )
 
-type maybe_unknown_key (#key #repr: eqtype) (e: enum key repr) =
+type maybe_enum_key (#key #repr: eqtype) (e: enum key repr) =
 | Known of (enum_key e)
-| Unknown of (unknown_enum_key e)
+| Unknown of (unknown_enum_repr e)
 
-let maybe_unknown_key_of_repr
+let maybe_enum_key_of_repr
   (#key #repr: eqtype)
   (e: enum key repr)
   (r: repr)
-: Tot (maybe_unknown_key e)
+: Tot (maybe_enum_key e)
 = if L.mem r (L.map snd e)
   then Known (enum_key_of_repr e r)
   else Unknown r
+
+let parse_maybe_enum_key
+  (#k: parser_kind)
+  (#key #repr: eqtype)
+  (p: parser k repr)
+  (e: enum key repr)
+: Tot (parser k (maybe_enum_key e))
+= p `parse_synth` (maybe_enum_key_of_repr e)
+
+let is_total_enum (#key: eqtype) (#repr: eqtype) (l: list (key * repr)) : GTot Type0 =
+  forall (k: key) . L.mem k (L.map fst l)
+
+let total_enum (key: eqtype) (repr: eqtype) : Tot eqtype =
+  (l: enum key repr { is_total_enum l } )
+
+let synth_total_enum_key
+  (#key: eqtype)
+  (#repr: eqtype)
+  (l: total_enum key repr)
+  (k: enum_key l)
+: Tot key
+= let k' : key = k in
+  k'
+
+let parse_total_enum_key
+  (#k: parser_kind)
+  (#key: eqtype)
+  (#repr: eqtype)
+  (p: parser k repr)
+  (l: total_enum key repr)
+: Tot (parser (parse_filter_kind k) key)
+= parse_enum_key p l `parse_synth` (synth_total_enum_key l)
+
+type maybe_total_enum_key (#key #repr: eqtype) (e: total_enum key repr) =
+| TotalKnown of key
+| TotalUnknown of (unknown_enum_repr e)
+
+let maybe_total_enum_key_of_repr
+  (#key #repr: eqtype)
+  (e: total_enum key repr)
+  (r: repr)
+: Tot (maybe_total_enum_key e)
+= if L.mem r (L.map snd e)
+  then TotalKnown (enum_key_of_repr e r)
+  else TotalUnknown r
+
+let parse_maybe_total_enum_key
+  (#k: parser_kind)
+  (#key #repr: eqtype)
+  (p: parser k repr)
+  (e: total_enum key repr)
+: Tot (parser k (maybe_total_enum_key e))
+= p `parse_synth` (maybe_total_enum_key_of_repr e)
+
+let weaken_maybe_enum_key
+  (#key #repr: eqtype)
+  (e: total_enum key repr)
+  (k: maybe_total_enum_key e)
+: Tot (maybe_enum_key e)
+= match k with
+  | TotalKnown ek -> Known (ek <: key)
+  | TotalUnknown r -> Unknown r
