@@ -37,13 +37,13 @@ let discr
 val enum_univ_destr_spec_gen
   (#key #repr: eqtype)
   (e: enum key repr)
-  (t: (maybe_unknown_key e -> Tot Type0))
-  (f: ((k: maybe_unknown_key e) -> Tot (t k)))
+  (t: (maybe_enum_key e -> Tot Type0))
+  (f: ((k: maybe_enum_key e) -> Tot (t k)))
   (r: repr)
-: Tot (t (maybe_unknown_key_of_repr e r))
+: Tot (t (maybe_enum_key_of_repr e r))
 
 let enum_univ_destr_spec_gen #key #repr e t f r =
-  f (maybe_unknown_key_of_repr e r)
+  f (maybe_enum_key_of_repr e r)
 
 val enum_univ_destr_spec
   (#key #repr: eqtype)
@@ -167,12 +167,12 @@ let rec gen_enum_univ_destr
     in
     exact_guard (quote g)
 
-let maybe_unknown_key_or_excluded
+let maybe_enum_key_or_excluded
   (#key #repr: eqtype)
   (e: enum key repr)
   (excluded: list repr)
 : Tot Type0
-= (k: maybe_unknown_key e {
+= (k: maybe_enum_key e {
     match k with
     | Known _ -> True
     | Unknown r -> L.mem r excluded == false
@@ -181,20 +181,20 @@ let maybe_unknown_key_or_excluded
 #set-options "--use_two_phase_tc false"
 
 inline_for_extraction
-let maybe_unknown_key_or_excluded_cons_coerce
+let maybe_enum_key_or_excluded_cons_coerce
   (#key #repr: eqtype)
   (e: enum key repr)
   (excluded: list repr)
   (k' : key)
   (r' : repr)
   (e' : enum key repr)
-  (k: maybe_unknown_key_or_excluded e' (r' :: excluded))
-: Pure (maybe_unknown_key_or_excluded e excluded)
+  (k: maybe_enum_key_or_excluded e' (r' :: excluded))
+: Pure (maybe_enum_key_or_excluded e excluded)
   (requires (e == (k', r') :: e'))
   (ensures (fun _ -> True))
 = match k with
   | Known r -> Known ((r <: key) <: enum_key e)
-  | Unknown r -> Unknown ((r <: repr) <: unknown_enum_key e)
+  | Unknown r -> Unknown ((r <: repr) <: unknown_enum_repr e)
 
 #reset-options
 
@@ -203,22 +203,22 @@ let maybe_unknown_key_or_excluded_of_repr
   (e: enum key repr)
   (excluded: list repr)
   (r: repr { L.mem r excluded == false } )
-: Tot (maybe_unknown_key_or_excluded e excluded)
-= maybe_unknown_key_of_repr e r
+: Tot (maybe_enum_key_or_excluded e excluded)
+= maybe_enum_key_of_repr e r
 
 let rec gen_enum_univ_destr_gen_body
   (#key #repr: eqtype)
   (e: enum key repr)
   (excluded: list repr)
-  (t: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot Type0))
-  (f: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot (t k)))
-  (combine_if: ((k: maybe_unknown_key_or_excluded e excluded) -> Tot (if_combinator (t k))))
+  (t: ((k: maybe_enum_key_or_excluded e excluded) -> Tot Type0))
+  (f: ((k: maybe_enum_key_or_excluded e excluded) -> Tot (t k)))
+  (combine_if: ((k: maybe_enum_key_or_excluded e excluded) -> Tot (if_combinator (t k))))
   (r: T.term)
 : Tot (T.tactic T.term)
   (decreases e)
 = match e with
   | [] ->
-    let g (r' : unknown_enum_key e {L.mem r' excluded == false}) : Tot (t (Unknown r')) =
+    let g (r' : unknown_enum_repr e {L.mem r' excluded == false}) : Tot (t (Unknown r')) =
       f (Unknown r')
     in
     T.bind (T.quote g) (fun g' ->
@@ -246,14 +246,14 @@ let rec gen_enum_univ_destr_gen_body
           gen_enum_univ_destr_gen_body
             e'
             excluded'
-            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
-              t (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
+            (fun (k: maybe_enum_key_or_excluded e' excluded') ->
+              t (maybe_enum_key_or_excluded_cons_coerce e excluded k' r' e' k)
             )
-            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
-              f (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
+            (fun (k: maybe_enum_key_or_excluded e' excluded') ->
+              f (maybe_enum_key_or_excluded_cons_coerce e excluded k' r' e' k)
             )
-            (fun (k: maybe_unknown_key_or_excluded e' excluded') ->
-              combine_if (maybe_unknown_key_or_excluded_cons_coerce e excluded k' r' e' k)
+            (fun (k: maybe_enum_key_or_excluded e' excluded') ->
+              combine_if (maybe_enum_key_or_excluded_cons_coerce e excluded k' r' e' k)
             )
             r
         ) (fun t' ->
@@ -281,9 +281,9 @@ let rec gen_enum_univ_destr_gen_body
 let rec gen_enum_univ_destr_gen
   (#key #repr: eqtype)
   (e: enum key repr)
-  (t: ((k: maybe_unknown_key e) -> Tot Type0))
-  (f: ((k: maybe_unknown_key e) -> Tot (t k)))
-  (combine_if: ((k: maybe_unknown_key e) -> Tot (if_combinator (t k))))
+  (t: ((k: maybe_enum_key e) -> Tot Type0))
+  (f: ((k: maybe_enum_key e) -> Tot (t k)))
+  (combine_if: ((k: maybe_enum_key e) -> Tot (if_combinator (t k))))
 : Tot (T.tactic unit)
 = let open T in (
     tk <-- quote repr ;
@@ -299,7 +299,7 @@ inline_for_extraction
 let is_known
   (#key #repr: eqtype)
   (e: enum key repr)
-  (k: maybe_unknown_key e)
+  (k: maybe_enum_key e)
 : Tot bool
 = match k with
   | Known _ -> true
@@ -314,11 +314,11 @@ let validate_enum_key
   (#key #repr: eqtype)
   (e: enum key repr)
   (univ_destr_gen: (
-    (t: ((k: maybe_unknown_key e) -> Tot Type0)) ->
-    (f: ((k: maybe_unknown_key e) -> Tot (t k))) ->
-    (combine_if: ((k: maybe_unknown_key e) -> Tot (if_combinator (t k)))) ->
+    (t: ((k: maybe_enum_key e) -> Tot Type0)) ->
+    (f: ((k: maybe_enum_key e) -> Tot (t k))) ->
+    (combine_if: ((k: maybe_enum_key e) -> Tot (if_combinator (t k)))) ->
     (k: repr) ->
-    Tot (t (maybe_unknown_key_of_repr e k))
+    Tot (t (maybe_enum_key_of_repr e k))
   ))
   (#k: parser_kind)
   (#p: parser k repr)
@@ -336,8 +336,45 @@ let validate_enum_key
       #repr
       #p
       ps
-      (fun r -> Known? (maybe_unknown_key_of_repr e r))
+      (fun r -> Known? (maybe_enum_key_of_repr e r))
       (fun x -> f x)
       s
 
 #reset-options
+
+inline_for_extraction
+let validate_total_enum_key
+  (#key #repr: eqtype)
+  (e: total_enum key repr)
+  (univ_destr_gen: (
+    (t: ((k: maybe_enum_key e) -> Tot Type0)) ->
+    (f: ((k: maybe_enum_key e) -> Tot (t k))) ->
+    (combine_if: ((k: maybe_enum_key e) -> Tot (if_combinator (t k)))) ->
+    (k: repr) ->
+    Tot (t (maybe_enum_key_of_repr e k))
+  ))
+  (#k: parser_kind)
+  (#p: parser k repr)
+  (ps: parser_st p)
+: Tot (stateful_validator (parse_total_enum_key p e))
+= validate_enum_key e univ_destr_gen ps `validate_synth` (synth_total_enum_key e)
+
+inline_for_extraction
+let validate_maybe_enum_key
+  (#key #repr: eqtype)
+  (e: enum key repr)
+  (#k: parser_kind)
+  (#p: parser k repr)
+  (vs: stateful_validator p)
+: Tot (stateful_validator (parse_maybe_enum_key p e))
+= vs `validate_synth` (maybe_enum_key_of_repr e)
+
+inline_for_extraction
+let validate_maybe_total_enum_key
+  (#key #repr: eqtype)
+  (e: total_enum key repr)
+  (#k: parser_kind)
+  (#p: parser k repr)
+  (vs: stateful_validator p)
+: Tot (stateful_validator (parse_maybe_total_enum_key p e))
+= vs `validate_synth` (maybe_total_enum_key_of_repr e)

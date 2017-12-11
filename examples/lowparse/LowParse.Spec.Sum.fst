@@ -1,8 +1,6 @@
 module LowParse.Spec.Sum
 include LowParse.Spec.Enum
 
-module T = FStar.Tactics
-
 inline_for_extraction
 val parse_tagged_union
   (#kt: parser_kind)

@@ -9,7 +9,7 @@ let lift_cases
   (#key #repr: eqtype)
   (e: enum key repr)
   (cases: (enum_key e -> Tot Type0))
-  (k: maybe_unknown_key e)
+  (k: maybe_enum_key e)
 : Tot Type0
 = match k with
   | Known k' -> cases k'
@@ -21,7 +21,7 @@ let lift_parser_cases
   (e: enum key repr)
   (cases: (enum_key e -> Tot Type0))
   (pc: ((x: enum_key e) -> Tot (parser pk (cases x))))
-  (k: maybe_unknown_key e)
+  (k: maybe_enum_key e)
 : Tot (parser (parse_filter_kind pk) (lift_cases e cases k))
 = match k with
   | Known k' -> weaken (parse_filter_kind pk) (pc k')
@@ -30,9 +30,9 @@ let lift_parser_cases
 let parse_sum_synth
   (t: sum)
   (v: sum_repr_type t)
-  (v' : lift_cases (sum_enum t) (sum_cases t) (maybe_unknown_key_of_repr (sum_enum t) v))
+  (v' : lift_cases (sum_enum t) (sum_cases t) (maybe_enum_key_of_repr (sum_enum t) v))
 : Tot (sum_type t)
-= match maybe_unknown_key_of_repr (sum_enum t) v with
+= match maybe_enum_key_of_repr (sum_enum t) v with
   | Known k -> (| k, v' |)
   | _ -> false_elim ()
 
@@ -44,9 +44,9 @@ let parse_sum_payload
 : Tot (parser (parse_filter_kind k) (sum_type t))
 = parse_synth
     #(parse_filter_kind k)
-    #(lift_cases (sum_enum t) (sum_cases t) (maybe_unknown_key_of_repr (sum_enum t) v))
+    #(lift_cases (sum_enum t) (sum_cases t) (maybe_enum_key_of_repr (sum_enum t) v))
     #(sum_type t)
-    (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) v))
+    (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_enum_key_of_repr (sum_enum t) v))
     (parse_sum_synth t v)
 
 #set-options "--z3rlimit 16"
@@ -94,7 +94,7 @@ val gen_validate_sum_partial'
   (ps: parser_st p)
   (#k: parser_kind)
   (pc: ((x: sum_key t) -> Tot (parser k (sum_cases t x))))
-  (vs' : ((x: sum_repr_type t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) x)))))
+  (vs' : ((x: sum_repr_type t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_enum_key_of_repr (sum_enum t) x)))))
 : Tot (stateful_validator (parse_sum' t p pc))
 
 #set-options "--z3rlimit 16"
@@ -103,9 +103,9 @@ let gen_validate_sum_partial' #kt t p ps #k pc vs' =
   let g' (v: sum_repr_type t) : Tot (stateful_validator (parse_sum_payload t pc v)) =
     validate_synth
       #(parse_filter_kind k)
-      #(lift_cases (sum_enum t) (sum_cases t) (maybe_unknown_key_of_repr (sum_enum t) v))
+      #(lift_cases (sum_enum t) (sum_cases t) (maybe_enum_key_of_repr (sum_enum t) v))
       #(sum_type t)
-      #(lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) v))
+      #(lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_enum_key_of_repr (sum_enum t) v))
       (vs' v)
       (parse_sum_synth t v)
   in
@@ -130,7 +130,7 @@ val gen_validate_sum_partial
   (ps: parser_st p)
   (#k: parser_kind)
   (pc: ((x: sum_key t) -> Tot (parser k (sum_cases t x))))
-  (vs' : ((x: sum_repr_type t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_unknown_key_of_repr (sum_enum t) x)))))
+  (vs' : ((x: sum_repr_type t) -> Tot (stateful_validator (lift_parser_cases (sum_enum t) (sum_cases t) pc (maybe_enum_key_of_repr (sum_enum t) x)))))
 : Tot (stateful_validator (parse_sum t p pc))
 
 let gen_validate_sum_partial #kt t p ps #k pc vs' =
@@ -146,7 +146,7 @@ let lift_validator_cases
   (#pk: parser_kind)
   (pc: ((x: enum_key e) -> Tot (parser pk (cases x))))
   (vs: ((x: enum_key e) -> Tot (stateful_validator (pc x))))
-  (k: maybe_unknown_key e)
+  (k: maybe_enum_key e)
 : Tot (stateful_validator (lift_parser_cases e cases pc k))
 = match k with
   | Known k' -> vs k'
@@ -157,7 +157,7 @@ let validate_sum_cases_type
   (s: sum)
   (#pk: parser_kind)
   (pc: ((x: sum_key s) -> Tot (parser pk (sum_cases s x))))
-  (k: maybe_unknown_key (sum_enum s))
+  (k: maybe_enum_key (sum_enum s))
 : Tot Type0
 = stateful_validator (lift_parser_cases (sum_enum s) (sum_cases s) pc k)
 
@@ -170,10 +170,10 @@ val validate_sum
   (#k: parser_kind)
   (pc: ((x: sum_key s) -> Tot (parser k (sum_cases s x))))
   (destr: (
-    (f: ((k: maybe_unknown_key (sum_enum s)) -> Tot (validate_sum_cases_type s pc k))) ->
-    (combine_if: ((k: maybe_unknown_key (sum_enum s)) -> Tot (if_combinator (validate_sum_cases_type s pc k)))) ->
+    (f: ((k: maybe_enum_key (sum_enum s)) -> Tot (validate_sum_cases_type s pc k))) ->
+    (combine_if: ((k: maybe_enum_key (sum_enum s)) -> Tot (if_combinator (validate_sum_cases_type s pc k)))) ->
     (k: sum_repr_type s) ->
-    Tot (validate_sum_cases_type s pc (maybe_unknown_key_of_repr (sum_enum s) k))
+    Tot (validate_sum_cases_type s pc (maybe_enum_key_of_repr (sum_enum s) k))
   ))
   (vs : ((x: sum_key s) -> Tot (stateful_validator (pc x))))
 : Tot (stateful_validator (parse_sum s p pc))
