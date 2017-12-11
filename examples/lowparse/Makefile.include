@@ -35,6 +35,7 @@ FSTAR_SOURCE_FILES= \
 	LowParseExamples.Spec.fst \
 	LowParseExamples.Impl.fst \
 	LowParseExamples.fst \
+	TLSParse.Spec.fst \
 
 
 EXTRACT_FILES= \
