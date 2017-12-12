@@ -13,12 +13,14 @@ val validate_array_gen
   (#t: Type0)
   (#p: parser (ParserStrong (StrongConstantSize elem_byte_size k)) t)
   (vs: stateful_validator p)
-  (array_byte_size: U32.t)
-  (precond: squash (array_type_of_parser_kind_precond elem_byte_size (U32.v array_byte_size)))
-: Tot (stateful_validator (parse_array p (U32.v array_byte_size) precond))
+  (#array_byte_size: U32.t)
+  (precond: parse_array_precond p array_byte_size)
+: Tot (stateful_validator (parse_array precond))
 
-let validate_array_gen #elem_byte_size #k #t #p vs array_byte_size precond =
-  fun (s: S.bslice) -> validate_flbytes (validate_seq vs) array_byte_size s
+let validate_array_gen #elem_byte_size #k #t #p vs #array_byte_size precond =
+  fun (s: S.bslice) ->
+  parse_array_precond_elim precond;
+  validate_flbytes (validate_seq vs) array_byte_size s
 
 inline_for_extraction
 let validate_array
@@ -27,9 +29,30 @@ let validate_array
   (#t: Type0)
   (#p: parser (ParserStrong (StrongConstantSize elem_byte_size k)) t)
   (vs: stateful_validator p)
-  (array_byte_size: U32.t)
-  (precond: squash (array_type_of_parser_kind_precond elem_byte_size (U32.v array_byte_size)))
-: Tot (stateful_validator (parse_array p (U32.v array_byte_size) precond))
+  (#array_byte_size: U32.t)
+  (precond: parse_array_precond p array_byte_size)
+: Tot (stateful_validator (parse_array precond))
 = if ConstantSizeTotal? k
-  then validate_total_constant_size array_byte_size (parse_array p (U32.v array_byte_size) precond)
-  else validate_array_gen vs array_byte_size precond
+  then validate_total_constant_size array_byte_size (parse_array precond)
+  else validate_array_gen vs precond
+
+include LowParse.Impl.VLBytes
+
+#set-options "--z3rlimit 16"
+
+inline_for_extraction
+let validate_vlarray
+  (#elem_byte_size: nat)
+  (#k: constant_size_parser_kind)
+  (#t: Type0)
+  (#p: parser (ParserStrong (StrongConstantSize elem_byte_size k)) t)
+  (vs: stateful_validator p)
+  (#array_byte_size_min #array_byte_size_max: U32.t)
+  (precond: parse_vlarray_precond p array_byte_size_min array_byte_size_max)
+: Tot (stateful_validator (parse_vlarray precond))
+= fun (s: S.bslice) ->
+  parse_vlarray_precond_elim precond;
+  assert (U32.v array_byte_size_max > 0);
+  validate_bounded_vlbytes array_byte_size_min array_byte_size_max (validate_seq vs) s
+
+#reset-options
