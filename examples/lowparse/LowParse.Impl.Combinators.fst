@@ -610,6 +610,16 @@ let validate_filter_st
   | _ -> None
 
 inline_for_extraction
+let validate_filter_st'
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (ps: parser_st p)
+  (f: (t -> Tot bool))
+: Tot (stateful_validator (parse_filter p f))
+= validate_filter_st ps f (fun (x: t) -> f x)
+
+inline_for_extraction
 let parse_filter_st
   (#k: parser_kind)
   (#t: Type0)
