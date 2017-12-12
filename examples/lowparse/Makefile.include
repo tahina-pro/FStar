@@ -38,12 +38,14 @@ FSTAR_SOURCE_FILES= \
 	LowParseExamples.Impl.fst \
 	LowParseExamples.fst \
 	TLSParse.Spec.fst \
+	TLSParse.Impl.fst \
+	TLSParse.fst \
 
 
 EXTRACT_FILES= \
 
 
-EXTRACT_C_FILE=LowParseExamples.fst
+EXTRACT_C_BASENAME=TLSParse
 
 EXTRACT_OCAML_FILE=LowParseExamples.Spec.fst
 
