@@ -5,6 +5,7 @@ module U8 = FStar.UInt8
 module U16 = FStar.UInt16
 module L = FStar.List.Tot
 module Seq = FStar.Seq
+module U32 = FStar.UInt32
 
 type protocolVersion = U16.t
 
@@ -12,13 +13,17 @@ let parse_protocolVersion : parser _ protocolVersion =
   parse_u16
 
 let parse_random_precond : parse_array_precond parse_u8 32ul =
-  parse_array_precond_intro parse_u8 32ul (fun _ -> ())
+  let f () : Lemma
+    (array_type_of_parser_kind_precond parse_u8 (U32.v 32ul))
+  = assert_norm (array_type_of_parser_kind_precond parse_u8 (U32.v 32ul))
+  in
+  parse_array_precond_intro parse_u8 32ul f
 
 type random = array_type_of_parser parse_random_precond
 
 module U32 = FStar.UInt32
 
-let _ = assert (random == array byte 32) // assert_norm DOES NOT work
+let _ = assert_norm (random == (s: Seq.seq byte { Seq.length s == 32 } ))
 
 let parse_random : parser _ random =
   parse_array parse_random_precond
@@ -113,6 +118,7 @@ type maybe_extensionType = maybe_total_enum_key extensionType_enum
 let parse_maybe_extensionType : parser _ maybe_extensionType =
   parse_maybe_total_enum_key parse_u16 extensionType_enum
 
+noeq
 type extension = {
   extension_type: maybe_extensionType;
   extension_data: Seq.seq byte;
@@ -128,7 +134,7 @@ module U32 = FStar.UInt32
 #set-options "--initial_fuel 64 --max_fuel 64 --initial_ifuel 64 --max_ifuel 64 --z3rlimit 256"
 
 let parse_extension_presynth : parser _ extension_presynth = 
-  assert (U32.v 65535ul > 0);
+  assert_norm (U32.v 65535ul > 0);
   (
     parse_maybe_extensionType `nondep_then` (
     parse_bounded_vlbytes 0ul 65535ul (parse_seq parse_u8)
@@ -150,9 +156,7 @@ let clientHello_legacy_session_id_t_precond :
   (parse_vlarray_precond parse_u8 0ul 32ul)
 = let f () : Lemma
     (vlarray_type_of_parser_kind_precond parse_u8 0ul 32ul)
-  = assert (U32.v 0ul == 0);
-    assert (U32.v 32ul == 32);
-    assert_norm (vlarray_type_of_parser_kind_precond' parse_u8 0 32 == true)
+  = assert_norm (vlarray_type_of_parser_kind_precond parse_u8 0ul 32ul == true)
   in
   parse_vlarray_precond_intro parse_u8 0ul 32ul f
 
@@ -184,9 +188,9 @@ type clientHello_presynth = (
 #set-options "--initial_fuel 64 --max_fuel 64 --initial_ifuel 64 --max_ifuel 64 --z3rlimit 1024"
 
 let parse_clientHello_presynth : parser _ clientHello_presynth =
-  assert (U32.v 32ul > 0);
-  assert (U32.v 65534ul > 0);
-  assert (U32.v 255ul > 0);
+  assert_norm (U32.v 32ul > 0);
+  assert_norm (U32.v 65534ul > 0);
+  assert_norm (U32.v 255ul > 0);
   (
     parse_filter parse_protocolVersion (fun (legacy_version: protocolVersion) -> legacy_version = 0x0303us) `nondep_then` (
     parse_random `nondep_then` (

@@ -625,6 +625,8 @@ val seq_offset_at
     seq_offset_at_pcond p b i h1 res
   ))
 
+#set-options "--z3rlimit 16"
+
 let seq_offset_at #k #t p sv b i =
   let h0 = HST.get () in
   HST.push_frame ();
@@ -644,6 +646,8 @@ let seq_offset_at #k #t p sv b i =
   let h4 = HST.get () in
   B.lemma_modifies_0_push_pop h0 h1 h3 h4;
   res
+
+#reset-options
 
 val seq_slice_spec
   (#k: parser_kind)
