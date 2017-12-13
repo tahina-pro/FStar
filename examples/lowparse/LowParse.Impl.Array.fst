@@ -17,10 +17,14 @@ val validate_array_gen
   (precond: parse_array_precond p array_byte_size)
 : Tot (stateful_validator (parse_array precond))
 
+#set-options "--z3rlimit 16"
+
 let validate_array_gen #elem_byte_size #k #t #p vs #array_byte_size precond =
   fun (s: S.bslice) ->
   parse_array_precond_elim precond;
   validate_flbytes (validate_seq vs) array_byte_size s
+
+#reset-options
 
 inline_for_extraction
 let validate_array
@@ -38,7 +42,7 @@ let validate_array
 
 include LowParse.Impl.VLBytes
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 128"
 
 inline_for_extraction
 let validate_vlarray
@@ -53,6 +57,9 @@ let validate_vlarray
 = fun (s: S.bslice) ->
   parse_vlarray_precond_elim precond;
   assert (U32.v array_byte_size_max > 0);
-  validate_bounded_vlbytes array_byte_size_min array_byte_size_max (validate_seq vs) s
+  let v = validate_bounded_vlbytes array_byte_size_min array_byte_size_max (validate_seq vs) s in
+  match v with
+  | None -> None
+  | Some consumed -> Some consumed
 
 #reset-options
