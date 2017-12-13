@@ -301,7 +301,7 @@ val parse_vlarray_correct
     l <= U32.v array_byte_size_max / elem_byte_size
   ))))
 
-#set-options "--z3rlimit 128"
+#set-options "--z3rlimit 256"
 
 let parse_vlarray_correct #elem_byte_size #k #t p array_byte_size_min array_byte_size_max b =
   let (Some (data, consumed)) = parse (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b in
