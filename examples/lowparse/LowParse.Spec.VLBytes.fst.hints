@@ -1,5 +1,5 @@
 [
-  "\n\u0018p‰å”>\u0005É¾O\u001dŒ\u0012‘‘",
+  "rOV‡öÍˆŽjæŒÊIç£¾",
   [
     [
       "LowParse.Spec.VLBytes.bounded_integer",
@@ -392,6 +392,42 @@
       "73a9451a4c9f2077a4424c32c1cbb81c"
     ],
     [
+      "LowParse.Spec.VLBytes.log256'",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query", "equation_Prims.nat",
+        "int_inversion", "primitive_Prims.op_Multiply",
+        "primitive_Prims.op_Subtraction", "projection_inverse_BoxInt_proj_0",
+        "refinement_interpretation_LowParse.Spec.VLBytes_Tm_refine_4a1ba06879f96259b0bfb965622a6c4b",
+        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
+      ],
+      0,
+      "84e7f6ebc5fef30a6deffdd6cf06adee"
+    ],
+    [
+      "LowParse.Spec.VLBytes.log256'",
+      2,
+      2,
+      1,
+      [
+        "@MaxFuel_assumption", "@MaxIFuel_assumption",
+        "@fuel_correspondence_Prims.pow2.fuel_instrumented",
+        "@fuel_irrelevance_Prims.pow2.fuel_instrumented", "@query",
+        "equation_Prims.nat",
+        "equation_with_fuel_Prims.pow2.fuel_instrumented", "int_inversion",
+        "int_typing", "lemma_FStar.Int.pow2_values",
+        "primitive_Prims.op_LessThan", "primitive_Prims.op_Multiply",
+        "primitive_Prims.op_Subtraction",
+        "projection_inverse_BoxBool_proj_0",
+        "projection_inverse_BoxInt_proj_0",
+        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
+      ],
+      0,
+      "7a61e9849510c5fa99c87ab5d6fc1b04"
+    ],
+    [
       "LowParse.Spec.VLBytes.log256",
       1,
       2,
@@ -404,7 +440,7 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "39902f840b12fd875690fa7170787b5c"
+      "605370228fd0b33edd81054c7e6da574"
     ],
     [
       "LowParse.Spec.VLBytes.log256",
@@ -433,7 +469,7 @@
         "typing_FStar.UInt.fits", "typing_FStar.UInt32.v"
       ],
       0,
-      "89dbb2ae78ce3ae468ce0731e59f9e72"
+      "b33d012163af177adfe9f3467e9a8ccc"
     ],
     [
       "LowParse.Spec.VLBytes.parse_bounded_vlbytes",
@@ -445,7 +481,7 @@
         "refinement_interpretation_LowParse.Spec.VLBytes_Tm_refine_484a6e6064fc1ae01de63e2e98020bbf"
       ],
       0,
-      "daf2569eaa30bb2809a1f806858f5011"
+      "26c81db9b7b6c96c370d04a04d2efc2a"
     ]
   ]
 ]

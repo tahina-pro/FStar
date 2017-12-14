@@ -66,7 +66,7 @@
         "typing_FStar.UInt32.uint_to_t", "typing_Prims.pow2"
       ],
       0,
-      "23b8f493eafb40fb46d00d5ba9c34d4b"
+      "bf9f8d5df43255c4c05e7431b46b4e78"
     ],
     [
       "LowParseExamples.Spec.test",
@@ -75,7 +75,7 @@
       1,
       [ "@query", "assumption_FStar.UInt32.t_haseq" ],
       0,
-      "e94c3eec9d64ec4516fef9ce49f7c112"
+      "51cc5734e4f0422455115a7a3e6db344"
     ],
     [
       "LowParseExamples.Spec.test",
@@ -84,7 +84,7 @@
       1,
       [ "@query", "assumption_Prims.HasEq_string" ],
       0,
-      "827d4bb966e8bd4ad2458c0d0da78d12"
+      "32cc613c1cd3e23e9706362ed4b8fef8"
     ],
     [
       "LowParseExamples.Spec.test",
@@ -129,7 +129,7 @@
         "typing_FStar.List.Tot.Base.noRepeats"
       ],
       0,
-      "9393e97a90758a949bd2d93461f61f77"
+      "032f84c0da81cfab066b88d9245b04f9"
     ],
     [
       "LowParseExamples.Spec.parse_test_cases",
@@ -191,7 +191,7 @@
         "typing_LowParse.Spec.Sum.sum_key_type"
       ],
       0,
-      "8c596a0f42151ccc30f65f9ffa478d61"
+      "86e57a422404a9058bb1f6a2a3fc9533"
     ],
     [
       "LowParseExamples.Spec.parse_test_cases",
@@ -202,11 +202,56 @@
         "@MaxFuel_assumption", "@MaxIFuel_assumption",
         "@fuel_correspondence_FStar.List.Tot.Base.map.fuel_instrumented",
         "@fuel_correspondence_FStar.List.Tot.Base.mem.fuel_instrumented",
+        "@query", "constructor_distinct_Prims.Cons",
+        "constructor_distinct_Prims.Nil",
+        "equation_FStar.Pervasives.Native.fst",
+        "equation_LowParse.Spec.Enum.enum",
+        "equation_LowParse.Spec.Enum.enum_key",
+        "equation_LowParse.Spec.Enum.eqtype",
+        "equation_LowParse.Spec.Sum.make_sum",
+        "equation_LowParse.Spec.Sum.sum_cases",
+        "equation_LowParse.Spec.Sum.sum_enum",
+        "equation_LowParse.Spec.Sum.sum_key",
+        "equation_LowParse.Spec.Sum.sum_key_type",
+        "equation_LowParse.Spec.Sum.sum_repr_type",
+        "equation_LowParseExamples.Spec.exa",
+        "equation_LowParseExamples.Spec.test", "equation_Prims.eqtype",
+        "equation_with_fuel_FStar.List.Tot.Base.map.fuel_instrumented",
+        "equation_with_fuel_FStar.List.Tot.Base.mem.fuel_instrumented",
+        "interpretation_LowParseExamples.Spec_Tm_abs_6a50a88da012a4b1f134d4ec5659c58a",
+        "primitive_Prims.op_Equality",
+        "proj_equation_FStar.Pervasives.Native.Mktuple2__1",
+        "projection_inverse_BoxBool_proj_0",
+        "projection_inverse_BoxString_proj_0",
+        "projection_inverse_FStar.Pervasives.Native.Mktuple2__1",
+        "projection_inverse_FString_const_proj_0",
+        "projection_inverse_Prims.Cons_a",
+        "projection_inverse_Prims.Cons_hd",
+        "projection_inverse_Prims.Cons_tl",
+        "projection_inverse_Prims.Mkdtuple2__1",
+        "projection_inverse_Prims.Mkdtuple2__2",
+        "projection_inverse_Prims.Nil_a",
+        "refinement_interpretation_LowParse.Spec.Enum_Tm_refine_4ec4b3ef9883201f3a27429922fc85e2",
+        "string_inversion",
+        "token_correspondence_FStar.Pervasives.Native.fst",
+        "token_correspondence_LowParse.Spec.Sum.sum_cases"
+      ],
+      0,
+      "8c18e5fb36def8db32032a338d67f18c"
+    ],
+    [
+      "LowParseExamples.Spec.parse_test",
+      1,
+      4,
+      2,
+      [
+        "@MaxFuel_assumption", "@MaxIFuel_assumption",
+        "@fuel_correspondence_FStar.List.Tot.Base.map.fuel_instrumented",
+        "@fuel_correspondence_FStar.List.Tot.Base.mem.fuel_instrumented",
         "@fuel_correspondence_FStar.List.Tot.Base.noRepeats.fuel_instrumented",
-        "@fuel_irrelevance_FStar.List.Tot.Base.map.fuel_instrumented",
+        "@fuel_irrelevance_FStar.List.Tot.Base.mem.fuel_instrumented",
         "@query",
         "FStar.Pervasives.Native_interpretation_Tm_arrow_7fe3e7847982dd1674bac902db1b25d6",
-        "FStar.Pervasives.Native_interpretation_Tm_arrow_caf985f824d0c8c31cc1333a92d97b40",
         "Prims_interpretation_Tm_arrow_9cb3c953faf527c316d427b2ce8bd81b",
         "bool_inversion", "constructor_distinct_Prims.Cons",
         "constructor_distinct_Prims.Nil",
@@ -224,70 +269,6 @@
         "equation_LowParseExamples.Spec.test", "equation_Prims.eqtype",
         "equation_with_fuel_FStar.List.Tot.Base.map.fuel_instrumented",
         "equation_with_fuel_FStar.List.Tot.Base.mem.fuel_instrumented",
-        "fuel_guarded_inversion_Prims.list",
-        "function_token_typing_FStar.Pervasives.Native.fst",
-        "function_token_typing_FStar.Pervasives.Native.snd",
-        "function_token_typing_FStar.UInt32.t",
-        "function_token_typing_LowParseExamples.Spec.exa",
-        "function_token_typing_LowParseExamples.Spec.test",
-        "function_token_typing_Prims.string",
-        "interpretation_LowParseExamples.Spec_Tm_abs_6a50a88da012a4b1f134d4ec5659c58a",
-        "kinding_FStar.Pervasives.Native.tuple2@tok",
-        "primitive_Prims.op_Equality",
-        "proj_equation_FStar.Pervasives.Native.Mktuple2__1",
-        "projection_inverse_BoxBool_proj_0",
-        "projection_inverse_BoxString_proj_0",
-        "projection_inverse_FStar.Pervasives.Native.Mktuple2__1",
-        "projection_inverse_FString_const_proj_0",
-        "projection_inverse_Prims.Cons_a",
-        "projection_inverse_Prims.Cons_hd",
-        "projection_inverse_Prims.Cons_tl",
-        "projection_inverse_Prims.Mkdtuple2__1",
-        "projection_inverse_Prims.Mkdtuple2__2",
-        "projection_inverse_Prims.Nil_a",
-        "refinement_interpretation_LowParse.Spec.Enum_Tm_refine_4ec4b3ef9883201f3a27429922fc85e2",
-        "refinement_interpretation_LowParse.Spec.Enum_Tm_refine_bd8caa987519b27376a02038c0a15b2a",
-        "string_inversion",
-        "token_correspondence_FStar.Pervasives.Native.fst",
-        "token_correspondence_LowParse.Spec.Sum.sum_cases",
-        "typing_FStar.List.Tot.Base.map", "typing_FStar.List.Tot.Base.mem",
-        "typing_FStar.List.Tot.Base.noRepeats",
-        "typing_LowParse.Spec.Sum.sum_key_type",
-        "typing_LowParse.Spec.Sum.sum_repr_type"
-      ],
-      0,
-      "47c2418d93634599d7f610877b1b85d5"
-    ],
-    [
-      "LowParseExamples.Spec.parse_test",
-      1,
-      4,
-      2,
-      [
-        "@MaxFuel_assumption", "@MaxIFuel_assumption",
-        "@fuel_correspondence_FStar.List.Tot.Base.map.fuel_instrumented",
-        "@fuel_correspondence_FStar.List.Tot.Base.mem.fuel_instrumented",
-        "@fuel_correspondence_FStar.List.Tot.Base.noRepeats.fuel_instrumented",
-        "@query",
-        "FStar.Pervasives.Native_interpretation_Tm_arrow_7fe3e7847982dd1674bac902db1b25d6",
-        "Prims_interpretation_Tm_arrow_9cb3c953faf527c316d427b2ce8bd81b",
-        "bool_inversion", "constructor_distinct_Prims.Cons",
-        "constructor_distinct_Prims.Nil", "data_elim_Prims.Cons",
-        "equation_FStar.Pervasives.Native.fst",
-        "equation_LowParse.Spec.Enum.enum",
-        "equation_LowParse.Spec.Enum.enum_key",
-        "equation_LowParse.Spec.Enum.eqtype",
-        "equation_LowParse.Spec.Sum.make_sum",
-        "equation_LowParse.Spec.Sum.sum_cases",
-        "equation_LowParse.Spec.Sum.sum_enum",
-        "equation_LowParse.Spec.Sum.sum_key",
-        "equation_LowParse.Spec.Sum.sum_key_type",
-        "equation_LowParse.Spec.Sum.sum_repr_type",
-        "equation_LowParseExamples.Spec.exa",
-        "equation_LowParseExamples.Spec.test", "equation_Prims.eqtype",
-        "equation_with_fuel_FStar.List.Tot.Base.map.fuel_instrumented",
-        "equation_with_fuel_FStar.List.Tot.Base.mem.fuel_instrumented",
-        "fuel_guarded_inversion_Prims.list",
         "function_token_typing_FStar.Pervasives.Native.fst",
         "function_token_typing_FStar.UInt32.t",
         "function_token_typing_LowParseExamples.Spec.exa",
@@ -317,7 +298,7 @@
         "typing_LowParse.Spec.Sum.sum_key_type"
       ],
       0,
-      "f4cace9497debbaa4ae586224ef55dde"
+      "f4e3df56a5645bf587cb52e9c962c215"
     ],
     [
       "LowParseExamples.Spec.parse_test",
@@ -329,11 +310,12 @@
         "@fuel_correspondence_FStar.List.Tot.Base.map.fuel_instrumented",
         "@fuel_correspondence_FStar.List.Tot.Base.mem.fuel_instrumented",
         "@fuel_correspondence_FStar.List.Tot.Base.noRepeats.fuel_instrumented",
+        "@fuel_irrelevance_FStar.List.Tot.Base.mem.fuel_instrumented",
         "@query",
         "FStar.Pervasives.Native_interpretation_Tm_arrow_7fe3e7847982dd1674bac902db1b25d6",
         "Prims_interpretation_Tm_arrow_9cb3c953faf527c316d427b2ce8bd81b",
         "bool_inversion", "constructor_distinct_Prims.Cons",
-        "constructor_distinct_Prims.Nil", "data_elim_Prims.Cons",
+        "constructor_distinct_Prims.Nil",
         "equation_FStar.Pervasives.Native.fst",
         "equation_LowParse.Spec.Enum.enum",
         "equation_LowParse.Spec.Enum.enum_key",
@@ -348,7 +330,6 @@
         "equation_LowParseExamples.Spec.test", "equation_Prims.eqtype",
         "equation_with_fuel_FStar.List.Tot.Base.map.fuel_instrumented",
         "equation_with_fuel_FStar.List.Tot.Base.mem.fuel_instrumented",
-        "fuel_guarded_inversion_Prims.list",
         "function_token_typing_FStar.Pervasives.Native.fst",
         "function_token_typing_FStar.UInt32.t",
         "function_token_typing_LowParseExamples.Spec.exa",
@@ -378,7 +359,7 @@
         "typing_LowParse.Spec.Sum.sum_key_type"
       ],
       0,
-      "378cd32b5769e107512b6af723fe82ff"
+      "f5ba63d1c5987c46d9f84d7434ca87d8"
     ],
     [
       "LowParseExamples.Spec.parse_test",
@@ -394,7 +375,7 @@
         "projection_inverse_Prims.Mkdtuple2__2"
       ],
       0,
-      "b6c824383215d0462516da4a362c0a1a"
+      "a79c5c97b2ca2f40c8c16a7587825e6f"
     ],
     [
       "LowParseExamples.Spec.uu___is_K_HJEU",
@@ -403,7 +384,7 @@
       1,
       [ "@query" ],
       0,
-      "570a4682c3e4e015d7f7f7315a0712fe"
+      "e659f51f18b7dc6a2d4933adc1a53b45"
     ],
     [
       "LowParseExamples.Spec.__proj__K_HJEU__item___0",
@@ -417,7 +398,7 @@
         "refinement_interpretation_LowParseExamples.Spec_Tm_refine_a207b3ca2acfd286b5fa72f4db2b5b3d"
       ],
       0,
-      "de584afa30d2ad1b923ae298500b2712"
+      "37c9550ac030499f0e50bd87450b5beb"
     ],
     [
       "LowParseExamples.Spec.uu___is_K_EREF",
@@ -426,7 +407,7 @@
       1,
       [ "@query" ],
       0,
-      "44c71e384b0eed7575dcc00e5e52b88a"
+      "f81bc9eecd8dbedca70dde344dfb7f56"
     ],
     [
       "LowParseExamples.Spec.__proj__K_EREF__item___0",
@@ -440,7 +421,7 @@
         "refinement_interpretation_LowParseExamples.Spec_Tm_refine_60deb4af09a47f497f71c7a05d97e49a"
       ],
       0,
-      "68ec93339eb5787289bc82fc43dde34b"
+      "57a8b02a46d865fc0055f2bcff4611ff"
     ],
     [
       "LowParseExamples.Spec.parse_fstar_test",
@@ -484,7 +465,7 @@
         "typing_LowParseExamples.Spec_Tm_abs_41df700458ac5af88b267311b381b28c"
       ],
       0,
-      "c89609c04dc77e3ee0f9d4f775707039"
+      "fb189a542445927715678e37afc933ca"
     ],
     [
       "LowParseExamples.Spec.parse_fstar_test",
@@ -528,7 +509,7 @@
         "typing_LowParseExamples.Spec_Tm_abs_41df700458ac5af88b267311b381b28c"
       ],
       0,
-      "022da489b1a2ff963ae089d439382ea3"
+      "457e8cce31a89589d846d3003a770318"
     ],
     [
       "LowParseExamples.Spec.parse_fstar_test",
@@ -550,8 +531,7 @@
         "bool_inversion",
         "constructor_distinct_LowParseExamples.Spec.K_EREF",
         "constructor_distinct_LowParseExamples.Spec.K_HJEU",
-        "constructor_distinct_Prims.Cons", "constructor_distinct_Tm_unit",
-        "data_elim_Prims.Mkdtuple2",
+        "constructor_distinct_Tm_unit", "data_elim_Prims.Mkdtuple2",
         "data_typing_intro_LowParse.Spec.Base.ParserUnknown@tok",
         "equation_FStar.Pervasives.Native.fst",
         "equation_LowParse.Spec.Enum.enum",
@@ -568,11 +548,7 @@
         "equation_LowParse.Spec.Sum.sum_type",
         "equation_LowParseExamples.Spec.exa",
         "equation_LowParseExamples.Spec.test", "equation_Prims._assert",
-        "equation_Prims.eqtype",
-        "equation_with_fuel_FStar.List.Tot.Base.map.fuel_instrumented",
-        "equation_with_fuel_FStar.List.Tot.Base.mem.fuel_instrumented",
-        "equation_with_fuel_FStar.List.Tot.Base.noRepeats.fuel_instrumented",
-        "fuel_guarded_inversion_Prims.dtuple2",
+        "equation_Prims.eqtype", "fuel_guarded_inversion_Prims.dtuple2",
         "function_token_typing_FStar.Pervasives.Native.fst",
         "function_token_typing_FStar.Pervasives.Native.snd",
         "function_token_typing_FStar.UInt32.t",
@@ -582,34 +558,30 @@
         "interpretation_LowParseExamples.Spec_Tm_abs_41df700458ac5af88b267311b381b28c",
         "interpretation_LowParseExamples.Spec_Tm_abs_6a50a88da012a4b1f134d4ec5659c58a",
         "kinding_FStar.Pervasives.Native.tuple2@tok",
-        "primitive_Prims.op_AmpAmp", "primitive_Prims.op_Equality",
-        "primitive_Prims.op_Negation",
         "proj_equation_FStar.Pervasives.Native.Mktuple2__1",
         "proj_equation_Prims.Mkdtuple2__1",
-        "projection_inverse_BoxBool_proj_0",
         "projection_inverse_BoxString_proj_0",
         "projection_inverse_FStar.Pervasives.Native.Mktuple2__1",
         "projection_inverse_FString_const_proj_0",
         "projection_inverse_LowParseExamples.Spec.K_EREF__0",
         "projection_inverse_LowParseExamples.Spec.K_HJEU__0",
-        "projection_inverse_Prims.Cons_a",
         "projection_inverse_Prims.Cons_hd",
-        "projection_inverse_Prims.Cons_tl",
         "projection_inverse_Prims.Mkdtuple2__1",
         "projection_inverse_Prims.Mkdtuple2__2",
         "refinement_interpretation_LowParse.Spec.Enum_Tm_refine_4ec4b3ef9883201f3a27429922fc85e2",
         "refinement_interpretation_LowParse.Spec.Enum_Tm_refine_bd8caa987519b27376a02038c0a15b2a",
         "string_inversion", "string_typing",
+        "token_correspondence_FStar.List.Tot.Base.mem.fuel_instrumented",
         "token_correspondence_FStar.Pervasives.Native.fst",
         "token_correspondence_LowParse.Spec.Sum.sum_cases",
-        "typing_FStar.List.Tot.Base.map", "typing_FStar.List.Tot.Base.mem",
+        "typing_FStar.List.Tot.Base.map",
         "typing_FStar.List.Tot.Base.noRepeats",
         "typing_LowParse.Spec.Sum.sum_key_type",
         "typing_LowParse.Spec.Sum.sum_repr_type",
         "typing_LowParseExamples.Spec_Tm_abs_41df700458ac5af88b267311b381b28c"
       ],
       0,
-      "b3e7129e5de1dfa6e40ab8b2c00ab2b5"
+      "b51a43c16405a8d41652f59902b129a6"
     ]
   ]
 ]
