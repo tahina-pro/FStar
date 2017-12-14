@@ -36,9 +36,11 @@ let validate_array
   (#array_byte_size: U32.t)
   (precond: parse_array_precond p array_byte_size)
 : Tot (stateful_validator (parse_array precond))
-= if ConstantSizeTotal? k
-  then validate_total_constant_size array_byte_size (parse_array precond)
-  else validate_array_gen vs precond
+= match k with
+  | ConstantSizeTotal ->
+    validate_total_constant_size array_byte_size (parse_array precond)
+  | _ ->
+    validate_array_gen vs precond
 
 include LowParse.Impl.VLBytes
 
@@ -57,9 +59,7 @@ let validate_vlarray
 = fun (s: S.bslice) ->
   parse_vlarray_precond_elim precond;
   assert (U32.v array_byte_size_max > 0);
-  let w = validate_bounded_vlbytes array_byte_size_min array_byte_size_max (validate_seq vs) s in
-  match w with
-  | None -> None
-  | Some consumed -> Some consumed
+  let x = validate_bounded_vlbytes array_byte_size_min array_byte_size_max (validate_seq vs) s in
+  x
 
 #reset-options

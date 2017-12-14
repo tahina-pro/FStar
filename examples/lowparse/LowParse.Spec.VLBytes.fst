@@ -132,6 +132,57 @@ let parse_vlbytes
 (** Explicit bounds on size *)
 
 inline_for_extraction
+val log256'
+  (n: nat)
+: Pure nat
+  (requires (n > 0 /\ n < pow2 32))
+  (ensures (fun l ->
+    1 <= l /\
+    l <= 4 /\
+    pow2 (FStar.Mul.op_Star 8 (l - 1)) <= n /\
+    n < pow2 (FStar.Mul.op_Star 8 l)
+  ))
+
+let log256' n =
+  let z0 = 1 in
+  let z1 = Prims.op_Multiply 256 z0 in
+  let l = 1 in
+  assert_norm (pow2 (Prims.op_Multiply 8 l) == z1);
+  assert_norm (pow2 (Prims.op_Multiply 8 (l - 1)) == z0);
+  if n < z1
+  then begin
+    assert (normalize_term (pow2 (Prims.op_Multiply 8 (l - 1))) <= n);
+    assert (n < normalize_term (pow2 (Prims.op_Multiply 8 l)));
+    l
+  end else begin
+    let z2 = Prims.op_Multiply 256 z1 in
+    let l = l + 1 in
+    assert_norm (pow2 (Prims.op_Multiply 8 l) == z2);
+    if n < z2
+    then begin
+      assert (normalize_term (pow2 (Prims.op_Multiply 8 (l - 1))) <= n);
+      assert (n < normalize_term (pow2 (Prims.op_Multiply 8 l)));
+      l
+    end else begin
+      let z3 = Prims.op_Multiply 256 z2 in
+      let l = l + 1 in
+      assert_norm (pow2 (Prims.op_Multiply 8 l) == z3);
+      if n < z3
+      then begin
+	assert (normalize_term (pow2 (Prims.op_Multiply 8 (l - 1))) <= n);
+	assert (n < normalize_term (pow2 (Prims.op_Multiply 8 l)));
+        l    
+      end else begin
+        let l = l + 1 in
+        assert_norm (pow2 (Prims.op_Multiply 8 l) == Prims.op_Multiply 256 z3);
+	assert (normalize_term (pow2 (Prims.op_Multiply 8 (l - 1))) <= n);
+	assert (n < normalize_term (pow2 (Prims.op_Multiply 8 l)));
+        l
+      end
+    end
+  end
+
+inline_for_extraction
 val log256
   (n: U32.t)
 : Pure nat
@@ -144,35 +195,7 @@ val log256
   ))
 
 let log256 n =
-  let z0 = 1ul in
-  let z1 = U32.mul 256ul z0 in
-  let l = 1 in
-  assert_norm (pow2 (FStar.Mul.op_Star 8 l) == U32.v z1);
-  assert_norm (pow2 (FStar.Mul.op_Star 8 (l - 1)) == U32.v z0);
-  if U32.lt n z1
-  then
-    l
-  else begin
-    let z2 = U32.mul 256ul z1 in
-    let l = l + 1 in
-    assert_norm (pow2 (FStar.Mul.op_Star 8 l) == U32.v z2);
-    if U32.lt n z2
-    then
-      l
-    else begin
-      let z3 = U32.mul 256ul z2 in
-      let l = l + 1 in
-      assert_norm (pow2 (FStar.Mul.op_Star 8 l) == U32.v z3);
-      if U32.lt n z3
-      then
-        l    
-      else begin
-        let l = l + 1 in
-        assert_norm (pow2 (FStar.Mul.op_Star 8 l) == FStar.Mul.op_Star 256 (U32.v z3));
-        l
-      end
-    end
-  end
+  log256' (U32.v n)
 
 inline_for_extraction
 let in_bounds

@@ -78,7 +78,8 @@ let validate_vlbytes_gen
   (#p: parser k t)
   (pv: stateful_validator p)
 : Tot (stateful_validator (parse_vlbytes_gen sz f p))
-= parse_flbytes_and_then_cases_injective sz f p;
+= fun (s: S.bslice) ->
+  parse_flbytes_and_then_cases_injective sz f p;
   parse_then_check
     #_
     #_
@@ -88,6 +89,7 @@ let validate_vlbytes_gen
     #_
     #(parse_vlbytes_payload sz f p)
     (validate_vlbytes_payload sz f pv)
+    s
 
 inline_for_extraction
 val validate_vlbytes
@@ -142,6 +144,8 @@ val validate_vlbytes_nochk
 let validate_vlbytes_nochk sz #b #t p =
   validate_vlbytes_gen_nochk sz (unconstrained_bounded_integer sz) p
 
+#set-options "--z3rlimit 16"
+
 inline_for_extraction
 let validate_bounded_vlbytes
   (min: U32.t)
@@ -151,8 +155,11 @@ let validate_bounded_vlbytes
   (#p: parser k t)
   (pv: stateful_validator p)
 : Tot (stateful_validator (parse_bounded_vlbytes min max p))
-= let sz : integer_size = log256 max in
-  validate_vlbytes_gen sz (in_bounds min max) #k #t #p pv
+= fun (s: S.bslice) ->
+  assert (normalize_term (log256 max) == log256 max);
+  validate_vlbytes_gen (normalize_term (log256 max)) (in_bounds min max) #k #t #p pv s
+
+#reset-options
 
 inline_for_extraction
 let validate_bounded_vlbytes_nochk
