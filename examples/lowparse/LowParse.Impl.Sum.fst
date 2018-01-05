@@ -189,6 +189,179 @@ let validate_sum s #kt #p ps #k pc destr vs =
       (fun k -> validate_if (lift_parser_cases (sum_enum s) (sum_cases s) pc k))
     )
 
+(* With a default case *)
+
+let parse_dsum_synth
+  (t: dsum)
+  (v: sum_repr_type (fst t))
+  (v' : dsum_cases t (maybe_enum_key_of_repr (sum_enum (fst t)) v))
+: Tot (dsum_type t)
+= (| maybe_enum_key_of_repr (sum_enum (fst t)) v, v' |)
+
+let parse_dsum_payload
+  (#k: parser_kind)
+  (t: dsum)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (pd: parser k (snd t))
+  (v: sum_repr_type (fst t))
+: Tot (parser k (dsum_type t))
+= parse_synth
+    #k
+    #(dsum_cases t (maybe_enum_key_of_repr (sum_enum (fst t)) v))
+    #(dsum_type t)
+    (parse_dsum_cases t pc pd (maybe_enum_key_of_repr (sum_enum (fst t)) v))
+    (parse_dsum_synth t v)
+
+#set-options "--z3rlimit 16"
+
+let parse_dsum_payload_and_then_cases_injective
+  (#k: parser_kind)
+  (t: dsum)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (pd: parser k (snd t))
+: unit ->
+  Lemma
+  (and_then_cases_injective (parse_dsum_payload t pc pd))
+= fun _ -> ()
+
+#reset-options
+
+let parse_dsum'
+  (#kt: parser_kind)
+  (t: dsum)
+  (p: parser kt (sum_repr_type (fst t)))
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (pd: parser k (snd t))
+: Tot (parser (and_then_kind kt k) (dsum_type t))
+= parse_dsum_payload_and_then_cases_injective t pc pd ();
+  p `and_then` (parse_dsum_payload t pc pd)
+
+#set-options "--z3rlimit 256"
+
+let parse_dsum'_correct
+  (#kt: parser_kind)
+  (t: dsum)
+  (p: parser kt (sum_repr_type (fst t)))
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (pd: parser k (snd t))
+: Lemma
+  (forall (input: bytes32) . parse (parse_dsum' t p pc pd) input == parse (parse_dsum t p pc pd) input)
+= ()
+
+#reset-options
+
+inline_for_extraction
+val gen_validate_dsum_partial'
+  (#kt: parser_kind)
+  (t: dsum)
+  (p: parser kt (sum_repr_type (fst t)))
+  (ps: parser_st p)
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (pd: parser k (snd t))
+  (vs' : ((x: sum_repr_type (fst t)) -> Tot (stateful_validator (parse_dsum_cases t pc pd (maybe_enum_key_of_repr (sum_enum (fst t)) x)))))
+: Tot (stateful_validator (parse_dsum' t p pc pd))
+
+#set-options "--z3rlimit 16"
+
+let gen_validate_dsum_partial' #kt t p ps #k pc pd vs' =
+  let g' (v: sum_repr_type (fst t)) : Tot (stateful_validator (parse_dsum_payload t pc pd v)) =
+    validate_synth
+      #k
+      #(dsum_cases t (maybe_enum_key_of_repr (sum_enum (fst t)) v))
+      #(dsum_type t)
+      #(parse_dsum_cases t pc pd (maybe_enum_key_of_repr (sum_enum (fst t)) v))
+      (vs' v)
+      (parse_dsum_synth t v)
+  in
+  parse_then_check'
+    #kt
+    #(sum_repr_type (fst t))
+    #p
+    ps
+    #k
+    #(dsum_type t)
+    #(parse_dsum_payload t pc pd)
+    (parse_dsum_payload_and_then_cases_injective t pc pd)
+    g'
+
+#reset-options
+
+inline_for_extraction
+val gen_validate_dsum_partial
+  (#kt: parser_kind)
+  (t: dsum)
+  (p: parser kt (sum_repr_type (fst t)))
+  (ps: parser_st p)
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (pd: parser k (snd t))
+  (vs' : ((x: sum_repr_type (fst t)) -> Tot (stateful_validator (parse_dsum_cases t pc pd (maybe_enum_key_of_repr (sum_enum (fst t)) x)))))
+: Tot (stateful_validator (parse_dsum t p pc pd))
+
+let gen_validate_dsum_partial #kt t p ps #k pc pd vs' =
+  fun (input: S.bslice) ->
+  parse_dsum'_correct #kt t p #k pc pd;
+  gen_validate_dsum_partial' t p ps pc pd vs' input
+
+inline_for_extraction
+let validate_dsum_cases_type
+  (s: dsum)
+  (#pk: parser_kind)
+  (pc: ((x: sum_key (fst s)) -> Tot (parser pk (sum_cases (fst s) x))))
+  (pd: parser pk (snd s))
+  (k: maybe_enum_key (sum_enum (fst s)))
+: Tot Type0
+= stateful_validator (parse_dsum_cases s pc pd k)
+
+inline_for_extraction
+let lift_validator_dcases
+  (s: dsum)
+  (#pk: parser_kind)
+  (pc: ((x: sum_key (fst s)) -> Tot (parser pk (sum_cases (fst s) x))))
+  (pd: parser pk (snd s))
+  (vs: ((x: sum_key (fst s)) -> Tot (stateful_validator (pc x))))
+  (vd: stateful_validator pd)
+  (k: dsum_key s)
+: Tot (stateful_validator (parse_dsum_cases s pc pd k))
+= match k with
+  | Known k' -> vs k'
+  | _ -> vd
+
+inline_for_extraction
+val validate_dsum
+  (s: dsum)
+  (#kt: parser_kind)
+  (#p: parser kt (sum_repr_type (fst s)))
+  (ps: parser_st p)
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst s)) -> Tot (parser k (sum_cases (fst s) x))))
+  (pd: parser k (snd s))
+  (destr: (
+    (f: ((k: maybe_enum_key (sum_enum (fst s))) -> Tot (validate_dsum_cases_type s pc pd k))) ->
+    (combine_if: ((k: maybe_enum_key (sum_enum (fst s))) -> Tot (if_combinator (validate_dsum_cases_type s pc pd k)))) ->
+    (k: sum_repr_type (fst s)) ->
+    Tot (validate_dsum_cases_type s pc pd (maybe_enum_key_of_repr (sum_enum (fst s)) k))
+  ))
+  (vs : ((x: sum_key (fst s)) -> Tot (stateful_validator (pc x))))
+  (vd : stateful_validator pd)
+: Tot (stateful_validator (parse_dsum s p pc pd))
+
+let validate_dsum s #kt #p ps #k pc pd destr vs vd =
+  gen_validate_dsum_partial
+    s
+    p
+    ps
+    pc
+    pd
+    (destr
+      (lift_validator_dcases s pc pd vs vd)
+      (fun k -> validate_if (parse_dsum_cases s pc pd k))
+    )
+
+
 (*
 
 inline_for_extraction

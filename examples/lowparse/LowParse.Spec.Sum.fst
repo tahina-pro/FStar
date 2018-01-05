@@ -83,3 +83,47 @@ let make_sum
   (cases: (enum_key e -> Tot Type0))
 : Tot sum
 = (| key, (| repr, (| e, cases |) |) |)
+
+(* Sum with default case *)
+
+inline_for_extraction
+let dsum = (sum * Type0)
+
+let dsum_key (t: dsum) : Tot Type0 =
+  maybe_enum_key (sum_enum (fst t))
+
+let dsum_cases (t: dsum) (x: dsum_key t): Tot Type0 =
+  match x with
+  | Known x -> sum_cases (fst t) x
+  | Unknown x -> snd t
+
+let dsum_type (t: dsum) : Tot Type0 =
+  (x: dsum_key t & dsum_cases t x)
+
+let parse_dsum_cases
+  (s: dsum)
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst s)) -> Tot (parser k (sum_cases (fst s) x))))
+  (pd: parser k (snd s))
+  (x: dsum_key s)
+: Tot (parser k (dsum_cases s x))
+= match x with
+  | Known x -> pc x
+  | Unknown _ -> pd
+
+inline_for_extraction
+let parse_dsum
+  (#kt: parser_kind)
+  (t: dsum)
+  (p: parser kt (sum_repr_type (fst t)))
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (pd: parser k (snd t))
+: Tot (parser (and_then_kind kt k) (dsum_type t))
+= parse_tagged_union
+    #kt
+    #(dsum_key t)
+    #(dsum_cases t)
+    (parse_maybe_enum_key p (sum_enum (fst t)))
+    #k
+    (parse_dsum_cases t pc pd)
