@@ -11,6 +11,13 @@ module U32 = FStar.UInt32
 module B = FStar.Buffer
 
 inline_for_extraction
+let validate_empty : stateful_validator parse_empty =
+  fun (s: S.bslice) ->
+  let h = HST.get () in
+  assert (let s' = S.as_seq h s in Some? (parse parse_empty s'));
+  Some (0ul <: consumed_slice_length s)
+
+inline_for_extraction
 val validate_and_split
   (#k: parser_kind)
   (#t: Type0)

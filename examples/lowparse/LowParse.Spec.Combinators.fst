@@ -118,6 +118,9 @@ unfold
 let parse_ret (#t:Type) (v:t) : Tot (parser (ParserStrong (StrongConstantSize 0 ConstantSizeTotal)) t) =
   parse_ret' v
 
+let parse_empty : parser (ParserStrong (StrongConstantSize 0 ConstantSizeTotal)) unit =
+  parse_ret ()
+
 #set-options "--z3rlimit 16"
 
 let fail_parser_kind_precond
