@@ -81,7 +81,7 @@ let parse_sum'_correct
   (#k: parser_kind)
   (pc: ((x: sum_key t) -> Tot (parser k (sum_cases t x))))
 : Lemma
-  (forall (input: bytes32) . parse (parse_sum' t p pc) input == parse (parse_sum t p pc) input)
+  (forall (input: bytes) . parse (parse_sum' t p pc) input == parse (parse_sum t p pc) input)
 = ()
 
 #reset-options
@@ -247,7 +247,7 @@ let parse_dsum'_correct
   (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
   (pd: parser k (snd t))
 : Lemma
-  (forall (input: bytes32) . parse (parse_dsum' t p pc pd) input == parse (parse_dsum t p pc pd) input)
+  (forall (input: bytes) . parse (parse_dsum' t p pc pd) input == parse (parse_dsum t p pc pd) input)
 = ()
 
 #reset-options

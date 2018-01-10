@@ -13,7 +13,7 @@ let parse_u8: parser _ U8.t =
   make_total_constant_size_parser 1 U8.t (fun b -> Seq.index b 0)
 
 let decode_u16
-  (b: bytes32 { Seq.length b == 2 } )
+  (b: bytes { Seq.length b == 2 } )
 : Tot U16.t
 = E.lemma_be_to_n_is_bounded b;
   U16.uint_to_t (E.be_to_n b)
@@ -35,8 +35,8 @@ let rec be_to_n_inj
   end
 
 let decode_u16_injective
-  (b1: bytes32 { Seq.length b1 == 2 } )
-  (b2: bytes32 { Seq.length b2 == 2 } )
+  (b1: bytes { Seq.length b1 == 2 } )
+  (b2: bytes { Seq.length b2 == 2 } )
 : Lemma
   (decode_u16 b1 == decode_u16 b2 ==> Seq.equal b1 b2)
 = if decode_u16 b1 = decode_u16 b2
@@ -55,14 +55,14 @@ let parse_u16: parser _ U16.t =
   make_total_constant_size_parser 2 U16.t decode_u16
 
 let decode_u32
-  (b: bytes32 { Seq.length b == 4 } )
+  (b: bytes { Seq.length b == 4 } )
 : Tot U32.t
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
 
 let decode_u32_injective
-  (b1: bytes32 { Seq.length b1 == 4 } )
-  (b2: bytes32 { Seq.length b2 == 4 } )
+  (b1: bytes { Seq.length b1 == 4 } )
+  (b2: bytes { Seq.length b2 == 4 } )
 : Lemma
   (decode_u32 b1 == decode_u32 b2 ==> Seq.equal b1 b2)
 = if decode_u32 b1 = decode_u32 b2

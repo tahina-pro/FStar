@@ -11,7 +11,7 @@ module Classical = FStar.Classical
 val parse_list_aux
   (#t: Type0)
   (p: bare_parser t)
-  (b: bytes32)
+  (b: bytes)
 : Tot (option (list t * (consumed_length b)))
   (decreases (Seq.length b))
 
@@ -40,7 +40,7 @@ let parse_list_bare #t p = (fun b -> parse_list_aux #t p b) <: bare_parser (list
 let rec parse_list_bare_consumed
   (#t: Type0)
   (p: bare_parser t)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (requires (Some? (parse_list_bare p b)))
   (ensures (
@@ -68,7 +68,7 @@ let parse_list_bare_consumes_all
 let no_lookahead_weak_on_parse_list_bare
   (#t: Type0)
   (p: bare_parser t)
-  (x x' : bytes32)
+  (x x' : bytes)
 : Lemma
   (no_lookahead_weak_on (parse_list_bare p) x x')
 = match parse_list_bare p x with
@@ -86,8 +86,8 @@ let parse_list_bare_injective
   = ()
   in
   let rec aux
-    (b1: bytes32)
-    (b2: bytes32)
+    (b1: bytes)
+    (b2: bytes)
   : Lemma
     (requires (injective_precond (parse_list_bare p) b1 b2))
     (ensures (injective_postcond (parse_list_bare p) b1 b2))
@@ -102,8 +102,8 @@ let parse_list_bare_injective
       let (Some (_, len1)) = parse p b1 in
       let (Some (_, len2)) = parse p b2 in
       assert ((len1 <: nat) == (len2 <: nat));
-      let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
-      let b2' : bytes32 = Seq.slice b2 len2 (Seq.length b2) in
+      let b1' : bytes = Seq.slice b1 len1 (Seq.length b1) in
+      let b2' : bytes = Seq.slice b2 len2 (Seq.length b2) in
       aux b1' b2';
       let (Some (_, len1')) = parse (parse_list_bare p) b1' in
       let (Some (_, len2')) = parse (parse_list_bare p) b2' in
@@ -131,7 +131,7 @@ let rec parse_list_tailrec
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (b: bytes32)
+  (b: bytes)
 : Tot ((aux: list t) -> Tot (option (list t)))
   (decreases (Seq.length b))
 = fun aux ->
@@ -151,7 +151,7 @@ let rec parse_list_tailrec_append
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (b: bytes32)
+  (b: bytes)
   (auxl: list t)
   (auxr: list t)
 : Lemma
@@ -180,7 +180,7 @@ let rec parse_list_tailrec_correct
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (b: bytes32)
+  (b: bytes)
   (aux: list t)
 : Lemma
   (requires True)
@@ -214,7 +214,7 @@ val list_length_constant_size_parser_correct
   (#k: constant_size_parser_kind)
   (#t: Type0)
   (p: parser (ParserStrong (StrongConstantSize n k)) t)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (requires (
     Some? (parse (parse_list p) b)
@@ -234,7 +234,7 @@ let rec list_length_constant_size_parser_correct #n #k #t p b =
     let (Some (_, consumed)) = parse p b in
     assert ((consumed <: nat) == n);
     assert (n > 0);
-    let b' : bytes32 = Seq.slice b n (Seq.length b) in
+    let b' : bytes = Seq.slice b n (Seq.length b) in
     list_length_constant_size_parser_correct p b';
     let (Some (l', _)) = parse (parse_list p) b' in
     FStar.Math.Lemmas.distributivity_add_left 1 (L.length l') n

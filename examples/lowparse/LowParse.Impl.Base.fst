@@ -65,7 +65,7 @@ let parses
   (k: ((t * consumed_slice_length s) -> GTot Type0))
 : GTot Type0
 = S.live h s /\ (
-  let sq : bytes32 = S.as_seq h s in
+  let sq : bytes = S.as_seq h s in
   let y = parse p sq in (
   Some? y /\ (
   let (Some (v', l)) = y in

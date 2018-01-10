@@ -11,13 +11,13 @@ inline_for_extraction
 let make_constant_size_parser_aux
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
 : Tot (bare_parser t)
-= fun (s: bytes32) ->
+= fun (s: bytes) ->
   if Seq.length s < sz
   then None
   else begin
-    let s' : bytes32 = Seq.slice s 0 sz in
+    let s' : bytes = Seq.slice s 0 sz in
     match f s' with
     | None -> None
     | Some v ->
@@ -28,39 +28,39 @@ let make_constant_size_parser_aux
 let make_constant_size_parser_precond_precond
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
-  (s1: bytes32 { Seq.length s1 == sz } )
-  (s2: bytes32 { Seq.length s2 == sz } )
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
+  (s1: bytes { Seq.length s1 == sz } )
+  (s2: bytes { Seq.length s2 == sz } )
 : GTot Type0
 = (Some? (f s1) \/ Some? (f s2)) /\ f s1 == f s2
 
 let make_constant_size_parser_precond
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
 : GTot Type0
-= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+= forall (s1: bytes {Seq.length s1 == sz}) (s2: bytes {Seq.length s2 == sz}) .
     make_constant_size_parser_precond_precond sz t f s1 s2 ==> Seq.equal s1 s2
 
 let make_constant_size_parser_precond'
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)))
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
 : GTot Type0
-= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+= forall (s1: bytes {Seq.length s1 == sz}) (s2: bytes {Seq.length s2 == sz}) .
     make_constant_size_parser_precond_precond sz t f s1 s2 ==> s1 == s2
 
 let make_constant_size_parser_injective
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)) {
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)) {
     make_constant_size_parser_precond sz t f
   })
 : Lemma
   (injective (make_constant_size_parser_aux sz t f))
 = let p : bare_parser t = make_constant_size_parser_aux sz t f in
   let prf1
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (requires (injective_precond p b1 b2))
     (ensures (injective_postcond p b1 b2))
@@ -74,13 +74,13 @@ let make_constant_size_parser_injective
     assert (make_constant_size_parser_precond_precond sz t f (Seq.slice b1 0 len1) (Seq.slice b2 0 len2));
     assert (make_constant_size_parser_precond' sz t f)
   in
-  Classical.forall_intro_2 (fun (b1: bytes32) -> Classical.move_requires (prf1 b1))
+  Classical.forall_intro_2 (fun (b1: bytes) -> Classical.move_requires (prf1 b1))
 
 inline_for_extraction
 let make_constant_size_parser
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot (option t)) {
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)) {
     make_constant_size_parser_precond sz t f
   })
 : Tot (parser (ParserStrong (StrongConstantSize sz ConstantSizeUnknown)) t)
@@ -91,16 +91,16 @@ let make_constant_size_parser
 let make_total_constant_size_parser_precond
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t))
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot t))
 : GTot Type0
-= forall (s1: bytes32 {Seq.length s1 == sz}) (s2: bytes32 {Seq.length s2 == sz}) .
+= forall (s1: bytes {Seq.length s1 == sz}) (s2: bytes {Seq.length s2 == sz}) .
   f s1 == f s2 ==> Seq.equal s1 s2
 
 inline_for_extraction
 let make_total_constant_size_parser
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes32 {Seq.length s == sz}) -> Tot t) {
+  (f: ((s: bytes {Seq.length s == sz}) -> Tot t) {
     make_total_constant_size_parser_precond sz t f
   })
 : Tot (parser (ParserStrong (StrongConstantSize sz ConstantSizeTotal)) t)
@@ -112,7 +112,7 @@ let make_total_constant_size_parser
 /// monadic return for the parser monad
 unfold
 let parse_ret' (#t:Type) (v:t) : Tot (bare_parser t) =
-  fun (b: bytes32) -> Some (v, (0 <: consumed_length b))
+  fun (b: bytes) -> Some (v, (0 <: consumed_length b))
 
 unfold
 let parse_ret (#t:Type) (v:t) : Tot (parser (ParserStrong (StrongConstantSize 0 ConstantSizeTotal)) t) =
@@ -163,12 +163,12 @@ val and_then_bare : #t:Type -> #t':Type ->
                 p': (t -> Tot (bare_parser t')) ->
                 Tot (bare_parser t')
 let and_then_bare #t #t' p p' =
-    fun (b: bytes32) ->
+    fun (b: bytes) ->
     match parse p b with
     | Some (v, l) ->
       begin
 	let p'v = p' v in
-	let s' : bytes32 = Seq.slice b l (Seq.length b) in
+	let s' : bytes = Seq.slice b l (Seq.length b) in
 	match parse p'v s' with
 	| Some (v', l') ->
 	  let res : consumed_length b = l + l' in
@@ -182,8 +182,8 @@ val and_then_no_lookahead_weak_on
     (#t':Type)
     (p: bare_parser t)
     (p': (t -> Tot (bare_parser t')))
-    (x: bytes32) 
-    (x' : bytes32)
+    (x: bytes) 
+    (x' : bytes)
   : Lemma
     (requires (
       no_lookahead_weak p /\
@@ -220,8 +220,8 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 	  let (Some v1') = parse p x' in
 	  let (y1', off1') = v1' in
 	  assert (y1 == y1' /\ (off1 <: nat) == (off1' <: nat));
-	  let x2 : bytes32 = Seq.slice x off1 (Seq.length x) in
-	  let x2' : bytes32 = Seq.slice x' off1 (Seq.length x') in
+	  let x2 : bytes = Seq.slice x off1 (Seq.length x) in
+	  let x2' : bytes = Seq.slice x' off1 (Seq.length x') in
 	  let p2 = p' y1 in
 	  assert (Some? (parse p2 x2));
 	  let (Some (y', off2)) = parse p2 x2 in
@@ -256,7 +256,7 @@ let and_then_cases_injective_precond
   (#t':Type)
   (p': (t -> Tot (bare_parser t')))
   (x1 x2: t)
-  (b1 b2: bytes32)
+  (b1 b2: bytes)
 : GTot Type0
 = Some? ((p' x1) b1) /\
   Some? ((p' x2) b2) /\ (
@@ -270,7 +270,7 @@ let and_then_cases_injective
   (#t':Type)
   (p': (t -> Tot (bare_parser t')))
 : GTot Type0
-= forall (x1 x2: t) (b1 b2: bytes32) .
+= forall (x1 x2: t) (b1 b2: bytes) .
   and_then_cases_injective_precond p' x1 x2 b1 b2 ==>
   x1 == x2
 
@@ -292,14 +292,14 @@ val and_then_injective
 let and_then_injective #t #t' p p' =
   let ps = and_then_bare p p' in
   let f
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (requires (injective_precond ps b1 b2))
     (ensures (injective_postcond ps b1 b2))
   = let (Some (v1, len1)) = p b1 in
     let (Some (v2, len2)) = p b2 in
-    let b1' : bytes32 = Seq.slice b1 len1 (Seq.length b1) in
-    let b2' : bytes32 = Seq.slice b2 len2 (Seq.length b2) in
+    let b1' : bytes = Seq.slice b1 len1 (Seq.length b1) in
+    let b2' : bytes = Seq.slice b2 len2 (Seq.length b2) in
     assert (Some? ((p' v1) b1'));
     assert (Some? ((p' v2) b2'));
     assert (and_then_cases_injective_precond p' v1 v2 b1' b2');
@@ -323,8 +323,8 @@ val and_then_no_lookahead_on
     (#t':Type)
     (p: bare_parser t)
     (p': (t -> Tot (bare_parser t')))
-    (x: bytes32) 
-    (x' : bytes32)
+    (x: bytes) 
+    (x' : bytes)
   : Lemma
     (requires (
       no_lookahead p /\
@@ -364,8 +364,8 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
 	  assert (y1 == y1');
 	  assert (injective_precond p x x');
 	  assert ((off1 <: nat) == (off1' <: nat));
-	  let x2 : bytes32 = Seq.slice x off1 (Seq.length x) in
-	  let x2' : bytes32 = Seq.slice x' off1 (Seq.length x') in
+	  let x2 : bytes = Seq.slice x off1 (Seq.length x) in
+	  let x2' : bytes = Seq.slice x' off1 (Seq.length x') in
 	  let p2 = p' y1 in
 	  assert (Some? (p2 x2));
 	  let (Some (y2, off2)) = p2 x2 in

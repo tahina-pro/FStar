@@ -19,23 +19,23 @@ module U32 = FStar.UInt32
 
 [@"substitute"]
 inline_for_extraction
-let consumed_length (b: bytes32) : Tot Type0 = (n: nat { n <= Seq.length b } )
+let consumed_length (b: bytes) : Tot Type0 = (n: nat { n <= Seq.length b } )
 
 // switch to Tot if you want OCaml extraction
-let bare_parser (t:Type0) : Tot Type0 = (b: bytes32) -> Tot (option (t * consumed_length b))
+let bare_parser (t:Type0) : Tot Type0 = (b: bytes) -> Tot (option (t * consumed_length b))
 
 inline_for_extraction
 let parse
   (#t: Type0)
   (p: bare_parser t)
-  (input: bytes32)
+  (input: bytes)
 : Tot (option (t * consumed_length input))
 = p input
 
 let no_lookahead_weak_on
   (#t: Type0)
   (f: bare_parser t)
-  (x x' : bytes32)
+  (x x' : bytes)
 : GTot Type0
 = Some? (parse f x) ==> (
   let (Some v) = parse f x in
@@ -50,7 +50,7 @@ let no_lookahead_weak_on
 let no_lookahead_weak_on_ext
   (#t: Type0)
   (f1 f2: bare_parser t)
-  (x x' : bytes32)
+  (x x' : bytes)
 : Lemma
   (requires (
     parse f2 x == parse f1 x /\
@@ -65,14 +65,14 @@ let no_lookahead_weak
   (#t: Type0)
   (f: bare_parser t)
 : GTot Type0
-= forall (x x' : bytes32) . no_lookahead_weak_on f x x'
+= forall (x x' : bytes) . no_lookahead_weak_on f x x'
 
 let no_lookahead_weak_ext
   (#t: Type0)
   (f1 f2: bare_parser t)
 : Lemma
   (requires (
-    (forall (b: bytes32) . parse f2 b == parse f1 b)
+    (forall (b: bytes) . parse f2 b == parse f1 b)
   ))
   (ensures (
     no_lookahead_weak f2 <==> no_lookahead_weak f1
@@ -84,7 +84,7 @@ let no_lookahead_weak_ext
 let injective_precond
   (#t: Type0)
   (p: bare_parser t)
-  (b1 b2: bytes32)
+  (b1 b2: bytes)
 : GTot Type0
 = Some? (parse p b1) /\
   Some? (parse p b2) /\ (
@@ -96,7 +96,7 @@ let injective_precond
 let injective_precond_ext
   (#t: Type0)
   (p1 p2: bare_parser t)
-  (b1 b2: bytes32)
+  (b1 b2: bytes)
 : Lemma
   (requires (
     parse p2 b1 == parse p1 b1 /\
@@ -110,7 +110,7 @@ let injective_precond_ext
 let injective_postcond
   (#t: Type0)
   (p: bare_parser t)
-  (b1 b2: bytes32)
+  (b1 b2: bytes)
 : GTot Type0
 = Some? (parse p b1) /\
   Some? (parse p b2) /\ (
@@ -123,7 +123,7 @@ let injective_postcond
 let injective_postcond_ext
   (#t: Type0)
   (p1 p2: bare_parser t)
-  (b1 b2: bytes32)
+  (b1 b2: bytes)
 : Lemma
   (requires (
     parse p2 b1 == parse p1 b1 /\
@@ -135,7 +135,7 @@ let injective_postcond_ext
 = ()
 
 let injective (#t: Type0) (p: bare_parser t) : GTot Type0 =
-  forall (b1 b2: bytes32) .
+  forall (b1 b2: bytes) .
   injective_precond p b1 b2 ==>
   injective_postcond p b1 b2
 
@@ -144,7 +144,7 @@ let injective_ext
   (p1 p2: bare_parser t)
 : Lemma
   (requires (
-    forall (b: bytes32) . parse p2 b == parse p1 b
+    forall (b: bytes) . parse p2 b == parse p1 b
   ))
   (ensures (
     injective p2 <==> injective p1
@@ -155,7 +155,7 @@ let injective_ext
 let no_lookahead_on_precond
   (#t: Type0)
   (f: bare_parser t)
-  (x x' : bytes32)
+  (x x' : bytes)
 : GTot Type0
 = Some? (parse f x) /\ (
     let (Some v) = parse f x in
@@ -167,7 +167,7 @@ let no_lookahead_on_precond
 let no_lookahead_on_postcond
   (#t: Type0)
   (f: bare_parser t)
-  (x x' : bytes32)
+  (x x' : bytes)
 : GTot Type0
 = Some? (parse f x) ==> (
   let (Some v) = parse f x in
@@ -181,14 +181,14 @@ let no_lookahead_on_postcond
 let no_lookahead_on
   (#t: Type0)
   (f: bare_parser t)
-  (x x' : bytes32)
+  (x x' : bytes)
 : GTot Type0
 = no_lookahead_on_precond f x x' ==> no_lookahead_on_postcond f x x'
 
 let no_lookahead_on_ext
   (#t: Type0)
   (p1 p2: bare_parser t)
-  (b1 b2: bytes32)
+  (b1 b2: bytes)
 : Lemma
   (requires (
     parse p2 b1 == parse p1 b1 /\
@@ -203,14 +203,14 @@ let no_lookahead
   (#t: Type0)
   (f: bare_parser t)
 : GTot Type0
-= forall (x x' : bytes32) . no_lookahead_on f x x'
+= forall (x x' : bytes) . no_lookahead_on f x x'
 
 let no_lookahead_ext
   (#t: Type0)
   (p1 p2: bare_parser t)
 : Lemma
   (requires (
-    forall (b: bytes32) . parse p2 b == parse p1 b
+    forall (b: bytes) . parse p2 b == parse p1 b
   ))
   (ensures (
     no_lookahead p2 <==> no_lookahead p1
@@ -223,7 +223,7 @@ let consumes_all
   (#t: Type0)
   (p: bare_parser t)
 : GTot Type0
-= forall (b: bytes32) . Some? (parse p b) ==> (
+= forall (b: bytes) . Some? (parse p b) ==> (
     let (Some (_, len)) = parse p b in
     Seq.length b == len
   )
@@ -235,7 +235,7 @@ let is_constant_size_parser
   (#t: Type0)
   (f: bare_parser t)
 : GTot Type0
-= forall (s: bytes32) .
+= forall (s: bytes) .
   Some? (f s) ==> (
     let (_, consumed) = Some?.v (f s) in
     sz == (consumed <: nat)
@@ -246,7 +246,7 @@ let is_total_constant_size_parser
   (#t: Type0)
   (f: bare_parser t)
 : GTot Type0
-= forall (s: bytes32) . {:pattern (f s) }
+= forall (s: bytes) . {:pattern (f s) }
   (Seq.length s < sz) == (None? (f s))
 
 (* Type hierarchy *)

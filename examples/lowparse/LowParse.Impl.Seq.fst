@@ -182,15 +182,15 @@ let seq_offset_at_spec_nat_postcond
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (input: bytes32)
+  (input: bytes)
   (i: nat)
   (result: nat)
 : GTot Type0
 =   result <= Seq.length input /\ (
     let v = parse (parse_seq p) input in
-    let inputl : bytes32 = Seq.slice input 0 result in
+    let inputl : bytes = Seq.slice input 0 result in
     let vl = parse (parse_seq p) inputl in
-    let inputr : bytes32 = Seq.slice input result (Seq.length input) in
+    let inputr : bytes = Seq.slice input result (Seq.length input) in
     let vr = parse (parse_seq p) inputr in
     Some? v /\
     Some? vl /\
@@ -241,7 +241,7 @@ val seq_offset_at_spec_nat
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (input: bytes32)
+  (input: bytes)
   (i: nat)
 : Ghost nat
   (requires (
@@ -258,7 +258,7 @@ let rec seq_offset_at_spec_nat #k #t p input i =
   then 0
   else
     let (Some (_, len)) = parse p input in
-    let intl : bytes32 = Seq.slice input len (Seq.length input) in
+    let intl : bytes = Seq.slice input len (Seq.length input) in
     let len' = seq_offset_at_spec_nat p intl (i - 1) in
     len + len'
 
@@ -266,7 +266,7 @@ val seq_offset_at_spec_nat_correct
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (input: bytes32)
+  (input: bytes)
   (i: nat)
 : Lemma
   (requires (
@@ -292,16 +292,16 @@ let rec seq_offset_at_spec_nat_correct #k #t p input i =
   then ()
   else begin
     let (Some (hd, len)) = parse p input in
-    let inhd : bytes32 = Seq.slice input 0 len in
-    let intl : bytes32 = Seq.slice input len (Seq.length input) in
+    let inhd : bytes = Seq.slice input 0 len in
+    let intl : bytes = Seq.slice input len (Seq.length input) in
     let result' = seq_offset_at_spec_nat p intl (i - 1) in
     seq_offset_at_spec_nat_correct p intl (i - 1);
-    let inputl' : bytes32 = Seq.slice intl 0 result' in
-    let inputr' : bytes32 = Seq.slice intl result' (Seq.length intl) in
+    let inputl' : bytes = Seq.slice intl 0 result' in
+    let inputr' : bytes = Seq.slice intl result' (Seq.length intl) in
     let result = len + result' in
     assert (result <= Seq.length input);
-    let inputl : bytes32 = Seq.slice input 0 result in
-    let inputr : bytes32 = Seq.slice input result (Seq.length input) in
+    let inputl : bytes = Seq.slice input 0 result in
+    let inputr : bytes = Seq.slice input result (Seq.length input) in
     assert (no_lookahead_weak_on p input inputl);
     let (Some (hd', len')) = parse p inputl in
     assert (hd == hd');
@@ -362,7 +362,7 @@ val seq_offset_at_spec_nat_add
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (input: bytes32)
+  (input: bytes)
   (i1 i2: nat)
 : Lemma
   (requires (
@@ -379,20 +379,20 @@ val seq_offset_at_spec_nat_add
     i1 <= Seq.length s /\
     i2 <= Seq.length s - i1 /\ (
     let len1 = seq_offset_at_spec_nat p input i1 in
-    let input2 : bytes32 = Seq.slice input len1 (Seq.length input) in
+    let input2 : bytes = Seq.slice input len1 (Seq.length input) in
     let len2 = seq_offset_at_spec_nat p input2 i2 in
     seq_offset_at_spec_nat p input (i1 + i2) == len1 + len2
   ))))
   (decreases i1)
 
-#set-options "--z3rlimit 128 --smtencoding.l_arith_repr native"
+#set-options "--z3rlimit 256 --smtencoding.l_arith_repr native"
 
 let rec seq_offset_at_spec_nat_add #k #t p input i1 i2 =
   if i1 = 0
   then ()
   else begin
     let (Some (_, len)) = parse p input in
-    let input' : bytes32 = Seq.slice input len (Seq.length input) in
+    let input' : bytes = Seq.slice input len (Seq.length input) in
     let res = seq_offset_at_spec_nat p input (i1 + i2) in
     let (Some _) = parse (parse_seq p) input in
     let (Some _) = parse (parse_seq p) input' in
@@ -400,12 +400,12 @@ let rec seq_offset_at_spec_nat_add #k #t p input i1 i2 =
     assert (res == len + res');
     seq_offset_at_spec_nat_add p input' (i1 - 1) i2;
     let len1' = seq_offset_at_spec_nat p input' (i1 - 1) in
-    let input2' : bytes32 = Seq.slice input' len1' (Seq.length input') in
+    let input2' : bytes = Seq.slice input' len1' (Seq.length input') in
     let len2' = seq_offset_at_spec_nat p input2' i2 in
     assert (res' == len1' + len2');
     let len1 = seq_offset_at_spec_nat p input i1 in
     assert (len1 == len + len1');
-    let input2 : bytes32 = Seq.slice input len1 (Seq.length input) in
+    let input2 : bytes = Seq.slice input len1 (Seq.length input) in
     let f () : Lemma (input2 == input2') =
       Seq.slice_slice input len (Seq.length input) len1' (Seq.length input')
     in
@@ -420,7 +420,7 @@ val seq_offset_at_spec_nat_increases
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (input: bytes32)
+  (input: bytes)
   (i1 i2: nat)
 : Lemma
   (requires (
@@ -452,7 +452,7 @@ val seq_offset_at_spec_nat_last
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (input: bytes32)
+  (input: bytes)
 : Lemma
   (requires (Some? (parse (parse_seq p) input)))
   (ensures (
@@ -468,14 +468,14 @@ let rec seq_offset_at_spec_nat_last #k #t p input =
   then ()
   else
     let (Some (_, len)) = parse p input in
-    let input' : bytes32 = Seq.slice input len (Seq.length input) in
+    let input' : bytes = Seq.slice input len (Seq.length input) in
     seq_offset_at_spec_nat_last p input'
 
 val seq_offset_at_spec_nat_truncate
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (input: bytes32)
+  (input: bytes)
   (i j: nat)
 : Lemma
   (requires (
@@ -492,7 +492,7 @@ val seq_offset_at_spec_nat_truncate
     let (Some (s, _)) = v in
     j <= Seq.length s /\ (
     let j_ = seq_offset_at_spec_nat p input j in
-    let input' : bytes32 = Seq.slice input 0 j_ in
+    let input' : bytes = Seq.slice input 0 j_ in
     let v' = parse (parse_seq p) input' in
     Some? v' /\ (
     let (Some (s', _)) = v in
@@ -511,13 +511,13 @@ let rec seq_offset_at_spec_nat_truncate #k #t p input i j =
     let j_ = seq_offset_at_spec_nat p input j in
     seq_offset_at_spec_nat_correct p input j;
     let (Some (v, len)) = parse p input in
-    let inputq : bytes32 = Seq.slice input len (Seq.length input) in
+    let inputq : bytes = Seq.slice input len (Seq.length input) in
     let (Some (sq, _)) = parse (parse_seq p) inputq in
     assert (s == Seq.cons v sq);
     let j_q = seq_offset_at_spec_nat p inputq (j - 1) in
     seq_offset_at_spec_nat_correct p inputq (j - 1);
     assert (j_ == len + j_q);
-    let input' : bytes32 = Seq.slice input 0 j_ in
+    let input' : bytes = Seq.slice input 0 j_ in
     assert (no_lookahead_weak_on p input input');
     let (Some (v', len')) = parse p input' in
     assert (v == v');

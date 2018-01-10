@@ -72,7 +72,7 @@ let of_buffer
 = let b' = B.sub b 0ul len in
   BSlice len b'
 
-let as_seq h (b: bslice) : Ghost (s:bytes32)
+let as_seq h (b: bslice) : Ghost (s:bytes)
   (requires (live h b))
   (ensures (fun s -> Seq.length s == U32.v (length b))) = B.as_seq h (as_buffer b)
 

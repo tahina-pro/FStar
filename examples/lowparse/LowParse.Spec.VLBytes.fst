@@ -19,7 +19,7 @@ let bounded_integer
 
 let decode_bounded_integer
   (i: integer_size)
-  (b: bytes32 { Seq.length b == i } )
+  (b: bytes { Seq.length b == i } )
 : Tot (bounded_integer i)
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
@@ -28,8 +28,8 @@ let decode_bounded_integer
 
 let decode_bounded_integer_injective'
   (i: integer_size)
-  (b1: bytes32 { Seq.length b1 == i } )
-  (b2: bytes32 { Seq.length b2 == i } )
+  (b1: bytes { Seq.length b1 == i } )
+  (b2: bytes { Seq.length b2 == i } )
 : Lemma
   (decode_bounded_integer i b1 == decode_bounded_integer i b2 ==> Seq.equal b1 b2)
 = if decode_bounded_integer i b1 = decode_bounded_integer i b2
@@ -48,8 +48,8 @@ let decode_bounded_integer_injective
   (i: integer_size)
 : Lemma
   (forall
-    (b1: bytes32 { Seq.length b1 == i } )
-    (b2: bytes32 { Seq.length b2 == i } )
+    (b1: bytes { Seq.length b1 == i } )
+    (b2: bytes { Seq.length b2 == i } )
   . decode_bounded_integer i b1 == decode_bounded_integer i b2 ==> Seq.equal b1 b2
   )
 = Classical.forall_intro_2 (decode_bounded_integer_injective' i)
@@ -82,7 +82,7 @@ let parse_flbytes_and_then_cases_injective
   (and_then_cases_injective (parse_vlbytes_payload sz f p))
 = let g
     (len1 len2: (len: bounded_integer sz { f len == true } ))
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (requires (and_then_cases_injective_precond (parse_vlbytes_payload sz f p) len1 len2 b1 b2))
     (ensures (len1 == len2))
@@ -92,9 +92,9 @@ let parse_flbytes_and_then_cases_injective
   in
   let g'
     (len1 len2: (len: bounded_integer sz { f len == true } ))
-    (b1: bytes32)
+    (b1: bytes)
   : Lemma
-    (forall (b2: bytes32) . and_then_cases_injective_precond (parse_vlbytes_payload sz f p) len1 len2 b1 b2 ==> len1 == len2)
+    (forall (b2: bytes) . and_then_cases_injective_precond (parse_vlbytes_payload sz f p) len1 len2 b1 b2 ==> len1 == len2)
   = Classical.forall_intro (Classical.move_requires (g len1 len2 b1))
   in
   Classical.forall_intro_3 g'

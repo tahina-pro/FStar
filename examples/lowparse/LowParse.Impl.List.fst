@@ -597,7 +597,7 @@ val list_nth_constant_size_parser
     b' == list_nth_spec p b i h
   ))
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128"
 
 let list_nth_constant_size_parser #n #k #t p b i =
   let h = HST.get () in

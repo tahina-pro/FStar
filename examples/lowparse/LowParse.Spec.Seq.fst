@@ -12,7 +12,7 @@ module Classical = FStar.Classical
 val parse_seq_aux
   (#t: Type0)
   (p: bare_parser t)
-  (b: bytes32)
+  (b: bytes)
 : Tot (option (Seq.seq t * (consumed_length b)))
   (decreases (Seq.length b))
 
@@ -49,7 +49,7 @@ val parse_seq_aux_correct
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (ensures (
     parse (parse_seq_aux p) b == parse (parse_seq' p) b
@@ -88,7 +88,7 @@ let parse_seq_correct
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (parse (parse_seq p) b == parse (parse_seq' p) b)
 = parse_seq_aux_correct p b
@@ -98,7 +98,7 @@ val seq_length_constant_size_parser_correct
   (#k: constant_size_parser_kind)
   (#t: Type0)
   (p: parser (ParserStrong (StrongConstantSize n k)) t)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (requires (
     Some? (parse (parse_seq p) b)

@@ -157,8 +157,8 @@ let serialize_u16 i dest =
 
 val serialize_u32_aux
   (i: U32.t)
-  (s: bytes32)
-: Ghost bytes32
+  (s: bytes)
+: Ghost bytes
   (requires (Seq.length s == 4))
   (ensures (fun s' ->
     Seq.length s' == 4 /\

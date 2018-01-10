@@ -507,7 +507,7 @@ val parse_filter_implies
   (p: parser k t)
   (f1: (t -> Tot bool))
   (f2: (t -> Tot bool))
-  (s: bytes32)
+  (s: bytes)
 : Lemma
   (requires (
     let v1 = parse (parse_filter p f1) s in
@@ -534,7 +534,7 @@ let parse_filter_implies #k #t p f1 f2 s =
   assert ((x1 <: t) == x);
   assert (consumed1 == consumed);
   assert (f2 x1 == true);
-  let s' : bytes32 = Seq.slice s consumed (Seq.length s) in
+  let s' : bytes = Seq.slice s consumed (Seq.length s) in
   assert (Some? (parse (parse_filter_payload f2 x1) s'));
   assert (Some? (parse (parse_filter p f2) s));
   ()

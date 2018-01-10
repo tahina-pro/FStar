@@ -15,7 +15,7 @@ val parse_flbytes'
 
 let parse_flbytes' #t p sz =
   let () = () in // Necessary to pass arity checking
-  fun (s: bytes32) ->
+  fun (s: bytes) ->
   if Seq.length s < sz
   then None
   else
@@ -34,7 +34,7 @@ let parse_flbytes_injective
 : Lemma
   (ensures (injective (parse_flbytes' p sz)))
 = let f
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (requires (injective_precond (parse_flbytes' p sz) b1 b2))
     (ensures (injective_postcond (parse_flbytes' p sz) b1 b2))
@@ -64,7 +64,7 @@ val parse_flbytes_consumes_all
 
 let parse_flbytes_consumes_all #t p sz =
   let () = () in // Necessary to pass arity checking
-  fun (s: bytes32) ->
+  fun (s: bytes) ->
   if Seq.length s < sz
   then None
   else

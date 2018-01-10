@@ -38,7 +38,7 @@ val parse_array_correct
   (#t: Type0)
   (p: parser (ParserStrong (StrongConstantSize elem_byte_size k)) t)
   (array_byte_size: nat)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (requires (
     array_type_of_parser_kind_precond p array_byte_size /\
@@ -67,7 +67,7 @@ let parse_array'
   (array_byte_size: nat)
   (precond: squash (array_type_of_parser_kind_precond p array_byte_size))
 : Tot (bare_parser (array_type_of_parser' p array_byte_size))
-= fun (b: bytes32) ->
+= fun (b: bytes) ->
   match parse (parse_flbytes (parse_seq p) array_byte_size) b with
   | None -> None
   | Some (data, consumed) ->
@@ -86,14 +86,14 @@ let parse_array_injective
   (injective (parse_array' p array_byte_size precond))
 = let p' : bare_parser (array_type_of_parser' p array_byte_size) = parse_array' p array_byte_size precond in
   let prf
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (requires (injective_precond p' b1 b2))
     (ensures (injective_postcond p' b1 b2))
   = assert (injective_postcond (parse_flbytes (parse_seq p) array_byte_size) b1 b2)
   in
   let prf'
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (injective_precond p' b1 b2 ==> injective_postcond p' b1 b2)
   = Classical.move_requires (prf b1) b2
@@ -105,7 +105,7 @@ val parse_total_constant_size_elem_parse_list_total
   (#t: Type0)
   (p: parser (ParserStrong (StrongConstantSize elem_byte_size ConstantSizeTotal)) t)
   (array_byte_size: nat)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (requires (
     array_type_of_parser_kind_precond p array_byte_size /\
@@ -141,7 +141,7 @@ val parse_total_constant_size_elem_parse_array_total'
   (p: parser (ParserStrong (StrongConstantSize elem_byte_size ConstantSizeTotal)) t)
   (array_byte_size: nat)
   (precond: squash (array_type_of_parser_kind_precond p array_byte_size))
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (requires (
     Seq.length b >= array_byte_size
@@ -164,7 +164,7 @@ let parse_total_constant_size_elem_parse_array_total
   (precond: squash (array_type_of_parser_kind_precond p array_byte_size))
 : Lemma
   (ensures (
-    ConstantSizeTotal? k ==> (forall (b: bytes32) .
+    ConstantSizeTotal? k ==> (forall (b: bytes) .
     Seq.length b >= array_byte_size ==>
     Some? (parse (parse_array' p array_byte_size precond) b)
   )))
@@ -285,7 +285,7 @@ val parse_vlarray_correct
   (#t: Type0)
   (p: parser (ParserStrong (StrongConstantSize elem_byte_size k)) t)
   (array_byte_size_min array_byte_size_max: U32.t)
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (requires (
     vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max /\
@@ -307,7 +307,7 @@ let parse_vlarray_correct #elem_byte_size #k #t p array_byte_size_min array_byte
   let (Some (data, consumed)) = parse (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b in
   let sz : integer_size = log256 array_byte_size_max in
   assert (consumed >= sz);
-  let b' : bytes32 = Seq.slice b sz consumed in
+  let b' : bytes = Seq.slice b sz consumed in
   assert (b' == Seq.slice (Seq.slice b sz (Seq.length b)) 0 (consumed - sz));
   let (Some (data', consumed')) = parse (parse_seq p) b' in
   assert (data == data');
@@ -329,7 +329,7 @@ let parse_vlarray'
   (array_byte_size_min array_byte_size_max: U32.t)
   (precond: squash (vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max))
 : Tot (bare_parser (vlarray_type_of_parser' p array_byte_size_min array_byte_size_max))
-= fun (b: bytes32) ->
+= fun (b: bytes) ->
   match parse (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b with
   | None -> None
   | Some (data, consumed) ->
@@ -350,14 +350,14 @@ let parse_vlarray_injective
   (injective (parse_vlarray' p array_byte_size_min array_byte_size_max precond))
 = let p' : bare_parser (vlarray_type_of_parser' p array_byte_size_min array_byte_size_max) = parse_vlarray' p array_byte_size_min array_byte_size_max precond in
   let prf
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (requires (injective_precond p' b1 b2))
     (ensures (injective_postcond p' b1 b2))
   = assert (injective_postcond (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b1 b2)
   in
   let prf'
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (injective_precond p' b1 b2 ==> injective_postcond p' b1 b2)
   = Classical.move_requires (prf b1) b2
@@ -377,14 +377,14 @@ let parse_vlarray_no_lookahead
   (no_lookahead (parse_vlarray' p array_byte_size_min array_byte_size_max precond))
 = let p' : bare_parser (vlarray_type_of_parser' p array_byte_size_min array_byte_size_max) = parse_vlarray' p array_byte_size_min array_byte_size_max precond in
   let prf
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (requires (no_lookahead_on_precond p' b1 b2))
     (ensures (no_lookahead_on_postcond p' b1 b2))
   = assert (no_lookahead_on (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b1 b2)
   in
   let prf'
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (no_lookahead_on p' b1 b2)
   = Classical.move_requires (prf b1) b2
@@ -402,7 +402,7 @@ let parse_vlarray_no_lookahead_weak
   (no_lookahead_weak (parse_vlarray' p array_byte_size_min array_byte_size_max precond))
 = let p' : bare_parser (vlarray_type_of_parser' p array_byte_size_min array_byte_size_max) = parse_vlarray' p array_byte_size_min array_byte_size_max precond in
   let prf
-    (b1 b2: bytes32)
+    (b1 b2: bytes)
   : Lemma
     (no_lookahead_weak_on p' b1 b2)
   = assert (no_lookahead_weak_on (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b1 b2)

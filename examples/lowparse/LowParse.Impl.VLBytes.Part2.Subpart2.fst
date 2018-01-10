@@ -9,7 +9,7 @@ module Cast = FStar.Int.Cast
 module U16 = FStar.UInt16
 
 let parse_bounded_integer'_2_correct
-  (b: bytes32)
+  (b: bytes)
 : Lemma
   (parse (parse_bounded_integer' 2) b == parse (parse_bounded_integer 2) b)
 = if Seq.length b < 2

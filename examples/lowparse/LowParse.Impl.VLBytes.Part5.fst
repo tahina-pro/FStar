@@ -48,7 +48,7 @@ val serialize_vlbytes_gen_correct_aux
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (b b1 b2: bytes32)
+  (b b1 b2: bytes)
 : Lemma
   (requires (
     Seq.length b1 == sz /\ (

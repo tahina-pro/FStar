@@ -19,7 +19,7 @@ val parse_bounded_vlbytes_parse_vlbytes'
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (b: bytes32)
+  (b: bytes)
 : Lemma (
     let v = parse (parse_bounded_vlbytes min max p) b in
     Some? v ==> (
