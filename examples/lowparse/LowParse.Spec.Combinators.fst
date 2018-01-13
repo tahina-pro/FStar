@@ -588,6 +588,54 @@ let parse_synth
   (ensures (fun _ -> True))
 = coerce (parser k t2) (and_then p1 (fun v1 -> parse_ret (f2 v1)))
 
+val bare_serialize_synth
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: parser k t1)
+  (f2: t1 -> Tot t2)
+  (s1: serializer p1)
+  (g1: t2 -> Tot t1)
+: Tot (bare_serializer t2)
+
+let bare_serialize_synth #k #t1 #t2 p1 f2 s1 g1 =
+  fun (x: t2) -> s1 (g1 x)
+
+val bare_serialize_synth_correct
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: parser k t1)
+  (f2: t1 -> Tot t2)
+  (s1: serializer p1)
+  (g1: t2 -> Tot t1)
+: Lemma
+  (requires (
+    (forall (x : t2) . f2 (g1 x) == x) /\
+    (forall (x x' : t1) . f2 x == f2 x' ==> x == x')
+  ))
+  (ensures (serializer_correct (parse_synth p1 f2) (bare_serialize_synth p1 f2 s1 g1 )))
+
+let bare_serialize_synth_correct #k #t1 #t2 p1 f2 s1 g1 =
+  ()
+
+let serialize_synth
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#t2: Type0)
+  (p1: parser k t1)
+  (f2: t1 -> Tot t2)
+  (s1: serializer p1)
+  (g1: t2 -> Tot t1)
+  (u: unit {
+    (forall (x : t2) . f2 (g1 x) == x) /\
+    (forall (x x' : t1) . f2 x == f2 x' ==> x == x')
+  })
+: Tot (serializer (parse_synth p1 f2))
+= bare_serialize_synth_correct p1 f2 s1 g1;
+  bare_serialize_synth p1 f2 s1 g1
+
+
 (** Refinements *)
 
 let parse_filter_kind (k: parser_kind) : Tot parser_kind =
