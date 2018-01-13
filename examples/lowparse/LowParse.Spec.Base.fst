@@ -398,3 +398,61 @@ let glb_list
     (forall k' . (Cons? l /\ (forall kl . L.mem kl l ==> k' `is_weaker_than` kl)) ==> k' `is_weaker_than` k)
   ))
 = glb_list_of id l
+
+(* Pure serializers *)
+
+let bare_serializer
+  (t: Type0)
+: Tot Type0
+= t -> Tot bytes
+
+let serializer_correct
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (f: bare_serializer t)
+: GTot Type0
+= forall (x: t) . parse p (f x) == Some (x, Seq.length (f x))
+
+let serializer_complete
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (f: bare_serializer t)
+: GTot Type0
+= forall (s: bytes) .
+  Some? (parse p s) ==> (
+    let (Some (x, len)) = parse p s in
+    f x == Seq.slice s 0 len
+  )
+
+let serializer_correct_implies_complete
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (f: bare_serializer t)
+: Lemma
+  (requires (serializer_correct p f))
+  (ensures (serializer_complete p f))
+= let prf
+    (s: bytes)
+  : Lemma
+    (requires (Some? (parse p s)))
+    (ensures (
+      Some? (parse p s) /\ (
+      let (Some (x, len)) = parse p s in
+      f x == Seq.slice s 0 len
+    )))
+  = let (Some (x, len)) = parse p s in
+    assert (no_lookahead_weak_on p (f x) s);
+    assert (injective_precond p (f x) s);
+    assert (injective_postcond p (f x) s)
+  in
+  Classical.forall_intro (Classical.move_requires prf)
+
+let serializer
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Tot Type0
+= (f: bare_serializer t { serializer_correct p f } )

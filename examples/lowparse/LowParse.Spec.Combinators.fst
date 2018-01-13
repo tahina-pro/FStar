@@ -121,6 +121,9 @@ let parse_ret (#t:Type) (v:t) : Tot (parser (ParserStrong (StrongConstantSize 0 
 let parse_empty : parser (ParserStrong (StrongConstantSize 0 ConstantSizeTotal)) unit =
   parse_ret ()
 
+let serialize_empty : serializer parse_empty =
+  fun _ -> Seq.createEmpty
+
 #set-options "--z3rlimit 16"
 
 let fail_parser_kind_precond
@@ -473,6 +476,91 @@ let nondep_then
   (p2: parser k2 t2)
 : Tot (parser (and_then_kind k1 k2) (t1 * t2))
 = p1 `and_then` (fun v1 -> p2 `and_then` (fun v2 -> (parse_ret (v1, v2))))
+
+#set-options "--z3rlimit 32"
+
+let bare_serialize_nondep_then
+  (#k1: parser_kind)
+  (#t1: Type0)
+  (p1: parser k1 t1)
+  (s1: serializer p1)
+  (#k2: parser_kind)
+  (#t2: Type0)
+  (p2: parser k2 t2)
+  (s2: serializer p2)
+: Tot (bare_serializer (t1 * t2))
+= fun (x: t1 * t2) ->
+  let (x1, x2) = x in
+  Seq.append (s1 x1) (s2 x2)
+
+let seq_slice_append_l
+  (#t: Type)
+  (s1 s2: Seq.seq t)
+: Lemma
+  (Seq.slice (Seq.append s1 s2) 0 (Seq.length s1) == s1)
+= assert (Seq.equal (Seq.slice (Seq.append s1 s2) 0 (Seq.length s1)) s1)
+
+let seq_slice_append_r
+  (#t: Type)
+  (s1 s2: Seq.seq t)
+: Lemma
+  (Seq.slice (Seq.append s1 s2) (Seq.length s1) (Seq.length (Seq.append s1 s2)) == s2)
+= assert (Seq.equal (Seq.slice (Seq.append s1 s2) (Seq.length s1) (Seq.length (Seq.append s1 s2))) s2)
+
+let bare_serialize_nondep_then_correct
+  (#k1: strong_parser_kind)
+  (#t1: Type0)
+  (p1: parser (ParserStrong k1) t1)
+  (s1: serializer p1)
+  (#k2: parser_kind)
+  (#t2: Type0)
+  (p2: parser k2 t2)
+  (s2: serializer p2)
+: Lemma
+  (serializer_correct (nondep_then p1 p2) (bare_serialize_nondep_then p1 s1 p2 s2))
+= let prf
+    (x: t1 * t2)
+  : Lemma (parse (nondep_then p1 p2) (bare_serialize_nondep_then p1 s1 p2 s2 x) == Some (x, Seq.length (bare_serialize_nondep_then p1 s1 p2 s2 x)))
+  = let v1' = parse p1 (bare_serialize_nondep_then p1 s1 p2 s2 x) in
+    let v1 = parse p1 (s1 (fst x)) in
+    assert (Some? v1);
+    assert (no_lookahead_on p1 (s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    let (Some (_, len')) = parse p1 (s1 (fst x)) in
+    assert (len' == Seq.length (s1 (fst x)));
+    assert (len' <= Seq.length (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (Seq.slice (s1 (fst x)) 0 len' == s1 (fst x));
+    seq_slice_append_l (s1 (fst x)) (s2 (snd x));
+    assert (no_lookahead_on_precond p1 (s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (no_lookahead_on_postcond p1 (s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (Some? v1');
+    assert (injective_precond p1 (s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (injective_postcond p1 (s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    let (Some (x1, len1)) = v1 in
+    let (Some (x1', len1')) = v1' in
+    assert (x1 == x1');
+    assert ((len1 <: nat) == (len1' <: nat));
+    assert (x1 == fst x);
+    assert (len1 == Seq.length (s1 (fst x)));
+    assert (bare_serialize_nondep_then p1 s1 p2 s2 x == Seq.append (s1 (fst x)) (s2 (snd x)));
+    let s = bare_serialize_nondep_then p1 s1 p2 s2 x in
+    seq_slice_append_r (s1 (fst x)) (s2 (snd x));
+    ()
+  in
+  Classical.forall_intro prf
+
+let serialize_nondep_then
+  (#k1: strong_parser_kind)
+  (#t1: Type0)
+  (p1: parser (ParserStrong k1) t1)
+  (s1: serializer p1)
+  (#k2: parser_kind)
+  (#t2: Type0)
+  (p2: parser k2 t2)
+  (s2: serializer p2)
+: Tot (serializer (nondep_then p1 p2))
+= bare_serialize_nondep_then_correct p1 s1 p2 s2;
+  bare_serialize_nondep_then p1 s1 p2 s2
+
 
 (** Apply a total transformation on parsed data *)
 

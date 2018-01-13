@@ -119,7 +119,7 @@ val list_length_advance
     list_length_inv p sv b h0 sl h' (U32.v j + 1) interrupt
   ))
 
-#set-options "--z3rlimit 512"
+#set-options "--z3rlimit 1024"
 
 let list_length_advance #k #t p sv b h0 sl j =
   let s = B.index sl 0ul in
