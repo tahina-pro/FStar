@@ -12,6 +12,9 @@ inline_for_extraction
 let parse_u8: parser _ U8.t =
   make_total_constant_size_parser 1 U8.t (fun b -> Seq.index b 0)
 
+let serialize_u8 : serializer parse_u8 =
+  Seq.create 1
+
 let decode_u16
   (b: bytes { Seq.length b == 2 } )
 : Tot U16.t
@@ -54,6 +57,9 @@ let parse_u16: parser _ U16.t =
   Classical.forall_intro_2 decode_u16_injective;
   make_total_constant_size_parser 2 U16.t decode_u16
 
+let serialize_u16 : serializer parse_u16 =
+  (fun (x: U16.t) -> E.n_to_be 2ul (U16.v x))
+
 let decode_u32
   (b: bytes { Seq.length b == 4 } )
 : Tot U32.t
@@ -79,3 +85,6 @@ inline_for_extraction
 let parse_u32: parser _ U32.t =
   Classical.forall_intro_2 decode_u32_injective;
   make_total_constant_size_parser 4 U32.t decode_u32
+
+let serialize_u32 : serializer parse_u32 =
+  (fun (x: U32.t) -> E.n_to_be 4ul (U32.v x))
