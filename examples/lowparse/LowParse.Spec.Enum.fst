@@ -98,7 +98,7 @@ let rec assoc_flip_intro
   map_flip_flip l;
   assoc_flip_elim (L.map flip l) x y
 
-let rec enum_key_of_repr
+let enum_key_of_repr
   (#key #repr: eqtype)
   (e: enum key repr)
   (r: enum_repr e)
@@ -113,7 +113,7 @@ let rec enum_key_of_repr
   L.assoc_mem k e;
   (k <: enum_key e)
 
-let rec parse_enum_key
+let parse_enum_key
   (#k: parser_kind)
   (#key #repr: eqtype)
   (p: parser k repr)
@@ -126,7 +126,7 @@ let rec parse_enum_key
   `parse_synth`
   (fun (x: repr {L.mem x (L.map snd e) == true})  -> enum_key_of_repr e x)
 
-let rec enum_repr_of_key
+let enum_repr_of_key
   (#key #repr: eqtype)
   (e: enum key repr)
   (k: enum_key e)
@@ -156,6 +156,39 @@ let enum_key_of_repr_of_key
   (enum_key_of_repr e (enum_repr_of_key e k) == k)
 = assoc_flip_intro e (enum_repr_of_key e k) k
 
+let bare_serialize_enum_key
+  (#k: parser_kind)
+  (#key #repr: eqtype)
+  (p: parser k repr)
+  (s: serializer p)
+  (e: enum key repr)
+: Tot (bare_serializer (enum_key e))
+= fun (k: enum_key e) -> s (enum_repr_of_key e k)
+
+#set-options "--z3rlimit 16"
+
+let bare_serialize_enum_key_correct
+  (#k: parser_kind)
+  (#key #repr: eqtype)
+  (p: parser k repr)
+  (s: serializer p)
+  (e: enum key repr)
+: Lemma
+  (serializer_correct (parse_enum_key p e) (bare_serialize_enum_key p s e))
+= Classical.forall_intro (enum_key_of_repr_of_key e)
+
+#reset-options
+
+let serialize_enum_key
+  (#k: parser_kind)
+  (#key #repr: eqtype)
+  (p: parser k repr)
+  (s: serializer p)
+  (e: enum key repr)
+: Tot (serializer (parse_enum_key p e))
+= bare_serialize_enum_key_correct p s e;
+  bare_serialize_enum_key p s e
+
 let unknown_enum_repr (#key #repr: eqtype) (e: enum key repr) : Tot Type0 =
   (r: repr { L.mem r (L.map snd e) == false } )
 
@@ -179,6 +212,26 @@ let parse_maybe_enum_key
   (e: enum key repr)
 : Tot (parser k (maybe_enum_key e))
 = p `parse_synth` (maybe_enum_key_of_repr e)
+
+let repr_of_maybe_enum_key
+  (#key #repr: eqtype)
+  (e: enum key repr)
+  (x: maybe_enum_key e)
+: Tot (r: repr { maybe_enum_key_of_repr e r == x } )
+= match x with
+  | Known k' ->
+    enum_key_of_repr_of_key e k' ;
+    enum_repr_of_key e k'
+  | Unknown r -> r
+
+let serialize_maybe_enum_key
+  (#k: parser_kind)
+  (#key #repr: eqtype)
+  (p: parser k repr)
+  (s: serializer p)
+  (e: enum key repr)
+: Tot (serializer (parse_maybe_enum_key p e))
+= serialize_synth p (maybe_enum_key_of_repr e) s (repr_of_maybe_enum_key e) ()
 
 let is_total_enum (#key: eqtype) (#repr: eqtype) (l: list (key * repr)) : GTot Type0 =
   forall (k: key) . L.mem k (L.map fst l)
@@ -204,6 +257,24 @@ let parse_total_enum_key
 : Tot (parser (parse_filter_kind k) key)
 = parse_enum_key p l `parse_synth` (synth_total_enum_key l)
 
+let synth_total_enum_key_recip
+  (#key: eqtype)
+  (#repr: eqtype)
+  (l: total_enum key repr)
+  (k: key)
+: Tot (k' : enum_key l { synth_total_enum_key l k' == k } )
+= k
+
+let serialize_total_enum_key
+  (#k: parser_kind)
+  (#key: eqtype)
+  (#repr: eqtype)
+  (p: parser k repr)
+  (s: serializer p)
+  (l: total_enum key repr)
+: Tot (serializer (parse_total_enum_key p l))
+= serialize_synth (parse_enum_key p l) (synth_total_enum_key l) (serialize_enum_key p s l) (synth_total_enum_key_recip l) ()
+
 type maybe_total_enum_key (#key #repr: eqtype) (e: total_enum key repr) =
 | TotalKnown of key
 | TotalUnknown of (unknown_enum_repr e)
@@ -224,6 +295,26 @@ let parse_maybe_total_enum_key
   (e: total_enum key repr)
 : Tot (parser k (maybe_total_enum_key e))
 = p `parse_synth` (maybe_total_enum_key_of_repr e)
+
+let repr_of_maybe_total_enum_key
+  (#key #repr: eqtype)
+  (e: total_enum key repr)
+  (k: maybe_total_enum_key e)
+: Tot (r: repr { maybe_total_enum_key_of_repr e r == k } )
+= match k with
+  | TotalKnown k' ->
+    enum_key_of_repr_of_key e k' ;
+    enum_repr_of_key e k'
+  | TotalUnknown r -> r
+
+let serialize_maybe_total_enum_key
+  (#k: parser_kind)
+  (#key #repr: eqtype)
+  (p: parser k repr)
+  (s: serializer p)
+  (e: total_enum key repr)
+: Tot (serializer (parse_maybe_total_enum_key p e))
+= serialize_synth p (maybe_total_enum_key_of_repr e) s (repr_of_maybe_total_enum_key e) ()
 
 let weaken_maybe_enum_key
   (#key #repr: eqtype)
