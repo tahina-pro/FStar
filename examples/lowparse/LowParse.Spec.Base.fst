@@ -456,3 +456,75 @@ let serializer
   (p: parser k t)
 : Tot Type0
 = (f: bare_serializer t { serializer_correct p f } )
+
+let serializer_unique
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (s1 s2: serializer p)
+  (x: t)
+: Lemma
+  (s1 x == s2 x)
+= serializer_correct_implies_complete p s2
+
+let serializer_injective
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (s: serializer p)
+  (x1 x2: t)
+: Lemma
+  (requires (s x1 == s x2))
+  (ensures (x1 == x2))
+= ()
+
+let serializer_parser_unique'
+  (#k1: parser_kind)
+  (#t: Type0)
+  (p1: parser k1 t)
+  (#k2: strong_parser_kind)
+  (p2: parser (ParserStrong k2) t)
+  (s: bare_serializer t)
+  (x: bytes)
+: Lemma
+  (requires (
+    serializer_correct p1 s /\
+    serializer_correct p2 s /\
+    Some? (p1 x)
+  ))
+  (ensures (
+    p1 x == p2 x
+  ))
+= serializer_correct_implies_complete p1 s;
+  let (Some (y, len)) = p1 x in
+  let x' = Seq.slice x 0 len in
+  assert (s y == x');
+  let len' = Seq.length x' in
+  assert (len == len');
+  assert (p1 x' == Some (y, len'));
+  assert (p2 x' == Some (y, len'));
+  assert (no_lookahead_on p2 x' x);
+  assert (no_lookahead_on_postcond p2 x' x);
+  assert (injective_postcond p2 x' x)
+
+let serializer_parser_unique
+  (#k1: strong_parser_kind)
+  (#t: Type0)
+  (p1: parser (ParserStrong k1) t)
+  (#k2: strong_parser_kind)
+  (p2: parser (ParserStrong k2) t)
+  (s: bare_serializer t)
+  (x: bytes)
+: Lemma
+  (requires (
+    serializer_correct p1 s /\
+    serializer_correct p2 s
+  ))
+  (ensures (
+    p1 x == p2 x
+  ))
+= if Some? (p1 x)
+  then serializer_parser_unique' p1 p2 s x
+  else if Some? (p2 x)
+  then serializer_parser_unique' p2 p1 s x
+  else ()
