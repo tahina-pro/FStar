@@ -143,12 +143,11 @@ let parse_sum
 = parse_tagged_union
     #(parse_filter_kind kt)
     #(sum_key t)
-    #(sum_cases t)
+    #(fun (c: sum_key t) -> sum_cases t c) // eta-expansion required here because of the eta-expansion in parse_tagged_union, which could not unify with serialize_sum if not eta-expanded here
     (parse_enum_key p (sum_enum t))
     #k
     pc
 
-(* WIP: WHY WHY WHY does the following not typecheck?
 let serialize_sum
   (#kt: strong_parser_kind)
   (t: sum)
@@ -159,8 +158,7 @@ let serialize_sum
   (sc: ((x: sum_key t) -> Tot (serializer (pc x))))
 : Tot (serializer (parse_sum #(ParserStrong kt) t p pc))
 = let (ParserStrong k') = parse_filter_kind (ParserStrong kt) in
-  assert (parse_sum #(ParserStrong kt) t p pc == parse_tagged_union #(ParserStrong k') #(sum_key t) #(sum_cases t) (parse_enum_key p (sum_enum t)) #k pc);
-  (serialize_tagged_union
+  serialize_tagged_union
     #k'
     #(sum_key t)
     #(sum_cases t)
@@ -169,8 +167,6 @@ let serialize_sum
     #k
     pc
     sc
-  )
-*)
 
 inline_for_extraction
 let make_sum
@@ -207,6 +203,19 @@ let parse_dsum_cases
   | Known x -> pc x
   | Unknown _ -> pd
 
+let serialize_dsum_cases
+  (s: dsum)
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst s)) -> Tot (parser k (sum_cases (fst s) x))))
+  (sc: ((x: sum_key (fst s)) -> Tot (serializer (pc x))))
+  (pd: parser k (snd s))
+  (sd: serializer pd)
+  (x: dsum_key s)
+: Tot (serializer (parse_dsum_cases s pc pd x))
+= match x with
+  | Known x -> sc x
+  | Unknown _ -> sd
+
 inline_for_extraction
 let parse_dsum
   (#kt: parser_kind)
@@ -219,7 +228,28 @@ let parse_dsum
 = parse_tagged_union
     #kt
     #(dsum_key t)
-    #(dsum_cases t)
+    #(fun (c: dsum_key t) -> dsum_cases t c) // same as above
     (parse_maybe_enum_key p (sum_enum (fst t)))
     #k
     (parse_dsum_cases t pc pd)
+
+let serialize_dsum
+  (#kt: strong_parser_kind)
+  (t: dsum)
+  (p: parser (ParserStrong kt) (sum_repr_type (fst t)))
+  (s: serializer p)
+  (#k: parser_kind)
+  (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
+  (sc: ((x: sum_key (fst t)) -> Tot (serializer (pc x))))
+  (pd: parser k (snd t))
+  (sd: serializer pd)
+: Tot (serializer (parse_dsum #(ParserStrong kt) t p pc pd))
+= serialize_tagged_union
+    #kt
+    #(dsum_key t)
+    #(dsum_cases t)
+    (parse_maybe_enum_key p (sum_enum (fst t)))
+    (serialize_maybe_enum_key p s (sum_enum (fst t)))
+    #k
+    (parse_dsum_cases t pc pd)
+    (serialize_dsum_cases t pc sc pd sd)
