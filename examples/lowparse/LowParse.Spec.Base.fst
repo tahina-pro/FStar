@@ -457,6 +457,15 @@ let serializer
 : Tot Type0
 = (f: bare_serializer t { serializer_correct p f } )
 
+let serialize
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (x: t)
+: Tot bytes
+= s x
+
 let serializer_unique
   (#k: parser_kind)
   (#t: Type0)

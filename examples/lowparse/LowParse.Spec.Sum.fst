@@ -1,6 +1,8 @@
 module LowParse.Spec.Sum
 include LowParse.Spec.Enum
 
+module Seq = FStar.Seq
+
 inline_for_extraction
 val parse_tagged_union
   (#kt: parser_kind)
@@ -17,6 +19,76 @@ let parse_tagged_union #kt #tag #tu pt #k p =
     let synth : tu v -> Tot (t: tag & tu t) = fun (v': tu v) -> (| v, v' |) in
     parse_synth #k #(tu v) #(t: tag & tu t) pv synth
   )
+
+let bare_serialize_tagged_union
+  (#kt: parser_kind)
+  (#tag: Type0)
+  (#tu: tag -> Type0)
+  (pt: parser kt tag)
+  (st: serializer pt)
+  (#k: parser_kind)
+  (p: (t: tag) -> Tot (parser k (tu t))) // Tot really needed here by validator
+  (s: (t: tag) -> Tot (serializer (p t)))
+: Tot (bare_serializer (t: tag & tu t))
+= fun (x: (t: tag & tu t)) ->
+  let (| t, u |) = x in
+  Seq.append (st t) (serialize (s t) u)
+
+let bare_serialize_tagged_union_correct
+  (#kt: strong_parser_kind)
+  (#tag: Type0)
+  (#tu: tag -> Type0)
+  (pt: parser (ParserStrong kt) tag)
+  (st: serializer pt)
+  (#k: parser_kind)
+  (p: (t: tag) -> Tot (parser k (tu t))) // Tot really needed here by validator
+  (s: (t: tag) -> Tot (serializer (p t)))
+: Lemma
+  (serializer_correct (parse_tagged_union pt p) (bare_serialize_tagged_union pt st p s))
+= (* same proof as nondep_then *)
+  let prf
+    (x: (t: tag & tu t))
+  : Lemma (parse (parse_tagged_union pt p) (bare_serialize_tagged_union pt st p s x) == Some (x, Seq.length (bare_serialize_tagged_union pt st p s x)))
+  = let (| t, u |) = x in
+    let v1' = parse pt (bare_serialize_tagged_union pt st p s x) in
+    let v1 = parse pt (st t) in
+    assert (Some? v1);
+    assert (no_lookahead_on pt (st t) (bare_serialize_tagged_union pt st p s x));
+    let (Some (_, len')) = parse pt (st t) in
+    assert (len' == Seq.length (st t));
+    assert (len' <= Seq.length (bare_serialize_tagged_union pt st p s x));
+    assert (Seq.slice (st t) 0 len' == st t);
+    seq_slice_append_l (st t) (serialize (s t) u);
+    assert (no_lookahead_on_precond pt (st t) (bare_serialize_tagged_union pt st p s x));
+    assert (no_lookahead_on_postcond pt (st t) (bare_serialize_tagged_union pt st p s x));
+    assert (Some? v1');
+    assert (injective_precond pt (st t) (bare_serialize_tagged_union pt st p s x));
+    assert (injective_postcond pt (st t) (bare_serialize_tagged_union pt st p s x));
+    let (Some (x1, len1)) = v1 in
+    let (Some (x1', len1')) = v1' in
+    assert (x1 == x1');
+    assert ((len1 <: nat) == (len1' <: nat));
+    assert (x1 == t);
+    assert (len1 == Seq.length (st t));
+    assert (bare_serialize_tagged_union pt st p s x == Seq.append (st t) (serialize (s t) u));
+    seq_slice_append_r (st t) (serialize (s t) u);
+    ()
+  in
+  Classical.forall_intro prf
+
+let serialize_tagged_union
+  (#kt: strong_parser_kind)
+  (#tag: Type0)
+  (#tu: tag -> Type0)
+  (pt: parser (ParserStrong kt) tag)
+  (st: serializer pt)
+  (#k: parser_kind)
+  (p: (t: tag) -> Tot (parser k (tu t))) // Tot really needed here by validator
+  (s: (t: tag) -> Tot (serializer (p t)))
+: Tot (serializer (parse_tagged_union pt p))
+= bare_serialize_tagged_union_correct pt st p s;
+  bare_serialize_tagged_union pt st p s
+
 
 inline_for_extraction
 let sum = (key: eqtype & (repr: eqtype & (e: enum key repr & ((x: enum_key e) -> Tot Type0))))
@@ -75,6 +147,30 @@ let parse_sum
     (parse_enum_key p (sum_enum t))
     #k
     pc
+
+(* WIP: WHY WHY WHY does the following not typecheck?
+let serialize_sum
+  (#kt: strong_parser_kind)
+  (t: sum)
+  (p: parser (ParserStrong kt) (sum_repr_type t))
+  (s: serializer p)
+  (#k: parser_kind)
+  (pc: ((x: sum_key t) -> Tot (parser k (sum_cases t x))))
+  (sc: ((x: sum_key t) -> Tot (serializer (pc x))))
+: Tot (serializer (parse_sum #(ParserStrong kt) t p pc))
+= let (ParserStrong k') = parse_filter_kind (ParserStrong kt) in
+  assert (parse_sum #(ParserStrong kt) t p pc == parse_tagged_union #(ParserStrong k') #(sum_key t) #(sum_cases t) (parse_enum_key p (sum_enum t)) #k pc);
+  (serialize_tagged_union
+    #k'
+    #(sum_key t)
+    #(sum_cases t)
+    (parse_enum_key p (sum_enum t))
+    (serialize_enum_key p s (sum_enum t))
+    #k
+    pc
+    sc
+  )
+*)
 
 inline_for_extraction
 let make_sum
