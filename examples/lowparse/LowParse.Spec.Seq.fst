@@ -96,8 +96,10 @@ let parse_seq_correct
 val seq_length_constant_size_parser_correct
   (#n: nat)
   (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize n k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize n k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
   (b: bytes)
 : Lemma
   (requires (
@@ -110,6 +112,6 @@ val seq_length_constant_size_parser_correct
     FStar.Mul.op_Star (Seq.length l) n == Seq.length b
   )))
 
-let seq_length_constant_size_parser_correct #n #k #t p b =
+let seq_length_constant_size_parser_correct #n #k #b #u #t p b =
   parse_seq_correct p b;
   PL.list_length_constant_size_parser_correct p b

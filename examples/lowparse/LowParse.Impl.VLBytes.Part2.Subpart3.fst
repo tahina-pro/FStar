@@ -19,7 +19,7 @@ let be_to_n_1 (b: bytes) : Lemma
 
 #reset-options
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 2048 --max_fuel 8 --max_ifuel 8"
 
 let parse_bounded_integer'_3_correct_some
   (b: bytes)

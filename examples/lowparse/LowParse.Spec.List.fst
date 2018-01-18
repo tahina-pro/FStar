@@ -127,6 +127,115 @@ let parse_list #k #t p =
   parse_list_bare_consumes_all p;
   parse_list_bare p
 
+let rec bare_serialize_list
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (s: serializer p)
+  (x: list t)
+: Tot bytes
+= match x with
+  | [] -> Seq.createEmpty
+  | a :: q -> Seq.append (s a) (bare_serialize_list p s q)
+
+let bare_serialize_list_correct
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+: Lemma
+  (ensures (serializer_correct (parse_list p) (bare_serialize_list p s)))
+= let f () : Lemma
+    (consumes_at_least_one_byte p)
+  = ()
+  in
+  let rec prf
+    (l: list t)
+  : Lemma
+    (parse (parse_list p) (bare_serialize_list p s l) == Some (l, Seq.length (bare_serialize_list p s l)))
+  = match l with
+    | [] -> ()
+    | a :: q ->
+      let pa = parse p (bare_serialize_list p s l) in
+      assert (no_lookahead_on p (s a) (bare_serialize_list p s l));
+      seq_slice_append_l (s a) (bare_serialize_list p s q);
+      assert (no_lookahead_on_precond p (s a) (bare_serialize_list p s l));
+      assert (no_lookahead_on_postcond p (s a) (bare_serialize_list p s l));
+      assert (Some? pa);
+      assert (injective_precond p (s a) (bare_serialize_list p s l));
+      assert (injective_postcond p (s a) (bare_serialize_list p s l));
+      let (Some (a', lena)) = pa in
+      assert (a == a');
+      assert (lena == Seq.length (s a));
+      f ();
+      assert (lena > 0);
+      prf q;
+      seq_slice_append_r (s a) (bare_serialize_list p s q)
+  in
+  Classical.forall_intro prf
+
+let serialize_list
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+: Pure (serializer (parse_list p))
+  (requires (consumes_at_least_one_byte p))
+  (ensures (fun _ -> True))
+= bare_serialize_list_correct p s;
+  bare_serialize_list p s
+
+let serialize_list_nil
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+: Lemma
+  (serialize (serialize_list p s) [] == Seq.createEmpty)
+= ()
+
+let serialize_list_cons
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+  (a: t)
+  (q: list t)
+: Lemma
+  (serialize (serialize_list p s) (a :: q) == Seq.append (serialize s a) (serialize (serialize_list p s) q))
+= ()
+
+let serialize_list_singleton
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+  (a: t)
+: Lemma
+  (serialize (serialize_list p s) [a] == serialize s a)
+= Seq.append_empty_r (serialize s a)
+
+let rec serialize_list_append
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+  (l1 l2: list t)
+: Lemma
+  (serialize (serialize_list p s) (L.append l1 l2) == Seq.append (serialize (serialize_list p s) l1) (serialize (serialize_list p s) l2))
+= match l1 with
+  | a :: q ->
+    serialize_list_append p s q l2;
+    Seq.append_assoc (serialize s a) (serialize (serialize_list p s) q) (serialize (serialize_list p s) l2)
+  | [] ->
+    Seq.append_empty_l (serialize (serialize_list p s) l2)
+
 let rec parse_list_tailrec
   (#k: parser_kind)
   (#t: Type0)
@@ -212,8 +321,10 @@ let rec parse_list_tailrec_correct
 val list_length_constant_size_parser_correct
   (#n: nat)
   (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize n k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize n k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
   (b: bytes)
 : Lemma
   (requires (
@@ -227,7 +338,7 @@ val list_length_constant_size_parser_correct
   )))
   (decreases (Seq.length b))
 
-let rec list_length_constant_size_parser_correct #n #k #t p b =
+let rec list_length_constant_size_parser_correct #n #k #b #u #t p b =
   if Seq.length b = 0
   then ()
   else begin

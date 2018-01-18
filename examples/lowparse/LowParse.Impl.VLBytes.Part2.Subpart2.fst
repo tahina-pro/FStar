@@ -1,7 +1,7 @@
 module LowParse.Impl.VLBytes.Part2.Subpart2
 include LowParse.Impl.VLBytes.Part1
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 1024 --max_fuel 8 --max_ifuel 8"
 
 module U32 = FStar.UInt32
 module E = FStar.Kremlin.Endianness

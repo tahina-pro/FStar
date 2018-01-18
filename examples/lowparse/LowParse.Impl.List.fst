@@ -186,8 +186,10 @@ let list_length #k #t #p sv b =
 val list_length_constant_size_parser_correct'
   (#n: U32.t)
   (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (U32.v n) k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize (U32.v n) k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v n) k) b u)) t)
   (b: S.bslice)
   (h: HS.mem)
 : Lemma
@@ -203,7 +205,7 @@ val list_length_constant_size_parser_correct'
   )))
   (decreases (U32.v (S.length b)))
 
-let list_length_constant_size_parser_correct' #n #k #t p b h =
+let list_length_constant_size_parser_correct' #n #k #b #u #t p b h =
   let s = S.as_seq h b in
   list_length_constant_size_parser_correct p s;
   let (Some (l, _)) = parse (parse_list p) s in
@@ -213,8 +215,10 @@ inline_for_extraction
 val list_length_constant_size_parser
   (#n: U32.t)
   (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (U32.v n) k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize (U32.v n) k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v n) k) b u)) t)
   (b: S.bslice)
 : HST.Stack U32.t
   (requires (fun h ->
@@ -227,7 +231,7 @@ val list_length_constant_size_parser
     L.length l == U32.v i
   )))
 
-let list_length_constant_size_parser #n #b #t p b =
+let list_length_constant_size_parser #n #k #b #u #t p b =
   let h = HST.get () in
   list_length_constant_size_parser_correct' p b h;
   let len = S.length b in
@@ -494,8 +498,10 @@ let list_nth #k #t p sv b i =
 let list_nth_constant_size_parser_postcond
   (#n: nat)
   (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (n) k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize n k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
   (b: S.bslice)
   (i: U32.t)
   (h: HS.mem)
@@ -527,8 +533,10 @@ let bounded_mult (a b c: U32.t)
 val list_nth_constant_size_parser_correct
   (#n: nat)
   (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (n) k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize n k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
   (b: S.bslice)
   (i: U32.t)
   (h: HS.mem)
@@ -546,7 +554,7 @@ val list_nth_constant_size_parser_correct
 
 //  --smtencoding.nl_arith_repr native --smtencoding.l_arith_repr native
 
-let rec list_nth_constant_size_parser_correct #n #k #t p b i h =
+let rec list_nth_constant_size_parser_correct #n #k #b #u #t p b i h =
   if i = 0ul
   then begin
     S.advanced_slice_zero b;
@@ -579,8 +587,10 @@ inline_for_extraction
 val list_nth_constant_size_parser
   (#n: U32.t)
   (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (U32.v n) k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize (U32.v n) k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v n) k) b u)) t)
   (b: S.bslice)
   (i: U32.t)
 : HST.Stack S.bslice
@@ -599,7 +609,7 @@ val list_nth_constant_size_parser
 
 #set-options "--z3rlimit 128"
 
-let list_nth_constant_size_parser #n #k #t p b i =
+let list_nth_constant_size_parser #n #k #b #u #t p b i =
   let h = HST.get () in
   list_nth_constant_size_parser_correct p b i h;
   let b1 = S.advance_slice b (U32.mul i n) in

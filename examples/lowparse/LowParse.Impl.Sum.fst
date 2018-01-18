@@ -15,6 +15,8 @@ let lift_cases
   | Known k' -> cases k'
   | _ -> False
 
+#set-options "--max_fuel 8 --max_ifuel 8"
+
 let lift_parser_cases
   (#pk: parser_kind)
   (#key #repr: eqtype)
@@ -26,6 +28,8 @@ let lift_parser_cases
 = match k with
   | Known k' -> weaken (parse_filter_kind pk) (pc k')
   | _ -> fail_parser (parse_filter_kind pk) (lift_cases e cases k)
+
+#reset-options
 
 let parse_sum_synth
   (t: sum)

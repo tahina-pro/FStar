@@ -109,14 +109,14 @@ let parse_bounded_integer_3
 
 val parse_bounded_integer'
   (i: integer_size)
-: parser (ParserStrong (StrongConstantSize i ConstantSizeTotal)) (bounded_integer i)
+: parser (ParserStrong (StrongParserKind (StrongConstantSize i ConstantSizeTotal) true ())) (bounded_integer i)
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let parse_bounded_integer' i = match i with
-  | 1 -> (parse_bounded_integer_1 <: parser (ParserStrong (StrongConstantSize i ConstantSizeTotal)) (bounded_integer i))
-  | 2 -> (parse_bounded_integer_2 <: parser (ParserStrong (StrongConstantSize i ConstantSizeTotal)) (bounded_integer i))
-  | 3 -> (parse_bounded_integer_3 <: parser (ParserStrong (StrongConstantSize i ConstantSizeTotal)) (bounded_integer i))
-  | 4 -> (parse_u32 <: parser (ParserStrong (StrongConstantSize i ConstantSizeTotal)) (bounded_integer i))
+  | 1 -> (parse_bounded_integer_1 <: parser (ParserStrong (StrongParserKind (StrongConstantSize i ConstantSizeTotal) true ())) (bounded_integer i))
+  | 2 -> (parse_bounded_integer_2 <: parser (ParserStrong (StrongParserKind (StrongConstantSize i ConstantSizeTotal) true ())) (bounded_integer i))
+  | 3 -> (parse_bounded_integer_3 <: parser (ParserStrong (StrongParserKind (StrongConstantSize i ConstantSizeTotal) true ())) (bounded_integer i))
+  | 4 -> (parse_u32 <: parser (ParserStrong (StrongParserKind (StrongConstantSize i ConstantSizeTotal) true ())) (bounded_integer i))
 
 #reset-options

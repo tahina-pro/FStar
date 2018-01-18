@@ -217,6 +217,68 @@ let no_lookahead_ext
   ))
 = Classical.forall_intro_2 (fun b1 -> Classical.move_requires (no_lookahead_on_ext p1 p2 b1))
 
+(** A parser that always consumes at least one byte.
+
+A list can be serialized only if the parser for elements always
+consumes at least one byte. Anyway, since we require such a parser to
+have the prefix property, this is always true except for the parser
+for empty data.
+
+*)
+
+let consumes_at_least_one_byte
+  (#t: Type0)
+  (p: bare_parser t)
+: GTot Type0
+= forall (x: bytes) .
+  let px = parse p x in
+  Some? px ==> (
+    let (Some (_, len)) = px in
+    len > 0
+  )
+
+let nonempty_strong_parser_consumes_at_least_one_byte
+  (#t: Type0)
+  (p: bare_parser t)
+  (x: bytes)
+: Lemma
+  (requires (
+    no_lookahead_weak p /\
+    no_lookahead p /\
+    injective p /\ (
+    let px = parse p x in
+    Some? px /\ (
+    let (Some (_, len)) = px in
+    len > 0
+  ))))
+  (ensures (
+    consumes_at_least_one_byte p
+  ))
+= let prf
+    (x' : bytes)
+  : Lemma
+    (requires (Some? (parse p x')))
+    (ensures (
+      let px' = parse p x' in
+      Some? px' /\ (
+      let (Some (_, len')) = px' in
+      len' > 0
+    )))
+  = let (Some (_, len')) = parse p x' in
+    if len' > 0
+    then ()
+    else begin
+      assert (no_lookahead_weak_on p x' Seq.createEmpty);
+      assert (no_lookahead_on p Seq.createEmpty x);
+      assert (no_lookahead_on_precond p Seq.createEmpty x);
+      assert (no_lookahead_on_postcond p Seq.createEmpty x);
+      assert (injective_precond p Seq.createEmpty x);
+      assert (injective_postcond p Seq.createEmpty x)
+    end
+  in
+  Classical.forall_intro (Classical.move_requires prf)
+
+
 (** A parser that always consumes all its input *)
 
 let consumes_all
@@ -241,6 +303,15 @@ let is_constant_size_parser
     sz == (consumed <: nat)
   )
 
+let is_constant_size_parser_consumes_at_least_one_byte
+  (sz: nat)
+  (#t: Type0)
+  (f: bare_parser t)
+: Lemma
+  (requires (is_constant_size_parser sz f /\ sz > 0))
+  (ensures (consumes_at_least_one_byte f))
+= ()
+
 let is_total_constant_size_parser
   (sz: nat)
   (#t: Type0)
@@ -260,16 +331,33 @@ let constant_size_parser_kind_prop (k: constant_size_parser_kind) (sz: nat) (#t:
   | ConstantSizeTotal -> is_total_constant_size_parser sz f
   | _ -> True
 
-type strong_parser_kind =
-  | StrongConstantSize: (sz: nat) -> (k: constant_size_parser_kind) -> strong_parser_kind
+type strong_parser_kind' =
+  | StrongConstantSize: (sz: nat) -> (k: constant_size_parser_kind) -> strong_parser_kind'
   | StrongUnknown
 
-let strong_parser_kind_prop (k: strong_parser_kind) (#t: Type0) (f: bare_parser t) : GTot Type0 =
+let strong_parser_kind'_prop (k: strong_parser_kind') (#t: Type0) (f: bare_parser t) : GTot Type0 =
   match k with
   | StrongConstantSize sz k' ->
     is_constant_size_parser sz f /\
     constant_size_parser_kind_prop k' sz f
   | _ -> True
+
+let strong_parser_kind_consumes_at_least_one_byte (k: strong_parser_kind') (b: bool) : GTot Type0 =
+  match k with
+  | StrongConstantSize sz _ -> b == (sz > 0)
+  | _ -> True
+
+type strong_parser_kind =
+  | StrongParserKind:
+    (k: strong_parser_kind') ->
+    (k_consumes_at_least_one_byte: bool) ->
+    (u: unit { strong_parser_kind_consumes_at_least_one_byte k k_consumes_at_least_one_byte } ) ->
+    strong_parser_kind
+
+let strong_parser_kind_prop (k: strong_parser_kind) (#t: Type0) (f: bare_parser t) : GTot Type0 =
+  let (StrongParserKind k k_consumes_at_least_one_byte _) = k in
+  strong_parser_kind'_prop k f /\
+  (k_consumes_at_least_one_byte == true ==> consumes_at_least_one_byte f)
 
 type parser_kind =
   | ParserStrong: (k' : strong_parser_kind) -> parser_kind
@@ -297,9 +385,10 @@ let is_weaker_than
 = match k1 with
   | ParserUnknown -> True
   | ParserConsumesAll -> k2 == ParserConsumesAll
-  | ParserStrong k1s ->
+  | ParserStrong (StrongParserKind k1s k1s_at_least _) ->
     begin match k2 with
-    | ParserStrong k2s ->
+    | ParserStrong (StrongParserKind k2s k2s_at_least _) ->
+      (k1s_at_least == true ==> k2s_at_least == true) /\
       begin match k1s with
       | StrongUnknown -> True
       | StrongConstantSize sz1 k1c ->
@@ -339,9 +428,9 @@ let glb
     (forall k' . (k' `is_weaker_than` k1 /\ k' `is_weaker_than` k2) ==> k' `is_weaker_than` k)
   ))
 = match k1 with
-  | ParserStrong k1s ->
+  | ParserStrong (StrongParserKind k1s k1s_at_least _) ->
     begin match k2 with
-    | ParserStrong k2s -> ParserStrong
+    | ParserStrong (StrongParserKind k2s k2s_at_least _) -> ParserStrong (StrongParserKind
       begin match k1s with
       | StrongConstantSize sz1 k1c ->
 	begin match k2s with
@@ -357,6 +446,9 @@ let glb
 	end
       | _ -> StrongUnknown
       end
+      (k1s_at_least && k2s_at_least)
+      ()
+    )
     | _ -> ParserUnknown
     end
   | ParserConsumesAll ->
@@ -366,9 +458,9 @@ let glb
     end
   | _ -> ParserUnknown
 
-module L = FStar.List.Tot
-
 #set-options "--max_fuel 8 --max_ifuel 8"
+
+module L = FStar.List.Tot
 
 let rec glb_list_of
   (#t: eqtype)

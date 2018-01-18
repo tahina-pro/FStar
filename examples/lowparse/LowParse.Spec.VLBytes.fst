@@ -69,8 +69,10 @@ let parse_vlbytes_payload
   (#t: Type0)
   (p: parser k t)
   (i: bounded_integer sz { f i == true } )
-: Tot (parser (ParserStrong StrongUnknown) t)
-= weaken (ParserStrong StrongUnknown) (parse_flbytes p (U32.v i))
+: Tot (parser (ParserStrong (StrongParserKind StrongUnknown false ())) t)
+= weaken (ParserStrong (StrongParserKind StrongUnknown false ())) (parse_flbytes p (U32.v i))
+
+#set-options "--z3rlimit 16"
 
 let parse_flbytes_and_then_cases_injective
   (sz: integer_size)
@@ -99,6 +101,8 @@ let parse_flbytes_and_then_cases_injective
   in
   Classical.forall_intro_3 g'
 
+#reset-options
+
 inline_for_extraction
 let parse_vlbytes_gen
   (sz: integer_size)
@@ -106,7 +110,7 @@ let parse_vlbytes_gen
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser (ParserStrong StrongUnknown) t)
+: Tot (parser (ParserStrong (StrongParserKind StrongUnknown true ())) t)
 = parse_flbytes_and_then_cases_injective sz f p;
   (parse_filter (parse_bounded_integer sz) f)
   `and_then`

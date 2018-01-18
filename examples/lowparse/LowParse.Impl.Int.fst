@@ -40,6 +40,8 @@ inline_for_extraction
 val validate_u32_st_nochk: stateful_validator_nochk parse_u32
 let validate_u32_st_nochk = validate_constant_size_nochk 4ul parse_u32
 
+#set-options "--z3rlimit 32"
+
 [@"substitute"]
 inline_for_extraction
 let parse_u8_st_nochk :
@@ -48,13 +50,15 @@ let parse_u8_st_nochk :
       S.index input 0ul
     )
 
+#reset-options
+
 [@"substitute"]
 inline_for_extraction
 let parse_u8_st :
     parser_st parse_u8 =
     parse_total_constant_size 1ul parse_u8_st_nochk
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 64"
 
 [@"substitute"]
 inline_for_extraction
@@ -72,6 +76,8 @@ inline_for_extraction
 let parse_u16_st : parser_st parse_u16 =
   parse_total_constant_size 2ul parse_u16_st_nochk
 
+#set-options "--z3rlimit 64"
+
 [@"substitute"]
 inline_for_extraction
 let parse_u32_st_nochk :
@@ -81,6 +87,8 @@ let parse_u32_st_nochk :
     C.load32_be (S.as_buffer s)
   )
 
+#reset-options
+
 [@"substitute"]
 inline_for_extraction
 let parse_u32_st : parser_st (parse_u32) =
@@ -88,6 +96,8 @@ let parse_u32_st : parser_st (parse_u32) =
 
 module HST = FStar.HyperStack.ST
 module B = FStar.Buffer
+
+(** TODO: redo those proofs with help from the pure serializer *)
 
 inline_for_extraction
 val serialize_u8
@@ -120,6 +130,27 @@ let serialize_u8 i dest =
 
 module Cast = FStar.Int.Cast
 
+val serialize_u16_aux
+  (i: U16.t)
+  (s: bytes)
+: Ghost bytes
+  (requires (Seq.length s == 2))
+  (ensures (fun s' ->
+    Seq.length s' == 2 /\
+    Seq.equal s' (E.n_to_be 2ul (U16.v i))
+  ))
+
+#set-options "--z3rlimit 256 --max_fuel 8 --max_ifuel 8"
+
+let serialize_u16_aux i s =
+  let v256 = U16.uint_to_t 256 in
+  let j1 = Cast.uint16_to_uint8 (U16.rem i v256) in
+  let s1 = Seq.upd s 1 j1 in
+  let j0 = Cast.uint16_to_uint8 (U16.div i v256) in
+  Seq.upd s1 0 j0
+
+#reset-options
+
 inline_for_extraction
 val serialize_u16
   (i: U16.t)
@@ -141,6 +172,7 @@ val serialize_u16
 #set-options "--z3rlimit 64 --max_fuel 8 --max_ifuel 8"
 
 let serialize_u16 i dest =
+  let h = HST.get () in
   let destl = S.truncate_slice dest 2ul in
   let b = S.as_buffer destl in
   let v256 = U16.uint_to_t 256 in
@@ -148,6 +180,7 @@ let serialize_u16 i dest =
   B.upd b 0ul (Cast.uint16_to_uint8 (U16.div i v256));
   let destr = S.advance_slice dest 2ul in
   let h' = HST.get () in
+  assert (S.as_seq h' destl == serialize_u16_aux i (S.as_seq h destl));
   assert (Seq.equal (S.as_seq h' destl) (E.n_to_be 2ul (U16.v i)));
   Seq.lemma_eq_elim (S.as_seq h' destl) (E.n_to_be 2ul (U16.v i));
   assert (E.be_to_n (S.as_seq h' destl) == U16.v i);

@@ -48,7 +48,7 @@ val parse_flbytes
   (#t: Type0)
   (p: parser k t)
   (sz: nat)
-: Tot (parser (ParserStrong (StrongConstantSize sz ConstantSizeUnknown)) t)
+: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize sz ConstantSizeUnknown) (sz > 0) ())) t)
 
 let parse_flbytes #b #t p sz =
   parse_flbytes_injective p sz;

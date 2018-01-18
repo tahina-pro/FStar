@@ -21,7 +21,7 @@ let parse_bounded_integer_st_nochk_2
 : parser_st_nochk parse_bounded_integer_2
 = parse_synth_st_nochk parse_u16_st_nochk parse_bounded_integer_2_synth
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 2048 --max_fuel 8 --max_ifuel 8"
 
 inline_for_extraction
 let parse_bounded_integer_st_nochk_3

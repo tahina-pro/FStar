@@ -439,8 +439,10 @@ inline_for_extraction
 let validate_constant_size_nochk
   (#k: constant_size_parser_kind)
   (sz: U32.t)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (U32.v sz) k) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize (U32.v sz) k)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v sz) k) b u)) t)
 : Tot (stateful_validator_nochk p)
 = fun input -> 
     let h = HST.get () in
@@ -450,8 +452,10 @@ let validate_constant_size_nochk
 inline_for_extraction
 let validate_total_constant_size
   (sz: U32.t)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (U32.v sz) ConstantSizeTotal) b } )
   (#t: Type0)
-  (p: parser (ParserStrong (StrongConstantSize (U32.v sz) ConstantSizeTotal)) t)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v sz) ConstantSizeTotal) b u)) t)
 : Tot (stateful_validator p)
 = fun s ->
   if U32.lt (S.length s) sz
@@ -465,8 +469,10 @@ let validate_total_constant_size
 inline_for_extraction
 let parse_total_constant_size_nochk
   (sz: U32.t)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (U32.v sz) ConstantSizeTotal) b } )
   (#t: Type0)
-  (#p: parser (ParserStrong (StrongConstantSize (U32.v sz) ConstantSizeTotal)) t)
+  (#p: parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v sz) ConstantSizeTotal) b u)) t)
   (ps: (
     (input: S.bslice) ->
     HST.Stack t
@@ -492,8 +498,10 @@ let parse_total_constant_size_nochk
 inline_for_extraction
 let parse_total_constant_size
   (sz: U32.t)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (U32.v sz) ConstantSizeTotal) b } )
   (#t: Type0)
-  (#p: parser (ParserStrong (StrongConstantSize (U32.v sz) ConstantSizeTotal)) t)
+  (#p: parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v sz) ConstantSizeTotal) b u)) t)
   (ps: (parser_st_nochk p))
 : Tot (parser_st p)
 = fun s ->
