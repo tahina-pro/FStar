@@ -3,7 +3,7 @@ include ../Makefile.include
 
 include Makefile.include
 
-FST_FILES := $(FSTAR_SOURCE_FILES)
+FST_FILES := $(FSTAR_SPEC)
 
 OTHERFLAGS+=$(addprefix --include , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN)
 
