@@ -1,0 +1,352 @@
+module LowParse.Spec.List
+include LowParse.Spec.Combinators
+
+module Seq = FStar.Seq
+module L = FStar.List.Tot
+module U32 = FStar.UInt32
+module Classical = FStar.Classical
+
+(* Parse a list, until there is nothing left to read. This parser will mostly fail EXCEPT if the whole size is known and the slice has been suitably truncated beforehand, or if the elements of the list all have a known constant size. *)
+
+val parse_list_aux
+  (#t: Type0)
+  (p: bare_parser t)
+  (b: bytes)
+: Tot (option (list t * (consumed_length b)))
+  (decreases (Seq.length b))
+
+let rec parse_list_aux #t p b =
+  if Seq.length b = 0
+  then 
+    Some ([], (0 <: consumed_length b))
+  else
+    match p b with
+    | None -> None
+    | Some (v, n) ->
+      if n = 0
+      then None (* elements cannot be empty *)
+      else
+        match parse_list_aux p (Seq.slice b n (Seq.length b)) with
+	| Some (l, n') -> Some (v :: l, (n + n' <: consumed_length b))
+	| _ -> None
+
+val parse_list_bare
+  (#t: Type0)
+  (p: bare_parser t)
+: Tot (bare_parser (list t))
+
+let parse_list_bare #t p = (fun b -> parse_list_aux #t p b) <: bare_parser (list t)
+
+let rec parse_list_bare_consumed
+  (#t: Type0)
+  (p: bare_parser t)
+  (b: bytes)
+: Lemma
+  (requires (Some? (parse_list_bare p b)))
+  (ensures (
+    let pb = parse_list_bare p b in (
+    Some? pb /\ (
+    let (Some (_, consumed)) = pb in
+    consumed == Seq.length b
+  ))))
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then ()
+  else
+    let (Some (_, consumed1)) = p b in
+    let b' = Seq.slice b consumed1 (Seq.length b) in
+    parse_list_bare_consumed p b'
+
+let parse_list_bare_consumes_all
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Lemma
+  (consumes_all (parse_list_bare p))
+= Classical.forall_intro (Classical.move_requires (parse_list_bare_consumed p))
+
+let no_lookahead_weak_on_parse_list_bare
+  (#t: Type0)
+  (p: bare_parser t)
+  (x x' : bytes)
+: Lemma
+  (no_lookahead_weak_on (parse_list_bare p) x x')
+= match parse_list_bare p x with
+  | Some _ -> parse_list_bare_consumed p x
+  | _ -> ()
+
+let parse_list_bare_injective
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Lemma
+  (ensures (injective (parse_list_bare p)))
+= let f () : Lemma
+    (injective p)
+  = ()
+  in
+  let rec aux
+    (b1: bytes)
+    (b2: bytes)
+  : Lemma
+    (requires (injective_precond (parse_list_bare p) b1 b2))
+    (ensures (injective_postcond (parse_list_bare p) b1 b2))
+    (decreases (Seq.length b1 + Seq.length b2))
+  = if Seq.length b1 = 0
+    then begin
+      () // assert (Seq.equal b1 b2)
+    end else begin
+      assert (injective_precond p b1 b2);
+      f ();
+      assert (injective_postcond p b1 b2);
+      let (Some (_, len1)) = parse p b1 in
+      let (Some (_, len2)) = parse p b2 in
+      assert ((len1 <: nat) == (len2 <: nat));
+      let b1' : bytes = Seq.slice b1 len1 (Seq.length b1) in
+      let b2' : bytes = Seq.slice b2 len2 (Seq.length b2) in
+      aux b1' b2';
+      let (Some (_, len1')) = parse (parse_list_bare p) b1' in
+      let (Some (_, len2')) = parse (parse_list_bare p) b2' in
+      Seq.lemma_split (Seq.slice b1 0 (len1 + len1')) len1;
+      Seq.lemma_split (Seq.slice b2 0 (len2 + len2')) len2;
+      assert (injective_postcond (parse_list_bare p) b1 b2)
+    end
+  in
+  Classical.forall_intro_2 (fun b -> Classical.move_requires (aux b))
+
+inline_for_extraction
+val parse_list
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Tot (parser ParserConsumesAll (list t))
+
+let parse_list #k #t p =
+  Classical.forall_intro_2 (no_lookahead_weak_on_parse_list_bare p);
+  parse_list_bare_injective p;
+  parse_list_bare_consumes_all p;
+  parse_list_bare p
+
+let rec bare_serialize_list
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (s: serializer p)
+  (x: list t)
+: Tot bytes
+= match x with
+  | [] -> Seq.createEmpty
+  | a :: q -> Seq.append (s a) (bare_serialize_list p s q)
+
+let bare_serialize_list_correct
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+: Lemma
+  (ensures (serializer_correct (parse_list p) (bare_serialize_list p s)))
+= let f () : Lemma
+    (consumes_at_least_one_byte p)
+  = ()
+  in
+  let rec prf
+    (l: list t)
+  : Lemma
+    (parse (parse_list p) (bare_serialize_list p s l) == Some (l, Seq.length (bare_serialize_list p s l)))
+  = match l with
+    | [] -> ()
+    | a :: q ->
+      let pa = parse p (bare_serialize_list p s l) in
+      assert (no_lookahead_on p (s a) (bare_serialize_list p s l));
+      seq_slice_append_l (s a) (bare_serialize_list p s q);
+      assert (no_lookahead_on_precond p (s a) (bare_serialize_list p s l));
+      assert (no_lookahead_on_postcond p (s a) (bare_serialize_list p s l));
+      assert (Some? pa);
+      assert (injective_precond p (s a) (bare_serialize_list p s l));
+      assert (injective_postcond p (s a) (bare_serialize_list p s l));
+      let (Some (a', lena)) = pa in
+      assert (a == a');
+      assert (lena == Seq.length (s a));
+      f ();
+      assert (lena > 0);
+      prf q;
+      seq_slice_append_r (s a) (bare_serialize_list p s q)
+  in
+  Classical.forall_intro prf
+
+let serialize_list
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+: Pure (serializer (parse_list p))
+  (requires (consumes_at_least_one_byte p))
+  (ensures (fun _ -> True))
+= bare_serialize_list_correct p s;
+  bare_serialize_list p s
+
+let serialize_list_nil
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+: Lemma
+  (serialize (serialize_list p s) [] == Seq.createEmpty)
+= ()
+
+let serialize_list_cons
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+  (a: t)
+  (q: list t)
+: Lemma
+  (serialize (serialize_list p s) (a :: q) == Seq.append (serialize s a) (serialize (serialize_list p s) q))
+= ()
+
+let serialize_list_singleton
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+  (a: t)
+: Lemma
+  (serialize (serialize_list p s) [a] == serialize s a)
+= Seq.append_empty_r (serialize s a)
+
+let rec serialize_list_append
+  (#k: strong_parser_kind')
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (s: serializer p)
+  (l1 l2: list t)
+: Lemma
+  (serialize (serialize_list p s) (L.append l1 l2) == Seq.append (serialize (serialize_list p s) l1) (serialize (serialize_list p s) l2))
+= match l1 with
+  | a :: q ->
+    serialize_list_append p s q l2;
+    Seq.append_assoc (serialize s a) (serialize (serialize_list p s) q) (serialize (serialize_list p s) l2)
+  | [] ->
+    Seq.append_empty_l (serialize (serialize_list p s) l2)
+
+let rec parse_list_tailrec
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (b: bytes)
+: Tot ((aux: list t) -> Tot (option (list t)))
+  (decreases (Seq.length b))
+= fun aux ->
+  if Seq.length b = 0
+  then 
+    Some aux
+  else
+    match p b with
+    | None -> None
+    | Some (v, n) ->
+      if n = 0
+      then None (* elements cannot be empty *)
+      else
+	parse_list_tailrec p (Seq.slice b n (Seq.length b)) (L.append aux [v])
+
+let rec parse_list_tailrec_append
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (b: bytes)
+  (auxl: list t)
+  (auxr: list t)
+: Lemma
+  (requires True)
+  (ensures (
+    parse_list_tailrec p b (L.append auxl auxr) == (
+    match parse_list_tailrec p b auxr with
+    | None -> None
+    | Some l -> Some (L.append auxl l)
+  )))
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then ()
+  else
+    match p b with
+    | None -> ()
+    | Some (v, n) ->
+      if n = 0
+      then ()
+      else begin
+	parse_list_tailrec_append p (Seq.slice b n (Seq.length b)) auxl (L.append auxr [v]);
+	L.append_assoc auxl auxr [v]
+      end
+
+let rec parse_list_tailrec_correct
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (b: bytes)
+  (aux: list t)
+: Lemma
+  (requires True)
+  (ensures (
+    parse_list_tailrec p b aux == (
+    match parse (parse_list p) b with
+    | Some (l, n) -> Some (L.append aux l)
+    | None -> None
+  )))
+  (decreases (Seq.length b))
+= if Seq.length b = 0
+  then
+    L.append_l_nil aux
+  else
+    match p b with
+    | None -> ()
+    | Some (v, n) ->
+      if n = 0
+      then ()
+      else begin
+	let s = Seq.slice b n (Seq.length b) in
+	parse_list_tailrec_correct p s (L.append aux [v]);
+	match parse (parse_list p) s with
+	| Some (l, n') ->
+	  L.append_assoc aux [v] l
+	| None -> ()
+      end
+
+val list_length_constant_size_parser_correct
+  (#n: nat)
+  (#k: constant_size_parser_kind)
+  (#b: bool)
+  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize n k) b } )
+  (#t: Type0)
+  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
+  (b: bytes)
+: Lemma
+  (requires (
+    Some? (parse (parse_list p) b)
+  ))
+  (ensures (
+    let pb = parse (parse_list p) b in
+    Some? pb /\ (
+    let (Some (l, _)) = pb in
+    FStar.Mul.op_Star (L.length l) n == Seq.length b
+  )))
+  (decreases (Seq.length b))
+
+let rec list_length_constant_size_parser_correct #n #k #b #u #t p b =
+  if Seq.length b = 0
+  then ()
+  else begin
+    let (Some (_, consumed)) = parse p b in
+    assert ((consumed <: nat) == n);
+    assert (n > 0);
+    let b' : bytes = Seq.slice b n (Seq.length b) in
+    list_length_constant_size_parser_correct p b';
+    let (Some (l', _)) = parse (parse_list p) b' in
+    FStar.Math.Lemmas.distributivity_add_left 1 (L.length l') n
+  end
