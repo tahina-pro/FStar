@@ -614,6 +614,94 @@ let coerce
   (ensures (fun _ -> True))
 = (x <: t2)
 
+let parse_strengthen_prf
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+: Tot Type0
+= (xbytes: bytes) ->
+  (consumed: consumed_length xbytes) ->
+  (x: t1) ->
+  Lemma
+  (requires (parse p1 xbytes == Some (x, consumed)))
+  (ensures (p2 x))
+
+inline_for_extraction
+let bare_parse_strengthen
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+: Tot (bare_parser (x: t1 { p2 x } ))
+= fun (xbytes: bytes) ->
+  match parse p1 xbytes with
+  | Some (x, consumed) ->
+    prf xbytes consumed x;
+    let (x' : t1 { p2 x' } ) = x in
+    Some (x', consumed)
+  | _ -> None
+
+let bare_parse_strengthen_no_lookahead_weak
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+: Lemma
+  (no_lookahead_weak (bare_parse_strengthen p1 p2 prf))
+= let p' : bare_parser (x: t1 { p2 x } ) = bare_parse_strengthen p1 p2 prf in
+  assert (forall b1 b2 . no_lookahead_weak_on p1 b1 b2 ==> no_lookahead_weak_on p' b1 b2)
+
+let bare_parse_strengthen_no_lookahead
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+: Lemma
+  (no_lookahead p1 ==> no_lookahead (bare_parse_strengthen p1 p2 prf))
+= let p' : bare_parser (x: t1 { p2 x } ) = bare_parse_strengthen p1 p2 prf in
+  assert (forall (b1 b2: bytes) . no_lookahead_on p1 b1 b2 ==> no_lookahead_on p' b1 b2)
+
+let bare_parse_strengthen_injective
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+: Lemma
+  (injective (bare_parse_strengthen p1 p2 prf))
+= let p' : bare_parser (x: t1 { p2 x } ) = bare_parse_strengthen p1 p2 prf in
+  assert (forall (b1 b2: bytes) . injective_precond p' b1 b2 ==> injective_precond p1 b1 b2);
+  assert (forall (b1 b2: bytes) . injective_postcond p1 b1 b2 ==> injective_postcond p' b1 b2)
+
+let bare_parse_strengthen_correct
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+: Lemma
+  (no_lookahead_weak (bare_parse_strengthen p1 p2 prf) /\
+  injective (bare_parse_strengthen p1 p2 prf) /\
+  parser_kind_prop k (bare_parse_strengthen p1 p2 prf))
+= bare_parse_strengthen_no_lookahead_weak p1 p2 prf;
+  bare_parse_strengthen_no_lookahead p1 p2 prf;
+  bare_parse_strengthen_injective p1 p2 prf;
+  ()
+
+let parse_strengthen
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+: Tot (parser k (x: t1 { p2 x } ))
+= bare_parse_strengthen_correct p1 p2 prf;
+  bare_parse_strengthen p1 p2 prf
+
 inline_for_extraction
 let parse_synth
   (#k: parser_kind)
