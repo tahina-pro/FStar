@@ -17,14 +17,14 @@ let bounded_integer
 : Tot Type0
 = (u: U32.t { U32.v u < pow2 (FStar.Mul.op_Star 8 i) } )
 
+#set-options "--z3rlimit 64"
+
 let decode_bounded_integer
   (i: integer_size)
   (b: bytes { Seq.length b == i } )
 : Tot (bounded_integer i)
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
-
-#set-options "--z3rlimit 32"
 
 let decode_bounded_integer_injective'
   (i: integer_size)
