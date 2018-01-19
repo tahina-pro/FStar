@@ -23,6 +23,8 @@ let decode_u16
 
 (* TODO: move to FStar.Kremlin.Endianness *)
 
+#set-options "--z3rlimit 16"
+
 let rec be_to_n_inj
   (b1 b2: bytes)
 : Lemma
@@ -36,6 +38,8 @@ let rec be_to_n_inj
     Seq.lemma_split b1 (Seq.length b1 - 1);
     Seq.lemma_split b2 (Seq.length b2 - 1)
   end
+
+#reset-options
 
 let decode_u16_injective
   (b1: bytes { Seq.length b1 == 2 } )
@@ -52,6 +56,8 @@ let decode_u16_injective
     be_to_n_inj b1 b2
   end else ()
 
+#set-options "--z3rlimit 16"
+
 inline_for_extraction
 let parse_u16: parser _ U16.t =
   Classical.forall_intro_2 decode_u16_injective;
@@ -60,11 +66,15 @@ let parse_u16: parser _ U16.t =
 let serialize_u16 : serializer parse_u16 =
   (fun (x: U16.t) -> E.n_to_be 2ul (U16.v x))
 
+#reset-options
+
 let decode_u32
   (b: bytes { Seq.length b == 4 } )
 : Tot U32.t
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
+
+#set-options "--z3rlimit 16"
 
 let decode_u32_injective
   (b1: bytes { Seq.length b1 == 4 } )
@@ -81,10 +91,16 @@ let decode_u32_injective
     be_to_n_inj b1 b2
   end else ()
 
+#reset-options
+
 inline_for_extraction
 let parse_u32: parser _ U32.t =
   Classical.forall_intro_2 decode_u32_injective;
   make_total_constant_size_parser 4 U32.t decode_u32
 
+#set-options "--z3rlimit 32"
+
 let serialize_u32 : serializer parse_u32 =
   (fun (x: U32.t) -> E.n_to_be 4ul (U32.v x))
+
+#reset-options
