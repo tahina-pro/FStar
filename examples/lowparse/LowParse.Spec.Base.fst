@@ -491,6 +491,56 @@ let glb_list
   ))
 = glb_list_of id l
 
+(** Work around unification issues *)
+
+unfold
+let coerce
+  (t2: Type)
+  (#t1: Type)
+  (x: t1)
+: Pure t2
+  (requires (t1 == t2))
+  (ensures (fun _ -> True))
+= (x <: t2)
+
+let coerce_parser
+  (t2: Type0)
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p: parser k t1)
+: Pure (parser k t2)
+  (requires (t1 == t2))
+  (ensures (fun _ -> True))
+= coerce (parser k t2) p
+
+let get_parser_type (#k: parser_kind) (#t: Type0) (p: parser k t) : Tot Type0 = t
+let get_parser_kind (#k: parser_kind) (#t: Type0) (p: parser k t) : Tot parser_kind = k
+
+let kind_is_constant_size (k: parser_kind) : Tot bool =
+  match k with
+  | ParserStrong (StrongParserKind (StrongConstantSize _ _) _ _) -> true
+  | _ -> false
+
+let get_constant_size_parser_size
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Pure nat
+  (requires (kind_is_constant_size k))
+  (ensures (fun _ -> True))
+= let (ParserStrong (StrongParserKind (StrongConstantSize sz _) _ _)) = k in
+  sz
+
+let get_constant_size_parser_kind
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Pure constant_size_parser_kind
+  (requires (kind_is_constant_size k))
+  (ensures (fun _ -> True))
+= let (ParserStrong (StrongParserKind (StrongConstantSize _ k') _ _)) = k in
+  k'
+
 (* Pure serializers *)
 
 let bare_serializer

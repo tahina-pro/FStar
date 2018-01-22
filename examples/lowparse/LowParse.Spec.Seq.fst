@@ -94,12 +94,9 @@ let parse_seq_correct
 = parse_seq_aux_correct p b
 
 val seq_length_constant_size_parser_correct
-  (#n: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize n k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (b: bytes)
 : Lemma
   (requires (
@@ -109,9 +106,9 @@ val seq_length_constant_size_parser_correct
     let pb = parse (parse_seq p) b in
     Some? pb /\ (
     let (Some (l, _)) = pb in
-    FStar.Mul.op_Star (Seq.length l) n == Seq.length b
+    FStar.Mul.op_Star (Seq.length l) (get_constant_size_parser_size p) == Seq.length b
   )))
 
-let seq_length_constant_size_parser_correct #n #k #b #u #t p b =
+let seq_length_constant_size_parser_correct #k #t p b =
   parse_seq_correct p b;
   PL.list_length_constant_size_parser_correct p b

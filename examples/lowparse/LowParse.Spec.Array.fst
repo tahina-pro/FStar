@@ -13,15 +13,13 @@ let array_pred (#t: Type) (n: nat) (s: Seq.seq t) : GTot Type0 =
 type array (t: Type) (n: nat) = (s: Seq.seq t { array_pred n s } )
 
 let array_type_of_parser_kind_precond
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size: nat)
 : GTot bool
-= elem_byte_size > 0 &&
+= let elem_byte_size : nat = get_constant_size_parser_size p in
+  elem_byte_size > 0 &&
   array_byte_size % elem_byte_size = 0
 
 (* TODO: move to FStar.Math.Lemmas *)
@@ -38,28 +36,23 @@ let div_nonneg
 
 #reset-options
 
-let array_type_of_parser'
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+let array_type_of_parser
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size: nat)
 : Pure Type0
   (requires (
-    array_type_of_parser_kind_precond p array_byte_size == true
+    array_type_of_parser_kind_precond p array_byte_size // == true
   ))
   (ensures (fun _ -> True))
-= array t (array_byte_size / elem_byte_size)
+= let elem_byte_size : pos = get_constant_size_parser_size p in
+  array t (array_byte_size / elem_byte_size)
 
 let parse_array_correct
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size: nat)
   (u' : unit {array_type_of_parser_kind_precond p array_byte_size == true})
   (b: bytes)
@@ -67,85 +60,30 @@ let parse_array_correct
   (data: Seq.seq t)
 : Lemma
   (requires (parse (parse_flbytes (parse_seq p) array_byte_size) b == Some (data, consumed)))
-  (ensures (array_pred #t (array_byte_size / elem_byte_size) data))
+  (ensures (array_pred #t (array_byte_size / get_constant_size_parser_size p) data))
 = assert (consumed == array_byte_size);
   let b' = Seq.slice b 0 consumed in
   seq_length_constant_size_parser_correct p b';
-  FStar.Math.Lemmas.multiple_division_lemma (Seq.length data) elem_byte_size;
+  FStar.Math.Lemmas.multiple_division_lemma (Seq.length data) (get_constant_size_parser_size p);
   ()
 
+#set-options "--z3rlimit 64 --max_fuel 8 --max_ifuel 8"
+
 let parse_array'
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size: nat)
   (precond: unit {array_type_of_parser_kind_precond p array_byte_size == true})
-: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize array_byte_size ConstantSizeUnknown) (array_byte_size > 0) ())) (array_type_of_parser' p array_byte_size))
-= assert_norm (array_type_of_parser' p array_byte_size == (x: Seq.seq t { array_pred (array_byte_size / elem_byte_size) x}));
-  coerce
-    (parser (ParserStrong (StrongParserKind (StrongConstantSize array_byte_size ConstantSizeUnknown) (array_byte_size > 0) ())) (array_type_of_parser' p array_byte_size))
-    (parse_strengthen (parse_flbytes (parse_seq p) array_byte_size) (array_pred (array_byte_size / elem_byte_size)) (parse_array_correct p array_byte_size precond))
+: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize array_byte_size ConstantSizeUnknown) (array_byte_size > 0) ())) (array_type_of_parser p array_byte_size))
+= let elem_byte_size = get_constant_size_parser_size p in
+  assert (elem_byte_size > 0);
+  let elem_byte_size : pos = elem_byte_size in
+  assert_norm (array_type_of_parser p array_byte_size == (x: Seq.seq t { array_pred (array_byte_size / elem_byte_size) x}));
+  let p' = parse_strengthen (parse_flbytes (parse_seq p) array_byte_size) (array_pred (array_byte_size / elem_byte_size)) (parse_array_correct p array_byte_size precond) in
+  coerce_parser (array_type_of_parser p array_byte_size) p'
 
-(*
-abstract
-let parse_array_precond
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (array_byte_size: U32.t)
-: Tot Type0
-= unit -> Lemma
-  (array_type_of_parser_kind_precond p (U32.v array_byte_size))
-
-abstract
-let parse_array_precond_intro
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (array_byte_size: U32.t)
-  (x: (
-    unit -> Lemma
-    (array_type_of_parser_kind_precond p (U32.v array_byte_size))
-  ))
-: Tot (parse_array_precond p array_byte_size)
-= x
-
-abstract
-let parse_array_precond_elim
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (#p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (#array_byte_size: U32.t)
-  (x: parse_array_precond p array_byte_size)
-: Lemma
-  (array_type_of_parser_kind_precond p (U32.v array_byte_size))
-= x ()
-
-let array_type_of_parser
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (#p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (#array_byte_size: U32.t)
-  (precond: parse_array_precond p array_byte_size)
-: Tot Type0
-= parse_array_precond_elim precond;
-  array_type_of_parser' p (U32.v array_byte_size)
-*)
+#reset-options
 
 let mod_plus_p_r
   (a: nat)
@@ -162,14 +100,14 @@ let mod_plus_p_l
 = mod_plus_p_r a p
 
 val parse_total_constant_size_elem_parse_list_total
-  (#elem_byte_size: nat)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) ConstantSizeTotal) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size ConstantSizeTotal) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (b: bytes)
 : Lemma
   (requires (
+    let elem_byte_size = get_constant_size_parser_size p in
+    ConstantSizeTotal? (get_constant_size_parser_kind p) /\
     elem_byte_size > 0 /\
     Seq.length b % elem_byte_size == 0
   ))
@@ -178,11 +116,10 @@ val parse_total_constant_size_elem_parse_list_total
   ))
   (decreases (Seq.length b))
 
-// #reset-options "--z3rlimit 128 --max_fuel 8 --max_ifuel 8 --z3cliopt smt.arith.nl=false"
+#set-options "--z3rlimit 32"
 
-#set-options "--z3rlimit 16"
-
-let rec parse_total_constant_size_elem_parse_list_total #elem_byte_size #b #u #t p b =
+let rec parse_total_constant_size_elem_parse_list_total #k #t p b =
+  let elem_byte_size = get_constant_size_parser_size p in
   if Seq.length b = 0
   then ()
   else begin
@@ -204,16 +141,15 @@ let rec parse_total_constant_size_elem_parse_list_total #elem_byte_size #b #u #t
 #reset-options
 
 val parse_total_constant_size_elem_parse_array_total'
-  (#elem_byte_size: nat)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) ConstantSizeTotal) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size ConstantSizeTotal) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size: nat)
   (precond: unit {array_type_of_parser_kind_precond p array_byte_size == true})
   (b: bytes)
 : Lemma
   (requires (
+    ConstantSizeTotal? (get_constant_size_parser_kind p) /\
     Seq.length b >= array_byte_size
   ))
   (ensures (
@@ -222,58 +158,54 @@ val parse_total_constant_size_elem_parse_array_total'
 
 #set-options "--z3rlimit 16"
 
-let parse_total_constant_size_elem_parse_array_total' #elem_byte_size #b #u #t p array_byte_size precond b =
+let parse_total_constant_size_elem_parse_array_total' #k #t p array_byte_size precond b =
   let b' = Seq.slice b 0 array_byte_size in
   parse_total_constant_size_elem_parse_list_total p b';
   parse_seq_correct p b'
 
 #reset-options
 
+#set-options "--z3rlimit 32"
+
 let parse_total_constant_size_elem_parse_array_total
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size: nat)
   (precond: unit {array_type_of_parser_kind_precond p array_byte_size == true})
 : Lemma
   (ensures (
-    ConstantSizeTotal? k ==>
+    ConstantSizeTotal? (get_constant_size_parser_kind p) ==>
     is_total_constant_size_parser array_byte_size (parse_array' p array_byte_size precond)
   ))
-= if ConstantSizeTotal? k
+= let k = get_constant_size_parser_kind p in
+  let elem_byte_size = get_constant_size_parser_size p in
+  if ConstantSizeTotal? k
   then
-    let p' : parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size ConstantSizeTotal) b u)) t = p in
-    Classical.forall_intro (Classical.move_requires (parse_total_constant_size_elem_parse_array_total' p' array_byte_size ()))
+    Classical.forall_intro (Classical.move_requires (parse_total_constant_size_elem_parse_array_total' p array_byte_size precond))
   else ()
 
+#reset-options
+
 let parse_array_prop
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k })
   (array_byte_size: nat)
   (precond: unit { array_type_of_parser_kind_precond p array_byte_size } )
 : Lemma
-  (parser_kind_prop (ParserStrong (StrongParserKind (StrongConstantSize (array_byte_size) k) (array_byte_size > 0) ())) (parse_array' p (array_byte_size) precond))
+  (parser_kind_prop (ParserStrong (StrongParserKind (StrongConstantSize (array_byte_size) (get_constant_size_parser_kind p)) (array_byte_size > 0) ())) (parse_array' p (array_byte_size) precond))
 = parse_total_constant_size_elem_parse_array_total p array_byte_size precond
 
 let parse_array
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size: U32.t)
   (precond: unit { array_type_of_parser_kind_precond p (U32.v array_byte_size) == true } )
-: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v array_byte_size) k) (U32.v array_byte_size > 0) ())) (array_type_of_parser' p (U32.v array_byte_size)))
+: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize (U32.v array_byte_size) (get_constant_size_parser_kind p)) (U32.v array_byte_size > 0) ())) (array_type_of_parser p (U32.v array_byte_size)))
 = parse_array_prop p (U32.v array_byte_size) precond ;
-  strengthen (ParserStrong (StrongParserKind (StrongConstantSize (U32.v array_byte_size) k) (U32.v array_byte_size > 0) ())) (parse_array' p (U32.v array_byte_size) precond)
+  strengthen (ParserStrong (StrongParserKind (StrongConstantSize (U32.v array_byte_size) (get_constant_size_parser_kind p)) (U32.v array_byte_size > 0) ())) (parse_array' p (U32.v array_byte_size) precond)
 
 
 include LowParse.Spec.VLBytes
@@ -286,54 +218,45 @@ type vlarray (t: Type) (min max: nat) =
   (s: Seq.seq t {vlarray_pred min max s})
 
 let vlarray_type_of_parser_kind_precond'
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t {kind_is_constant_size k} )
   (array_byte_size_min array_byte_size_max: nat) : GTot bool =
+  let elem_byte_size = get_constant_size_parser_size p in
   elem_byte_size > 0 &&
   array_byte_size_min % elem_byte_size = 0 &&
   array_byte_size_max % elem_byte_size = 0 &&
   array_byte_size_max > 0
 
 let vlarray_type_of_parser_kind_precond
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size_min array_byte_size_max: U32.t) : GTot bool =
   vlarray_type_of_parser_kind_precond' p (U32.v array_byte_size_min) (U32.v array_byte_size_max)
 
-val vlarray_type_of_parser'
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+val vlarray_type_of_parser
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size_min array_byte_size_max: U32.t)
 : Pure Type0
   (requires (
-    vlarray_type_of_parser_kind_precond #elem_byte_size #k #b #u #t p array_byte_size_min array_byte_size_max
+    vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max
   ))
   (ensures (fun _ -> True))
   
-let vlarray_type_of_parser' #elem_byte_size #k #b #u #t p array_byte_size_min array_byte_size_max =
+let vlarray_type_of_parser #k #t p array_byte_size_min array_byte_size_max =
+  let elem_byte_size = get_constant_size_parser_size p in
+  let elem_byte_size : pos = elem_byte_size in
   let min : nat = U32.v array_byte_size_min / elem_byte_size in
   let max : nat = U32.v array_byte_size_max / elem_byte_size in
   vlarray t min max
 
 val parse_vlarray_correct
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size_min array_byte_size_max: U32.t)
   (u: unit { vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max == true })
   (b: bytes)
@@ -344,12 +267,14 @@ val parse_vlarray_correct
     parse (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b == Some (data, consumed)
   ))
   (ensures (
+    let elem_byte_size = get_constant_size_parser_size p in
     vlarray_pred (U32.v array_byte_size_min / elem_byte_size) (U32.v array_byte_size_max / elem_byte_size) data
   ))
 
 // #set-options "--z3rlimit 1024"
 
-let parse_vlarray_correct #elem_byte_size #k #b #u #t p array_byte_size_min array_byte_size_max u b consumed data =
+let parse_vlarray_correct #k #t p array_byte_size_min array_byte_size_max u b consumed data =
+  let elem_byte_size = get_constant_size_parser_size p in
 (*
   let sz : integer_size = log256 array_byte_size_max in
   assume (consumed >= sz);
@@ -367,86 +292,15 @@ let parse_vlarray_correct #elem_byte_size #k #b #u #t p array_byte_size_min arra
 
 #reset-options
 
-let parse_vlarray'
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
+let parse_vlarray
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (array_byte_size_min array_byte_size_max: U32.t)
   (precond: unit {vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max == true})
-: Tot (parser (ParserStrong (StrongParserKind StrongUnknown true ())) (vlarray_type_of_parser' p array_byte_size_min array_byte_size_max))
-= parse_strengthen
+: Tot (parser (ParserStrong (StrongParserKind StrongUnknown true ())) (vlarray_type_of_parser p array_byte_size_min array_byte_size_max))
+= let elem_byte_size = get_constant_size_parser_size p in
+  parse_strengthen
     (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p))
     (vlarray_pred (U32.v array_byte_size_min / elem_byte_size) (U32.v array_byte_size_max / elem_byte_size))
     (parse_vlarray_correct p array_byte_size_min array_byte_size_max precond)
-
-(*
-abstract
-let parse_vlarray_precond
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (array_byte_size_min array_byte_size_max: U32.t)
-: Tot Type0
-= unit -> Lemma
-  (vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max)
-
-abstract
-let parse_vlarray_precond_intro
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (array_byte_size_min array_byte_size_max: U32.t)
-  (x: (unit -> Lemma
-    (vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max)
-  ))
-: Tot (parse_vlarray_precond p array_byte_size_min array_byte_size_max)
-= x
-
-abstract
-let parse_vlarray_precond_elim
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (#p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (#array_byte_size_min #array_byte_size_max: U32.t)
-  (x: parse_vlarray_precond p array_byte_size_min array_byte_size_max)
-: Lemma
-  (vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max)
-= x ()
-
-let vlarray_type_of_parser
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (#p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (#array_byte_size_min #array_byte_size_max: U32.t)
-  (precond: parse_vlarray_precond p array_byte_size_min array_byte_size_max)
-: Tot Type0
-= parse_vlarray_precond_elim precond;
-  vlarray_type_of_parser' p array_byte_size_min array_byte_size_max
-
-let parse_vlarray
-  (#elem_byte_size: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize (elem_byte_size) k) b } )
-  (#t: Type0)
-  (#p: parser (ParserStrong (StrongParserKind (StrongConstantSize elem_byte_size k) b u)) t)
-  (#array_byte_size_min #array_byte_size_max: U32.t)
-  (precond: parse_vlarray_precond p array_byte_size_min array_byte_size_max)
-: Tot (parser (ParserStrong (StrongParserKind StrongUnknown true ())) (vlarray_type_of_parser precond))
-= parse_vlarray_precond_elim precond;
-  parse_vlarray' p array_byte_size_min array_byte_size_max ()

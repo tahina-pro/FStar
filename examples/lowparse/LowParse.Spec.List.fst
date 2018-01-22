@@ -237,12 +237,9 @@ let rec serialize_list_append
     Seq.append_empty_l (serialize (serialize_list p s) l2)
 
 val list_length_constant_size_parser_correct
-  (#n: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize n k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
+  (p: parser k t { kind_is_constant_size k } )
   (b: bytes)
 : Lemma
   (requires (
@@ -252,11 +249,12 @@ val list_length_constant_size_parser_correct
     let pb = parse (parse_list p) b in
     Some? pb /\ (
     let (Some (l, _)) = pb in
-    FStar.Mul.op_Star (L.length l) n == Seq.length b
+    FStar.Mul.op_Star (L.length l) (get_constant_size_parser_size p) == Seq.length b
   )))
   (decreases (Seq.length b))
 
-let rec list_length_constant_size_parser_correct #n #k #b #u #t p b =
+let rec list_length_constant_size_parser_correct #k #t p b =
+  let n = get_constant_size_parser_size p in
   if Seq.length b = 0
   then ()
   else begin

@@ -604,16 +604,6 @@ let serialize_nondep_then
 
 (** Apply a total transformation on parsed data *)
 
-unfold
-let coerce
-  (t2: Type)
-  (#t1: Type)
-  (x: t1)
-: Pure t2
-  (requires (t1 == t2))
-  (ensures (fun _ -> True))
-= (x <: t2)
-
 let parse_strengthen_prf
   (#k: parser_kind)
   (#t1: Type0)

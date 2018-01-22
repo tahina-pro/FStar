@@ -14,14 +14,19 @@ type protocolVersion = U16.t
 let parse_protocolVersion : parser _ protocolVersion =
   parse_u16
 
-type random = array_type_of_parser' parse_u8 32
+let random =
+  assert_norm (array_type_of_parser_kind_precond parse_u8 32 == true);
+  array_type_of_parser parse_u8 32
 
-module U32 = FStar.UInt32
-
+// sanity check
 let _ = assert_norm (random == (s: Seq.seq byte { Seq.length s == 32 } ))
 
 let parse_random : parser _ random =
-  parse_array parse_u8 32ul ()
+  assert_norm (array_type_of_parser_kind_precond parse_u8 32 == true);
+  let p' = parse_array parse_u8 32ul () in
+  p'
+  
+//  parse_array' parse_u8 32 ()
 
 type cipherSuite =
   | TLS_AES_128_GCM_SHA256
@@ -122,8 +127,6 @@ let extension_presynth = (
   Seq.seq byte
 ))
 
-module U32 = FStar.UInt32
-
 let parse_extension_presynth : parser _ extension_presynth = 
   assert_norm (U32.v 65535ul > 0);
   (
@@ -143,16 +146,6 @@ let synth_extension (data: extension_presynth) : Tot extension =
 let parse_extension : parser _ extension =
   parse_extension_presynth `parse_synth` synth_extension
 
-let coerce_parser
-  (t2: Type0)
-  (#k: parser_kind)
-  (#t1: Type0)
-  (p: parser k t1)
-: Pure (parser k t2)
-  (requires (t1 == t2))
-  (ensures (fun _ -> True))
-= coerce (parser k t2) p
-
 let clientHello_legacy_version_pred
   (legacy_version: protocolVersion)
 : Tot bool
@@ -165,54 +158,62 @@ let parse_clientHello_legacy_version_t : parser _ clientHello_legacy_version_t =
 
 let clientHello_legacy_session_id_t : Type0 =
   assert_norm (vlarray_type_of_parser_kind_precond parse_u8 0ul 32ul == true);
-  vlarray_type_of_parser' parse_u8 0ul 32ul
+  vlarray_type_of_parser parse_u8 0ul 32ul
 
 let parse_clientHello_legacy_session_id_t : parser _ clientHello_legacy_session_id_t =
   assert_norm (vlarray_type_of_parser_kind_precond parse_u8 0ul 32ul == true);
-  coerce_parser clientHello_legacy_session_id_t (parse_vlarray' parse_u8 0ul 32ul ())
+  coerce_parser clientHello_legacy_session_id_t (parse_vlarray parse_u8 0ul 32ul ())
 
-let kind_of_parser (#t: Type0) (#k: parser_kind) (p: parser k t) : Tot parser_kind = k
+let clientHello_cipher_suites_t : Type0 =
+  assert_norm (vlarray_type_of_parser_kind_precond parse_maybe_cipherSuite 2ul 65534ul == true);
+  vlarray_type_of_parser parse_maybe_cipherSuite 2ul 65534ul
 
-let clientHello_cipher_suites_t =
-  let (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) = kind_of_parser parse_maybe_cipherSuite in
-  assert_norm (n == 2);
-  assert_norm (U32.v 65534ul % n = 0);
-  assert_norm (U32.v 65534ul > 0);
-//  assert_norm (vlarray_type_of_parser_kind_precond #n #k #b #u parse_maybe_cipherSuite 2ul 65534ul == true);
-  ()
-//  vlarray_type_of_parser' #n #k #b #u parse_maybe_cipherSuite 2ul 65534ul
+let parse_clientHello_cipher_suites_t : parser _ clientHello_cipher_suites_t =
+  assert_norm (vlarray_type_of_parser_kind_precond parse_maybe_cipherSuite 2ul 65534ul == true);
+  coerce_parser clientHello_cipher_suites_t (parse_vlarray parse_maybe_cipherSuite 2ul 65534ul ())
+
+let clientHello_legacy_compression_methods_t : Type0 =
+  assert_norm (vlarray_type_of_parser_kind_precond parse_u8 1ul 255ul == true);
+  vlarray_type_of_parser parse_u8 1ul 255ul
+
+let parse_clientHello_legacy_compression_methods_t : parser _ clientHello_legacy_compression_methods_t =
+  assert_norm (vlarray_type_of_parser_kind_precond parse_u8 1ul 255ul == true);
+  coerce_parser clientHello_legacy_compression_methods_t (parse_vlarray parse_u8 1ul 255ul ())
+
+let clientHello_extensions_t : Type0 =
+  Seq.seq extension
+
+let parse_clientHello_extensions_t : parser _ clientHello_extensions_t =
+  parse_bounded_vlbytes 8ul 65534ul (parse_seq parse_extension)
 
 noeq
 type clientHello = {
   legacy_version: clientHello_legacy_version_t;
   random: random;
   legacy_session_id: clientHello_legacy_session_id_t;
-  cipher_suites: Seq.seq maybe_cipherSuite;
-  legacy_compression_methods: Seq.seq byte;
-  extensions: Seq.seq extension;
+  cipher_suites: clientHello_cipher_suites_t;
+  legacy_compression_methods: clientHello_legacy_compression_methods_t;
+  extensions: clientHello_extensions_t;
 }
 
 type clientHello_presynth = (
-  (legacy_version: clientHello_legacy_version_t) * (
+  clientHello_legacy_version_t * (
   random * (
   clientHello_legacy_session_id_t * (
-  Seq.seq maybe_cipherSuite * (
-  Seq.seq byte * (
-  Seq.seq extension
+  clientHello_cipher_suites_t * (
+  clientHello_legacy_compression_methods_t * (
+  clientHello_extensions_t
   ))))))
 
 let parse_clientHello_presynth : parser _ clientHello_presynth =
-  assert_norm (U32.v 32ul > 0);
-  assert_norm (U32.v 65534ul > 0);
-  assert_norm (U32.v 255ul > 0);
-  coerce_parser clientHello_presynth
+  let parse_random = parse_random in
   (
     parse_clientHello_legacy_version_t `nondep_then` (
     parse_random `nondep_then` (
     parse_clientHello_legacy_session_id_t `nondep_then` (
-    parse_bounded_vlbytes 2ul 65534ul (parse_seq parse_maybe_cipherSuite) `nondep_then` (
-    parse_bounded_vlbytes 1ul 255ul (parse_seq parse_u8) `nondep_then` (
-    parse_bounded_vlbytes 8ul 65534ul (parse_seq parse_extension)
+    parse_clientHello_cipher_suites_t  `nondep_then` (
+    parse_clientHello_legacy_compression_methods_t `nondep_then` (
+    parse_clientHello_extensions_t
   ))))))
 
 let synth_clientHello (data: clientHello_presynth) : Tot clientHello = match data with (
@@ -232,6 +233,7 @@ let synth_clientHello (data: clientHello_presynth) : Tot clientHello = match dat
   }
 
 let parse_clientHello : parser _ clientHello =
+  let parse_clientHello_presynth = parse_clientHello_presynth in
   parse_clientHello_presynth `parse_synth` synth_clientHello
 
 (*
