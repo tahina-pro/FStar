@@ -203,19 +203,19 @@ let log256 n =
 
 inline_for_extraction
 let in_bounds
-  (min: U32.t)
-  (max: U32.t)
+  (min: nat)
+  (max: nat)
   (x: U32.t)
 : Tot bool
-= not (U32.lt x min || U32.lt max x)
+= not (U32.v x < min || max < U32.v x)
 
 inline_for_extraction
 let parse_bounded_vlbytes
-  (min: U32.t)
-  (max: U32.t { U32.v max > 0 } )
+  (min: nat)
+  (max: nat { 0 < max /\ max < pow2 32 } )
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
 : Tot (parser _ t)
-= let sz : integer_size = log256 max in
+= let sz : integer_size = log256' max in
   parse_vlbytes_gen sz (in_bounds min max) p

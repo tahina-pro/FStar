@@ -226,20 +226,32 @@ let vlarray_type_of_parser_kind_precond'
   elem_byte_size > 0 &&
   array_byte_size_min % elem_byte_size = 0 &&
   array_byte_size_max % elem_byte_size = 0 &&
-  array_byte_size_max > 0
+  array_byte_size_max > 0 &&
+  array_byte_size_max < 4294967296 // pow2 32
+
+let vlarray_type_of_parser_kind_precond'_pow2_32
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t {kind_is_constant_size k} )
+  (array_byte_size_min array_byte_size_max: nat)
+: Lemma
+  (requires (vlarray_type_of_parser_kind_precond' p array_byte_size_min array_byte_size_max))
+  (ensures (array_byte_size_max < pow2 32))
+  [SMTPat (vlarray_type_of_parser_kind_precond' p array_byte_size_min array_byte_size_max)]
+= ()
 
 let vlarray_type_of_parser_kind_precond
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t { kind_is_constant_size k } )
-  (array_byte_size_min array_byte_size_max: U32.t) : GTot bool =
-  vlarray_type_of_parser_kind_precond' p (U32.v array_byte_size_min) (U32.v array_byte_size_max)
+  (array_byte_size_min array_byte_size_max: nat) : GTot bool =
+  vlarray_type_of_parser_kind_precond' p (array_byte_size_min) (array_byte_size_max)
 
 val vlarray_type_of_parser
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t { kind_is_constant_size k } )
-  (array_byte_size_min array_byte_size_max: U32.t)
+  (array_byte_size_min array_byte_size_max: nat)
 : Pure Type0
   (requires (
     vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max
@@ -249,15 +261,15 @@ val vlarray_type_of_parser
 let vlarray_type_of_parser #k #t p array_byte_size_min array_byte_size_max =
   let elem_byte_size = get_constant_size_parser_size p in
   let elem_byte_size : pos = elem_byte_size in
-  let min : nat = U32.v array_byte_size_min / elem_byte_size in
-  let max : nat = U32.v array_byte_size_max / elem_byte_size in
+  let min : nat = array_byte_size_min / elem_byte_size in
+  let max : nat = array_byte_size_max / elem_byte_size in
   vlarray t min max
 
 val parse_vlarray_correct
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t { kind_is_constant_size k } )
-  (array_byte_size_min array_byte_size_max: U32.t)
+  (array_byte_size_min array_byte_size_max: nat)
   (u: unit { vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max == true })
   (b: bytes)
   (consumed: consumed_length b)
@@ -268,7 +280,7 @@ val parse_vlarray_correct
   ))
   (ensures (
     let elem_byte_size = get_constant_size_parser_size p in
-    vlarray_pred (U32.v array_byte_size_min / elem_byte_size) (U32.v array_byte_size_max / elem_byte_size) data
+    vlarray_pred (array_byte_size_min / elem_byte_size) (array_byte_size_max / elem_byte_size) data
   ))
 
 // #set-options "--z3rlimit 1024"
@@ -288,7 +300,7 @@ let parse_vlarray_correct #k #t p array_byte_size_min array_byte_size_max u b co
   FStar.Math.Lemmas.lemma_div_le (U32.v array_byte_size_min) consumed' elem_byte_size ;
   FStar.Math.Lemmas.lemma_div_le consumed' (U32.v array_byte_size_max) elem_byte_size
 *)
-  assume (vlarray_pred (U32.v array_byte_size_min / elem_byte_size) (U32.v array_byte_size_max / elem_byte_size) data)
+  assume (vlarray_pred (array_byte_size_min / elem_byte_size) (array_byte_size_max / elem_byte_size) data)
 
 #reset-options
 
@@ -296,11 +308,11 @@ let parse_vlarray
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t { kind_is_constant_size k } )
-  (array_byte_size_min array_byte_size_max: U32.t)
+  (array_byte_size_min array_byte_size_max: nat)
   (precond: unit {vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max == true})
 : Tot (parser (ParserStrong (StrongParserKind StrongUnknown true ())) (vlarray_type_of_parser p array_byte_size_min array_byte_size_max))
 = let elem_byte_size = get_constant_size_parser_size p in
   parse_strengthen
     (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p))
-    (vlarray_pred (U32.v array_byte_size_min / elem_byte_size) (U32.v array_byte_size_max / elem_byte_size))
+    (vlarray_pred (array_byte_size_min / elem_byte_size) (array_byte_size_max / elem_byte_size))
     (parse_vlarray_correct p array_byte_size_min array_byte_size_max precond)
