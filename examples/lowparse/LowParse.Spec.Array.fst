@@ -1,5 +1,5 @@
 module LowParse.Spec.Array
-include LowParse.Spec.FLBytes
+include LowParse.Spec.FLData
 include LowParse.Spec.List
 
 module Seq = FStar.Seq
@@ -65,7 +65,7 @@ let parse_array_correct
   (consumed: consumed_length b)
   (data: list t)
 : Lemma
-  (requires (parse (parse_flbytes (parse_list p) array_byte_size) b == Some (data, consumed)))
+  (requires (parse (parse_fldata (parse_list p) array_byte_size) b == Some (data, consumed)))
   (ensures (array_pred #t (array_byte_size / k.parser_kind_low) data))
 = assert (consumed == array_byte_size);
   let b' = Seq.slice b 0 consumed in
@@ -79,9 +79,9 @@ let parse_array'
   (p: parser k t)
   (array_byte_size: nat)
   (precond: unit {array_type_of_parser_kind_precond p array_byte_size == true})
-: Tot (parser (parse_flbytes_kind array_byte_size) (array_type_of_parser p array_byte_size))
-= let p' : parser (parse_flbytes_kind array_byte_size) (list t) =
-    (parse_flbytes (parse_list p) array_byte_size)
+: Tot (parser (parse_fldata_kind array_byte_size) (array_type_of_parser p array_byte_size))
+= let p' : parser (parse_fldata_kind array_byte_size) (list t) =
+    (parse_fldata (parse_list p) array_byte_size)
   in
   assert_norm (array_type_of_parser p array_byte_size == (x: list t { array_pred (array_byte_size / k.parser_kind_low) x}));
   coerce_parser
@@ -223,7 +223,7 @@ let parse_array
   strengthen (parse_array_kind k array_byte_size) (parse_array' p array_byte_size precond)
 
 
-include LowParse.Spec.VLBytes
+include LowParse.Spec.VLData
 
 let vlarray_pred (#t: Type) (min max: nat) (s: list t) : GTot Type0 =
     let l = L.length s in
@@ -276,7 +276,7 @@ val parse_vlarray_correct
   (data: list t)
 : Lemma
   (requires (
-    parse (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_list p)) b == Some (data, consumed)
+    parse (parse_bounded_vldata array_byte_size_min array_byte_size_max (parse_list p)) b == Some (data, consumed)
   ))
   (ensures (
     let elem_byte_size : pos = k.parser_kind_low in
@@ -310,9 +310,9 @@ let parse_vlarray
   (p: parser k t)
   (array_byte_size_min array_byte_size_max: nat)
   (precond: unit {vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max == true})
-: Tot (parser (parse_bounded_vlbytes_kind array_byte_size_min array_byte_size_max) (vlarray_type_of_parser p array_byte_size_min array_byte_size_max))
+: Tot (parser (parse_bounded_vldata_kind array_byte_size_min array_byte_size_max) (vlarray_type_of_parser p array_byte_size_min array_byte_size_max))
 = let elem_byte_size : pos = k.parser_kind_low in
   parse_strengthen
-    (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_list p))
+    (parse_bounded_vldata array_byte_size_min array_byte_size_max (parse_list p))
     (vlarray_pred (array_byte_size_min / elem_byte_size) (array_byte_size_max / elem_byte_size))
     (parse_vlarray_correct p array_byte_size_min array_byte_size_max precond)
