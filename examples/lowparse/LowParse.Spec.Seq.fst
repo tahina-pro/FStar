@@ -129,3 +129,27 @@ val seq_length_constant_size_parser_correct
 let seq_length_constant_size_parser_correct #k #t p b =
   parse_seq_correct p b;
   PL.list_length_constant_size_parser_correct p b
+
+let serialize_seq'
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (s: serializer p)
+: Pure (serializer (parse_seq' p))
+  (requires (PL.serialize_list_precond k))
+  (ensures (fun _ -> True))
+= Classical.forall_intro (Seq.lemma_seq_list_bij #t);
+  Classical.forall_intro (Seq.lemma_list_seq_bij #t);
+  serialize_synth (PL.parse_list p) Seq.seq_of_list (PL.serialize_list p s) Seq.seq_to_list ()
+
+let serialize_seq
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+  (s: serializer p)
+: Pure (serializer (parse_seq p))
+  (requires (PL.serialize_list_precond k))
+  (ensures (fun _ -> True))
+= Classical.forall_intro (parse_seq_correct p);
+  serialize_ext (parse_seq' p) (serialize_seq' p s) (parse_seq p)
+
