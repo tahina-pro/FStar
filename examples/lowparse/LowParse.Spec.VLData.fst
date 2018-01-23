@@ -479,10 +479,40 @@ let parse_bounded_vldata_strong
   (parse_bounded_vldata_strong_t min max s)
   (parse_strengthen (parse_bounded_vldata min max p) (parse_bounded_vldata_strong_pred min max s) (parse_bounded_vldata_strong_correct min max s))
 
-assume
-val serialize_bounded_integer
+let serialize_bounded_integer'
+  (sz: integer_size)
+: Tot (bare_serializer (bounded_integer sz))
+= (fun (x: bounded_integer sz) ->
+    let res = E.n_to_be (U32.uint_to_t sz) (U32.v x) in
+    res
+  )
+
+
+#set-options "--z3rlimit 64 --max_fuel 8 --max_ifuel 8"
+
+let serialize_bounded_integer_correct
+  (sz: integer_size)
+: Lemma
+  (serializer_correct (parse_bounded_integer sz) (serialize_bounded_integer' sz))
+= let prf
+    (x: bounded_integer sz)
+  : Lemma
+    (
+      let res = serialize_bounded_integer' sz x in
+      Seq.length res == (sz <: nat) /\
+      parse (parse_bounded_integer sz) res == Some (x, (sz <: nat))
+    )
+  = ()
+  in
+  Classical.forall_intro prf
+
+#reset-options
+
+let serialize_bounded_integer
   (sz: integer_size)
 : Tot (serializer (parse_bounded_integer sz))
+= serialize_bounded_integer_correct sz;
+  serialize_bounded_integer' sz
 
 #set-options "--z3rlimit 64"
 
