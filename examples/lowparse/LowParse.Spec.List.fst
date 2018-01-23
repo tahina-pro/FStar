@@ -1,5 +1,5 @@
 module LowParse.Spec.List
-include LowParse.Spec.Combinators
+include LowParse.Spec.Combinators // for seq_slice_append_l
 
 module Seq = FStar.Seq
 module L = FStar.List.Tot
