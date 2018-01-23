@@ -1,5 +1,5 @@
-module LowParse.Spec.VLBytes
-include LowParse.Spec.FLBytes
+module LowParse.Spec.VLData
+include LowParse.Spec.FLData
 include LowParse.Spec.Int
 
 module Seq = FStar.Seq
@@ -73,7 +73,7 @@ let parse_bounded_integer
   make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
 
 // unfold
-let parse_vlbytes_payload_kind
+let parse_vldata_payload_kind
 : parser_kind
 = {
     parser_kind_low = 0;
@@ -83,31 +83,31 @@ let parse_vlbytes_payload_kind
   }
 
 inline_for_extraction
-let parse_vlbytes_payload
+let parse_vldata_payload
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
   (i: bounded_integer sz { f i == true } )
-: Tot (parser parse_vlbytes_payload_kind t)
-= weaken parse_vlbytes_payload_kind (parse_flbytes p (U32.v i))
+: Tot (parser parse_vldata_payload_kind t)
+= weaken parse_vldata_payload_kind (parse_fldata p (U32.v i))
 
 #set-options "--z3rlimit 16"
 
-let parse_flbytes_and_then_cases_injective
+let parse_fldata_and_then_cases_injective
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
 : Lemma
-  (and_then_cases_injective (parse_vlbytes_payload sz f p))
+  (and_then_cases_injective (parse_vldata_payload sz f p))
 = let g
     (len1 len2: (len: bounded_integer sz { f len == true } ))
     (b1 b2: bytes)
   : Lemma
-    (requires (and_then_cases_injective_precond (parse_vlbytes_payload sz f p) len1 len2 b1 b2))
+    (requires (and_then_cases_injective_precond (parse_vldata_payload sz f p) len1 len2 b1 b2))
     (ensures (len1 == len2))
   = assert (injective_precond p (Seq.slice b1 0 (U32.v len1)) (Seq.slice b2 0 (U32.v len2)));
     assert (injective_postcond p (Seq.slice b1 0 (U32.v len1)) (Seq.slice b2 0 (U32.v len2)));
@@ -117,7 +117,7 @@ let parse_flbytes_and_then_cases_injective
     (len1 len2: (len: bounded_integer sz { f len == true } ))
     (b1: bytes)
   : Lemma
-    (forall (b2: bytes) . and_then_cases_injective_precond (parse_vlbytes_payload sz f p) len1 len2 b1 b2 ==> len1 == len2)
+    (forall (b2: bytes) . and_then_cases_injective_precond (parse_vldata_payload sz f p) len1 len2 b1 b2 ==> len1 == len2)
   = Classical.forall_intro (Classical.move_requires (g len1 len2 b1))
   in
   Classical.forall_intro_3 g'
@@ -125,7 +125,7 @@ let parse_flbytes_and_then_cases_injective
 #reset-options
 
 // unfold
-let parse_vlbytes_gen_kind
+let parse_vldata_gen_kind
   (sz: integer_size)
 : parser_kind
 = {
@@ -135,27 +135,27 @@ let parse_vlbytes_gen_kind
     parser_kind_subkind = Some ParserStrong;
   }
 
-let parse_vlbytes_gen_kind_correct
+let parse_vldata_gen_kind_correct
   (sz: integer_size)
 : Lemma
-  ( (parse_vlbytes_gen_kind sz) == (and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vlbytes_payload_kind))
-= let kl = parse_vlbytes_gen_kind sz in
-  let kr = and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vlbytes_payload_kind in
+  ( (parse_vldata_gen_kind sz) == (and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vldata_payload_kind))
+= let kl = parse_vldata_gen_kind sz in
+  let kr = and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vldata_payload_kind in
   assert_norm (kl == kr)
 
 inline_for_extraction
-let parse_vlbytes_gen
+let parse_vldata_gen
   (sz: integer_size)
   (f: (bounded_integer sz -> Tot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser (parse_vlbytes_gen_kind sz) t)
-= parse_flbytes_and_then_cases_injective sz f p;
-  parse_vlbytes_gen_kind_correct sz;
+: Tot (parser (parse_vldata_gen_kind sz) t)
+= parse_fldata_and_then_cases_injective sz f p;
+  parse_vldata_gen_kind_correct sz;
   (parse_filter (parse_bounded_integer sz) f)
   `and_then`
-  parse_vlbytes_payload sz f p
+  parse_vldata_payload sz f p
 
 inline_for_extraction
 let unconstrained_bounded_integer
@@ -165,13 +165,13 @@ let unconstrained_bounded_integer
 = true
 
 inline_for_extraction
-let parse_vlbytes
+let parse_vldata
   (sz: integer_size)
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
 : Tot (parser _ t)
-= parse_vlbytes_gen sz (unconstrained_bounded_integer sz) p
+= parse_vldata_gen sz (unconstrained_bounded_integer sz) p
 
 
 (** Explicit bounds on size *)
@@ -258,7 +258,7 @@ let in_bounds
 = not (U32.v x < min || max < U32.v x)
 
 // unfold
-let parse_bounded_vlbytes_kind
+let parse_bounded_vldata_kind
   (min: nat)
   (max: nat)
 : Pure parser_kind
@@ -271,18 +271,18 @@ let parse_bounded_vlbytes_kind
     parser_kind_subkind = Some ParserStrong;
   }
 
-#reset-options "--z3rlimit 32 --z3cliopt smt.arith.nl=false --z3refresh"
+#reset-options "--z3rlimit 64 --z3cliopt smt.arith.nl=false --z3refresh"
 
-let parse_bounded_vlbytes_correct
+let parse_bounded_vldata_correct
   (min: nat)
   (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
 : Lemma
-  (parser_kind_prop (parse_bounded_vlbytes_kind min max) (parse_vlbytes_gen (log256' max) (in_bounds min max) p))
+  (parser_kind_prop (parse_bounded_vldata_kind min max) (parse_vldata_gen (log256' max) (in_bounds min max) p))
 = let sz : integer_size = log256' max in
-  let p' = parse_vlbytes_gen sz (in_bounds min max) p in
+  let p' = parse_vldata_gen sz (in_bounds min max) p in
   let prf
     (input: bytes)
   : Lemma
@@ -308,8 +308,8 @@ let parse_bounded_vlbytes_correct
     in
     let f2 () : Lemma (in_bounds min max len) = () in
     let input' = Seq.slice input clen (Seq.length input) in
-    let kp = parse_flbytes_kind (U32.v len) in
-    let pp : parser kp _ = parse_flbytes p (U32.v len) in
+    let kp = parse_fldata_kind (U32.v len) in
+    let pp : parser kp _ = parse_fldata p (U32.v len) in
     let pp_res = parse pp input' in
     assert (Some? pp_res);
     let (Some (_, cp)) = pp_res in
@@ -336,12 +336,12 @@ let parse_bounded_vlbytes_correct
 #reset-options
 
 inline_for_extraction
-let parse_bounded_vlbytes
+let parse_bounded_vldata
   (min: nat)
   (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser (parse_bounded_vlbytes_kind min max) t)
-= parse_bounded_vlbytes_correct min max p;
-  strengthen (parse_bounded_vlbytes_kind min max) (parse_vlbytes_gen (log256' max) (in_bounds min max) p)
+: Tot (parser (parse_bounded_vldata_kind min max) t)
+= parse_bounded_vldata_correct min max p;
+  strengthen (parse_bounded_vldata_kind min max) (parse_vldata_gen (log256' max) (in_bounds min max) p)
