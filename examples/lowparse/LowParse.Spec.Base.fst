@@ -527,6 +527,18 @@ let serializer_correct
 : GTot Type0
 = forall (x: t) . parse p (f x) == Some (x, Seq.length (f x))
 
+let serializer_correct_ext
+  (#k1: parser_kind)
+  (#t: Type0)
+  (p1: parser k1 t)
+  (f: bare_serializer t)
+  (#k2: parser_kind)
+  (p2: parser k2 t)
+: Lemma
+  (requires (forall (input: bytes) . parse p1 input == parse p2 input))
+  (ensures (serializer_correct p1 f <==> serializer_correct p2 f))
+= ()
+
 let serializer_complete
   (#k: parser_kind)
   (#t: Type0)
@@ -569,6 +581,19 @@ let serializer
   (p: parser k t)
 : Tot Type0
 = (f: bare_serializer t { serializer_correct p f } )
+
+let serialize_ext
+  (#k1: parser_kind)
+  (#t: Type0)
+  (p1: parser k1 t)
+  (s1: serializer p1)
+  (#k2: parser_kind)
+  (p2: parser k2 t)
+: Pure (serializer p2)
+  (requires (forall (input: bytes) . parse p1 input == parse p2 input))
+  (ensures (fun _ -> True))
+= serializer_correct_ext p1 s1 p2;
+  (s1 <: bare_serializer t)
 
 let serialize
   (#k: parser_kind)
