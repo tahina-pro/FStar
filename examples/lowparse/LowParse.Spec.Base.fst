@@ -217,6 +217,53 @@ let no_lookahead_ext
   ))
 = Classical.forall_intro_2 (fun b1 -> Classical.move_requires (no_lookahead_on_ext p1 p2 b1))
 
+
+(** A parser that always consumes all its input *)
+
+let consumes_all
+  (#t: Type0)
+  (p: bare_parser t)
+: GTot Type0
+= forall (b: bytes) . Some? (parse p b) ==> (
+    let (Some (_, len)) = parse p b in
+    Seq.length b == len
+  )
+
+(** Parsing data of bounded size *)
+
+let parses_at_least
+  (sz: nat)
+  (#t: Type0)
+  (f: bare_parser t)
+: GTot Type0
+= forall (s: bytes) .
+  Some? (parse f s) ==> (
+    let (_, consumed) = Some?.v (parse f s) in
+    sz <= (consumed <: nat)
+  )
+
+let parses_at_least_0
+  (#t: Type0)
+  (f: bare_parser t)
+: Lemma
+  (parses_at_least 0 f)
+= ()
+
+let parses_at_least_le
+  (sz sz': nat)
+  (#t: Type0)
+  (f: bare_parser t)
+: Lemma
+  (requires (
+    parses_at_least sz f /\
+    sz' <= sz
+  ))
+  (ensures (
+    parses_at_least sz' f
+  ))
+= ()
+
+
 (** A parser that always consumes at least one byte.
 
 A list can be serialized only if the parser for elements always
@@ -225,17 +272,6 @@ have the prefix property, this is always true except for the parser
 for empty data.
 
 *)
-
-let consumes_at_least_one_byte
-  (#t: Type0)
-  (p: bare_parser t)
-: GTot Type0
-= forall (x: bytes) .
-  let px = parse p x in
-  Some? px ==> (
-    let (Some (_, len)) = px in
-    len > 0
-  )
 
 let nonempty_strong_parser_consumes_at_least_one_byte
   (#t: Type0)
@@ -252,7 +288,7 @@ let nonempty_strong_parser_consumes_at_least_one_byte
     len > 0
   ))))
   (ensures (
-    consumes_at_least_one_byte p
+    parses_at_least 1 p
   ))
 = let prf
     (x' : bytes)
@@ -279,18 +315,16 @@ let nonempty_strong_parser_consumes_at_least_one_byte
   Classical.forall_intro (Classical.move_requires prf)
 
 
-(** A parser that always consumes all its input *)
-
-let consumes_all
+let parses_at_most
+  (sz: nat)
   (#t: Type0)
-  (p: bare_parser t)
+  (f: bare_parser t)
 : GTot Type0
-= forall (b: bytes) . Some? (parse p b) ==> (
-    let (Some (_, len)) = parse p b in
-    Seq.length b == len
+= forall (s: bytes) .
+  Some? (parse f s) ==> (
+    let (_, consumed) = Some?.v (parse f s) in
+    sz >= (consumed <: nat)
   )
-
-(** Parsing data of constant size *)
 
 let is_constant_size_parser
   (sz: nat)
@@ -298,18 +332,17 @@ let is_constant_size_parser
   (f: bare_parser t)
 : GTot Type0
 = forall (s: bytes) .
-  Some? (f s) ==> (
-    let (_, consumed) = Some?.v (f s) in
+  Some? (parse f s) ==> (
+    let (_, consumed) = Some?.v (parse f s) in
     sz == (consumed <: nat)
   )
 
-let is_constant_size_parser_consumes_at_least_one_byte
+let is_constant_size_parser_equiv
   (sz: nat)
   (#t: Type0)
   (f: bare_parser t)
 : Lemma
-  (requires (is_constant_size_parser sz f /\ sz > 0))
-  (ensures (consumes_at_least_one_byte f))
+  (is_constant_size_parser sz f <==> (parses_at_least sz f /\ parses_at_most sz f))
 = ()
 
 let is_total_constant_size_parser
@@ -320,101 +353,73 @@ let is_total_constant_size_parser
 = forall (s: bytes) . {:pattern (f s) }
   (Seq.length s < sz) == (None? (f s))
 
-(* Type hierarchy *)
-
-type constant_size_parser_kind =
-  | ConstantSizeTotal
-  | ConstantSizeUnknown
-
-let constant_size_parser_kind_prop (k: constant_size_parser_kind) (sz: nat) (#t: Type0) (f: bare_parser t) : GTot Type0 =
-  match k with
-  | ConstantSizeTotal -> is_total_constant_size_parser sz f
-  | _ -> True
-
-type strong_parser_kind' =
-  | StrongConstantSize: (sz: nat) -> (k: constant_size_parser_kind) -> strong_parser_kind'
-  | StrongUnknown
-
-let strong_parser_kind'_prop (k: strong_parser_kind') (#t: Type0) (f: bare_parser t) : GTot Type0 =
-  match k with
-  | StrongConstantSize sz k' ->
-    is_constant_size_parser sz f /\
-    constant_size_parser_kind_prop k' sz f
-  | _ -> True
-
-let strong_parser_kind_consumes_at_least_one_byte (k: strong_parser_kind') (b: bool) : GTot Type0 =
-  match k with
-  | StrongConstantSize sz _ -> b == (sz > 0)
-  | _ -> True
-
-type strong_parser_kind =
-  | StrongParserKind:
-    (k: strong_parser_kind') ->
-    (k_consumes_at_least_one_byte: bool) ->
-    (u: unit { strong_parser_kind_consumes_at_least_one_byte k k_consumes_at_least_one_byte } ) ->
-    strong_parser_kind
-
-let strong_parser_kind_prop (k: strong_parser_kind) (#t: Type0) (f: bare_parser t) : GTot Type0 =
-  let (StrongParserKind k k_consumes_at_least_one_byte _) = k in
-  strong_parser_kind'_prop k f /\
-  (k_consumes_at_least_one_byte == true ==> consumes_at_least_one_byte f)
-
-type parser_kind =
-  | ParserStrong: (k' : strong_parser_kind) -> parser_kind
+type parser_subkind =
+  | ParserStrong
   | ParserConsumesAll
-  | ParserUnknown
 
-let parser_kind_prop (k: parser_kind) (#t: Type0) (f: bare_parser t) : GTot Type0 =
+let parser_subkind_prop (k: parser_subkind) (#t: Type0) (f: bare_parser t) : GTot Type0 =
   match k with
-  | ParserStrong k' ->
-    no_lookahead f /\
-    strong_parser_kind_prop k' f
+  | ParserStrong ->
+    no_lookahead f
   | ParserConsumesAll ->
     consumes_all f
-  | _ -> True
+
+type parser_kind' = {
+  parser_kind_low: nat;
+  parser_kind_high: option nat;
+  parser_kind_total: bool;
+  parser_kind_subkind: option parser_subkind;
+}
+
+let parser_kind = (x: parser_kind' {
+  Some? x.parser_kind_high ==> x.parser_kind_low <= Some?.v x.parser_kind_high
+})
+
+let parser_kind_prop (#t: Type0) (k: parser_kind) (f: bare_parser t) : GTot Type0 =
+  no_lookahead_weak f /\
+  injective f /\
+  parses_at_least k.parser_kind_low f /\
+  (Some? k.parser_kind_high ==> (parses_at_most (Some?.v k.parser_kind_high) f)) /\
+  (((k.parser_kind_high == Some k.parser_kind_low) /\ (k.parser_kind_total == true)) ==> is_total_constant_size_parser k.parser_kind_low f) /\
+  (Some? k.parser_kind_subkind ==> parser_subkind_prop (Some?.v k.parser_kind_subkind) f)
 
 let parser
   (k: parser_kind)
   (t: Type0)
 : Tot Type0
-= (f: bare_parser t { no_lookahead_weak f /\ injective f /\ parser_kind_prop k f } )
+= (f: bare_parser t { parser_kind_prop k f } )
+
+let parser_kind_prop_intro
+  (k: parser_kind)
+  (#t: Type0)
+  (f: parser k t)
+: Lemma
+  (parser_kind_prop k f)
+= ()
 
 let is_weaker_than
   (k1 k2: parser_kind)
 : GTot Type0
-= match k1 with
-  | ParserUnknown -> True
-  | ParserConsumesAll -> k2 == ParserConsumesAll
-  | ParserStrong (StrongParserKind k1s k1s_at_least _) ->
-    begin match k2 with
-    | ParserStrong (StrongParserKind k2s k2s_at_least _) ->
-      (k1s_at_least == true ==> k2s_at_least == true) /\
-      begin match k1s with
-      | StrongUnknown -> True
-      | StrongConstantSize sz1 k1c ->
-	begin match k2s with
-	| StrongConstantSize sz2 k2c ->
-	  sz1 == sz2 /\
-	  begin match k1c with
-	  | ConstantSizeUnknown -> True
-	  | ConstantSizeTotal -> k2c == ConstantSizeTotal
-	  end
-	| _ -> False
-	end
-      end
-    | _ -> False
-    end
+= k1.parser_kind_low <= k2.parser_kind_low /\
+  (Some? k1.parser_kind_high ==> (
+    Some? k2.parser_kind_high /\
+    Some?.v k2.parser_kind_high <= Some?.v k1.parser_kind_high
+  )) /\
+  (k1.parser_kind_total == true ==> k2.parser_kind_total == true) /\
+  (Some? k1.parser_kind_subkind ==> k1.parser_kind_subkind == k2.parser_kind_subkind)
 
-inline_for_extraction
+// inline_for_extraction
+unfold
 let weaken (k1: parser_kind) (#k2: parser_kind) (#t: Type0) (p2: parser k2 t) : Pure (parser k1 t)
   (requires (k1 `is_weaker_than` k2))
   (ensures (fun _ -> True))
 = let p : bare_parser t = p2 in
   p
 
-inline_for_extraction
+// inline_for_extraction
+unfold
 let strengthen (k: parser_kind) (#t: Type0) (f: bare_parser t) : Pure (parser k t)
-  (requires (no_lookahead_weak f /\ injective f /\ parser_kind_prop k f))
+  (requires (parser_kind_prop k f))
   (ensures (fun _ -> True))
 = f
 
@@ -427,36 +432,29 @@ let glb
     k `is_weaker_than` k2 /\
     (forall k' . (k' `is_weaker_than` k1 /\ k' `is_weaker_than` k2) ==> k' `is_weaker_than` k)
   ))
-= match k1 with
-  | ParserStrong (StrongParserKind k1s k1s_at_least _) ->
-    begin match k2 with
-    | ParserStrong (StrongParserKind k2s k2s_at_least _) -> ParserStrong (StrongParserKind
-      begin match k1s with
-      | StrongConstantSize sz1 k1c ->
-	begin match k2s with
-	| StrongConstantSize sz2 k2c ->
-	  if sz1 = sz2
-	  then StrongConstantSize sz1
-	    begin match k1c with
-	    | ConstantSizeTotal -> k2c
-	    | _ -> ConstantSizeUnknown
-	    end
-	  else StrongUnknown
-	| _ -> StrongUnknown
-	end
-      | _ -> StrongUnknown
-      end
-      (k1s_at_least && k2s_at_least)
-      ()
-    )
-    | _ -> ParserUnknown
-    end
-  | ParserConsumesAll ->
-    begin match k2 with
-    | ParserConsumesAll -> ParserConsumesAll
-    | _ -> ParserUnknown
-    end
-  | _ -> ParserUnknown
+= {
+    parser_kind_low = (if k1.parser_kind_low < k2.parser_kind_low then k1.parser_kind_low else k2.parser_kind_low);
+    parser_kind_high = (
+      if Some? k1.parser_kind_high && Some? k2.parser_kind_high
+      then if Some?.v k2.parser_kind_high < Some?.v k1.parser_kind_high
+	   then k1.parser_kind_high
+	   else k2.parser_kind_high
+      else None
+    );
+    parser_kind_total = k1.parser_kind_total && k2.parser_kind_total;
+    parser_kind_subkind = if k1.parser_kind_subkind = k2.parser_kind_subkind then k1.parser_kind_subkind else None
+  }
+
+let default_parser_kind : (x: parser_kind {
+  forall (t: Type0) (p: bare_parser t) .
+  (no_lookahead_weak p /\ injective p) ==> parser_kind_prop x p
+})
+= {
+    parser_kind_low = 0;
+    parser_kind_high = None;
+    parser_kind_total = false;
+    parser_kind_subkind = None;
+  }
 
 #set-options "--max_fuel 8 --max_ifuel 8"
 
@@ -473,7 +471,7 @@ let rec glb_list_of
     (forall k' . (Cons? l /\ (forall kl . L.mem kl l ==> k' `is_weaker_than` (f kl))) ==> k' `is_weaker_than` k)
   ))
 = match l with
-  | [] -> ParserUnknown
+  | [] -> default_parser_kind
   | [k] -> f k
   | k1 :: q ->
     let k' = glb_list_of f q in
@@ -490,6 +488,29 @@ let glb_list
     (forall k' . (Cons? l /\ (forall kl . L.mem kl l ==> k' `is_weaker_than` kl)) ==> k' `is_weaker_than` k)
   ))
 = glb_list_of id l
+
+(* Coercions *)
+
+unfold
+let coerce
+  (t2: Type)
+  (#t1: Type)
+  (x: t1)
+: Pure t2
+  (requires (t1 == t2))
+  (ensures (fun _ -> True))
+= (x <: t2)
+
+unfold
+let coerce_parser
+  (t2: Type0)
+  (#k: parser_kind)
+  (#t1: Type0)
+  (p: parser k t1)
+: Pure (parser k t2)
+  (requires (t2 == t1))
+  (ensures (fun _ -> True))
+= p
 
 (* Pure serializers *)
 
@@ -583,12 +604,13 @@ let serializer_parser_unique'
   (#k1: parser_kind)
   (#t: Type0)
   (p1: parser k1 t)
-  (#k2: strong_parser_kind)
-  (p2: parser (ParserStrong k2) t)
+  (#k2: parser_kind)
+  (p2: parser k2 t)
   (s: bare_serializer t)
   (x: bytes)
 : Lemma
   (requires (
+    k2.parser_kind_subkind == Some ParserStrong /\
     serializer_correct p1 s /\
     serializer_correct p2 s /\
     Some? (p1 x)
@@ -609,15 +631,17 @@ let serializer_parser_unique'
   assert (injective_postcond p2 x' x)
 
 let serializer_parser_unique
-  (#k1: strong_parser_kind)
+  (#k1: parser_kind)
   (#t: Type0)
-  (p1: parser (ParserStrong k1) t)
-  (#k2: strong_parser_kind)
-  (p2: parser (ParserStrong k2) t)
+  (p1: parser k1 t)
+  (#k2: parser_kind)
+  (p2: parser k2 t)
   (s: bare_serializer t)
   (x: bytes)
 : Lemma
   (requires (
+    k1.parser_kind_subkind == Some ParserStrong /\
+    k2.parser_kind_subkind == Some ParserStrong /\
     serializer_correct p1 s /\
     serializer_correct p2 s
   ))

@@ -35,16 +35,17 @@ let bare_serialize_tagged_union
   Seq.append (st t) (serialize (s t) u)
 
 let bare_serialize_tagged_union_correct
-  (#kt: strong_parser_kind)
+  (#kt: parser_kind)
   (#tag: Type0)
   (#tu: tag -> Type0)
-  (pt: parser (ParserStrong kt) tag)
+  (pt: parser kt tag)
   (st: serializer pt)
   (#k: parser_kind)
   (p: (t: tag) -> Tot (parser k (tu t))) // Tot really needed here by validator
   (s: (t: tag) -> Tot (serializer (p t)))
 : Lemma
-  (serializer_correct (parse_tagged_union pt p) (bare_serialize_tagged_union pt st p s))
+  (requires (kt.parser_kind_subkind == Some ParserStrong))
+  (ensures (serializer_correct (parse_tagged_union pt p) (bare_serialize_tagged_union pt st p s)))
 = (* same proof as nondep_then *)
   let prf
     (x: (t: tag & tu t))
@@ -77,15 +78,17 @@ let bare_serialize_tagged_union_correct
   Classical.forall_intro prf
 
 let serialize_tagged_union
-  (#kt: strong_parser_kind)
+  (#kt: parser_kind)
   (#tag: Type0)
   (#tu: tag -> Type0)
-  (pt: parser (ParserStrong kt) tag)
+  (pt: parser kt tag)
   (st: serializer pt)
   (#k: parser_kind)
   (p: (t: tag) -> Tot (parser k (tu t))) // Tot really needed here by validator
   (s: (t: tag) -> Tot (serializer (p t)))
-: Tot (serializer (parse_tagged_union pt p))
+: Pure (serializer (parse_tagged_union pt p))
+  (requires (kt.parser_kind_subkind == Some ParserStrong))
+  (ensures (fun _ -> True))
 = bare_serialize_tagged_union_correct pt st p s;
   bare_serialize_tagged_union pt st p s
 
@@ -121,7 +124,7 @@ let weaken_parse_cases_kind
   glb_list_of #(sum_key_type s) (fun (x: sum_key_type s) ->
     if List.Tot.mem x keys
     then let (| k, _ |) = f x in k
-    else ParserUnknown
+    else default_parser_kind
   ) (List.Tot.map fst (sum_enum s))
 
 let parse_sum_cases
@@ -149,17 +152,18 @@ let parse_sum
     pc
 
 let serialize_sum
-  (#kt: strong_parser_kind)
+  (#kt: parser_kind)
   (t: sum)
-  (p: parser (ParserStrong kt) (sum_repr_type t))
+  (p: parser kt (sum_repr_type t))
   (s: serializer p)
   (#k: parser_kind)
   (pc: ((x: sum_key t) -> Tot (parser k (sum_cases t x))))
   (sc: ((x: sum_key t) -> Tot (serializer (pc x))))
-: Tot (serializer (parse_sum #(ParserStrong kt) t p pc))
-= let (ParserStrong k') = parse_filter_kind (ParserStrong kt) in
-  serialize_tagged_union
-    #k'
+: Pure (serializer (parse_sum t p pc))
+  (requires (kt.parser_kind_subkind == Some ParserStrong))
+  (ensures (fun _ -> True))
+= serialize_tagged_union
+    #(parse_filter_kind kt)
     #(sum_key t)
     #(sum_cases t)
     (parse_enum_key p (sum_enum t))
@@ -234,16 +238,18 @@ let parse_dsum
     (parse_dsum_cases t pc pd)
 
 let serialize_dsum
-  (#kt: strong_parser_kind)
+  (#kt: parser_kind)
   (t: dsum)
-  (p: parser (ParserStrong kt) (sum_repr_type (fst t)))
+  (p: parser kt (sum_repr_type (fst t)))
   (s: serializer p)
   (#k: parser_kind)
   (pc: ((x: sum_key (fst t)) -> Tot (parser k (sum_cases (fst t) x))))
   (sc: ((x: sum_key (fst t)) -> Tot (serializer (pc x))))
   (pd: parser k (snd t))
   (sd: serializer pd)
-: Tot (serializer (parse_dsum #(ParserStrong kt) t p pc pd))
+: Pure (serializer (parse_dsum t p pc pd))
+  (requires (kt.parser_kind_subkind == Some ParserStrong))
+  (ensures (fun _ -> True))
 = serialize_tagged_union
     #kt
     #(dsum_key t)
