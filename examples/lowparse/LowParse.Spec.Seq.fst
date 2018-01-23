@@ -41,7 +41,15 @@ let parse_seq'
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser ParserConsumesAll (Seq.seq t))
+: Tot (parser
+    ({
+      parser_kind_low = 0;
+      parser_kind_high = None;
+      parser_kind_total = false;
+      parser_kind_subkind = Some ParserConsumesAll;
+    })
+    (Seq.seq t)
+  )
 = seq_of_list_inj t;
   parse_synth (PL.parse_list p) (Seq.seq_of_list)
 
@@ -77,7 +85,15 @@ let parse_seq
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser ParserConsumesAll (Seq.seq t))
+: Tot (parser
+    ({
+      parser_kind_low = 0;
+      parser_kind_high = None;
+      parser_kind_total = false;
+      parser_kind_subkind = Some ParserConsumesAll;
+    })
+    (Seq.seq t)
+  )
 = Classical.forall_intro (parse_seq_aux_correct p);
   no_lookahead_weak_ext (parse_seq' p) (parse_seq_aux p);
   injective_ext (parse_seq' p) (parse_seq_aux p);
@@ -94,24 +110,22 @@ let parse_seq_correct
 = parse_seq_aux_correct p b
 
 val seq_length_constant_size_parser_correct
-  (#n: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize n k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
+  (p: parser k t)
   (b: bytes)
 : Lemma
   (requires (
+    k.parser_kind_high == Some k.parser_kind_low /\
     Some? (parse (parse_seq p) b)
   ))
   (ensures (
     let pb = parse (parse_seq p) b in
     Some? pb /\ (
     let (Some (l, _)) = pb in
-    FStar.Mul.op_Star (Seq.length l) n == Seq.length b
+    FStar.Mul.op_Star (Seq.length l) k.parser_kind_low == Seq.length b
   )))
 
-let seq_length_constant_size_parser_correct #n #k #b #u #t p b =
+let seq_length_constant_size_parser_correct #k #t p b =
   parse_seq_correct p b;
   PL.list_length_constant_size_parser_correct p b

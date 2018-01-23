@@ -8,8 +8,10 @@ module U8  = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 
+let parse_u8_kind : parser_kind = total_constant_size_parser_kind 1
+
 inline_for_extraction
-let parse_u8: parser _ U8.t =
+let parse_u8: parser parse_u8_kind U8.t =
   make_total_constant_size_parser 1 U8.t (fun b -> Seq.index b 0)
 
 let serialize_u8 : serializer parse_u8 =
@@ -56,10 +58,13 @@ let decode_u16_injective
     be_to_n_inj b1 b2
   end else ()
 
+let parse_u16_kind : parser_kind =
+  total_constant_size_parser_kind 2
+
 #set-options "--z3rlimit 16"
 
 inline_for_extraction
-let parse_u16: parser _ U16.t =
+let parse_u16: parser parse_u16_kind U16.t =
   Classical.forall_intro_2 decode_u16_injective;
   make_total_constant_size_parser 2 U16.t decode_u16
 
@@ -93,8 +98,11 @@ let decode_u32_injective
 
 #reset-options
 
+let parse_u32_kind : parser_kind =
+  total_constant_size_parser_kind 4
+
 inline_for_extraction
-let parse_u32: parser _ U32.t =
+let parse_u32: parser parse_u32_kind U32.t =
   Classical.forall_intro_2 decode_u32_injective;
   make_total_constant_size_parser 4 U32.t decode_u32
 
