@@ -1,16 +1,16 @@
 module LowParse.Spec.Array
 include LowParse.Spec.FLBytes
-include LowParse.Spec.Seq
+include LowParse.Spec.List
 
 module Seq = FStar.Seq
-module PL = LowParse.Spec.List
+module L = FStar.List.Tot
 
 module U32 = FStar.UInt32
 
-let array_pred (#t: Type) (n: nat) (s: Seq.seq t) : GTot Type0 =
-  Seq.length s == n
+let array_pred (#t: Type) (n: nat) (s: list t) : GTot Type0 =
+  L.length s == n
 
-type array (t: Type) (n: nat) = (s: Seq.seq t { array_pred n s } )
+type array (t: Type) (n: nat) = (s: list t { array_pred n s } )
 
 let array_type_of_parser_kind_precond'
   (k: parser_kind)
@@ -63,14 +63,14 @@ let parse_array_correct
   (u' : unit {array_type_of_parser_kind_precond p array_byte_size == true})
   (b: bytes)
   (consumed: consumed_length b)
-  (data: Seq.seq t)
+  (data: list t)
 : Lemma
-  (requires (parse (parse_flbytes (parse_seq p) array_byte_size) b == Some (data, consumed)))
+  (requires (parse (parse_flbytes (parse_list p) array_byte_size) b == Some (data, consumed)))
   (ensures (array_pred #t (array_byte_size / k.parser_kind_low) data))
 = assert (consumed == array_byte_size);
   let b' = Seq.slice b 0 consumed in
-  seq_length_constant_size_parser_correct p b';
-  FStar.Math.Lemmas.multiple_division_lemma (Seq.length data) k.parser_kind_low;
+  list_length_constant_size_parser_correct p b';
+  FStar.Math.Lemmas.multiple_division_lemma (L.length data) k.parser_kind_low;
   ()
 
 let parse_array'
@@ -80,10 +80,10 @@ let parse_array'
   (array_byte_size: nat)
   (precond: unit {array_type_of_parser_kind_precond p array_byte_size == true})
 : Tot (parser (parse_flbytes_kind array_byte_size) (array_type_of_parser p array_byte_size))
-= let p' : parser (parse_flbytes_kind array_byte_size) (Seq.seq t) =
-    (parse_flbytes (parse_seq p) array_byte_size)
+= let p' : parser (parse_flbytes_kind array_byte_size) (list t) =
+    (parse_flbytes (parse_list p) array_byte_size)
   in
-  assert_norm (array_type_of_parser p array_byte_size == (x: Seq.seq t { array_pred (array_byte_size / k.parser_kind_low) x}));
+  assert_norm (array_type_of_parser p array_byte_size == (x: list t { array_pred (array_byte_size / k.parser_kind_low) x}));
   coerce_parser
     (array_type_of_parser p array_byte_size)
     (parse_strengthen p' (array_pred (array_byte_size / k.parser_kind_low)) (parse_array_correct p array_byte_size precond))
@@ -116,7 +116,7 @@ val parse_total_constant_size_elem_parse_list_total
     Seq.length b % elem_byte_size == 0
   )))
   (ensures (
-    Some? (parse (PL.parse_list p) b)
+    Some? (parse (parse_list p) b)
   ))
   (decreases (Seq.length b))
 
@@ -142,7 +142,7 @@ let rec parse_total_constant_size_elem_parse_list_total #k #t p b =
     assert (Seq.length b == elem_byte_size + Seq.length b');
     assert (Seq.length b % elem_byte_size == Seq.length b' % elem_byte_size);
     parse_total_constant_size_elem_parse_list_total p b' ;    
-    assert (Some? (parse (PL.parse_list p) b))
+    assert (Some? (parse (parse_list p) b))
   end
 
 #reset-options
@@ -169,8 +169,7 @@ val parse_total_constant_size_elem_parse_array_total'
 
 let parse_total_constant_size_elem_parse_array_total' #k #t p array_byte_size precond b =
   let b' = Seq.slice b 0 array_byte_size in
-  parse_total_constant_size_elem_parse_list_total p b';
-  parse_seq_correct p b'
+  parse_total_constant_size_elem_parse_list_total p b'
 
 #reset-options
 
@@ -226,12 +225,12 @@ let parse_array
 
 include LowParse.Spec.VLBytes
 
-let vlarray_pred (#t: Type) (min max: nat) (s: Seq.seq t) : GTot Type0 =
-    let l = Seq.length s in
+let vlarray_pred (#t: Type) (min max: nat) (s: list t) : GTot Type0 =
+    let l = L.length s in
     min <= l /\ l <= max
 
 type vlarray (t: Type) (min max: nat) =
-  (s: Seq.seq t {vlarray_pred min max s})
+  (s: list t {vlarray_pred min max s})
 
 let vlarray_type_of_parser_kind_precond
   (#k: parser_kind)
@@ -274,10 +273,10 @@ val parse_vlarray_correct
   (u: unit { vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max == true })
   (b: bytes)
   (consumed: consumed_length b)
-  (data: Seq.seq t)
+  (data: list t)
 : Lemma
   (requires (
-    parse (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p)) b == Some (data, consumed)
+    parse (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_list p)) b == Some (data, consumed)
   ))
   (ensures (
     let elem_byte_size : pos = k.parser_kind_low in
@@ -314,6 +313,6 @@ let parse_vlarray
 : Tot (parser (parse_bounded_vlbytes_kind array_byte_size_min array_byte_size_max) (vlarray_type_of_parser p array_byte_size_min array_byte_size_max))
 = let elem_byte_size : pos = k.parser_kind_low in
   parse_strengthen
-    (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_seq p))
+    (parse_bounded_vlbytes array_byte_size_min array_byte_size_max (parse_list p))
     (vlarray_pred (array_byte_size_min / elem_byte_size) (array_byte_size_max / elem_byte_size))
     (parse_vlarray_correct p array_byte_size_min array_byte_size_max precond)
