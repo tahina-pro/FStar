@@ -18,6 +18,7 @@ preorders \
 dm4free \
 incl \
 struct \
+lowparse \
 micro-benchmarks \
 bytes \
 tactics \
