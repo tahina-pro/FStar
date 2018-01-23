@@ -93,3 +93,69 @@ let parse_fldata_consumes_all_correct
   (requires (k.parser_kind_subkind == Some ParserConsumesAll))
   (ensures (forall b . parse (parse_fldata p sz) b == parse (parse_fldata_consumes_all p sz) b))
 = ()
+
+let parse_fldata_strong_pred
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (sz: nat)
+  (x: t)
+: GTot Type0
+= Seq.length (serialize s x) == sz
+
+let parse_fldata_strong_t
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (sz: nat)
+: Tot Type0
+= (x: t { parse_fldata_strong_pred s sz x } )
+
+let parse_fldata_strong_correct
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (sz: nat)
+  (xbytes: bytes)
+  (consumed: consumed_length xbytes)
+  (x: t)
+: Lemma
+  (requires (parse (parse_fldata p sz) xbytes == Some (x, consumed)))
+  (ensures (parse_fldata_strong_pred s sz x))
+= serializer_correct_implies_complete p s
+
+inline_for_extraction
+let parse_fldata_strong
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (sz: nat)
+: Tot (parser (parse_fldata_kind sz) (parse_fldata_strong_t s sz))
+= coerce_parser
+  (parse_fldata_strong_t s sz)
+  (parse_strengthen (parse_fldata p sz) (parse_fldata_strong_pred s sz) (parse_fldata_strong_correct s sz))
+
+#set-options "--z3rlimit 16"
+
+let serialize_fldata_strong'
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (sz: nat)
+: Tot (bare_serializer (parse_fldata_strong_t s sz))
+= (fun (x: parse_fldata_strong_t s sz) ->
+  s x)
+
+let serialize_fldata_strong
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (sz: nat)
+: Tot (serializer (parse_fldata_strong s sz))
+= serialize_fldata_strong' s sz
