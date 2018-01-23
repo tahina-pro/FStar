@@ -1,19 +1,19 @@
 (* Parse data of some explicitly fixed length *)
 
-module LowParse.Spec.FLBytes
+module LowParse.Spec.FLData
 include LowParse.Spec.Combinators
 
 module Seq = FStar.Seq
 module Classical = FStar.Classical
 
 inline_for_extraction
-val parse_flbytes'
+val parse_fldata'
   (#t: Type0)
   (p: bare_parser t)
   (sz: nat)
 : Tot (bare_parser t)
 
-let parse_flbytes' #t p sz =
+let parse_fldata' #t p sz =
   let () = () in // Necessary to pass arity checking
   fun (s: bytes) ->
   if Seq.length s < sz
@@ -26,24 +26,24 @@ let parse_flbytes' #t p sz =
       else None
     | _ -> None
 
-let parse_flbytes_injective
+let parse_fldata_injective
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
   (sz: nat)
 : Lemma
-  (ensures (injective (parse_flbytes' p sz)))
+  (ensures (injective (parse_fldata' p sz)))
 = let f
     (b1 b2: bytes)
   : Lemma
-    (requires (injective_precond (parse_flbytes' p sz) b1 b2))
-    (ensures (injective_postcond (parse_flbytes' p sz) b1 b2))
+    (requires (injective_precond (parse_fldata' p sz) b1 b2))
+    (ensures (injective_postcond (parse_fldata' p sz) b1 b2))
   = assert (injective_precond p (Seq.slice b1 0 sz) (Seq.slice b2 0 sz))
   in
   Classical.forall_intro_2 (fun b -> Classical.move_requires (f b))
 
 // unfold
-let parse_flbytes_kind
+let parse_fldata_kind
   (sz: nat)
 : Tot parser_kind
 = {
@@ -54,18 +54,18 @@ let parse_flbytes_kind
   }
 
 inline_for_extraction
-val parse_flbytes
+val parse_fldata
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
   (sz: nat)
-: Tot (parser (parse_flbytes_kind sz) t)
+: Tot (parser (parse_fldata_kind sz) t)
 
-let parse_flbytes #b #t p sz =
-  parse_flbytes_injective p sz;
-  parse_flbytes' p sz  
+let parse_fldata #b #t p sz =
+  parse_fldata_injective p sz;
+  parse_fldata' p sz  
 
-val parse_flbytes_consumes_all
+val parse_fldata_consumes_all
   (#t: Type0)
   (p: bare_parser t)
   (sz: nat)
@@ -73,7 +73,7 @@ val parse_flbytes_consumes_all
   (requires (consumes_all p))
   (ensures (fun _ -> True))
 
-let parse_flbytes_consumes_all #t p sz =
+let parse_fldata_consumes_all #t p sz =
   let () = () in // Necessary to pass arity checking
   fun (s: bytes) ->
   if Seq.length s < sz
@@ -84,12 +84,12 @@ let parse_flbytes_consumes_all #t p sz =
       Some (v, (sz <: consumed_length s))
     | _ -> None
 
-let parse_flbytes_consumes_all_correct
+let parse_fldata_consumes_all_correct
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
   (sz: nat)
 : Lemma
   (requires (k.parser_kind_subkind == Some ParserConsumesAll))
-  (ensures (forall b . parse (parse_flbytes p sz) b == parse (parse_flbytes_consumes_all p sz) b))
+  (ensures (forall b . parse (parse_fldata p sz) b == parse (parse_fldata_consumes_all p sz) b))
 = ()
