@@ -17,7 +17,7 @@ let bounded_integer
 : Tot Type0
 = (u: U32.t { U32.v u < pow2 (FStar.Mul.op_Star 8 i) } )
 
-#set-options "--z3rlimit 64"
+#reset-options "--z3rlimit 64 --z3cliopt smt.arith.nl=false --z3refresh"
 
 let decode_bounded_integer
   (i: integer_size)
@@ -54,12 +54,33 @@ let decode_bounded_integer_injective
   )
 = Classical.forall_intro_2 (decode_bounded_integer_injective' i)
 
+// unfold
+let parse_bounded_integer_kind
+  (i: integer_size)
+: Tot parser_kind
+= {
+    parser_kind_low = i;
+    parser_kind_high = Some i;
+    parser_kind_total = true;
+    parser_kind_subkind = Some ParserStrong;
+  }
+
 inline_for_extraction
 let parse_bounded_integer
   (i: integer_size)
-: Tot (parser _ (bounded_integer i))
+: Tot (parser (parse_bounded_integer_kind i) (bounded_integer i))
 = decode_bounded_integer_injective i;
   make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
+
+// unfold
+let parse_vlbytes_payload_kind
+: parser_kind
+= {
+    parser_kind_low = 0;
+    parser_kind_high = None;
+    parser_kind_total = false;
+    parser_kind_subkind = Some ParserStrong;
+  }
 
 inline_for_extraction
 let parse_vlbytes_payload
@@ -69,8 +90,8 @@ let parse_vlbytes_payload
   (#t: Type0)
   (p: parser k t)
   (i: bounded_integer sz { f i == true } )
-: Tot (parser (ParserStrong (StrongParserKind StrongUnknown false ())) t)
-= weaken (ParserStrong (StrongParserKind StrongUnknown false ())) (parse_flbytes p (U32.v i))
+: Tot (parser parse_vlbytes_payload_kind t)
+= weaken parse_vlbytes_payload_kind (parse_flbytes p (U32.v i))
 
 #set-options "--z3rlimit 16"
 
@@ -103,6 +124,25 @@ let parse_flbytes_and_then_cases_injective
 
 #reset-options
 
+// unfold
+let parse_vlbytes_gen_kind
+  (sz: integer_size)
+: parser_kind
+= {
+    parser_kind_low = sz;
+    parser_kind_high = None;
+    parser_kind_total = false;
+    parser_kind_subkind = Some ParserStrong;
+  }
+
+let parse_vlbytes_gen_kind_correct
+  (sz: integer_size)
+: Lemma
+  ( (parse_vlbytes_gen_kind sz) == (and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vlbytes_payload_kind))
+= let kl = parse_vlbytes_gen_kind sz in
+  let kr = and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vlbytes_payload_kind in
+  assert_norm (kl == kr)
+
 inline_for_extraction
 let parse_vlbytes_gen
   (sz: integer_size)
@@ -110,8 +150,9 @@ let parse_vlbytes_gen
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser (ParserStrong (StrongParserKind StrongUnknown true ())) t)
+: Tot (parser (parse_vlbytes_gen_kind sz) t)
 = parse_flbytes_and_then_cases_injective sz f p;
+  parse_vlbytes_gen_kind_correct sz;
   (parse_filter (parse_bounded_integer sz) f)
   `and_then`
   parse_vlbytes_payload sz f p
@@ -139,7 +180,7 @@ inline_for_extraction
 val log256'
   (n: nat)
 : Pure nat
-  (requires (n > 0 /\ n < pow2 32))
+  (requires (n > 0 /\ n < 4294967296))
   (ensures (fun l ->
     1 <= l /\
     l <= 4 /\
@@ -147,7 +188,10 @@ val log256'
     n < pow2 (FStar.Mul.op_Star 8 l)
   ))
 
+#set-options "--z3rlimit 16"
+
 let log256' n =
+  assert (n < pow2 32);
   let z0 = 1 in
   let z1 = Prims.op_Multiply 256 z0 in
   let l = 1 in
@@ -186,6 +230,9 @@ let log256' n =
     end
   end
 
+#reset-options
+
+(*
 inline_for_extraction
 val log256
   (n: U32.t)
@@ -200,22 +247,101 @@ val log256
 
 let log256 n =
   log256' (U32.v n)
+*)
 
 inline_for_extraction
 let in_bounds
-  (min: U32.t)
-  (max: U32.t)
+  (min: nat)
+  (max: nat)
   (x: U32.t)
 : Tot bool
-= not (U32.lt x min || U32.lt max x)
+= not (U32.v x < min || max < U32.v x)
 
-inline_for_extraction
-let parse_bounded_vlbytes
-  (min: U32.t)
-  (max: U32.t { U32.v max > 0 } )
+// unfold
+let parse_bounded_vlbytes_kind
+  (min: nat)
+  (max: nat)
+: Pure parser_kind
+  (requires (min <= max /\ max > 0 /\ max < 4294967296 ))
+  (ensures (fun _ -> True))
+= {
+    parser_kind_low = log256' max + min;
+    parser_kind_high = Some (log256' max + max);
+    parser_kind_total = false;
+    parser_kind_subkind = Some ParserStrong;
+  }
+
+#reset-options "--z3rlimit 32 --z3cliopt smt.arith.nl=false --z3refresh"
+
+let parse_bounded_vlbytes_correct
+  (min: nat)
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser _ t)
-= let sz : integer_size = log256 max in
-  parse_vlbytes_gen sz (in_bounds min max) p
+: Lemma
+  (parser_kind_prop (parse_bounded_vlbytes_kind min max) (parse_vlbytes_gen (log256' max) (in_bounds min max) p))
+= let sz : integer_size = log256' max in
+  let p' = parse_vlbytes_gen sz (in_bounds min max) p in
+  let prf
+    (input: bytes)
+  : Lemma
+    (requires (Some? (parse p' input)))
+    (ensures (
+      let pi = parse p' input in
+      Some? pi /\ (
+      let (Some (_, consumed)) = pi in
+      sz + min <= (consumed <: nat) /\
+      (consumed <: nat) <= sz + max
+    )))
+  = let klen = parse_filter_kind (parse_bounded_integer_kind sz) in
+    let plen : parser klen _ = parse_filter (parse_bounded_integer sz) (in_bounds min max) in
+    let plen_res = parse plen input in
+    assert (Some? plen_res);
+    let (Some (len, clen)) = plen_res in
+    let f1 () : Lemma ((clen <: nat) == (sz <: nat)) =
+      parser_kind_prop_intro klen plen;
+      assert_norm (klen.parser_kind_low == (sz <: nat));
+      assert_norm (klen.parser_kind_high == Some (sz <: nat));
+      is_constant_size_parser_equiv sz plen;
+      assert ((clen <: nat) == (sz <: nat))
+    in
+    let f2 () : Lemma (in_bounds min max len) = () in
+    let input' = Seq.slice input clen (Seq.length input) in
+    let kp = parse_flbytes_kind (U32.v len) in
+    let pp : parser kp _ = parse_flbytes p (U32.v len) in
+    let pp_res = parse pp input' in
+    assert (Some? pp_res);
+    let (Some (_, cp)) = pp_res in
+    let f3 () : Lemma ((cp <: nat) == U32.v len) =
+      parser_kind_prop_intro kp pp;
+      assert_norm (kp.parser_kind_low == U32.v len);
+      assert_norm (kp.parser_kind_high == Some (U32.v len));
+      is_constant_size_parser_equiv (U32.v len) pp;
+      assert ((cp <: nat) == U32.v len)
+    in
+    let (Some (_, consumed)) = parse p' input in
+    let f () : Lemma
+      (sz + min <= (consumed <: nat) /\
+       ((consumed <: nat) <= sz + max))
+    = assert ((consumed <: nat) == (clen <: nat) + (cp <: nat));
+      f1 ();
+      f2 ();
+      f3 ()
+    in
+    f ()
+  in
+  Classical.forall_intro (Classical.move_requires prf)
+
+#reset-options
+
+inline_for_extraction
+let parse_bounded_vlbytes
+  (min: nat)
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
+  (#k: parser_kind)
+  (#t: Type0)
+  (p: parser k t)
+: Tot (parser (parse_bounded_vlbytes_kind min max) t)
+= parse_bounded_vlbytes_correct min max p;
+  strengthen (parse_bounded_vlbytes_kind min max) (parse_vlbytes_gen (log256' max) (in_bounds min max) p)

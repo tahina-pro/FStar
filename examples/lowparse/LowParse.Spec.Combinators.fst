@@ -76,6 +76,16 @@ let make_constant_size_parser_injective
   in
   Classical.forall_intro_2 (fun (b1: bytes) -> Classical.move_requires (prf1 b1))
 
+let constant_size_parser_kind
+  (sz: nat)
+: Tot parser_kind
+= {
+    parser_kind_low = sz;
+    parser_kind_high = Some sz;
+    parser_kind_total = false;
+    parser_kind_subkind = Some ParserStrong;
+  }
+
 inline_for_extraction
 let make_constant_size_parser
   (sz: nat)
@@ -83,7 +93,11 @@ let make_constant_size_parser
   (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)) {
     make_constant_size_parser_precond sz t f
   })
-: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize sz ConstantSizeUnknown) (sz > 0) ())) t)
+: Tot (
+    parser
+      (constant_size_parser_kind sz)
+      t
+  )
 = let p : bare_parser t = make_constant_size_parser_aux sz t f in
   make_constant_size_parser_injective sz t f;
   p
@@ -96,6 +110,16 @@ let make_total_constant_size_parser_precond
 = forall (s1: bytes {Seq.length s1 == sz}) (s2: bytes {Seq.length s2 == sz}) .
   f s1 == f s2 ==> Seq.equal s1 s2
 
+let total_constant_size_parser_kind
+  (sz: nat)
+: Tot parser_kind
+= {
+    parser_kind_low = sz;
+    parser_kind_high = Some sz;
+    parser_kind_total = true;
+    parser_kind_subkind = Some ParserStrong;
+  }
+
 inline_for_extraction
 let make_total_constant_size_parser
   (sz: nat)
@@ -103,7 +127,11 @@ let make_total_constant_size_parser
   (f: ((s: bytes {Seq.length s == sz}) -> Tot t) {
     make_total_constant_size_parser_precond sz t f
   })
-: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize sz ConstantSizeTotal) (sz > 0) ())) t)
+: Tot (
+    parser
+      (total_constant_size_parser_kind sz)
+      t
+  )
 = let p : bare_parser t = make_constant_size_parser sz t (fun x -> Some (f x)) in
   p
 
@@ -114,11 +142,19 @@ unfold
 let parse_ret' (#t:Type) (v:t) : Tot (bare_parser t) =
   fun (b: bytes) -> Some (v, (0 <: consumed_length b))
 
+// unfold
+let parse_ret_kind : parser_kind = {
+  parser_kind_low = 0;
+  parser_kind_high = Some 0;
+  parser_kind_total = true;
+  parser_kind_subkind = Some ParserStrong;
+}
+
 unfold
-let parse_ret (#t:Type) (v:t) : Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize 0 ConstantSizeTotal) false ())) t) =
+let parse_ret (#t:Type) (v:t) : Tot (parser parse_ret_kind t) =
   parse_ret' v
 
-let parse_empty : parser (ParserStrong (StrongParserKind (StrongConstantSize 0 ConstantSizeTotal) false ())) unit =
+let parse_empty : parser parse_ret_kind unit =
   parse_ret ()
 
 let serialize_empty : serializer parse_empty =
@@ -129,17 +165,8 @@ let serialize_empty : serializer parse_empty =
 let fail_parser_kind_precond
   (k: parser_kind)
 : GTot Type0
-= match k with
-  | ParserStrong (StrongParserKind ks _ _) ->
-    begin match ks with
-    | StrongConstantSize _ kc ->
-      begin match kc with
-      | ConstantSizeTotal -> False
-      | _ -> True
-      end
-    | _ -> True
-    end
-  | _ -> True
+= k.parser_kind_total == false /\
+  (Some? k.parser_kind_high ==> k.parser_kind_low <= Some?.v k.parser_kind_high)
 
 inline_for_extraction
 let fail_parser'
@@ -155,8 +182,7 @@ let fail_parser
   (requires (fail_parser_kind_precond k))
   (ensures (fun _ -> True))
 = let p = fail_parser' t in
-  assert (forall (sz: nat) . is_constant_size_parser sz p);
-  p
+  strengthen k p
 
 /// monadic bind for the parser monad
 
@@ -387,52 +413,30 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
       else ()
     | _ -> ()
 
+// unfold
 let and_then_kind
   (k1 k2: parser_kind)
 : Tot parser_kind
-= match k1 with
-  | ParserStrong k1s_ ->
-    begin match k2 with
-    | ParserStrong k2s_ -> ParserStrong (
-      let (StrongParserKind k1s k1s_at_least _) = k1s_ in
-      let (StrongParserKind k2s k2s_at_least _) = k2s_ in
-      StrongParserKind
-      begin match k1s with
-      | StrongConstantSize sz1 k1c ->
-	begin match k2s with
-	| StrongConstantSize sz2 k2c -> StrongConstantSize (sz1 + sz2)
-	  begin match k1c with
-	  | ConstantSizeTotal ->
-	    begin match k2c with
-	    | ConstantSizeTotal -> ConstantSizeTotal
-	    | _ -> ConstantSizeUnknown
-	    end
-	  | _ -> ConstantSizeUnknown
-	  end
-	| _ -> StrongUnknown
-	end
-      | _ -> StrongUnknown
-      end
-      (k1s_at_least || k2s_at_least)
-      ()
-    )
-    | ParserConsumesAll -> ParserConsumesAll
-    | _ -> ParserUnknown
-    end
-  | _ ->
-    begin match k2 with
-    | ParserConsumesAll -> ParserConsumesAll
-    | ParserStrong k2s_ ->
-      let (StrongParserKind k2s _ _) = k2s_ in
-      begin match k2s with
-      | StrongConstantSize sz2 k2c ->
-	if sz2 = 0
-	then k1
-	else ParserUnknown
-      | _ -> ParserUnknown
-      end
-    | _ -> ParserUnknown
-    end
+= {
+    parser_kind_low = k1.parser_kind_low + k2.parser_kind_low;
+    parser_kind_high =
+      begin
+	if Some? k1.parser_kind_high && Some? k2.parser_kind_high
+	then Some (Some?.v k1.parser_kind_high + Some?.v k2.parser_kind_high)
+	else None
+      end;
+    parser_kind_total = k1.parser_kind_total && k2.parser_kind_total;
+    parser_kind_subkind =
+      begin
+        if k2.parser_kind_subkind = Some ParserConsumesAll
+	then Some ParserConsumesAll
+	else if k1.parser_kind_subkind = Some ParserStrong && k2.parser_kind_subkind = Some ParserStrong
+	then Some ParserStrong
+	else if k2.parser_kind_high = Some 0 && k2.parser_kind_subkind = Some ParserStrong
+	then k1.parser_kind_subkind
+	else None
+      end;
+  }
 
 let and_then_no_lookahead
   (#k: parser_kind)
@@ -445,8 +449,8 @@ let and_then_no_lookahead
   (requires (
     and_then_cases_injective p'
   ))
-  (ensures ((ParserStrong? k /\ ParserStrong? k') ==> no_lookahead (and_then_bare p p')))
-= if ParserStrong? k && ParserStrong? k' then
+  (ensures ((k.parser_kind_subkind == Some ParserStrong /\ k'.parser_kind_subkind == Some ParserStrong) ==> no_lookahead (and_then_bare p p')))
+= if k.parser_kind_subkind = Some ParserStrong && k.parser_kind_subkind = Some ParserStrong then
     Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_on p p' x))
   else ()
 
@@ -495,16 +499,6 @@ let and_then #k #t p #k' #t' p' =
 
 (* Special case for non-dependent parsing *)
 
-#set-options "--max_fuel 8 --max_ifuel 8"
-
-let and_then_kind_0_r
-  (k2: parser_kind)
-: Lemma
-  (and_then_kind k2 (ParserStrong (StrongParserKind (StrongConstantSize 0 ConstantSizeTotal) false ())) == k2)
-= ()
-
-#reset-options
-
 inline_for_extraction
 let nondep_then
   (#k1: parser_kind)
@@ -514,8 +508,7 @@ let nondep_then
   (#t2: Type0)
   (p2: parser k2 t2)
 : Tot (parser (and_then_kind k1 k2) (t1 * t2))
-= and_then_kind_0_r k2;
-  p1 `and_then` (fun v1 -> p2 `and_then` (fun v2 -> (parse_ret (v1, v2))))
+= p1 `and_then` (fun v1 -> p2 `and_then` (fun v2 -> (parse_ret (v1, v2))))
 
 #set-options "--z3rlimit 32"
 
@@ -548,16 +541,17 @@ let seq_slice_append_r
 = assert (Seq.equal (Seq.slice (Seq.append s1 s2) (Seq.length s1) (Seq.length (Seq.append s1 s2))) s2)
 
 let bare_serialize_nondep_then_correct
-  (#k1: strong_parser_kind)
+  (#k1: parser_kind)
   (#t1: Type0)
-  (p1: parser (ParserStrong k1) t1)
+  (p1: parser k1 t1)
   (s1: serializer p1)
   (#k2: parser_kind)
   (#t2: Type0)
   (p2: parser k2 t2)
   (s2: serializer p2)
 : Lemma
-  (serializer_correct (nondep_then p1 p2) (bare_serialize_nondep_then p1 s1 p2 s2))
+  (requires (k1.parser_kind_subkind == Some ParserStrong))
+  (ensures (serializer_correct (nondep_then p1 p2) (bare_serialize_nondep_then p1 s1 p2 s2)))
 = let prf
     (x: t1 * t2)
   : Lemma (parse (nondep_then p1 p2) (bare_serialize_nondep_then p1 s1 p2 s2 x) == Some (x, Seq.length (bare_serialize_nondep_then p1 s1 p2 s2 x)))
@@ -589,10 +583,11 @@ let bare_serialize_nondep_then_correct
   Classical.forall_intro prf
 
 let serialize_nondep_then
-  (#k1: strong_parser_kind)
+  (#k1: parser_kind)
   (#t1: Type0)
-  (p1: parser (ParserStrong k1) t1)
+  (p1: parser k1 t1)
   (s1: serializer p1)
+  (u: unit { k1.parser_kind_subkind == Some ParserStrong } )
   (#k2: parser_kind)
   (#t2: Type0)
   (p2: parser k2 t2)
@@ -603,16 +598,6 @@ let serialize_nondep_then
 
 
 (** Apply a total transformation on parsed data *)
-
-unfold
-let coerce
-  (t2: Type)
-  (#t1: Type)
-  (x: t1)
-: Pure t2
-  (requires (t1 == t2))
-  (ensures (fun _ -> True))
-= (x <: t2)
 
 let parse_strengthen_prf
   (#k: parser_kind)
@@ -714,8 +699,7 @@ let parse_synth
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'
   ))
   (ensures (fun _ -> True))
-= and_then_kind_0_r k;
-  coerce (parser k t2) (and_then p1 (fun v1 -> parse_ret (f2 v1)))
+= coerce (parser k t2) (and_then p1 (fun v1 -> parse_ret (f2 v1)))
 
 val bare_serialize_synth
   (#k: parser_kind)
@@ -767,31 +751,35 @@ let serialize_synth
 
 (** Refinements *)
 
+// unfold
 let parse_filter_kind (k: parser_kind) : Tot parser_kind =
-  match k with
-  | ParserStrong ks_ -> ParserStrong (
-    let (StrongParserKind ks ks_at_least _) = ks_ in
-    StrongParserKind
-    begin match ks with
-    | StrongConstantSize sz _ -> StrongConstantSize sz ConstantSizeUnknown
-    | _ -> ks
-    end
-    ks_at_least
-    ()
-  )
-  | _ -> k
+  {
+    parser_kind_low = k.parser_kind_low;
+    parser_kind_high = k.parser_kind_high;
+    parser_kind_total = false;
+    parser_kind_subkind = k.parser_kind_subkind;
+  }
+
+// unfold
+let parse_filter_payload_kind : parser_kind =
+  {
+    parser_kind_low = 0;
+    parser_kind_high = Some 0;
+    parser_kind_total = false;
+    parser_kind_subkind = Some ParserStrong;
+  }
 
 inline_for_extraction
 let parse_filter_payload
   (#t: Type0)
   (f: (t -> Tot bool))
   (v: t)
-: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize 0 ConstantSizeUnknown) false ())) (x: t { f x == true }))
+: Tot (parser parse_filter_payload_kind (x: t { f x == true }))
 = if f v
   then
     let v' : (x: t { f x == true } ) = v in
-    weaken (ParserStrong (StrongParserKind (StrongConstantSize 0 ConstantSizeUnknown) false ())) (parse_ret v')
-  else fail_parser (ParserStrong (StrongParserKind (StrongConstantSize 0 ConstantSizeUnknown) false ())) (x: t {f x == true} )
+    weaken parse_filter_payload_kind (parse_ret v')
+  else fail_parser parse_filter_payload_kind (x: t {f x == true} )
 
 inline_for_extraction
 let parse_filter
@@ -800,8 +788,7 @@ let parse_filter
   (p: parser k t)
   (f: (t -> Tot bool))
 : Tot (parser (parse_filter_kind k) (x: t { f x == true }))
-= and_then_kind_0_r k;
-  p `and_then` (parse_filter_payload f)
+= p `and_then` (parse_filter_payload f)
 
 (* Helpers to define `if` combinators *)
 
