@@ -114,7 +114,7 @@ let serialize32_synth
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser k t1)
-  (f2: t1 -> Tot t2)
+  (f2: t1 -> GTot t2)
   (s1: serializer p1)
   (s1' : serializer32 s1)
   (g1: t2 -> Tot t1)

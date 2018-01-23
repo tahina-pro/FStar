@@ -65,7 +65,6 @@ let parse_bounded_integer_kind
     parser_kind_subkind = Some ParserStrong;
   }
 
-inline_for_extraction
 let parse_bounded_integer
   (i: integer_size)
 : Tot (parser (parse_bounded_integer_kind i) (bounded_integer i))
@@ -84,7 +83,7 @@ let parse_vldata_payload_kind
 
 let parse_vldata_payload
   (sz: integer_size)
-  (f: (bounded_integer sz -> Tot bool))
+  (f: (bounded_integer sz -> GTot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
@@ -96,7 +95,7 @@ let parse_vldata_payload
 
 let parse_fldata_and_then_cases_injective
   (sz: integer_size)
-  (f: (bounded_integer sz -> Tot bool))
+  (f: (bounded_integer sz -> GTot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
@@ -142,10 +141,9 @@ let parse_vldata_gen_kind_correct
   let kr = and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vldata_payload_kind in
   assert_norm (kl == kr)
 
-inline_for_extraction
 let parse_vldata_gen
   (sz: integer_size)
-  (f: (bounded_integer sz -> Tot bool))
+  (f: (bounded_integer sz -> GTot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
@@ -156,14 +154,12 @@ let parse_vldata_gen
   `and_then`
   parse_vldata_payload sz f p
 
-inline_for_extraction
 let unconstrained_bounded_integer
   (sz: integer_size)
   (i: bounded_integer sz)
-: Tot bool
+: GTot bool
 = true
 
-inline_for_extraction
 let parse_vldata
   (sz: integer_size)
   (#k: parser_kind)
@@ -229,29 +225,11 @@ let log256' n =
 
 #reset-options
 
-(*
-inline_for_extraction
-val log256
-  (n: U32.t)
-: Pure nat
-  (requires (U32.v n > 0))
-  (ensures (fun l ->
-    1 <= l /\
-    l <= 4 /\
-    pow2 (FStar.Mul.op_Star 8 (l - 1)) <= U32.v n /\
-    U32.v n < pow2 (FStar.Mul.op_Star 8 l)
-  ))
-
-let log256 n =
-  log256' (U32.v n)
-*)
-
-inline_for_extraction
 let in_bounds
   (min: nat)
   (max: nat)
   (x: U32.t)
-: Tot bool
+: GTot bool
 = not (U32.v x < min || max < U32.v x)
 
 // unfold
@@ -268,7 +246,7 @@ let parse_bounded_vldata_kind
     parser_kind_subkind = Some ParserStrong;
   }
 
-#reset-options "--z3rlimit 64 --z3cliopt smt.arith.nl=false --z3refresh"
+#reset-options "--z3rlimit 128 --z3cliopt smt.arith.nl=false --z3refresh"
 
 let parse_bounded_vldata_elim'
   (min: nat)
@@ -329,21 +307,6 @@ let parse_bounded_vldata_elim'
     assert ((consumed <: nat) == sz + consumed_p);
     ()
 
-(*
-    assert (Some? (parse (parse_fldata p (U32.v len)) input1));
-    assert (U32.v len <= Seq.length input1);
-    let input2 = Seq.slice input1 0 (U32.v len) in
-    assert (input2 = Seq.slice xbytes (sz <: nat) (sz + U32.v len));
-
-    let pp = parse p input' in
-    Some? pp /\ (
-    let (Some (x', consumed_p)) = pp in
-    x' == x /\
-    (consumed_p <: nat) == U32.v len /\
-    (consumed <: nat) == sz + U32.v len
-*)
-
-
 let parse_bounded_vldata_correct
   (min: nat)
   (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
@@ -372,7 +335,6 @@ let parse_bounded_vldata_correct
 
 #reset-options
 
-inline_for_extraction
 let parse_bounded_vldata
   (min: nat)
   (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
@@ -487,7 +449,6 @@ let serialize_bounded_integer'
     res
   )
 
-
 #set-options "--z3rlimit 64 --max_fuel 8 --max_ifuel 8"
 
 let serialize_bounded_integer_correct
@@ -538,7 +499,7 @@ let serialize_bounded_vldata_strong'
 
 val serialize_vldata_gen_correct_aux
   (sz: integer_size)
-  (f: (bounded_integer sz -> Tot bool))
+  (f: (bounded_integer sz -> GTot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
@@ -600,7 +561,7 @@ let serialize_vldata_gen_correct_aux sz f #k #t p b b1 b2 =
 
 val serialize_vldata_gen_correct
   (sz: integer_size)
-  (f: (bounded_integer sz -> Tot bool))
+  (f: (bounded_integer sz -> GTot bool))
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
