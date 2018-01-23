@@ -16,6 +16,12 @@ FSTAR_SPEC= \
 	TLSParse.Spec.fst \
 
 
+FSTAR_SLOW= \
+	LowParse.SLow.Base.fst \
+	LowParse.SLow.Combinators.fst \
+	LowParse.SLow.List.fst \
+	
+
 FSTAR_IMPL= \
 	LowParse.Impl.Base.fst \
 	LowParse.Impl.Combinators.fst \
@@ -43,6 +49,7 @@ FSTAR_IMPL= \
 
 FSTAR_SOURCE_FILES= \
 	$(FSTAR_SPEC) \
+	$(FSTAR_SLOW) \
 	$(FSTAR_IMPL) \
 	LowParse.fst \
 	LowParseExamples.fst \
