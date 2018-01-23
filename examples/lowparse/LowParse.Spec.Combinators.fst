@@ -7,11 +7,10 @@ module U32 = FStar.UInt32
 
 (** Constant-size parsers *)
 
-inline_for_extraction
 let make_constant_size_parser_aux
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
 : Tot (bare_parser t)
 = fun (s: bytes) ->
   if Seq.length s < sz
@@ -28,7 +27,7 @@ let make_constant_size_parser_aux
 let make_constant_size_parser_precond_precond
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
   (s1: bytes { Seq.length s1 == sz } )
   (s2: bytes { Seq.length s2 == sz } )
 : GTot Type0
@@ -37,7 +36,7 @@ let make_constant_size_parser_precond_precond
 let make_constant_size_parser_precond
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
 : GTot Type0
 = forall (s1: bytes {Seq.length s1 == sz}) (s2: bytes {Seq.length s2 == sz}) .
     make_constant_size_parser_precond_precond sz t f s1 s2 ==> Seq.equal s1 s2
@@ -45,7 +44,7 @@ let make_constant_size_parser_precond
 let make_constant_size_parser_precond'
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)))
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
 : GTot Type0
 = forall (s1: bytes {Seq.length s1 == sz}) (s2: bytes {Seq.length s2 == sz}) .
     make_constant_size_parser_precond_precond sz t f s1 s2 ==> s1 == s2
@@ -53,7 +52,7 @@ let make_constant_size_parser_precond'
 let make_constant_size_parser_injective
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)) {
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)) {
     make_constant_size_parser_precond sz t f
   })
 : Lemma
@@ -86,11 +85,10 @@ let constant_size_parser_kind
     parser_kind_subkind = Some ParserStrong;
   }
 
-inline_for_extraction
 let make_constant_size_parser
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot (option t)) {
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)) {
     make_constant_size_parser_precond sz t f
   })
 : Tot (
@@ -105,7 +103,7 @@ let make_constant_size_parser
 let make_total_constant_size_parser_precond
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot t))
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot t))
 : GTot Type0
 = forall (s1: bytes {Seq.length s1 == sz}) (s2: bytes {Seq.length s2 == sz}) .
   f s1 == f s2 ==> Seq.equal s1 s2
@@ -120,11 +118,10 @@ let total_constant_size_parser_kind
     parser_kind_subkind = Some ParserStrong;
   }
 
-inline_for_extraction
 let make_total_constant_size_parser
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> Tot t) {
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot t) {
     make_total_constant_size_parser_precond sz t f
   })
 : Tot (
@@ -168,13 +165,11 @@ let fail_parser_kind_precond
 = k.parser_kind_total == false /\
   (Some? k.parser_kind_high ==> k.parser_kind_low <= Some?.v k.parser_kind_high)
 
-inline_for_extraction
 let fail_parser'
   (t: Type0)
 : Tot (bare_parser t)
 = fun _ -> None
 
-inline_for_extraction
 let fail_parser
   (k: parser_kind)
   (t: Type0)
@@ -186,7 +181,6 @@ let fail_parser
 
 /// monadic bind for the parser monad
 
-inline_for_extraction
 val and_then_bare : #t:Type -> #t':Type ->
                 p:bare_parser t ->
                 p': (t -> Tot (bare_parser t')) ->
@@ -478,7 +472,6 @@ let and_then_correct
 
 #reset-options
 
-inline_for_extraction
 val and_then
   (#k: parser_kind)
   (#t:Type)
@@ -499,7 +492,6 @@ let and_then #k #t p #k' #t' p' =
 
 (* Special case for non-dependent parsing *)
 
-inline_for_extraction
 let nondep_then
   (#k1: parser_kind)
   (#t1: Type0)
@@ -612,7 +604,6 @@ let parse_strengthen_prf
   (requires (parse p1 xbytes == Some (x, consumed)))
   (ensures (p2 x))
 
-inline_for_extraction
 let bare_parse_strengthen
   (#k: parser_kind)
   (#t1: Type0)
@@ -687,28 +678,36 @@ let parse_strengthen
 = bare_parse_strengthen_correct p1 p2 prf;
   bare_parse_strengthen p1 p2 prf
 
-inline_for_extraction
+/// monadic return for the parser monad
+unfold
+let parse_fret' (#t #t':Type) (f: t -> GTot t') (v:t) : Tot (bare_parser t') =
+  fun (b: bytes) -> Some (f v, (0 <: consumed_length b))
+
+unfold
+let parse_fret (#t #t':Type) (f: t -> GTot t') (v:t) : Tot (parser parse_ret_kind t') =
+  parse_fret' f v
+
 let parse_synth
   (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser k t1)
-  (f2: t1 -> Tot t2)
+  (f2: t1 -> GTot t2)
 : Pure (parser k t2)
   (requires (
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'
   ))
   (ensures (fun _ -> True))
-= coerce (parser k t2) (and_then p1 (fun v1 -> parse_ret (f2 v1)))
+= coerce (parser k t2) (and_then p1 (fun v1 -> parse_fret f2 v1))
 
 val bare_serialize_synth
   (#k: parser_kind)
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser k t1)
-  (f2: t1 -> Tot t2)
+  (f2: t1 -> GTot t2)
   (s1: serializer p1)
-  (g1: t2 -> Tot t1)
+  (g1: t2 -> GTot t1)
 : Tot (bare_serializer t2)
 
 let bare_serialize_synth #k #t1 #t2 p1 f2 s1 g1 =
@@ -719,9 +718,9 @@ val bare_serialize_synth_correct
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser k t1)
-  (f2: t1 -> Tot t2)
+  (f2: t1 -> GTot t2)
   (s1: serializer p1)
-  (g1: t2 -> Tot t1)
+  (g1: t2 -> GTot t1)
 : Lemma
   (requires (
     (forall (x : t2) . f2 (g1 x) == x) /\
@@ -737,9 +736,9 @@ let serialize_synth
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser k t1)
-  (f2: t1 -> Tot t2)
+  (f2: t1 -> GTot t2)
   (s1: serializer p1)
-  (g1: t2 -> Tot t1)
+  (g1: t2 -> GTot t1)
   (u: unit {
     (forall (x : t2) . f2 (g1 x) == x) /\
     (forall (x x' : t1) . f2 x == f2 x' ==> x == x')
@@ -748,6 +747,32 @@ let serialize_synth
 = bare_serialize_synth_correct p1 f2 s1 g1;
   bare_serialize_synth p1 f2 s1 g1
 
+
+(** Tot vs. Ghost *)
+
+unfold
+let lift_parser'
+  (#k: parser_kind)
+  (#t: Type0)
+  (f: unit -> GTot (parser k t))
+: Tot (bare_parser t)
+= fun (input: bytes) -> parse (f ()) input
+
+let lift_parser_correct
+  (#k: parser_kind)
+  (#t: Type0)
+  (f: unit -> GTot (parser k t))
+: Lemma
+  (parser_kind_prop k (lift_parser' f))
+= parser_kind_prop_ext k (f ()) (lift_parser' f)
+
+unfold
+let lift_parser
+  (#k: parser_kind)
+  (#t: Type0)
+  (f: unit -> GTot (parser k t))
+: Tot (bare_parser t)
+= lift_parser' f
 
 (** Refinements *)
 
@@ -769,24 +794,25 @@ let parse_filter_payload_kind : parser_kind =
     parser_kind_subkind = Some ParserStrong;
   }
 
-inline_for_extraction
 let parse_filter_payload
   (#t: Type0)
-  (f: (t -> Tot bool))
+  (f: (t -> GTot bool))
   (v: t)
 : Tot (parser parse_filter_payload_kind (x: t { f x == true }))
-= if f v
-  then
-    let v' : (x: t { f x == true } ) = v in
-    weaken parse_filter_payload_kind (parse_ret v')
-  else fail_parser parse_filter_payload_kind (x: t {f x == true} )
+= lift_parser (fun () ->
+    if f v
+    then
+      let v' : (x: t { f x == true } ) = v in
+      weaken parse_filter_payload_kind (parse_ret v')
+    else fail_parser parse_filter_payload_kind (x: t {f x == true} )
+  )
 
 inline_for_extraction
 let parse_filter
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-  (f: (t -> Tot bool))
+  (f: (t -> GTot bool))
 : Tot (parser (parse_filter_kind k) (x: t { f x == true }))
 = p `and_then` (parse_filter_payload f)
 

@@ -21,15 +21,13 @@ module U32 = FStar.UInt32
 inline_for_extraction
 let consumed_length (b: bytes) : Tot Type0 = (n: nat { n <= Seq.length b } )
 
-// switch to Tot if you want OCaml extraction
-let bare_parser (t:Type0) : Tot Type0 = (b: bytes) -> Tot (option (t * consumed_length b))
+let bare_parser (t:Type0) : Tot Type0 = (b: bytes) -> GTot (option (t * consumed_length b))
 
-inline_for_extraction
 let parse
   (#t: Type0)
   (p: bare_parser t)
   (input: bytes)
-: Tot (option (t * consumed_length input))
+: GTot (option (t * consumed_length input))
 = p input
 
 let no_lookahead_weak_on
@@ -383,6 +381,17 @@ let parser_kind_prop (#t: Type0) (k: parser_kind) (f: bare_parser t) : GTot Type
   (((k.parser_kind_high == Some k.parser_kind_low) /\ (k.parser_kind_total == true)) ==> is_total_constant_size_parser k.parser_kind_low f) /\
   (Some? k.parser_kind_subkind ==> parser_subkind_prop (Some?.v k.parser_kind_subkind) f)
 
+let parser_kind_prop_ext
+  (#t: Type0)
+  (k: parser_kind)
+  (f1 f2: bare_parser t)
+: Lemma
+  (requires (forall (input: bytes) . parse f1 input == parse f2 input))
+  (ensures (parser_kind_prop k f1 <==> parser_kind_prop k f2))
+= no_lookahead_ext f1 f2;
+  no_lookahead_weak_ext f1 f2;
+  injective_ext f1 f2
+
 let parser
   (k: parser_kind)
   (t: Type0)
@@ -517,7 +526,7 @@ let coerce_parser
 let bare_serializer
   (t: Type0)
 : Tot Type0
-= t -> Tot bytes
+= t -> GTot bytes
 
 let serializer_correct
   (#k: parser_kind)
@@ -601,7 +610,7 @@ let serialize
   (#p: parser k t)
   (s: serializer p)
   (x: t)
-: Tot bytes
+: GTot bytes
 = s x
 
 let serializer_unique
