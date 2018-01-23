@@ -6,6 +6,7 @@ FSTAR_SPEC= \
 	LowParse.Spec.Int.fst \
 	LowParse.Spec.FLData.fst \
 	LowParse.Spec.VLData.fst \
+	LowParse.Spec.Bytes.fst \
 	LowParse.Spec.Enum.fst \
 	LowParse.Spec.Sum.fst \
 	LowParse.Spec.List.fst \

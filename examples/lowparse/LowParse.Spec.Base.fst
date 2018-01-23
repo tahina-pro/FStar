@@ -227,6 +227,19 @@ let consumes_all
     Seq.length b == len
   )
 
+let injective_consumes_all_no_lookahead_weak
+  (#t: Type0)
+  (p: bare_parser t)
+: Lemma
+  (requires (
+    injective p /\
+    consumes_all p
+  ))
+  (ensures (
+    no_lookahead_weak p
+  ))
+= ()
+
 (** Parsing data of bounded size *)
 
 let parses_at_least
