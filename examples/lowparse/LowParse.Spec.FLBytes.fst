@@ -42,13 +42,24 @@ let parse_flbytes_injective
   in
   Classical.forall_intro_2 (fun b -> Classical.move_requires (f b))
 
+// unfold
+let parse_flbytes_kind
+  (sz: nat)
+: Tot parser_kind
+= {
+    parser_kind_low = sz;
+    parser_kind_high = Some sz;
+    parser_kind_total = false;
+    parser_kind_subkind = Some ParserStrong
+  }
+
 inline_for_extraction
 val parse_flbytes
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
   (sz: nat)
-: Tot (parser (ParserStrong (StrongParserKind (StrongConstantSize sz ConstantSizeUnknown) (sz > 0) ())) t)
+: Tot (parser (parse_flbytes_kind sz) t)
 
 let parse_flbytes #b #t p sz =
   parse_flbytes_injective p sz;
@@ -74,9 +85,11 @@ let parse_flbytes_consumes_all #t p sz =
     | _ -> None
 
 let parse_flbytes_consumes_all_correct
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser ParserConsumesAll t)
+  (p: parser k t)
   (sz: nat)
 : Lemma
-  (forall b . parse (parse_flbytes p sz) b == parse (parse_flbytes_consumes_all p sz) b)
+  (requires (k.parser_kind_subkind == Some ParserConsumesAll))
+  (ensures (forall b . parse (parse_flbytes p sz) b == parse (parse_flbytes_consumes_all p sz) b))
 = ()

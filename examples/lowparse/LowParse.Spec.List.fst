@@ -75,6 +75,8 @@ let no_lookahead_weak_on_parse_list_bare
   | Some _ -> parse_list_bare_consumed p x
   | _ -> ()
 
+#set-options "--z3rlimit 16"
+
 let parse_list_bare_injective
   (#k: parser_kind)
   (#t: Type0)
@@ -114,12 +116,22 @@ let parse_list_bare_injective
   in
   Classical.forall_intro_2 (fun b -> Classical.move_requires (aux b))
 
+#reset-options
+
+let parse_list_kind =
+  {
+    parser_kind_low = 0;
+    parser_kind_high = None;
+    parser_kind_total = false;
+    parser_kind_subkind = Some ParserConsumesAll;
+  }
+
 inline_for_extraction
 val parse_list
   (#k: parser_kind)
   (#t: Type0)
   (p: parser k t)
-: Tot (parser ParserConsumesAll (list t))
+: Tot (parser parse_list_kind (list t))
 
 let parse_list #k #t p =
   Classical.forall_intro_2 (no_lookahead_weak_on_parse_list_bare p);
@@ -138,18 +150,22 @@ let rec bare_serialize_list
   | [] -> Seq.createEmpty
   | a :: q -> Seq.append (s a) (bare_serialize_list p s q)
 
+unfold
+let serialize_list_precond
+  (k: parser_kind)
+: GTot Type0
+= k.parser_kind_subkind == Some ParserStrong /\
+  k.parser_kind_low > 0
+
 let bare_serialize_list_correct
-  (#k: strong_parser_kind')
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (p: parser k t)
   (s: serializer p)
 : Lemma
+  (requires (serialize_list_precond k))
   (ensures (serializer_correct (parse_list p) (bare_serialize_list p s)))
-= let f () : Lemma
-    (consumes_at_least_one_byte p)
-  = ()
-  in
+= let f () : Lemma (serialize_list_precond k) = () in
   let rec prf
     (l: list t)
   : Lemma
@@ -158,6 +174,7 @@ let bare_serialize_list_correct
     | [] -> ()
     | a :: q ->
       let pa = parse p (bare_serialize_list p s l) in
+      f ();
       assert (no_lookahead_on p (s a) (bare_serialize_list p s l));
       seq_slice_append_l (s a) (bare_serialize_list p s q);
       assert (no_lookahead_on_precond p (s a) (bare_serialize_list p s l));
@@ -168,7 +185,6 @@ let bare_serialize_list_correct
       let (Some (a', lena)) = pa in
       assert (a == a');
       assert (lena == Seq.length (s a));
-      f ();
       assert (lena > 0);
       prf q;
       seq_slice_append_r (s a) (bare_serialize_list p s q)
@@ -176,59 +192,66 @@ let bare_serialize_list_correct
   Classical.forall_intro prf
 
 let serialize_list
-  (#k: strong_parser_kind')
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (p: parser k t)
   (s: serializer p)
 : Pure (serializer (parse_list p))
-  (requires (consumes_at_least_one_byte p))
+  (requires (
+    serialize_list_precond k
+  ))
   (ensures (fun _ -> True))
 = bare_serialize_list_correct p s;
   bare_serialize_list p s
 
 let serialize_list_nil
-  (#k: strong_parser_kind')
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (p: parser k t)
   (s: serializer p)
 : Lemma
-  (serialize (serialize_list p s) [] == Seq.createEmpty)
+  (requires (
+    serialize_list_precond k
+  ))
+  (ensures (serialize (serialize_list p s) [] == Seq.createEmpty))
 = ()
 
 let serialize_list_cons
-  (#k: strong_parser_kind')
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (p: parser k t)
   (s: serializer p)
   (a: t)
   (q: list t)
 : Lemma
-  (serialize (serialize_list p s) (a :: q) == Seq.append (serialize s a) (serialize (serialize_list p s) q))
+  (requires (
+    serialize_list_precond k
+  ))
+  (ensures (
+    serialize (serialize_list p s) (a :: q) == Seq.append (serialize s a) (serialize (serialize_list p s) q)
+  ))
 = ()
 
 let serialize_list_singleton
-  (#k: strong_parser_kind')
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (p: parser k t)
   (s: serializer p)
   (a: t)
 : Lemma
-  (serialize (serialize_list p s) [a] == serialize s a)
+  (requires (serialize_list_precond k))
+  (ensures (serialize (serialize_list p s) [a] == serialize s a))
 = Seq.append_empty_r (serialize s a)
 
 let rec serialize_list_append
-  (#k: strong_parser_kind')
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte k true } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind k true u)) t)
+  (p: parser k t)
   (s: serializer p)
   (l1 l2: list t)
 : Lemma
-  (serialize (serialize_list p s) (L.append l1 l2) == Seq.append (serialize (serialize_list p s) l1) (serialize (serialize_list p s) l2))
+  (requires (serialize_list_precond k))
+  (ensures (serialize (serialize_list p s) (L.append l1 l2) == Seq.append (serialize (serialize_list p s) l1) (serialize (serialize_list p s) l2)))
 = match l1 with
   | a :: q ->
     serialize_list_append p s q l2;
@@ -237,26 +260,25 @@ let rec serialize_list_append
     Seq.append_empty_l (serialize (serialize_list p s) l2)
 
 val list_length_constant_size_parser_correct
-  (#n: nat)
-  (#k: constant_size_parser_kind)
-  (#b: bool)
-  (#u: unit { strong_parser_kind_consumes_at_least_one_byte (StrongConstantSize n k) b } )
+  (#k: parser_kind)
   (#t: Type0)
-  (p: parser (ParserStrong (StrongParserKind (StrongConstantSize n k) b u)) t)
+  (p: parser k t)
   (b: bytes)
 : Lemma
   (requires (
+    k.parser_kind_high == Some k.parser_kind_low /\
     Some? (parse (parse_list p) b)
   ))
   (ensures (
     let pb = parse (parse_list p) b in
     Some? pb /\ (
     let (Some (l, _)) = pb in
-    FStar.Mul.op_Star (L.length l) n == Seq.length b
+    FStar.Mul.op_Star (L.length l) k.parser_kind_low == Seq.length b
   )))
   (decreases (Seq.length b))
 
-let rec list_length_constant_size_parser_correct #n #k #b #u #t p b =
+let rec list_length_constant_size_parser_correct #k #t p b =
+  let n = k.parser_kind_low in
   if Seq.length b = 0
   then ()
   else begin
