@@ -12,7 +12,7 @@ val parse_list_aux
   (#t: Type0)
   (p: bare_parser t)
   (b: bytes)
-: Tot (option (list t * (consumed_length b)))
+: GTot (option (list t * (consumed_length b)))
   (decreases (Seq.length b))
 
 let rec parse_list_aux #t p b =
@@ -145,7 +145,7 @@ let rec bare_serialize_list
   (p: parser k t)
   (s: serializer p)
   (x: list t)
-: Tot bytes
+: GTot bytes
 = match x with
   | [] -> Seq.createEmpty
   | a :: q -> Seq.append (s a) (bare_serialize_list p s q)
