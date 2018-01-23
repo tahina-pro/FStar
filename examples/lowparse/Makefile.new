@@ -23,7 +23,7 @@ FSTAR_OPTIONS ?=
 MY_FSTAR=$(FSTAR_HOME)/bin/fstar.exe --use_hints --cache_checked_modules --odir $(OUTPUT_DIRECTORY) $(addprefix --include , $(INCLUDE_PATHS)) $(INCLUDE_KREMLIN)  $(FSTAR_OPTIONS)
 MY_KREMLIN=$(KREMLIN_HOME)/krml
 
-all: verify-spec
+all: verify-spec verify-slow
 
 # a.fst.checked is the binary, checked version of a.fst
 %.checked: %
@@ -48,6 +48,8 @@ include .depend
 verify-all: $(addsuffix .checked, $(ALL_FST_FILES))
 
 verify-spec: $(addsuffix .checked, $(FSTAR_SPEC))
+
+verify-slow: $(addsuffix .checked, $(FSTAR_SLOW))
 
 extract-ocaml: $(EXTRACT_OCAML_FILE:.fst=.fst.checked)
 	$(MY_FSTAR) $(EXTRACT_OCAML_FILE) --codegen OCaml
