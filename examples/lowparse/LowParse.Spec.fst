@@ -9,3 +9,4 @@ include LowParse.Spec.Sum
 include LowParse.Spec.List
 include LowParse.Spec.Seq
 include LowParse.Spec.Array
+include LowParse.Spec.Bytes
