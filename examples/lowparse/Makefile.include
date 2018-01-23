@@ -4,8 +4,8 @@ FSTAR_SPEC= \
 	LowParse.Spec.Base.fst \
 	LowParse.Spec.Combinators.fst \
 	LowParse.Spec.Int.fst \
-	LowParse.Spec.FLBytes.fst \
-	LowParse.Spec.VLBytes.fst \
+	LowParse.Spec.FLData.fst \
+	LowParse.Spec.VLData.fst \
 	LowParse.Spec.Enum.fst \
 	LowParse.Spec.Sum.fst \
 	LowParse.Spec.List.fst \
@@ -26,34 +26,16 @@ FSTAR_IMPL= \
 	LowParse.Impl.Base.fst \
 	LowParse.Impl.Combinators.fst \
 	LowParse.Impl.Int.fst \
-	LowParse.Impl.FLBytes.fst \
-	LowParse.Impl.VLBytes.Part1.fst \
-	LowParse.Impl.VLBytes.Part2.fsti \
-	LowParse.Impl.VLBytes.Part2.Subpart1.fst \
-	LowParse.Impl.VLBytes.Part2.Subpart2.fst \
-	LowParse.Impl.VLBytes.Part2.Subpart3.fst \
-	LowParse.Impl.VLBytes.Part2.Subpart4.fst \
-	LowParse.Impl.VLBytes.Part2.fst \
-	LowParse.Impl.VLBytes.Part3.fst \
-	LowParse.Impl.VLBytes.Part4.fsti \
-	LowParse.Impl.VLBytes.Part4.fst \
-	LowParse.Impl.VLBytes.Part5.fst \
-	LowParse.Impl.VLBytes.fst \
 	LowParse.Impl.Enum.fst \
 	LowParse.Impl.Sum.fst \
 	LowParse.Impl.List.fst \
 	LowParse.Impl.Seq.fst \
-	LowParse.Impl.Array.fst \
-	LowParseExamples.Impl.fst \
-	TLSParse.Impl.fst \
+
 
 FSTAR_SOURCE_FILES= \
 	$(FSTAR_SPEC) \
 	$(FSTAR_SLOW) \
 	$(FSTAR_IMPL) \
-	LowParse.fst \
-	LowParseExamples.fst \
-	TLSParse.fst \
 
 
 EXTRACT_FILES= \

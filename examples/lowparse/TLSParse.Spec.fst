@@ -142,12 +142,12 @@ let extension_presynth = (
 module U32 = FStar.UInt32
 
 let parse_extension_kind =
-  parse_maybe_extensionType_kind `and_then_kind` (parse_bounded_vlbytes_kind 0 65535)
+  parse_maybe_extensionType_kind `and_then_kind` (parse_bounded_vldata_kind 0 65535)
 
 let parse_extension_presynth : parser parse_extension_kind extension_presynth =
   (
     parse_maybe_extensionType `nondep_then` (
-    parse_bounded_vlbytes 0 65535 (parse_seq parse_u8)
+    parse_bounded_vldata 0 65535 (parse_seq parse_u8)
   ))
 
 let synth_extension (data: extension_presynth) : Tot extension =
@@ -180,7 +180,7 @@ let clientHello_legacy_session_id_t : Type0 =
   vlarray_type_of_parser parse_u8 0 32
 
 let parse_clientHello_legacy_session_id_kind =
-  parse_bounded_vlbytes_kind 0 32
+  parse_bounded_vldata_kind 0 32
 
 let parse_clientHello_legacy_session_id : parser parse_clientHello_legacy_session_id_kind clientHello_legacy_session_id_t =
   assert_norm (vlarray_type_of_parser_kind_precond parse_u8 0 32 == true);
@@ -195,7 +195,7 @@ let clientHello_cipher_suites_t =
 
 let parse_clientHello_cipher_suites_kind =
   assert_norm (vlarray_type_of_parser_kind_precond parse_maybe_cipherSuite 2 65534 == true);
-  parse_bounded_vlbytes_kind 2 65534
+  parse_bounded_vldata_kind 2 65534
 
 let parse_clientHello_cipher_suites : parser parse_clientHello_cipher_suites_kind clientHello_cipher_suites_t =
   assert_norm (vlarray_type_of_parser_kind_precond parse_maybe_cipherSuite 2 65534 == true);
@@ -209,7 +209,7 @@ let clientHello_legacy_compression_methods_t =
   vlarray_type_of_parser parse_u8 1 255
 
 let parse_clientHello_legacy_compression_methods_kind =
-  parse_bounded_vlbytes_kind 1 255
+  parse_bounded_vldata_kind 1 255
 
 let parse_clientHello_legacy_compression_methods : parser parse_clientHello_legacy_compression_methods_kind clientHello_legacy_compression_methods_t =
   assert_norm (vlarray_type_of_parser_kind_precond parse_u8 1 255 == true);
@@ -222,10 +222,10 @@ let clientHello_extensions_t =
   Seq.seq extension
 
 let parse_clientHello_extensions_kind =
-  parse_bounded_vlbytes_kind 8 65534
+  parse_bounded_vldata_kind 8 65534
 
 let parse_clientHello_extensions : parser parse_clientHello_extensions_kind clientHello_extensions_t =
-  parse_bounded_vlbytes 8 65534 (parse_seq parse_extension)
+  parse_bounded_vldata 8 65534 (parse_seq parse_extension)
 
 noeq
 type clientHello = {
