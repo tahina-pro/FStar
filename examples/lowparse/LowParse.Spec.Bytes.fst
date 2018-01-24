@@ -10,8 +10,7 @@ module U32 = FStar.UInt32
 let lt_pow2_32
   (x: nat)
 : Lemma
-  (requires (x < 4294967296))
-  (ensures (x < pow2 32))
+  (x < 4294967296 <==> x < pow2 32)
 = ()
 
 #reset-options
@@ -102,6 +101,8 @@ let parse_all_bytes_injective () : Lemma
   in
   Classical.forall_intro_2 (fun x -> Classical.move_requires (prf x))
 
+#reset-options
+
 let parse_all_bytes_correct () : Lemma
   (parser_kind_prop parse_all_bytes_kind parse_all_bytes')
 = parse_all_bytes_injective ();
@@ -111,14 +112,39 @@ let parse_all_bytes : parser parse_all_bytes_kind B32.bytes =
   parse_all_bytes_correct ();
   parse_all_bytes'
 
+let serialize_all_bytes'
+  (input: B32.bytes)
+: GTot bytes
+= B32.reveal input
+
+#set-options "--z3rlimit 32"
+
+let serialize_all_bytes_correct () : Lemma (serializer_correct parse_all_bytes serialize_all_bytes') =
+  let prf
+    (input: B32.bytes)
+  : Lemma
+    (
+      let ser = serialize_all_bytes' input in
+      let len : consumed_length ser = Seq.length ser in
+      parse parse_all_bytes ser == Some (input, len)
+    )
+  = assert (Seq.length (serialize_all_bytes' input) == B32.length input);
+    lt_pow2_32 (B32.length input);
+    B32.hide_reveal input
+  in
+  Classical.forall_intro prf
+
+#reset-options
+
 let serialize_all_bytes : serializer parse_all_bytes =
-  (fun (input: B32.bytes) -> B32.reveal input)
+  serialize_all_bytes_correct ();
+  serialize_all_bytes'
 
 let parse_bounded_vlbytes'
   (min: nat)
   (max: nat { min <= max /\ max > 0 /\ max < 4294967296 })
-: Tot (parser (parse_bounded_vldata_kind min max) B32.bytes)
-= parse_bounded_vldata min max parse_all_bytes
+: Tot (parser (parse_bounded_vldata_kind min max) (parse_bounded_vldata_strong_t min max #_ #_ #parse_all_bytes serialize_all_bytes))
+= parse_bounded_vldata_strong min max serialize_all_bytes
 
 let parse_bounded_vlbytes_pred
   (min: nat)
@@ -134,29 +160,34 @@ let parse_bounded_vlbytes_t
 : Tot Type0
 = (x: B32.bytes { parse_bounded_vlbytes_pred min max x } )
 
-let parse_bounded_vlbytes_correct
+let synth_bounded_vlbytes
   (min: nat)
-  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
-  (xbytes: bytes)
-  (consumed: consumed_length xbytes)
-  (x: B32.bytes)
-: Lemma
-  (requires (parse (parse_bounded_vlbytes' min max) xbytes == Some (x, consumed)))
-  (ensures (parse_bounded_vlbytes_pred min max x))
-= parse_bounded_vldata_elim min max parse_all_bytes xbytes x consumed;
-  let sz = log256' max in
-  let (Some (len, _)) = parse (parse_bounded_integer sz) xbytes in
-  let input' = Seq.slice xbytes (sz <: nat) (sz + U32.v len) in
-  let (Some (x', consumed')) = parse parse_all_bytes input' in
-  assert (x' == x);
-  assert ((consumed' <: nat) == Seq.length input');
-  assert (B32.length x' == Seq.length input');
-  assert (log256' max + B32.length x == (consumed <: nat))
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 })
+  (x: parse_bounded_vldata_strong_t min max #_ #_ #parse_all_bytes serialize_all_bytes)
+: Tot (parse_bounded_vlbytes_t min max)
+= x
 
 let parse_bounded_vlbytes
   (min: nat)
   (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
 : Tot (parser (parse_bounded_vldata_kind min max) (parse_bounded_vlbytes_t min max))
-= coerce_parser
-  (parse_bounded_vlbytes_t min max)
-  (parse_strengthen (parse_bounded_vlbytes' min max) (parse_bounded_vlbytes_pred min max) (parse_bounded_vlbytes_correct min max))
+= parse_synth (parse_bounded_vlbytes' min max) (synth_bounded_vlbytes min max)
+
+let serialize_bounded_vlbytes'
+  (min: nat)
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
+: Tot (serializer (parse_bounded_vlbytes' min max))
+= serialize_bounded_vldata_strong min max serialize_all_bytes
+
+let serialize_bounded_vlbytes
+  (min: nat)
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
+: Tot (serializer (parse_bounded_vlbytes min max))
+= serialize_synth
+    (parse_bounded_vlbytes' min max)
+    (synth_bounded_vlbytes min max)
+    (serialize_bounded_vlbytes' min max)
+    (fun (x: parse_bounded_vlbytes_t min max) ->
+      (x <: parse_bounded_vldata_strong_t min max #_ #_ #parse_all_bytes serialize_all_bytes)
+    )
+    ()
