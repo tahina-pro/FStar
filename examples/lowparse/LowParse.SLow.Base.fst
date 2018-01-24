@@ -116,3 +116,47 @@ let parser32_then_serializer32
     s32 v == b32slice input 0ul consumed
   ))
 = serializer_correct_implies_complete p s
+
+let parser32_injective
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (p32: parser32 p)
+  (input1 input2: bytes32)
+: Lemma
+  (requires (
+    let p1 = p32 input1 in
+    let p2 = p32 input2 in
+    Some? p1 /\
+    Some? p2 /\ (
+    let (Some (v1, _)) = p1 in
+    let (Some (v2, _)) = p2 in
+    v1 == v2
+  )))
+  (ensures (
+    let p1 = p32 input1 in
+    let p2 = p32 input2 in
+    Some? p1 /\
+    Some? p2 /\ (
+    let (Some (v1, consumed1)) = p1 in
+    let (Some (v2, consumed2)) = p2 in
+    v1 == v2 /\
+    consumed1 == consumed2 /\
+    U32.v consumed1 <= B32.length input1 /\
+    U32.v consumed2 <= B32.length input2 /\
+    b32slice input1 0ul consumed1 == b32slice input2 0ul consumed2
+  )))
+= assert (injective_precond p (B32.reveal input1) (B32.reveal input2));
+  assert (injective_postcond p (B32.reveal input1) (B32.reveal input2))
+
+let serializer32_injective
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (s32: serializer32 s)
+  (input1 input2: t)
+: Lemma
+  (requires (s32 input1 == s32 input2))
+  (ensures (input1 == input2))
+= ()
