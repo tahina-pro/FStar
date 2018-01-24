@@ -1,5 +1,5 @@
 [
-  "ù!x~ °1\u001a\u000e†‹\u0013‘æ7",
+  "¾a6l\u00057aD\u00105ãŽ°>ëm",
   [
     [
       "LowParse.Spec.Combinators.make_constant_size_parser_aux",
@@ -25,7 +25,7 @@
         "typing_FStar.Pervasives.Native.uu___is_Some"
       ],
       0,
-      "eb4702a03ee88a3a42ebe56ae1c1e732"
+      "6081128c25d8e2247bbd39575efb80e8"
     ],
     [
       "LowParse.Spec.Combinators.make_constant_size_parser_precond_precond",
@@ -34,7 +34,7 @@
       1,
       [ "@query" ],
       0,
-      "f7a6fd84eaf9a9d8148b04a5030084c7"
+      "70ee4df8149c47a51ceafb6c59130520"
     ],
     [
       "LowParse.Spec.Combinators.make_constant_size_parser_precond",
@@ -43,7 +43,7 @@
       1,
       [ "@query" ],
       0,
-      "c3d1910f776283afde44dc928ee890f9"
+      "04a9ff5dcb7c91bc552d29fd395498ec"
     ],
     [
       "LowParse.Spec.Combinators.make_constant_size_parser_precond'",
@@ -52,7 +52,7 @@
       1,
       [ "@query" ],
       0,
-      "173f341c2754ac4beff9d289de0f0e48"
+      "3be50c8d20d98a1f7b82fca1f39a0d5d"
     ],
     [
       "LowParse.Spec.Combinators.make_constant_size_parser_injective",
@@ -99,7 +99,7 @@
         "typing_FStar.Seq.Base.slice"
       ],
       0,
-      "b5d53f07c219b5f2731888036e8c5dc2"
+      "a12578c4d252a35bc264d56e9ce5bae1"
     ],
     [
       "LowParse.Spec.Combinators.constant_size_parser_kind",
@@ -116,7 +116,7 @@
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_low"
       ],
       0,
-      "5e5954259d8736e1cd93c9931b5264ca"
+      "c2e13fa313d46d6c6ca414974655b4d9"
     ],
     [
       "LowParse.Spec.Combinators.make_constant_size_parser",
@@ -178,7 +178,7 @@
         "typing_LowParse.Spec.Base.parse"
       ],
       0,
-      "6cb567b93d8a6d304b84236c00a3cae2"
+      "67fb0c48adb9a0aa2f6ce03d40965549"
     ],
     [
       "LowParse.Spec.Combinators.make_total_constant_size_parser_precond",
@@ -187,7 +187,7 @@
       1,
       [ "@query" ],
       0,
-      "14cf2f30048ba4ac03de7352e6c28bfa"
+      "0eabaae6556aa794874c4971706c0b95"
     ],
     [
       "LowParse.Spec.Combinators.total_constant_size_parser_kind",
@@ -204,7 +204,7 @@
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_low"
       ],
       0,
-      "8d2e7b955903ba2d8be4e6eb8234ed08"
+      "7f7df4c0d2af8ededa839cfa93cb2280"
     ],
     [
       "LowParse.Spec.Combinators.make_total_constant_size_parser",
@@ -259,7 +259,7 @@
         "typing_LowParse.Spec.Combinators_Tm_abs_18d69f26728d2f40351341008fd21e4e"
       ],
       0,
-      "937117ca9bad77b24d4f0cea1ab4b9e4"
+      "c0f81dd308f496232662dcf1ce942a3f"
     ],
     [
       "LowParse.Spec.Combinators.parse_ret'",
@@ -277,7 +277,7 @@
         "typing_FStar.Seq.Base.length"
       ],
       0,
-      "1f882c7d39ad36df8b4fc37a20b33163"
+      "41d0c6020f0516b9313130c21fb4d38a"
     ],
     [
       "LowParse.Spec.Combinators.parse_ret_kind",
@@ -295,7 +295,7 @@
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_low"
       ],
       0,
-      "6e63af487038a8a1bf300a9cf64d4e23"
+      "ed392c1e49bf46d0f219a5b506c6964c"
     ],
     [
       "LowParse.Spec.Combinators.parse_ret",
@@ -357,7 +357,7 @@
         "typing_LowParse.Spec.Base.__proj__Mkparser_kind___item__parser_kind_low"
       ],
       0,
-      "c57e499f8e905caad592891a104fd33e"
+      "c3831d904e02c268001a1f8fda35860a"
     ],
     [
       "LowParse.Spec.Combinators.serialize_empty",
@@ -379,7 +379,7 @@
         "typing_FStar.Seq.Base.createEmpty", "unit_inversion", "unit_typing"
       ],
       0,
-      "d95253441d0b0bdc625f63ae28ccc5b8"
+      "5ff38d0daa3a297c8806c00f0b7d470e"
     ],
     [
       "LowParse.Spec.Combinators.fail_parser",
@@ -424,7 +424,7 @@
         "typing_LowParse.Spec.Base.__proj__Mkparser_kind___item__parser_kind_subkind"
       ],
       0,
-      "5894cbbac79b5bd62e179eb3cf124799"
+      "a0f4a83d8de1b9d3657f7d9f144fb88c"
     ],
     [
       "LowParse.Spec.Combinators.and_then_bare",
@@ -488,7 +488,7 @@
         "typing_LowParse.Spec.Base.parse", "unit_typing"
       ],
       0,
-      "84d685c5e3c77b9d9416a678eb70eb62"
+      "a689f4c4274ece45cb73a6c46e4f0ad2"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead_weak_on",
@@ -571,7 +571,7 @@
         "unit_typing"
       ],
       0,
-      "73567dcbc636b94adce9ca6fe2e4a3b9"
+      "4a2e42dcfffc5ff5c259636d23d557d7"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead_weak_on",
@@ -587,7 +587,7 @@
         "typing_LowParse.Spec.Base.parse"
       ],
       0,
-      "8cba0b0b6be69c17986f31c090be8077"
+      "3ff921445c8e0d15755798e9bf313d19"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead_weak_on",
@@ -642,7 +642,7 @@
         "typing_LowParse.Spec.Base.parse", "unit_typing"
       ],
       0,
-      "7b7af1fe74335fbff911da9ce4f38b25"
+      "7b11912b710b8e4c55969461706e0496"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead_weak",
@@ -651,7 +651,7 @@
       1,
       [ "@query", "equation_LowParse.Spec.Base.no_lookahead_weak" ],
       0,
-      "15a27b91e229504262e207d8203db196"
+      "ff783387f0d5a5f41ce9c4494e511b08"
     ],
     [
       "LowParse.Spec.Combinators.and_then_cases_injective_precond",
@@ -663,7 +663,7 @@
         "projection_inverse_BoxBool_proj_0"
       ],
       0,
-      "83c41731c91a1776846e6cb73b7b37d8"
+      "cff17e12e124f9038424615264dbb0af"
     ],
     [
       "LowParse.Spec.Combinators.and_then_injective",
@@ -752,7 +752,7 @@
         "typing_LowParse.Spec.Combinators.and_then_bare", "unit_typing"
       ],
       0,
-      "9f1c70d7f942559198a5d4fd1340c5d8"
+      "e35627c06d873528969371be221a5ef6"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead_on",
@@ -842,7 +842,7 @@
         "unit_inversion", "unit_typing"
       ],
       0,
-      "cb1d2de783a68fcee5a7cc7f6815bd2b"
+      "7844b17ef12882269fa4a4cc531c6045"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead_on",
@@ -854,7 +854,7 @@
         "projection_inverse_BoxBool_proj_0"
       ],
       0,
-      "0a4a075785082d5d947c4adb06da3638"
+      "78ad76addee051bae4176d420008dc1b"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead_on",
@@ -909,7 +909,7 @@
         "typing_LowParse.Spec.Base.parse", "unit_typing"
       ],
       0,
-      "859670b3accfa94a951f6edfa8b724e7"
+      "0e3551fe4958eb03206e12a146564294"
     ],
     [
       "LowParse.Spec.Combinators.and_then_kind",
@@ -969,7 +969,7 @@
         "typing_LowParse.Spec.Base.default_parser_kind", "unit_typing"
       ],
       0,
-      "86cdaeb974ca5f896bb67dffcaf9d459"
+      "eb8da6f31ef27b65f18d1de9a96442d3"
     ],
     [
       "LowParse.Spec.Combinators.and_then_kind",
@@ -982,7 +982,7 @@
         "kinding_LowParse.Spec.Base.parser_subkind@tok"
       ],
       0,
-      "ac7afd29958c4c8b8f05191b2a366114"
+      "b4743ed356597469630e49b4c3b99255"
     ],
     [
       "LowParse.Spec.Combinators.and_then_kind",
@@ -995,7 +995,7 @@
         "kinding_LowParse.Spec.Base.parser_subkind@tok"
       ],
       0,
-      "6801fce04b19314e6fc825f5c6cebdb8"
+      "971310b6d720b0d4cac472f840dd88d9"
     ],
     [
       "LowParse.Spec.Combinators.and_then_kind",
@@ -1008,7 +1008,7 @@
         "kinding_LowParse.Spec.Base.parser_subkind@tok"
       ],
       0,
-      "e3cafc6a29aff9b8ca0899c4d6bbe3bd"
+      "24f6aa063036275dce99da87924a8bd2"
     ],
     [
       "LowParse.Spec.Combinators.and_then_kind",
@@ -1025,7 +1025,7 @@
         "haseqPrims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "dd842ba651fcf28c7818ae52ef437385"
+      "53120b63da329da7d8d11da262114829"
     ],
     [
       "LowParse.Spec.Combinators.and_then_kind",
@@ -1038,7 +1038,7 @@
         "kinding_LowParse.Spec.Base.parser_subkind@tok"
       ],
       0,
-      "93aec3aa6bd857c6f6ab6f30473db15f"
+      "d1736dc1101f17fc78899e1fff0eb3fb"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead",
@@ -1087,7 +1087,7 @@
         "typing_LowParse.Spec.Combinators_Tm_abs_4e8e6588059dcad2a8065b9aa7d0c70d"
       ],
       0,
-      "f1b126bdd56ddbc1009b4c4d3b95ea47"
+      "4e53fab60870bdfd7c211b448399ef26"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead",
@@ -1100,7 +1100,7 @@
         "kinding_LowParse.Spec.Base.parser_subkind@tok"
       ],
       0,
-      "99070e6f4a20c0c43a0db487a456bb60"
+      "5dbc6f3ba79366c747d3b4b79760e763"
     ],
     [
       "LowParse.Spec.Combinators.and_then_no_lookahead",
@@ -1113,7 +1113,7 @@
         "kinding_LowParse.Spec.Base.parser_subkind@tok"
       ],
       0,
-      "ac8f77de2c36595678ed789ace07e421"
+      "4eb9527e51df4b91434ff9faf4d2ed22"
     ],
     [
       "LowParse.Spec.Combinators.and_then_correct",
@@ -1220,7 +1220,7 @@
         "unit_typing"
       ],
       0,
-      "69ad99f099b8da31bbf8caa00d4704ae"
+      "175bdf54cd7609c53b364f68d42e4b89"
     ],
     [
       "LowParse.Spec.Combinators.and_then",
@@ -1229,7 +1229,7 @@
       1,
       [ "@query" ],
       0,
-      "fdbed4872fa5e4f33ec171002d14a5f8"
+      "90ba0472ccad14edafb0afcff24cb477"
     ],
     [
       "LowParse.Spec.Combinators.nondep_then",
@@ -1316,7 +1316,7 @@
         "typing_LowParse.Spec.Base.parse", "unit_typing"
       ],
       0,
-      "e210dce746d4b9e946296ca37347c85d"
+      "375894e371f29c7cd66488af3f4355f5"
     ],
     [
       "LowParse.Spec.Combinators.seq_slice_append_l",
@@ -1352,7 +1352,7 @@
         "typing_LowParse.Spec.Base.__proj__Mkparser_kind___item__parser_kind_low"
       ],
       0,
-      "241a3971e9eecaba9885e6a79901efc0"
+      "371f150e73daaeb67c611b31900a9933"
     ],
     [
       "LowParse.Spec.Combinators.seq_slice_append_r",
@@ -1419,7 +1419,7 @@
         "typing_LowParse.Spec.Base.parse", "unit_typing"
       ],
       0,
-      "6175dd83d4d340b269f1ecc196d4de96"
+      "26546e0855a0ef114e3f2f51413cf3ba"
     ],
     [
       "LowParse.Spec.Combinators.bare_serialize_nondep_then_correct",
@@ -1531,7 +1531,7 @@
         "unit_typing"
       ],
       0,
-      "e69fd6adfa4dd3cb7c9e4c3c034f41c8"
+      "8b8c33e10b3185ac350daeb9411fc0f7"
     ],
     [
       "LowParse.Spec.Combinators.bare_serialize_nondep_then_correct",
@@ -1600,7 +1600,7 @@
         "unit_typing"
       ],
       0,
-      "4676175c5d0105a5625db016f0265364"
+      "cfd8122c7db8d5b577e49194cbb36f11"
     ],
     [
       "LowParse.Spec.Combinators.serialize_nondep_then",
@@ -1612,7 +1612,7 @@
         "refinement_interpretation_LowParse.Spec.Combinators_Tm_refine_30ed63538295cfbee9638b7c92f49ab3"
       ],
       0,
-      "5e9fcb8a479f6851e4ea5e0382a74482"
+      "1f89bdad863894106b9898847d423452"
     ],
     [
       "LowParse.Spec.Combinators.bare_parse_strengthen",
@@ -1621,7 +1621,7 @@
       1,
       [ "@query" ],
       0,
-      "3dda2fd3851c5aaa76c8fa724d5e0e1c"
+      "93f1d7ab1157c368558801dcbb5e5c98"
     ],
     [
       "LowParse.Spec.Combinators.bare_parse_strengthen_no_lookahead_weak",
@@ -1659,7 +1659,7 @@
         "typing_LowParse.Spec.Base.parse"
       ],
       0,
-      "9a55be132ea491ef4a1def39acbb8508"
+      "d88d05fd569514f66daeffeb5fd189b9"
     ],
     [
       "LowParse.Spec.Combinators.bare_parse_strengthen_no_lookahead",
@@ -1721,7 +1721,7 @@
         "unit_typing"
       ],
       0,
-      "6a154f7d64e86bc543e847cf363176a9"
+      "984de993a7625635f80c03555af7872e"
     ],
     [
       "LowParse.Spec.Combinators.bare_parse_strengthen_injective",
@@ -1762,7 +1762,7 @@
         "typing_LowParse.Spec.Combinators_Tm_abs_721ad4eb050d207ba8053c3789d9031b"
       ],
       0,
-      "a4c49afeccbc7443d7c009ce320eeab9"
+      "64e81f6ba4172b29eda540a83a879b0f"
     ],
     [
       "LowParse.Spec.Combinators.bare_parse_strengthen_correct",
@@ -1839,7 +1839,7 @@
         "unit_typing"
       ],
       0,
-      "a1e3910ab660af4242e2154340fb1483"
+      "fc49f3f299ecfef359b3964b71b51f27"
     ],
     [
       "LowParse.Spec.Combinators.parse_strengthen",
@@ -1848,7 +1848,104 @@
       1,
       [ "@query" ],
       0,
-      "c32ca23b5800fed260a88ca52c326109"
+      "e49b91c9c92ec63e7b142e3f378a56de"
+    ],
+    [
+      "LowParse.Spec.Combinators.parse_fret'",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "Prims_pretyping_ae567c2fb75be05905677af440075565",
+        "equation_FStar.UInt32.n", "equation_FStar.UInt8.byte",
+        "equation_LowParse.Bytes.byte", "equation_LowParse.Bytes.bytes",
+        "equation_Prims.nat", "function_token_typing_FStar.UInt32.n",
+        "function_token_typing_FStar.UInt8.t",
+        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d",
+        "typing_FStar.Seq.Base.length"
+      ],
+      0,
+      "4a1318eec0ec4c4026a25370653ae184"
+    ],
+    [
+      "LowParse.Spec.Combinators.parse_fret",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "Prims_interpretation_Tm_arrow_9cb3c953faf527c316d427b2ce8bd81b",
+        "Prims_pretyping_ae567c2fb75be05905677af440075565",
+        "Prims_pretyping_f8666440faa91836cc5a13998af863fc",
+        "constructor_distinct_FStar.Pervasives.Native.Some",
+        "constructor_distinct_LowParse.Spec.Base.ParserStrong",
+        "disc_equation_FStar.Pervasives.Native.None",
+        "disc_equation_FStar.Pervasives.Native.Some",
+        "equality_tok_LowParse.Spec.Base.ParserStrong@tok",
+        "equation_FStar.UInt32.n", "equation_FStar.UInt8.byte",
+        "equation_LowParse.Bytes.byte", "equation_LowParse.Bytes.bytes",
+        "equation_LowParse.Spec.Base.bare_serializer",
+        "equation_LowParse.Spec.Base.consumed_length",
+        "equation_LowParse.Spec.Base.default_parser_kind",
+        "equation_LowParse.Spec.Base.injective",
+        "equation_LowParse.Spec.Base.injective_postcond",
+        "equation_LowParse.Spec.Base.injective_precond",
+        "equation_LowParse.Spec.Base.is_total_constant_size_parser",
+        "equation_LowParse.Spec.Base.no_lookahead",
+        "equation_LowParse.Spec.Base.no_lookahead_on",
+        "equation_LowParse.Spec.Base.no_lookahead_on_postcond",
+        "equation_LowParse.Spec.Base.no_lookahead_on_precond",
+        "equation_LowParse.Spec.Base.no_lookahead_weak",
+        "equation_LowParse.Spec.Base.no_lookahead_weak_on",
+        "equation_LowParse.Spec.Base.parse",
+        "equation_LowParse.Spec.Base.parser",
+        "equation_LowParse.Spec.Base.parser_kind",
+        "equation_LowParse.Spec.Base.parser_kind_prop",
+        "equation_LowParse.Spec.Base.parser_subkind_prop",
+        "equation_LowParse.Spec.Base.parses_at_most",
+        "equation_LowParse.Spec.Base.serializer_correct",
+        "equation_LowParse.Spec.Combinators.parse_empty",
+        "equation_LowParse.Spec.Combinators.parse_ret_kind",
+        "equation_Prims.nat", "function_token_typing_FStar.UInt32.n",
+        "function_token_typing_FStar.UInt8.t",
+        "function_token_typing_LowParse.Spec.Base.default_parser_kind",
+        "function_token_typing_LowParse.Spec.Combinators.parse_empty",
+        "function_token_typing_LowParse.Spec.Combinators.parse_ret_kind",
+        "function_token_typing_LowParse.Spec.Combinators.serialize_empty",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_9567411c50c16c25c2a8580b20147094",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_cfa6e3bc6cbeac4e6a4001e0d947b1a2",
+        "kinding_FStar.Pervasives.Native.tuple2@tok",
+        "lemma_FStar.Pervasives.invertOption",
+        "lemma_FStar.Seq.Properties.slice_is_empty",
+        "primitive_Prims.op_LessThan",
+        "proj_equation_FStar.Pervasives.Native.Some_v",
+        "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_high",
+        "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_low",
+        "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_subkind",
+        "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_total",
+        "projection_inverse_BoxBool_proj_0",
+        "projection_inverse_FStar.Pervasives.Native.Mktuple2__1",
+        "projection_inverse_FStar.Pervasives.Native.Mktuple2__2",
+        "projection_inverse_FStar.Pervasives.Native.Some_a",
+        "projection_inverse_FStar.Pervasives.Native.Some_v",
+        "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_high",
+        "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_low",
+        "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_subkind",
+        "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_total",
+        "refinement_interpretation_FStar.Seq.Base_Tm_refine_cd046bc4a887ee7e1b05946e0bf5772b",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_40a24c6c363915cd0813473da688de21",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_956bc881132332bd221131ea988e10db",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_9fc4b705eaf2fe68d9cc8785e7df72bf",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_f06e092c0a8c2b9d1ddc749013eae25f",
+        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d",
+        "typing_FStar.Seq.Base.length",
+        "typing_LowParse.Spec.Base.__proj__Mkparser_kind___item__parser_kind_low",
+        "typing_LowParse.Spec.Base.consumed_length",
+        "typing_LowParse.Spec.Base.parse", "unit_typing"
+      ],
+      0,
+      "b3efbe26fe739ec3580c861ab541d39d"
     ],
     [
       "LowParse.Spec.Combinators.parse_synth",
@@ -1927,7 +2024,7 @@
         "typing_LowParse.Spec.Combinators.and_then_kind", "unit_typing"
       ],
       0,
-      "166d3e7df307190377129441fc82bdd6"
+      "35917232b5ea2fae50635a9d25724d3c"
     ],
     [
       "LowParse.Spec.Combinators.bare_serialize_synth_correct",
@@ -1946,7 +2043,7 @@
         "refinement_interpretation_Prims_Tm_refine_8d65e998a07dd53ec478e27017d9dba5"
       ],
       0,
-      "16bd87a90a0867c83f9228d05577c6c7"
+      "20af9559d833a1727d63155b7f8346f6"
     ],
     [
       "LowParse.Spec.Combinators.bare_serialize_synth_correct",
@@ -1994,7 +2091,7 @@
         "typing_LowParse.Spec.Combinators.bare_serialize_synth"
       ],
       0,
-      "41c4b072e0948a76c236755f9bc25fa0"
+      "fb5c1b1b8ba9b6d0029e2189c808d8a7"
     ],
     [
       "LowParse.Spec.Combinators.serialize_synth",
@@ -2006,7 +2103,22 @@
         "refinement_interpretation_LowParse.Spec.Combinators_Tm_refine_c69accb23224cce3b4afefca370e52ed"
       ],
       0,
-      "ede8972a75d3c564bae40c4a243e2804"
+      "51c9250539fc07d510c51dc72c5e95ac"
+    ],
+    [
+      "LowParse.Spec.Combinators.lift_parser_correct",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query", "equation_LowParse.Bytes.bytes",
+        "equation_LowParse.Spec.Base.parse",
+        "equation_LowParse.Spec.Base.parser",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_fc2ba022dcd5f43f04a45a18c3dfccb6",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_956bc881132332bd221131ea988e10db"
+      ],
+      0,
+      "6659051faacca3e15eb0c5d9964af516"
     ],
     [
       "LowParse.Spec.Combinators.parse_filter_kind",
@@ -2023,7 +2135,7 @@
         "refinement_interpretation_LowParse.Spec.Base_Tm_refine_9fc4b705eaf2fe68d9cc8785e7df72bf"
       ],
       0,
-      "2fafffb8930ca3b66a1dfc33043b5977"
+      "b23c3d2031fcc90419b77c790dd062bc"
     ],
     [
       "LowParse.Spec.Combinators.parse_filter_payload_kind",
@@ -2041,7 +2153,7 @@
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_low"
       ],
       0,
-      "e5827855fe29e0527ae8063391c11498"
+      "68de030ab36e3345fb0380c49c2a7d96"
     ],
     [
       "LowParse.Spec.Combinators.parse_filter_payload",
@@ -2049,28 +2161,88 @@
       2,
       1,
       [
-        "@query", "constructor_distinct_FStar.Pervasives.Native.Some",
+        "@MaxIFuel_assumption", "@query",
+        "Prims_interpretation_Tm_arrow_9cb3c953faf527c316d427b2ce8bd81b",
+        "Prims_pretyping_ae567c2fb75be05905677af440075565",
+        "Prims_pretyping_f8666440faa91836cc5a13998af863fc",
+        "constructor_distinct_FStar.Pervasives.Native.None",
+        "constructor_distinct_FStar.Pervasives.Native.Some",
+        "constructor_distinct_LowParse.Spec.Base.ParserStrong",
+        "data_elim_FStar.Pervasives.Native.Some",
         "disc_equation_FStar.Pervasives.Native.Some",
+        "equality_tok_LowParse.Spec.Base.ParserStrong@tok",
+        "equation_FStar.UInt32.n", "equation_FStar.UInt8.byte",
+        "equation_LowParse.Bytes.byte", "equation_LowParse.Bytes.bytes",
+        "equation_LowParse.Spec.Base.bare_serializer",
+        "equation_LowParse.Spec.Base.consumed_length",
+        "equation_LowParse.Spec.Base.default_parser_kind",
+        "equation_LowParse.Spec.Base.injective",
+        "equation_LowParse.Spec.Base.injective_postcond",
+        "equation_LowParse.Spec.Base.injective_precond",
+        "equation_LowParse.Spec.Base.is_total_constant_size_parser",
         "equation_LowParse.Spec.Base.is_weaker_than",
+        "equation_LowParse.Spec.Base.no_lookahead",
+        "equation_LowParse.Spec.Base.no_lookahead_on",
+        "equation_LowParse.Spec.Base.no_lookahead_on_postcond",
+        "equation_LowParse.Spec.Base.no_lookahead_on_precond",
+        "equation_LowParse.Spec.Base.no_lookahead_weak",
+        "equation_LowParse.Spec.Base.no_lookahead_weak_on",
+        "equation_LowParse.Spec.Base.parse",
+        "equation_LowParse.Spec.Base.parser",
+        "equation_LowParse.Spec.Base.parser_kind",
+        "equation_LowParse.Spec.Base.parser_kind_prop",
+        "equation_LowParse.Spec.Base.parser_subkind_prop",
+        "equation_LowParse.Spec.Base.parses_at_most",
+        "equation_LowParse.Spec.Base.serializer_correct",
+        "equation_LowParse.Spec.Combinators.fail_parser",
+        "equation_LowParse.Spec.Combinators.fail_parser_",
         "equation_LowParse.Spec.Combinators.fail_parser_kind_precond",
+        "equation_LowParse.Spec.Combinators.parse_empty",
         "equation_LowParse.Spec.Combinators.parse_filter_payload_kind",
         "equation_LowParse.Spec.Combinators.parse_ret_kind",
-        "equation_Prims.nat", "proj_equation_FStar.Pervasives.Native.Some_v",
+        "equation_Prims.nat",
+        "fuel_guarded_inversion_FStar.Pervasives.Native.option",
+        "fuel_guarded_inversion_FStar.Pervasives.Native.tuple2",
+        "function_token_typing_FStar.UInt32.n",
+        "function_token_typing_FStar.UInt8.t",
+        "function_token_typing_LowParse.Spec.Base.default_parser_kind",
+        "function_token_typing_LowParse.Spec.Combinators.parse_empty",
+        "function_token_typing_LowParse.Spec.Combinators.parse_ret_kind",
+        "function_token_typing_LowParse.Spec.Combinators.serialize_empty",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_2f940537ab126dc4f87bf2539aef5a9a",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_6fb2ddb3cc08164d52637409f9b3292e",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_cfa6e3bc6cbeac4e6a4001e0d947b1a2",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_ffd7ea7de904c789fb02c777e3002e29",
+        "lemma_FStar.Seq.Properties.slice_is_empty",
+        "primitive_Prims.op_LessThan",
+        "proj_equation_FStar.Pervasives.Native.Some_v",
         "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_high",
         "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_low",
         "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_subkind",
         "proj_equation_LowParse.Spec.Base.Mkparser_kind__parser_kind_total",
         "projection_inverse_BoxBool_proj_0",
         "projection_inverse_BoxInt_proj_0",
+        "projection_inverse_FStar.Pervasives.Native.Mktuple2__1",
+        "projection_inverse_FStar.Pervasives.Native.Mktuple2__2",
         "projection_inverse_FStar.Pervasives.Native.Some_a",
         "projection_inverse_FStar.Pervasives.Native.Some_v",
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_high",
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_low",
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_subkind",
-        "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_total"
+        "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_total",
+        "refinement_interpretation_FStar.Seq.Base_Tm_refine_cd046bc4a887ee7e1b05946e0bf5772b",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_40a24c6c363915cd0813473da688de21",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_956bc881132332bd221131ea988e10db",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_9fc4b705eaf2fe68d9cc8785e7df72bf",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_f06e092c0a8c2b9d1ddc749013eae25f",
+        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d",
+        "refinement_kinding_LowParse.Spec.Combinators_Tm_refine_47a1a40ac1f83f95f3b324d5e73614ef",
+        "typing_FStar.Seq.Base.length",
+        "typing_LowParse.Spec.Base.__proj__Mkparser_kind___item__parser_kind_low",
+        "typing_LowParse.Spec.Base.parse", "unit_typing"
       ],
       0,
-      "b64e0737a734d9bc7b7b6306c8d06b16"
+      "75b5e50cd3c1701af80fefb65b08318b"
     ],
     [
       "LowParse.Spec.Combinators.parse_filter",
@@ -2080,7 +2252,7 @@
       [
         "@MaxIFuel_assumption", "@query",
         "FStar.Pervasives.Native_pretyping_b53dbd183c526bc5d0f20d7b966ae125",
-        "LowParse.Spec.Base_interpretation_Tm_arrow_8f715f5f264ee069249ef205f97117af",
+        "LowParse.Spec.Combinators_interpretation_Tm_arrow_8be454be0c7d0e3f30602a91cbf3253a",
         "Prims_interpretation_Tm_arrow_9cb3c953faf527c316d427b2ce8bd81b",
         "Prims_pretyping_ae567c2fb75be05905677af440075565",
         "Prims_pretyping_f8666440faa91836cc5a13998af863fc",
@@ -2095,7 +2267,6 @@
         "equality_tok_LowParse.Spec.Base.ParserConsumesAll@tok",
         "equality_tok_LowParse.Spec.Base.ParserStrong@tok",
         "equation_FStar.UInt32.n", "equation_LowParse.Bytes.bytes",
-        "equation_LowParse.Spec.Base.bare_parser",
         "equation_LowParse.Spec.Base.bare_serializer",
         "equation_LowParse.Spec.Base.consumed_length",
         "equation_LowParse.Spec.Base.default_parser_kind",
@@ -2105,8 +2276,6 @@
         "equation_LowParse.Spec.Base.parser_kind",
         "equation_LowParse.Spec.Base.parser_kind_prop",
         "equation_LowParse.Spec.Base.serializer_correct",
-        "equation_LowParse.Spec.Base.strengthen",
-        "equation_LowParse.Spec.Base.weaken",
         "equation_LowParse.Spec.Combinators.and_then_cases_injective",
         "equation_LowParse.Spec.Combinators.and_then_cases_injective_precond",
         "equation_LowParse.Spec.Combinators.fail_parser",
@@ -2114,6 +2283,7 @@
         "equation_LowParse.Spec.Combinators.parse_empty",
         "equation_LowParse.Spec.Combinators.parse_filter_payload",
         "equation_LowParse.Spec.Combinators.parse_filter_payload_kind",
+        "equation_LowParse.Spec.Combinators.parse_ret_kind",
         "equation_Prims.nat",
         "fuel_guarded_inversion_FStar.Pervasives.Native.option",
         "fuel_guarded_inversion_FStar.Pervasives.Native.tuple2",
@@ -2122,6 +2292,7 @@
         "function_token_typing_LowParse.Spec.Combinators.parse_empty",
         "function_token_typing_LowParse.Spec.Combinators.serialize_empty",
         "function_token_typing_Prims.nat", "int_inversion",
+        "interpretation_LowParse.Spec.Combinators_Tm_abs_2f940537ab126dc4f87bf2539aef5a9a",
         "interpretation_LowParse.Spec.Combinators_Tm_abs_6fb2ddb3cc08164d52637409f9b3292e",
         "interpretation_LowParse.Spec.Combinators_Tm_abs_cfa6e3bc6cbeac4e6a4001e0d947b1a2",
         "interpretation_LowParse.Spec.Combinators_Tm_abs_ffd7ea7de904c789fb02c777e3002e29",
@@ -2143,18 +2314,18 @@
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_low",
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_subkind",
         "projection_inverse_LowParse.Spec.Base.Mkparser_kind__parser_kind_total",
+        "refinement_interpretation_LowParse.Spec.Base_Tm_refine_40a24c6c363915cd0813473da688de21",
         "refinement_interpretation_LowParse.Spec.Base_Tm_refine_956bc881132332bd221131ea988e10db",
         "refinement_interpretation_LowParse.Spec.Base_Tm_refine_9fc4b705eaf2fe68d9cc8785e7df72bf",
-        "refinement_interpretation_LowParse.Spec.Combinators_Tm_refine_237ac2e7482d6943a0fb9db3d8bdc5b4",
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d",
         "token_correspondence_LowParse.Spec.Combinators.parse_filter_payload",
         "typing_LowParse.Spec.Base.__proj__Mkparser_kind___item__parser_kind_high",
         "typing_LowParse.Spec.Base.default_parser_kind",
-        "typing_LowParse.Spec.Combinators.parse_filter_payload",
+        "typing_LowParse.Spec.Combinators_Tm_abs_2f940537ab126dc4f87bf2539aef5a9a",
         "unit_typing"
       ],
       0,
-      "bb95932f7fff4823e3b7487ed36ee1a8"
+      "0cfee5be1665b26d4009f908606d2453"
     ],
     [
       "LowParse.Spec.Combinators.default_if",
@@ -2163,7 +2334,7 @@
       1,
       [ "@MaxIFuel_assumption", "@query", "bool_inversion" ],
       0,
-      "2ecb2a7aeec0d097db44e07618aa8d43"
+      "40ae0d2002f51fde7e6493152ba37789"
     ]
   ]
 ]
