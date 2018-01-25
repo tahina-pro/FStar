@@ -95,7 +95,8 @@ let parse32_synth
   (#t1: Type0)
   (#t2: Type0)
   (p1: parser k t1)
-  (f2: t1 -> Tot t2)
+  (f2: t1 -> GTot t2)
+  (f2': (x: t1) -> Tot (y: t2 { y == f2 x } )) 
   (p1' : parser32 p1)
   (u: unit {
     forall (x x' : t1) . f2 x == f2 x' ==> x == x'
@@ -104,7 +105,7 @@ let parse32_synth
 = fun (input: bytes32) ->
   ((
     match p1' input with
-    | Some (v1, consumed) -> Some (f2 v1, consumed)
+    | Some (v1, consumed) -> Some (f2' v1, consumed)
     | _ -> None
    ) <: (res: option (t2 * U32.t) { parser32_correct (parse_synth p1 f2) input res } ))
 
@@ -117,13 +118,45 @@ let serialize32_synth
   (f2: t1 -> GTot t2)
   (s1: serializer p1)
   (s1' : serializer32 s1)
-  (g1: t2 -> Tot t1)
+  (g1: t2 -> GTot t1)
+  (g1': (x: t2) -> Tot (y: t1 { y == g1 x } ) )
   (u: unit {
     (forall (x : t2) . f2 (g1 x) == x) /\
     (forall (x x' : t1) . f2 x == f2 x' ==> x == x')
   })
 : Tot (serializer32 (serialize_synth p1 f2 s1 g1 u))
 = fun (input: t2) ->
-  ((s1' (g1 input)) <: (res: bytes32 { serializer32_correct (serialize_synth p1 f2 s1 g1 u) input res } ))
+  ((s1' (g1' input)) <: (res: bytes32 { serializer32_correct (serialize_synth p1 f2 s1 g1 u) input res } ))
 
+inline_for_extraction
+let parse32_filter
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (p32: parser32 p)
+  (f: (t -> GTot bool))
+  (g: ((x: t) -> Tot (b: bool { b == f x } )))
+: Tot (parser32 (parse_filter p f))
+= fun (input: bytes32) ->
+  ((
+    match p32 input with
+    | Some (v, consumed) ->
+      if g v
+      then
+        let (v' : t { f v' == true } ) = v in
+	Some (v, consumed)
+      else
+        None
+    | _ -> None
+  ) <: (res: option ((v': t { f v' == true } ) * U32.t) { parser32_correct (parse_filter p f) input res } ))
 
+inline_for_extraction
+let serialize32_filter
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (#s: serializer p)
+  (s32: serializer32 s)
+  (f: (t -> GTot bool))
+: Tot (serializer32 #_ #_ #(parse_filter p f) (serialize_filter s f))
+= fun (input: t { f input == true } ) -> s32 input
