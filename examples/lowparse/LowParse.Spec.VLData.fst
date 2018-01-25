@@ -71,12 +71,28 @@ let parse_bounded_integer
 = decode_bounded_integer_injective i;
   make_total_constant_size_parser i (bounded_integer i) (decode_bounded_integer i)
 
+#reset-options "--z3rlimit 64 --max_fuel 64 --max_ifuel 64 --z3refresh --z3cliopt smt.arith.nl=false"
+
+let parse_vldata_payload_size
+  (sz: integer_size)
+: Pure nat
+  (requires True)
+  (ensures (fun y -> y == pow2 (FStar.Mul.op_Star 8 sz) - 1 ))
+= match sz with
+  | 1 -> 255
+  | 2 -> 65535
+  | 3 -> 16777215
+  | 4 -> 4294967295
+
+#reset-options
+
 // unfold
 let parse_vldata_payload_kind
+  (sz: integer_size)
 : parser_kind
 = {
     parser_kind_low = 0;
-    parser_kind_high = None;
+    parser_kind_high = Some (parse_vldata_payload_size sz);
     parser_kind_total = false;
     parser_kind_subkind = Some ParserStrong;
   }
@@ -88,8 +104,8 @@ let parse_vldata_payload
   (#t: Type0)
   (p: parser k t)
   (i: bounded_integer sz { f i == true } )
-: Tot (parser parse_vldata_payload_kind t)
-= weaken parse_vldata_payload_kind (parse_fldata p (U32.v i))
+: Tot (parser (parse_vldata_payload_kind sz) t)
+= weaken (parse_vldata_payload_kind sz) (parse_fldata p (U32.v i))
 
 #set-options "--z3rlimit 16"
 
@@ -128,7 +144,7 @@ let parse_vldata_gen_kind
 : parser_kind
 = {
     parser_kind_low = sz;
-    parser_kind_high = None;
+    parser_kind_high = Some (sz + parse_vldata_payload_size sz);
     parser_kind_total = false;
     parser_kind_subkind = Some ParserStrong;
   }
@@ -136,9 +152,9 @@ let parse_vldata_gen_kind
 let parse_vldata_gen_kind_correct
   (sz: integer_size)
 : Lemma
-  ( (parse_vldata_gen_kind sz) == (and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vldata_payload_kind))
+  ( (parse_vldata_gen_kind sz) == (and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) (parse_vldata_payload_kind sz)))
 = let kl = parse_vldata_gen_kind sz in
-  let kr = and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) parse_vldata_payload_kind in
+  let kr = and_then_kind (parse_filter_kind (parse_bounded_integer_kind sz)) (parse_vldata_payload_kind sz) in
   assert_norm (kl == kr)
 
 let parse_vldata_gen
