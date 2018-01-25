@@ -160,3 +160,39 @@ let serializer32_injective
   (requires (s32 input1 == s32 input2))
   (ensures (input1 == input2))
 = ()
+  
+(* TODO: move to FStar.Bytes *)
+
+let b32_reveal_create
+  (len: U32.t)
+  (v: byte)
+: Lemma
+  (B32.reveal (B32.create len v) == Seq.create (U32.v len) v)
+  [SMTPat (B32.reveal (B32.create len v))]
+= let b = B32.create len v in
+  let lhs = B32.reveal b in
+  let rhs = Seq.create (U32.v len) v in
+  let pty = (i: nat { i < Seq.length lhs }) in
+  let post
+    (i: pty)
+  : GTot Type0
+  = Seq.index lhs (i <: nat) == Seq.index rhs (i <: nat)
+  in
+  let f
+    (i: pty)
+  : Lemma
+    (post i)
+  = B32.index_reveal b (i <: nat)
+  in
+  Classical.forall_intro #pty #post f;
+  Seq.lemma_eq_intro lhs rhs;
+  Seq.lemma_eq_elim lhs rhs
+
+inline_for_extraction
+let b32append
+  (b1: B32.bytes)
+  (b2: B32.bytes)
+: Pure B32.bytes
+  (requires (B32.length b1 + B32.length b2 < 4294967296))
+  (ensures (fun _ -> True))
+= B32.append b1 b2

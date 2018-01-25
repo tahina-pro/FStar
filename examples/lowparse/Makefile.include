@@ -22,6 +22,7 @@ FSTAR_SLOW= \
 	LowParse.SLow.Combinators.fst \
 	LowParse.SLow.List.fst \
 	LowParse.SLow.FLData.fst \
+	LowParse.SLow.Int.fst \
 	
 
 FSTAR_IMPL= \
