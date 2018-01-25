@@ -3,7 +3,6 @@ include LowParse.Spec.Combinators
 
 module Seq = FStar.Seq
 module E = FStar.Kremlin.Endianness
-module C = C
 module U8  = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
