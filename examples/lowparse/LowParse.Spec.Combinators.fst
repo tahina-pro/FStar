@@ -807,7 +807,6 @@ let parse_filter_payload
     else fail_parser parse_filter_payload_kind (x: t {f x == true} )
   )
 
-inline_for_extraction
 let parse_filter
   (#k: parser_kind)
   (#t: Type0)
@@ -815,6 +814,35 @@ let parse_filter
   (f: (t -> GTot bool))
 : Tot (parser (parse_filter_kind k) (x: t { f x == true }))
 = p `and_then` (parse_filter_payload f)
+
+let serialize_filter'
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (f: (t -> GTot bool))
+: Tot (bare_serializer (x: t { f x == true } ))
+= fun (input: t { f input == true } ) -> s input
+
+let serialize_filter_correct
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (f: (t -> GTot bool))
+: Lemma
+  (serializer_correct (parse_filter p f) (serialize_filter' s f))
+= ()
+
+let serialize_filter
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (f: (t -> GTot bool))
+: Tot (bare_serializer (x: t { f x == true } ))
+= serialize_filter_correct s f;
+  serialize_filter' s f
 
 (* Helpers to define `if` combinators *)
 
