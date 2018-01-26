@@ -9,9 +9,13 @@ module U32 = FStar.UInt32
 
 let parse_u8_kind : parser_kind = total_constant_size_parser_kind 1
 
-inline_for_extraction
+let decode_u8
+  (b: bytes { Seq.length b == 1 } )
+: GTot U8.t
+= Seq.index b 0
+  
 let parse_u8: parser parse_u8_kind U8.t =
-  make_total_constant_size_parser 1 U8.t (fun b -> Seq.index b 0)
+  make_total_constant_size_parser 1 U8.t decode_u8
 
 let serialize_u8 : serializer parse_u8 =
   Seq.create 1

@@ -254,3 +254,58 @@ let serialize32_u32 : serializer32 #_ #_ #parse_u32 serialize_u32 =
     serialize32_u32_correct b input;
     serialize32_u32' b input
   ) <: (res: B32.bytes { serializer32_correct #_ #_ #parse_u32 serialize_u32 input res } )))
+
+#reset-options "--z3rlimit 32"
+
+inline_for_extraction
+let parse32_u8 : parser32 parse_u8 =
+  make_total_constant_size_parser32 1 1ul
+    decode_u8
+    (fun (b: B32.lbytes 1) ->
+      let r = B32.get b 0ul in
+      assert (r == B32.index b 0);
+      B32.index_reveal b 0;
+      (r <: (y: U8.t { y == decode_u8 (B32.reveal b) })))
+
+(*
+#reset-options "--z3rlimit 256 --max_fuel 64 --max_ifuel 64"
+
+let decode32_u16
+  (b: B32.lbytes 2)
+: Tot (y: U16.t { y == decode_u16 (B32.reveal b) } )
+=     let b1 = B32.get b 1ul in
+      assert_norm (b1 == B32.index b 1);
+      B32.index_reveal b 1;
+      let b0 = B32.get b 0ul in
+      assert_norm (b0 == B32.index b 0);
+      B32.index_reveal b 0;
+      assert_norm (pow2 8 == 256);
+      let r =
+	U16.add (Cast.uint8_to_uint16 b0) (U16.mul 256us (Cast.uint8_to_uint16 b1))
+      in
+      assert (
+	E.lemma_be_to_n_is_bounded (B32.reveal b);
+	U16.v r == U8.v b0 + Prims.op_Multiply 256 (U8.v b1)
+      );
+      assert (
+      	E.lemma_be_to_n_is_bounded (B32.reveal b);
+	U16.v r == U16.v (decode_u16 (B32.reveal b))
+      );
+      assert (
+	U16.v_inj r (decode_u16 (B32.reveal b));
+	(r == decode_u16 (B32.reveal b))
+      );
+      (r <: (y: U16.t { y == decode_u16 (B32.reveal b) } ))
+
+
+inline_for_extraction
+let parse32_u16 =
+  Classical.forall_intro_2 decode_u16_injective;
+    make_total_constant_size_parser32 2 2ul
+      #U16.t
+      decode_u16
+      decode32_u16
+
+(*
+    (fun (b: B32.lbytes 2) ->
+    )
