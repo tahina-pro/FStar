@@ -1,0 +1,315 @@
+[
+  "YÄÇ=œ#·ÙË˛$:çüjè",
+  [
+    [
+      "FStar.Monotonic.Witnessed.get_constant_lemma",
+      1,
+      2,
+      1,
+      [
+        "@query",
+        "interpretation_FStar.Classical_Tm_abs_33c425e9d5a70900b1deadec7d52bee0",
+        "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "partial_app_typing_9a325f05659c6bb7ba6b0399e115a2fc",
+        "typing_FStar.Classical_Tm_abs_33c425e9d5a70900b1deadec7d52bee0"
+      ],
+      0,
+      "61646d68273f8bab24429e4c362ca778"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_true",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_Prims.l_True",
+        "function_token_typing_Prims.l_True",
+        "lemma_FStar.Monotonic.Witnessed.get_constant_lemma", "true_interp"
+      ],
+      0,
+      "1662931d4af04387114638607c8b4694"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_false",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_Prims.l_False", "false_interp",
+        "function_token_typing_Prims.l_False",
+        "lemma_FStar.Monotonic.Witnessed.get_constant_lemma"
+      ],
+      0,
+      "5bbaf5e50fa572ad277d9bd3c4d16c8a"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_and_1",
+      1,
+      2,
+      1,
+      [
+        "@query",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_6d1e0164ded7995be55aa5e5cced5f12",
+        "l_and-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_6d1e0164ded7995be55aa5e5cced5f12"
+      ],
+      0,
+      "1df826ae8005c7bbfdb8ffe12fb3caac"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_or_1",
+      1,
+      2,
+      1,
+      [
+        "@query",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_a1bad970ab82c58d9690e886ffc4763a",
+        "l_or-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_a1bad970ab82c58d9690e886ffc4763a"
+      ],
+      0,
+      "a8144d0d7031166cf1f181f8c515e22d"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_impl_1",
+      1,
+      2,
+      1,
+      [ "@query" ],
+      0,
+      "edd865f11b384c0e7280492a63d283d5"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_forall_1_aux",
+      1,
+      2,
+      1,
+      [ "@query" ],
+      0,
+      "ba44d776acff41786c07c851b370f88f"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_forall_1",
+      1,
+      2,
+      1,
+      [ "@query", "lemma_FStar.Monotonic.Witnessed.get_forall_1_aux" ],
+      0,
+      "7820f49c8b8e4b2195701e0e9d7cfe60"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_exists_1_aux",
+      1,
+      2,
+      1,
+      [ "@query" ],
+      0,
+      "1fd2901f2a283d5656deb801d17162a4"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.get_exists_1",
+      1,
+      2,
+      1,
+      [ "@query", "lemma_FStar.Monotonic.Witnessed.get_exists_1_aux" ],
+      0,
+      "16ba711d98527a437de84b7f023f0770"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_weakening",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "equation_FStar.Monotonic.Witnessed.witnessed", "forall-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "l_imp-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca"
+      ],
+      0,
+      "339917f12753a1249beb9e70e9a76120"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_constant",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "equation_FStar.Monotonic.Witnessed.witnessed",
+        "equation_FStar.Preorder.preorder",
+        "equation_FStar.Preorder.preorder_rel", "forall-interp",
+        "interpretation_FStar.Classical_Tm_abs_33c425e9d5a70900b1deadec7d52bee0",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "l_imp-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "refinement_interpretation_FStar.Preorder_Tm_refine_bd10f09297e0e7dc08314f7d9211801c",
+        "typing_FStar.Classical_Tm_abs_33c425e9d5a70900b1deadec7d52bee0",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca"
+      ],
+      0,
+      "e62a2e5768edab972d9924d5e32fea18"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_nested",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_FStar.Monotonic.Witnessed.witnessed",
+        "forall-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_1c71465bfab93c2d4b6504f92d2186e1",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "l_imp-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca"
+      ],
+      0,
+      "37dc4530b12dcb856dc7af3b4a5af820"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_and",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_FStar.Monotonic.Witnessed.witnessed",
+        "forall-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_6d1e0164ded7995be55aa5e5cced5f12",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d5f5678000695b4c43b678840e196917",
+        "l_and-interp", "l_imp-interp",
+        "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d5f5678000695b4c43b678840e196917"
+      ],
+      0,
+      "b70bbe12b24d5de37baddebb52404aa5"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_or",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_FStar.Monotonic.Witnessed.witnessed",
+        "forall-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_a1bad970ab82c58d9690e886ffc4763a",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "l_imp-interp", "l_or-interp",
+        "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca"
+      ],
+      0,
+      "0b73f3c94e4a2e31eed0772d7fc3a51b"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_impl",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_FStar.Monotonic.Witnessed.witnessed",
+        "forall-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_267a2003d5d7264be1f291b082be58fe",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_28ac4761e8d04938f017bd5d0ade3036",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_37a2a2e707f2307de08e9223d914abd5",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_45c28cb4b21b221ab70e4dc435272b47",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "l_and-interp", "l_imp-interp",
+        "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_28ac4761e8d04938f017bd5d0ade3036",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_37a2a2e707f2307de08e9223d914abd5",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca"
+      ],
+      0,
+      "7801b0764726add44cc9a7716b6652e5"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_forall",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "equation_FStar.Monotonic.Witnessed.witnessed", "forall-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_55dabd924ac291f25381005a535719d7",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_78335cc602a142153aa4e599691536cd",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_78c3995a21c15f9c9227cba46a645898",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_7b0459eb8ddf75fd014aec950d52f447",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_a141b789d0233b0a061cd8ab0ca65a86",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_be9df0193563e61190d6f0d5e380443f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_fc0043a15eba5e66d123aa08943f8111",
+        "l_imp-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_7b0459eb8ddf75fd014aec950d52f447",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_fc0043a15eba5e66d123aa08943f8111"
+      ],
+      0,
+      "2e1621d93bfe2cc3997be428d2f8896b"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.lemma_witnessed_exists",
+      1,
+      2,
+      1,
+      [
+        "@query", "equation_FStar.Monotonic.Witnessed.witnessed",
+        "exists-interp", "forall-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_16035ab2330858b47af5b3b28ad15cbf",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_a141b789d0233b0a061cd8ab0ca65a86",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_cb9227ed9aee5280648abfbc33dfd64f",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "l_imp-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca"
+      ],
+      0,
+      "f4a9e0355b4e3c0c4928b4caff2d512d"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.witnessed_defs_equiv_1",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "equation_FStar.Monotonic.Witnessed.witnessed",
+        "equation_FStar.Monotonic.Witnessed.witnessed_past",
+        "equation_FStar.Preorder.preorder",
+        "equation_FStar.Preorder.preorder_rel", "exists-interp",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_574ff18cc4ada0683c00a54a74c6b6fa",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_a8673ec7e03eeffeebf78345f1e3ec47",
+        "interpretation_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca",
+        "l_and-interp", "lemma_FStar.Monotonic.Witnessed.get_weakening",
+        "refinement_interpretation_FStar.Preorder_Tm_refine_bd10f09297e0e7dc08314f7d9211801c",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_574ff18cc4ada0683c00a54a74c6b6fa",
+        "typing_FStar.Monotonic.Witnessed_Tm_abs_d58af55e4834986743e4019c6ff88dca"
+      ],
+      0,
+      "472f4cb48935516d32e5c4011c968a2c"
+    ],
+    [
+      "FStar.Monotonic.Witnessed.witnessed_defs_equiv_2",
+      1,
+      2,
+      1,
+      [
+        "@MaxIFuel_assumption", "@query",
+        "equation_FStar.Monotonic.Witnessed.witnessed",
+        "equation_FStar.Monotonic.Witnessed.witnessed_past",
+        "equation_FStar.Preorder.preorder",
+        "equation_FStar.Preorder.preorder_rel",
+        "refinement_interpretation_FStar.Preorder_Tm_refine_bd10f09297e0e7dc08314f7d9211801c"
+      ],
+      0,
+      "58ce5c608e7e117ef97a2af4377d50a8"
+    ]
+  ]
+]

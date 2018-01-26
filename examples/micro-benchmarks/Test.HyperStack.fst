@@ -222,7 +222,7 @@ let test_st_function_with_inline_2 () =
   pop_frame();
   ()
 
-val with_frame: #a:Type -> #pre:st_pre -> #post:(mem -> Tot (st_post a)) -> $f:(unit -> Stack a pre post)
+val with_frame: #a:Type -> #pre:st_pre -> #post:(s0:mem -> Tot (st_post' a (pre s0))) -> $f:(unit -> Stack a pre post)
 	     -> Stack a (fun s0 -> forall (s1:mem). fresh_frame s0 s1 ==> pre s1)
 		     (fun s0 x s1 ->
 			exists (s0' s1':mem). fresh_frame s0 s0'
@@ -323,3 +323,11 @@ let mods_test2 (a:Type0) (rel:preorder a) (x y z w:mref a rel)
 			modifies_ref (frameOf y) (Set.singleton (as_addr y)) h0 h1)
   = recall x; recall y; recall z; recall w;
     mods_test1 a rel x y z w
+
+let test_logical_operators_on_witnessed (p q:mem_predicate)
+  = lemma_witnessed_and p q;
+    assert (witnessed (fun s -> p s /\ q s) <==> (witnessed p /\ witnessed q));
+    lemma_witnessed_or p q;
+    assert ((witnessed p \/ witnessed q) ==> witnessed (fun s -> p s \/ q s));
+    lemma_witnessed_nested p;
+    assert (witnessed (fun _ -> witnessed p) <==> witnessed p)
