@@ -41,10 +41,13 @@ let rec n_to_be'
   (decreases len)
 = if len = 0
   then Seq.createEmpty
-  else
+  else begin
     let b' = n_to_be' (len - 1) (n / 256) in
     let b'' = Seq.create 1 (n % 256) in
-    Seq.append b' b''
+    let res = Seq.append b' b'' in
+    assert (Seq.length res == len);
+    res
+  end
 
 let n_to_be'_spec
   (len: nat)
