@@ -215,3 +215,20 @@ let serialize32_bounded_integer
   | 2 -> serialize_bounded_integer_conv 2 sz serialize32_bounded_integer_2
   | 3 -> serialize_bounded_integer_conv 3 sz serialize32_bounded_integer_3
   | 4 -> serialize_bounded_integer_conv 4 sz serialize32_bounded_integer_4
+
+
+(* Parsers and serializers for the payload *)
+
+(*
+let parse32_vldata_gen
+  (sz: integer_size)
+  (f: (bounded_integer sz -> GTot bool))
+  (f' : (x: bounded_integer sz) -> Tot (y: bool {y == f x}))
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (p32: parser32 p)
+: Tot (parser32 (parse_vldata_gen sz f p))
+= parse_fldata_and_then_cases_injective sz f p;
+  parse_vldata_gen_kind_correct sz;
+  parse32_and_then (parse32_filter (parse32_bounded_integer
