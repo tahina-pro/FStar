@@ -3,12 +3,14 @@ include LowParse.Spec.Int
 include LowParse.SLow.Combinators
 
 module Seq = FStar.Seq
-module E = FStar.Kremlin.Endianness
+module E = LowParse.BigEndian
 module U8  = FStar.UInt8
 module U16 = FStar.UInt16
 module U32 = FStar.UInt32
 module B32 = FStar.Bytes
 module Cast = FStar.Int.Cast
+
+#reset-options "--z3cliopt smt.arith.nl=false --z3rlimit 64 --max_ifuel 32 --max_fuel 32"
 
 inline_for_extraction
 let serialize32_u8
@@ -16,12 +18,11 @@ let serialize32_u8
 = fun (input: U8.t) -> (
     (
       b32_reveal_create 1ul input;
-      B32.create 1ul input
+      let res : B32.bytes = B32.create 1ul input in
+      res
     ) <: (
     res: B32.bytes { serializer32_correct serialize_u8 input res }
   ))
-
-#reset-options "--z3cliopt smt.arith.nl=false --z3rlimit 64 --max_ifuel 32 --max_fuel 32"
 
 let length_set_byte
   (b: bytes32)
@@ -270,9 +271,9 @@ let parse32_u8 : parser32 parse_u8 =
       B32.index_reveal b 0;
       (r <: (y: U8.t { y == decode_u8 (B32.reveal b) })))
 
-(*
-#reset-options "--z3rlimit 256 --max_fuel 64 --max_ifuel 64"
+// #reset-options "--z3rlimit 256 --max_fuel 64 --max_ifuel 64"
 
+inline_for_extraction
 let decode32_u16
   (b: B32.lbytes 2)
 : Tot (y: U16.t { y == decode_u16 (B32.reveal b) } )
@@ -284,11 +285,20 @@ let decode32_u16
       B32.index_reveal b 0;
       assert_norm (pow2 8 == 256);
       let r =
-	U16.add (Cast.uint8_to_uint16 b0) (U16.mul 256us (Cast.uint8_to_uint16 b1))
+	U16.add (Cast.uint8_to_uint16 b1) (U16.mul 256us (Cast.uint8_to_uint16 b0))
       in
       assert (
 	E.lemma_be_to_n_is_bounded (B32.reveal b);
-	U16.v r == U8.v b0 + Prims.op_Multiply 256 (U8.v b1)
+	U16.v r == U8.v b1 + Prims.op_Multiply 256 (U8.v b0)
+      );
+      assert (
+	E.lemma_be_to_n_is_bounded (B32.reveal b);
+	U16.v r == U8.v b1 + Prims.op_Multiply (pow2 8) (U8.v b0)
+      );
+      E.be_to_n_2_spec (B32.reveal b);
+      assert (
+	E.lemma_be_to_n_is_bounded (B32.reveal b);
+	U16.v r == E.be_to_n (B32.reveal b)
       );
       assert (
       	E.lemma_be_to_n_is_bounded (B32.reveal b);
@@ -300,15 +310,62 @@ let decode32_u16
       );
       (r <: (y: U16.t { y == decode_u16 (B32.reveal b) } ))
 
-
 inline_for_extraction
-let parse32_u16 =
+let parse32_u16 : parser32 parse_u16 =
   Classical.forall_intro_2 decode_u16_injective;
     make_total_constant_size_parser32 2 2ul
       #U16.t
       decode_u16
       decode32_u16
 
-(*
-    (fun (b: B32.lbytes 2) ->
-    )
+#reset-options "--z3rlimit 128 --max_fuel 64 --max_ifuel 64"
+
+inline_for_extraction
+let decode32_u32
+  (b: B32.lbytes 4)
+: Tot (y: U32.t { y == decode_u32 (B32.reveal b) } )
+=     let b3 = B32.get b 3ul in
+      assert_norm (b3 == B32.index b 3);
+      B32.index_reveal b 3;
+      let b2 = B32.get b 2ul in
+      assert_norm (b2 == B32.index b 2);
+      B32.index_reveal b 2;
+      let b1 = B32.get b 1ul in
+      assert_norm (b1 == B32.index b 1);
+      B32.index_reveal b 1;
+      let b0 = B32.get b 0ul in
+      assert_norm (b0 == B32.index b 0);
+      B32.index_reveal b 0;
+      assert_norm (pow2 8 == 256);
+      let r =
+        U32.add (Cast.uint8_to_uint32 b3) (U32.mul 256ul (
+          U32.add (Cast.uint8_to_uint32 b2) (U32.mul 256ul (        
+	  U32.add (Cast.uint8_to_uint32 b1) (U32.mul 256ul (
+          Cast.uint8_to_uint32 b0
+        ))))))
+      in
+      E.lemma_be_to_n_is_bounded (B32.reveal b);
+      E.be_to_n_4_spec (B32.reveal b);
+      assert (
+	E.lemma_be_to_n_is_bounded (B32.reveal b);
+	U32.v r == E.be_to_n (B32.reveal b)
+      );
+      assert (
+      	E.lemma_be_to_n_is_bounded (B32.reveal b);
+	U32.v r == U32.v (decode_u32 (B32.reveal b))
+      );
+      assert (
+	U32.v_inj r (decode_u32 (B32.reveal b));
+	(r == decode_u32 (B32.reveal b))
+      );
+      (r <: (y: U32.t { y == decode_u32 (B32.reveal b) } ))
+
+#reset-options "--z3rlimit 32"
+
+inline_for_extraction
+let parse32_u32 : parser32 parse_u32 =
+  Classical.forall_intro_2 decode_u32_injective;
+    make_total_constant_size_parser32 4 4ul
+      #U32.t
+      decode_u32
+      decode32_u32
