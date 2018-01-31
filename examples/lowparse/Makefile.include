@@ -23,7 +23,13 @@ FSTAR_SLOW= \
 	LowParse.SLow.List.fst \
 	LowParse.SLow.FLData.fst \
         LowParse.BigEndian.fst \
+        LowParse.SLow.Int.Code.fst \
+        LowParse.SLow.Int.Proof.fsti \
+        LowParse.SLow.Int.Proof.fst \
 	LowParse.SLow.Int.fst \
+        LowParse.SLow.VLData.Code.fst \
+        LowParse.SLow.VLData.Proof.fsti \
+        LowParse.SLow.VLData.Proof.fst \
 	LowParse.SLow.VLData.fst \
 	LowParse.SLow.Enum.fst \
         LowParse.SLow.fst \
