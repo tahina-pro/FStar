@@ -22,7 +22,7 @@ let parser32_correct
       hres == hres' /\
       U32.v consumed == (consumed' <: nat)
     )
- 
+
 let parser32
   (#k: parser_kind)
   (#t: Type0)
