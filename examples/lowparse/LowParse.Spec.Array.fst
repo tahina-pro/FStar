@@ -122,7 +122,7 @@ val parse_total_constant_size_elem_parse_list_total
 
 // #reset-options "--z3rlimit 128 --max_fuel 8 --max_ifuel 8 --z3cliopt smt.arith.nl=false"
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128"
 
 let rec parse_total_constant_size_elem_parse_list_total #k #t p b =
   let elem_byte_size : pos = k.parser_kind_low in
