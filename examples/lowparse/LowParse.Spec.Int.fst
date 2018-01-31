@@ -28,7 +28,7 @@ let decode_u16
 
 (* TODO: move to FStar.Kremlin.Endianness *)
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let rec be_to_n_inj
   (b1 b2: bytes)
