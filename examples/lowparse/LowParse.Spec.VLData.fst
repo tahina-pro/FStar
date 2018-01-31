@@ -47,11 +47,7 @@ let decode_bounded_integer_injective'
 let decode_bounded_integer_injective
   (i: integer_size)
 : Lemma
-  (forall
-    (b1: bytes { Seq.length b1 == i } )
-    (b2: bytes { Seq.length b2 == i } )
-  . decode_bounded_integer i b1 == decode_bounded_integer i b2 ==> Seq.equal b1 b2
-  )
+  (make_total_constant_size_parser_precond i (bounded_integer i) (decode_bounded_integer i))
 = Classical.forall_intro_2 (decode_bounded_integer_injective' i)
 
 // unfold
