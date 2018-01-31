@@ -166,7 +166,8 @@ let make_constant_size_parser32
   (sz: nat)
   (sz' : U32.t { U32.v sz' == sz } )
   (#t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)) {
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
+  (u: unit {
     make_constant_size_parser_precond sz t f
   } )
   (f' : ((s: B32.lbytes sz) -> Tot (y: option t { y == f (B32.reveal s) } )))
@@ -187,9 +188,10 @@ let make_total_constant_size_parser32
   (sz: nat)
   (sz' : U32.t { U32.v sz' == sz } )
   (#t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> GTot (t)) {
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (t)))
+  (u: unit {
     make_total_constant_size_parser_precond sz t f
-  } )
+  })
   (f' : ((s: B32.lbytes sz) -> Tot (y: t { y == f (B32.reveal s) } )))
 : Tot (parser32 (make_total_constant_size_parser sz t f))
 = fun (input: bytes32) -> ((

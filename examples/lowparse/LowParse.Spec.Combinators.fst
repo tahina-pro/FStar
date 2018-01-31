@@ -52,11 +52,14 @@ let make_constant_size_parser_precond'
 let make_constant_size_parser_injective
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)) {
-    make_constant_size_parser_precond sz t f
-  })
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
 : Lemma
-  (injective (make_constant_size_parser_aux sz t f))
+  (requires (
+    make_constant_size_parser_precond sz t f
+  ))
+  (ensures (
+    injective (make_constant_size_parser_aux sz t f)
+  ))
 = let p : bare_parser t = make_constant_size_parser_aux sz t f in
   let prf1
     (b1 b2: bytes)
@@ -88,14 +91,16 @@ let constant_size_parser_kind
 let make_constant_size_parser
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)) {
-    make_constant_size_parser_precond sz t f
-  })
-: Tot (
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
+: Pure (
     parser
       (constant_size_parser_kind sz)
       t
   )
+  (requires (
+    make_constant_size_parser_precond sz t f
+  ))
+  (ensures (fun _ -> True))
 = let p : bare_parser t = make_constant_size_parser_aux sz t f in
   make_constant_size_parser_injective sz t f;
   p
@@ -121,16 +126,19 @@ let total_constant_size_parser_kind
 let make_total_constant_size_parser
   (sz: nat)
   (t: Type0)
-  (f: ((s: bytes {Seq.length s == sz}) -> GTot t) {
-    make_total_constant_size_parser_precond sz t f
-  })
-: Tot (
+  (f: ((s: bytes {Seq.length s == sz}) -> GTot t))
+: Pure (
     parser
       (total_constant_size_parser_kind sz)
       t
   )
+  (requires (
+    make_total_constant_size_parser_precond sz t f
+  ))
+  (ensures (fun _ -> True))
 = let p : bare_parser t = make_constant_size_parser sz t (fun x -> Some (f x)) in
   p
+
 
 (** Combinators *)
 
@@ -699,6 +707,28 @@ let parse_synth
   ))
   (ensures (fun _ -> True))
 = coerce (parser k t2) (and_then p1 (fun v1 -> parse_fret f2 v1))
+
+let compose (#t1 #t2 #t3: Type) (f1: t1 -> GTot t2) (f2: t2 -> GTot t3) (x: t1) : GTot t3 =
+  let y1 = f1 x in
+  f2 y1
+
+let make_total_constant_size_parser_compose
+  (sz: nat)
+  (t1 t2: Type0)
+  (f1: ((s: bytes {Seq.length s == sz}) -> GTot t1))
+  (g2: t1 -> GTot t2)
+: Lemma
+  (requires (
+    make_total_constant_size_parser_precond sz t1 f1 /\
+    (forall x x' . g2 x == g2 x' ==> x == x')
+  ))
+  (ensures (
+    make_total_constant_size_parser_precond sz t1 f1 /\
+    make_total_constant_size_parser_precond sz t2 (f1 `compose` g2) /\
+    (forall x x' . g2 x == g2 x' ==> x == x') /\
+    (forall input . parse (make_total_constant_size_parser sz t2 (f1 `compose` g2)) input == parse (make_total_constant_size_parser sz t1 f1 `parse_synth` g2) input)
+  ))
+= ()
 
 val bare_serialize_synth
   (#k: parser_kind)

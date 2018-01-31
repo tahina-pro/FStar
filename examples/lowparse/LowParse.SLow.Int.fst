@@ -10,7 +10,7 @@ module U32 = FStar.UInt32
 module B32 = FStar.Bytes
 module Cast = FStar.Int.Cast
 
-#reset-options "--z3cliopt smt.arith.nl=false --z3rlimit 64 --max_ifuel 32 --max_fuel 32"
+#reset-options "--z3cliopt smt.arith.nl=false --z3rlimit 128 --max_ifuel 32 --max_fuel 32"
 
 inline_for_extraction
 let serialize32_u8
@@ -35,49 +35,23 @@ let length_set_byte
   B32.length_reveal b;
   B32.length_reveal (B32.set_byte b pos x)
 
-let rec n_to_be'
-  (len: nat)
-  (n: nat)
-: Tot (res: Seq.seq nat { Seq.length res == len } )
-  (decreases len)
-= if len = 0
-  then Seq.createEmpty
-  else begin
-    let b' = n_to_be' (len - 1) (n / 256) in
-    let b'' = Seq.create 1 (n % 256) in
-    let res = Seq.append b' b'' in
-    assert (Seq.length res == len);
-    res
-  end
-
-let n_to_be'_spec
-  (len: nat)
-  (n: nat)
-: Lemma
-  (requires (len > 0))
-  (ensures (
-    Seq.slice (n_to_be' len n) 0 (len - 1) == n_to_be' (len - 1) (n / 256) /\
-    Seq.index (n_to_be' len n) (len - 1) == n % 256
-  ))
-= Seq.lemma_eq_intro (n_to_be' (len - 1) (n / 256)) (Seq.slice (n_to_be' len n) 0 (len - 1))
-
 let rec index_n_to_be
   (len: U32.t)
   (n: nat { n < pow2 (Prims.op_Multiply 8 (U32.v len)) } )
   (i: nat {i < U32.v len})
 : Lemma
   (requires True)
-  (ensures (U8.v (Seq.index (E.n_to_be len n) i) == Seq.index (n_to_be' (U32.v len) n) i))
+  (ensures (U8.v (Seq.index (E.n_to_be len n) i) == Seq.index (E.n_to_be' (U32.v len) n) i))
   (decreases (U32.v len))
 = E.n_to_be_spec len n;
-  n_to_be'_spec (U32.v len) n;
+  E.n_to_be'_spec (U32.v len) n;
   if i = U32.v len - 1
   then ()
   else begin
     let len' = U32.sub len 1ul in
     let n' = n / 256 in
     Seq.lemma_index_slice (E.n_to_be len n) 0 (U32.v len - 1) i;
-    Seq.lemma_index_slice (n_to_be' (U32.v len) n) 0 (U32.v len - 1) i;
+    Seq.lemma_index_slice (E.n_to_be' (U32.v len) n) 0 (U32.v len - 1) i;
     index_n_to_be len' n' i
   end
 
@@ -161,7 +135,7 @@ let serialize32_u16 : serializer32 #_ #_ #parse_u16 serialize_u16 =
 let rec div_256
   (n: nat)
   (times: nat)
-: Tot nat
+: GTot nat
   (decreases times)
 = if times = 0
   then n % 256
@@ -173,9 +147,9 @@ let rec index_n_to_be'
   (i: nat {i < len})
 : Lemma
   (requires True)
-  (ensures (Seq.index (n_to_be' len n) i == div_256 n (len - 1 - i)))
+  (ensures (Seq.index (E.n_to_be' len n) i == div_256 n (len - 1 - i)))
   (decreases len)
-= n_to_be'_spec len n;
+= E.n_to_be'_spec len n;
   if i = len - 1
   then ()
   else index_n_to_be' (len - 1) (n / 256) i
@@ -265,6 +239,7 @@ inline_for_extraction
 let parse32_u8 : parser32 parse_u8 =
   make_total_constant_size_parser32 1 1ul
     decode_u8
+    ()
     (fun (b: B32.lbytes 1) ->
       let r = B32.get b 0ul in
       assert (r == B32.index b 0);
@@ -312,10 +287,11 @@ let decode32_u16
 
 inline_for_extraction
 let parse32_u16 : parser32 parse_u16 =
-  Classical.forall_intro_2 decode_u16_injective;
+  decode_u16_injective ();
     make_total_constant_size_parser32 2 2ul
       #U16.t
       decode_u16
+      ()
       decode32_u16
 
 #reset-options "--z3rlimit 128 --max_fuel 64 --max_ifuel 64"
@@ -364,8 +340,9 @@ let decode32_u32
 
 inline_for_extraction
 let parse32_u32 : parser32 parse_u32 =
-  Classical.forall_intro_2 decode_u32_injective;
+    decode_u32_injective ();
     make_total_constant_size_parser32 4 4ul
       #U32.t
       decode_u32
+      ()
       decode32_u32

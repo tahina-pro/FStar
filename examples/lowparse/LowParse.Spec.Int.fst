@@ -46,7 +46,7 @@ let rec be_to_n_inj
 
 #reset-options
 
-let decode_u16_injective
+let decode_u16_injective'
   (b1: bytes { Seq.length b1 == 2 } )
   (b2: bytes { Seq.length b2 == 2 } )
 : Lemma
@@ -61,6 +61,12 @@ let decode_u16_injective
     be_to_n_inj b1 b2
   end else ()
 
+let decode_u16_injective
+  ()
+: Lemma
+  (make_total_constant_size_parser_precond 2 U16.t decode_u16)
+= Classical.forall_intro_2 decode_u16_injective'
+
 let parse_u16_kind : parser_kind =
   total_constant_size_parser_kind 2
 
@@ -68,7 +74,7 @@ let parse_u16_kind : parser_kind =
 
 inline_for_extraction
 let parse_u16: parser parse_u16_kind U16.t =
-  Classical.forall_intro_2 decode_u16_injective;
+  decode_u16_injective ();
   make_total_constant_size_parser 2 U16.t decode_u16
 
 let serialize_u16 : serializer parse_u16 =
@@ -84,7 +90,7 @@ let decode_u32
 
 #set-options "--z3rlimit 16"
 
-let decode_u32_injective
+let decode_u32_injective'
   (b1: bytes { Seq.length b1 == 4 } )
   (b2: bytes { Seq.length b2 == 4 } )
 : Lemma
@@ -101,12 +107,16 @@ let decode_u32_injective
 
 #reset-options
 
+let decode_u32_injective () : Lemma
+  (make_total_constant_size_parser_precond 4 U32.t decode_u32)
+= Classical.forall_intro_2 decode_u32_injective'
+
 let parse_u32_kind : parser_kind =
   total_constant_size_parser_kind 4
 
 inline_for_extraction
 let parse_u32: parser parse_u32_kind U32.t =
-  Classical.forall_intro_2 decode_u32_injective;
+  decode_u32_injective ();
   make_total_constant_size_parser 4 U32.t decode_u32
 
 #set-options "--z3rlimit 32"
