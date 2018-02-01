@@ -24,6 +24,10 @@ FSTAR_SLOW= \
 	LowParse.SLow.FLData.fst \
         LowParse.BigEndian.fst \
         LowParse.SLow.Int.Code.fst \
+        LowParse.SLow.Int.Proof.SerializeU16.fst \
+        LowParse.SLow.Int.Proof.SerializeU32.fst \
+        LowParse.SLow.Int.Proof.ParseU16.fst \
+        LowParse.SLow.Int.Proof.ParseU32.fst \
         LowParse.SLow.Int.Proof.fsti \
         LowParse.SLow.Int.Proof.fst \
         LowParse.SLow.Int.fst \
