@@ -196,3 +196,12 @@ let b32append
   (requires (B32.length b1 + B32.length b2 < 4294967296))
   (ensures (fun _ -> True))
 = B32.append b1 b2
+
+inline_for_extraction
+let lb32set
+  (#n: nat)
+  (b: B32.lbytes n)
+  (i: U32.t { U32.v i < n } )
+  (x: byte)
+: Tot (B32.lbytes n)
+= B32.set_byte b i x

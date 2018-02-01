@@ -22,7 +22,7 @@ let serialize_u8 : serializer parse_u8 =
 
 let decode_u16
   (b: bytes { Seq.length b == 2 } )
-: Tot U16.t
+: GTot U16.t
 = E.lemma_be_to_n_is_bounded b;
   U16.uint_to_t (E.be_to_n b)
 
@@ -72,10 +72,12 @@ let parse_u16_kind : parser_kind =
 
 #set-options "--z3rlimit 16"
 
-inline_for_extraction
 let parse_u16: parser parse_u16_kind U16.t =
   decode_u16_injective ();
-  make_total_constant_size_parser 2 U16.t decode_u16
+  let p =
+    make_total_constant_size_parser 2 U16.t decode_u16
+  in
+  p
 
 let serialize_u16 : serializer parse_u16 =
   (fun (x: U16.t) -> E.n_to_be 2ul (U16.v x))
@@ -84,7 +86,7 @@ let serialize_u16 : serializer parse_u16 =
 
 let decode_u32
   (b: bytes { Seq.length b == 4 } )
-: Tot U32.t
+: GTot U32.t
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
 
@@ -114,7 +116,6 @@ let decode_u32_injective () : Lemma
 let parse_u32_kind : parser_kind =
   total_constant_size_parser_kind 4
 
-inline_for_extraction
 let parse_u32: parser parse_u32_kind U32.t =
   decode_u32_injective ();
   make_total_constant_size_parser 4 U32.t decode_u32

@@ -11,6 +11,14 @@ module Cast = FStar.Int.Cast
 
 let integer_size : Type0 = (sz: nat { 1 <= sz /\ sz <= 4 } )
 
+#reset-options "--z3cliopt smt.arith.nl=false --z3rlimit 32"
+
+let integer_size_values (i: integer_size) : Lemma
+  (i == 1 \/ i == 2 \/ i == 3 \/ i == 4)
+= ()
+
+#reset-options
+
 inline_for_extraction
 let bounded_integer
   (i: integer_size)
@@ -22,7 +30,7 @@ let bounded_integer
 let decode_bounded_integer
   (i: integer_size)
   (b: bytes { Seq.length b == i } )
-: Tot (bounded_integer i)
+: GTot (bounded_integer i)
 = E.lemma_be_to_n_is_bounded b;
   U32.uint_to_t (E.be_to_n b)
 
@@ -105,7 +113,7 @@ let parse_vldata_payload
 : Tot (parser (parse_vldata_payload_kind sz) t)
 = weaken (parse_vldata_payload_kind sz) (parse_fldata p (U32.v i))
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let parse_fldata_and_then_cases_injective
   (sz: integer_size)
@@ -139,7 +147,7 @@ let parse_fldata_and_then_cases_injective
 // unfold
 let parse_vldata_gen_kind
   (sz: integer_size)
-: parser_kind
+: Tot parser_kind
 = {
     parser_kind_low = sz;
     parser_kind_high = Some (sz + parse_vldata_payload_size sz);
