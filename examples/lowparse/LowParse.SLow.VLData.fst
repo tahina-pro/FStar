@@ -126,7 +126,19 @@ let parse32_bounded_integer
 
 (* Parsers and serializers for the payload *)
 
-(*
+inline_for_extraction
+let parse32_vldata_payload
+  (sz: integer_size)
+  (f: (bounded_integer sz -> GTot bool))
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (p32: parser32 p)
+  (i: bounded_integer sz { f i == true } )
+: Tot (parser32 (parse_vldata_payload sz f p i))
+= fun (input: bytes32) -> parse32_fldata p32 (U32.v i) i input
+
+inline_for_extraction
 let parse32_vldata_gen
   (sz: integer_size)
   (f: (bounded_integer sz -> GTot bool))
@@ -138,4 +150,116 @@ let parse32_vldata_gen
 : Tot (parser32 (parse_vldata_gen sz f p))
 = parse_fldata_and_then_cases_injective sz f p;
   parse_vldata_gen_kind_correct sz;
-  parse32_and_then (parse32_filter (parse32_bounded_integer
+  parse32_and_then
+    (parse32_filter (parse32_bounded_integer sz) f f')
+    (parse_vldata_payload sz f p)
+    ()
+    (parse32_vldata_payload sz f p32)
+
+inline_for_extraction
+let parse32_vldata
+  (sz: integer_size)
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (p32: parser32 p)
+: Tot (parser32 (parse_vldata sz p))
+= parse32_vldata_gen sz (unconstrained_bounded_integer sz) (fun _ -> true) p32
+
+#set-options "--z3rlimit 32"
+
+inline_for_extraction
+let parse32_bounded_vldata
+  (min: nat)
+  (min32: U32.t { U32.v min32 == min } )
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
+  (max32: U32.t { U32.v max32 == max } )
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (p32: parser32 p)
+: Tot (parser32 (parse_bounded_vldata min max p))
+= parse_bounded_vldata_correct min max p;
+  let sz : integer_size = (log256' max) in
+  (fun input -> parse32_vldata_gen sz (in_bounds min max) (fun i -> not (U32.lt i min32 || U32.lt max32 i)) p32 input)
+
+inline_for_extraction
+let parse32_bounded_vldata_strong'
+  (min: nat)
+  (min32: U32.t { U32.v min32 == min } )
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
+  (max32: U32.t { U32.v max32 == max } )
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (p32: parser32 p)
+  (input: bytes32)
+: Tot (option (parse_bounded_vldata_strong_t min max #k #t #p s * U32.t))
+= let res =
+    parse32_strengthen
+      #(parse_bounded_vldata_kind min max)
+      #t
+      #(parse_bounded_vldata min max #k #t p)
+      (parse32_bounded_vldata min min32 max max32 #k #t #p p32)
+      (parse_bounded_vldata_strong_pred min max #k #t #p s)
+      (parse_bounded_vldata_strong_correct min max #k #t #p s)
+      input
+  in
+  match res with
+  | None -> None
+  | Some (x, consumed) ->
+    let x1 : t = x in
+    Some ((x1 <: parse_bounded_vldata_strong_t min max #k #t #p s), consumed)
+
+let parse32_bounded_vldata_strong_correct
+  (min: nat)
+  (min32: U32.t { U32.v min32 == min } )
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
+  (max32: U32.t { U32.v max32 == max } )
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (p32: parser32 p)
+  (input: bytes32)
+: Lemma
+  ( let res : option (parse_bounded_vldata_strong_t min max s * U32.t) = 
+      parse32_bounded_vldata_strong' min min32 max max32 s p32 input
+    in
+    parser32_correct (parse_bounded_vldata_strong min max s) input res)
+= let res =
+    parse32_strengthen
+      #(parse_bounded_vldata_kind min max)
+      #t
+      #(parse_bounded_vldata min max #k #t p)
+      (parse32_bounded_vldata min min32 max max32 #k #t #p p32)
+      (parse_bounded_vldata_strong_pred min max #k #t #p s)
+      (parse_bounded_vldata_strong_correct min max #k #t #p s)
+      input
+  in
+  match res with
+  | None -> ()
+  | Some (x, consumed) ->
+    let x1 : t = x in
+    let res = Some ((x1 <: parse_bounded_vldata_strong_t min max #k #t #p s), consumed) in
+    assert (parser32_correct (parse_bounded_vldata_strong min max s) input res)
+
+inline_for_extraction
+let parse32_bounded_vldata_strong
+  (min: nat)
+  (min32: U32.t { U32.v min32 == min } )
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967296 } )
+  (max32: U32.t { U32.v max32 == max } )
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (p32: parser32 p)
+: Tot (parser32 #(parse_bounded_vldata_kind min max) #(parse_bounded_vldata_strong_t min max s) (parse_bounded_vldata_strong min max s))
+= make_parser32
+    (parse_bounded_vldata_strong min max s)
+    (fun input ->
+       parse32_bounded_vldata_strong_correct min min32 max max32 s p32 input;
+       parse32_bounded_vldata_strong' min min32 max max32 s p32 input
+    )

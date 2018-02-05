@@ -90,6 +90,24 @@ let serialize32_nondep_then
     (res: bytes32 { serializer32_correct (serialize_nondep_then p1 s1 u p2 s2) input res } ))
 
 inline_for_extraction
+let parse32_strengthen
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#p1: parser k t1)
+  (p1' : parser32 p1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+: Tot (parser32 (parse_strengthen p1 p2 prf))
+= fun (xbytes: bytes32) -> ((
+  match p1' xbytes with
+  | Some (x, consumed) ->
+    prf (B32.reveal xbytes) (U32.v consumed) x;
+    let (x' : t1 { p2 x' } ) = x in
+    Some (x', consumed)
+  | _ -> None
+  ) <: (res: option ((x: t1 { p2 x}) * U32.t) { parser32_correct (parse_strengthen p1 p2 prf) xbytes res } ))
+
+inline_for_extraction
 let parse32_synth
   (#k: parser_kind)
   (#t1: Type0)
