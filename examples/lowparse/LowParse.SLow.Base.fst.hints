@@ -1,5 +1,5 @@
 [
-  "aDf«&–W€\u0004ôÚ»!\f‚ö",
+  "å3¤~fF\u001c\u001f€âA‚6;­^",
   [
     [
       "LowParse.SLow.Base.parser32_correct",
@@ -24,6 +24,15 @@
       "6c648958239f3d7422d9e4787bbccf05"
     ],
     [
+      "LowParse.SLow.Base.make_parser32",
+      1,
+      2,
+      1,
+      [ "@query" ],
+      0,
+      "3074ad68e455820380c49a80ac61e1d2"
+    ],
+    [
       "LowParse.SLow.Base.validator_correct",
       1,
       2,
@@ -43,7 +52,7 @@
         "typing_LowParse.Spec.Base.consumed_length"
       ],
       0,
-      "f714929b8e6c9866ce5dd714e614a3d5"
+      "e96a8f6c1e4a055075a4935c806fa9bd"
     ],
     [
       "LowParse.SLow.Base.serializer32_correct",
@@ -52,7 +61,7 @@
       1,
       [ "@query" ],
       0,
-      "e599ba70864ba4516302c9d89f5ff862"
+      "c7925138e60a776bbc1f7805836c9596"
     ],
     [
       "LowParse.SLow.Base.serializer32_then_parser32",
@@ -103,7 +112,7 @@
         "typing_FStar.Bytes.len", "typing_FStar.UInt32.v"
       ],
       0,
-      "faa78428d32d66befdcde8ef70625d4e"
+      "8c4613b0727cd34f9f1d852373986b72"
     ],
     [
       "LowParse.SLow.Base.b32slice",
@@ -130,7 +139,7 @@
         "typing_FStar.Bytes.len", "typing_FStar.UInt32.v"
       ],
       0,
-      "3ed12a0f40da5528b00dc865380a06dd"
+      "8e45bb4ef02897156a53bfd07aa314b0"
     ],
     [
       "LowParse.SLow.Base.parser32_then_serializer32",
@@ -199,7 +208,7 @@
         "typing_LowParse.Spec.Base.parse", "unit_typing"
       ],
       0,
-      "f28b99e53482fccb811c33c87e9b4470"
+      "5622436061f4cf705e62acdf46eb1c30"
     ],
     [
       "LowParse.SLow.Base.parser32_injective",
@@ -259,7 +268,7 @@
         "typing_LowParse.Spec.Base.parse"
       ],
       0,
-      "fa0b2ae653d6c10b743720d6e86bfd75"
+      "e4dba4fa24d86ad40a2501c6b1eaf822"
     ],
     [
       "LowParse.SLow.Base.serializer32_injective",
@@ -286,7 +295,7 @@
         "refinement_interpretation_LowParse.Spec.Base_Tm_refine_9fc4b705eaf2fe68d9cc8785e7df72bf"
       ],
       0,
-      "f25f395e9a83b3e735712366cd42be05"
+      "7baf0d1123bf11f740898b449302c836"
     ],
     [
       "LowParse.SLow.Base.b32_reveal_create",
@@ -326,7 +335,7 @@
         "typing_FStar.UInt32.v"
       ],
       0,
-      "10d15d474ff804ac5d09a575957cbbe8"
+      "096a0588940ed7d103e07cd038e8a446"
     ],
     [
       "LowParse.SLow.Base.b32append",
@@ -356,7 +365,7 @@
         "typing_FStar.Seq.Base.length", "typing_FStar.UInt32.v"
       ],
       0,
-      "accb6f5889c1a9e3ae276fc4c2ef9371"
+      "a5b6fed7007afe57013e2832e301b6e8"
     ],
     [
       "LowParse.SLow.Base.lb32set",
@@ -386,7 +395,7 @@
         "typing_FStar.Bytes.reveal", "typing_FStar.UInt32.v"
       ],
       0,
-      "fabc047baa644b8bf6e4dd61bc5efe33"
+      "28a55aab27418abc566f064a44d99753"
     ]
   ]
 ]

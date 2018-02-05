@@ -33,16 +33,7 @@
         "typing_FStar.UInt32.uint_to_t", "typing_FStar.UInt32.v"
       ],
       0,
-      "88881bb82ff187fbf4d717fb85b8619d"
-    ],
-    [
-      "LowParse.SLow.Int.Code.serialize32_u16'",
-      1,
-      2,
-      1,
-      [ "@query" ],
-      0,
-      "e2bafed29e0f879bd2d216eaf974ad76"
+      "0d924f3f4bfd80648b428f0a00b2e0d9"
     ],
     [
       "LowParse.SLow.Int.Code.serialize32_u32'",
@@ -51,7 +42,7 @@
       1,
       [ "@query" ],
       0,
-      "e4fd39e464e1ee630ce025f461c5b318"
+      "32cd5798da1fc6e97b9d64833767d577"
     ],
     [
       "LowParse.SLow.Int.Code.decode32_u16'",
@@ -113,7 +104,7 @@
         "typing_FStar.UInt32.v", "typing_FStar.UInt8.v", "unit_typing"
       ],
       0,
-      "d6c682ea8f9c4ddc9aea034adc469b3a"
+      "c85a456e8904302e33e5c7ea6025208e"
     ],
     [
       "LowParse.SLow.Int.Code.decode32_u32'",
@@ -143,7 +134,7 @@
         "typing_FStar.UInt8.v"
       ],
       0,
-      "029f97dbce80af3a8d5dbda520c45371"
+      "0093e1fca415fb3e40412c3039332638"
     ]
   ]
 ]
