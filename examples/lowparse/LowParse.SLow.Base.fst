@@ -203,14 +203,19 @@ let b32append
   (b2: B32.bytes)
 : Pure B32.bytes
   (requires (B32.length b1 + B32.length b2 < 4294967296))
-  (ensures (fun _ -> True))
+  (ensures (fun y -> B32.reveal y == Seq.append (B32.reveal b1) (B32.reveal b2)))
 = B32.append b1 b2
 
 inline_for_extraction
 let lb32set
   (#n: nat)
   (b: B32.lbytes n)
-  (i: U32.t { U32.v i < n } )
+  (i: U32.t)
   (x: byte)
-: Tot (B32.lbytes n)
+: Pure (B32.lbytes n)
+  (requires (U32.v i < n))
+  (ensures (fun y ->
+    U32.v i < n /\
+    B32.reveal y == Seq.upd (B32.reveal b) (U32.v i) x
+  ))
 = B32.set_byte b i x

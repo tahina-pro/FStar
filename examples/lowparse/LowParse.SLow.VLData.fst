@@ -263,3 +263,66 @@ let parse32_bounded_vldata_strong
        parse32_bounded_vldata_strong_correct min min32 max max32 s p32 input;
        parse32_bounded_vldata_strong' min min32 max max32 s p32 input
     )
+
+inline_for_extraction
+let serialize32_bounded_vldata_strong'
+  (min: nat)
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967292 } ) // NOTE here: max must be less than 2^32 - 4
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (#s: serializer p)
+  (s32: partial_serializer32 s)
+: Tot (parse_bounded_vldata_strong_t min max s -> Tot bytes32)
+= let sz : integer_size = log256' max in
+  let ser : serializer32 (serialize_bounded_integer sz) = serialize32_bounded_integer sz in
+  (fun (input: parse_bounded_vldata_strong_t min max s) ->
+    let pl = s32 input in
+    let len = B32.len pl in
+    assert (min <= U32.v len /\ U32.v len <= max);
+    let slen = ser (len <: bounded_integer sz) in
+    seq_slice_append_l (B32.reveal slen) (B32.reveal pl);
+    seq_slice_append_r (B32.reveal slen) (B32.reveal pl);
+    let res : bytes32 = b32append slen pl in
+    res)
+
+let serialize32_bounded_vldata_strong_correct
+  (min: nat)
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967292 } ) // NOTE here: max must be less than 2^32 - 4
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (#s: serializer p)
+  (s32: partial_serializer32 s)
+  (input: parse_bounded_vldata_strong_t min max s)
+: Lemma
+  (serializer32_correct (serialize_bounded_vldata_strong min max s) input (serialize32_bounded_vldata_strong' min max s32 input))
+= let sz : integer_size = log256' max in
+  let ser : serializer32 (serialize_bounded_integer sz) = serialize32_bounded_integer sz in
+  let pl = s32 input in
+  assert (B32.reveal pl == s input);
+  let len = B32.len pl in
+  let nlen = U32.v len in
+  assert (min <= nlen /\ nlen <= max);
+  let slen = ser (len <: bounded_integer sz) in
+  assert (B32.reveal slen == serialize (serialize_bounded_integer sz) len);
+  seq_slice_append_l (B32.reveal slen) (B32.reveal pl);
+  seq_slice_append_r (B32.reveal slen) (B32.reveal pl);
+  let res : bytes32 = b32append slen pl in
+  assert (B32.reveal res == Seq.append (B32.reveal slen) (B32.reveal pl));
+  assert (B32.reveal res == serialize_bounded_vldata_strong' min max s input);
+  assert (serializer32_correct (serialize_bounded_vldata_strong min max s) input res)
+
+inline_for_extraction
+let serialize32_bounded_vldata_strong
+  (min: nat)
+  (max: nat { min <= max /\ max > 0 /\ max < 4294967292 } ) // NOTE here: max must be less than 2^32 - 4
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (#s: serializer p)
+  (s32: partial_serializer32 s)
+: Tot (serializer32 (serialize_bounded_vldata_strong min max s))
+= fun (input: parse_bounded_vldata_strong_t min max s) ->
+  serialize32_bounded_vldata_strong_correct min max s32 input;
+  (serialize32_bounded_vldata_strong' min max s32 input <: (res: bytes32 { serializer32_correct (serialize_bounded_vldata_strong min max s) input res } ))
