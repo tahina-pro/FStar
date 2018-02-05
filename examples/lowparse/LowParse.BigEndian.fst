@@ -1,10 +1,68 @@
 module LowParse.BigEndian
 include FStar.Kremlin.Endianness
-open FStar.Mul
 
 module Seq = FStar.Seq
 module U8 = FStar.UInt8
 module U32 = FStar.UInt32
+module CL = C.Loops
+module B32 = FStar.Bytes
+module Cast = FStar.Int.Cast
+
+let be_to_n_inv
+  (input: B32.bytes)
+  (continue: bool)
+  (accu: B32.bytes * U32.t)
+: GTot Type0
+= let (rem, sofar) = accu in
+  B32.length rem <= B32.length input /\
+  B32.length input <= 4 /\
+  B32.reveal rem == Seq.slice (B32.reveal input) (B32.length input - B32.length rem) (B32.length input) /\
+  U32.v sofar < pow2 (Prims.op_Multiply 8 (B32.length input - B32.length rem)) /\
+  U32.v sofar == be_to_n (Seq.slice (B32.reveal input) 0 (B32.length input - B32.length rem)) /\
+  (continue == false ==> B32.length rem == 0)
+
+let be_to_n_measure
+  (accu: B32.bytes * U32.t)
+: GTot nat
+= let (rem, _) = accu in
+  B32.length rem
+
+#reset-options "--z3rlimit 256 --max_fuel 64 --max_ifuel 64"
+
+inline_for_extraction
+let be_to_n_step
+  (input: B32.bytes)
+  (accu: B32.bytes * U32.t)
+: Pure (bool * (B32.bytes * U32.t))
+  (requires (be_to_n_inv input true accu))
+  (ensures (fun (continue, accu') ->
+    be_to_n_inv input continue accu' /\
+    (continue == true ==> be_to_n_measure accu' < be_to_n_measure accu)
+  ))
+= let (rem, sofar) = accu in
+  if B32.len rem = 0ul
+  then (false, accu)
+  else
+    let rem' = B32.slice rem 1ul (B32.len rem) in
+    let last = B32.get rem 0ul in
+    let sofar' = U32.add (Cast.uint8_to_uint32 last) (U32.mul 256ul sofar) in
+    assert (
+      let s = Seq.slice (B32.reveal input) 0 (B32.length input - B32.length rem) in
+      let s' = Seq.slice (B32.reveal input) 0 (B32.length input - B32.length rem') in
+      B32.index_reveal rem 0;
+      Seq.last s' == Seq.index (B32.reveal input) (B32.length input - B32.length rem) /\
+      last == Seq.index (B32.reveal input) (B32.length input - B32.length rem) /\
+      Seq.last s' == last /\
+      Seq.slice s' 0 (Seq.length s' - 1) == s
+    );
+    (true, (rem', sofar'))
+
+
+
+(*
+  
+
+open FStar.Mul
 
 let be_to_n_1_spec
   (s: Seq.seq U8.t { Seq.length s == 1 } )
