@@ -604,6 +604,17 @@ let serializer
 : Tot Type0
 = (f: bare_serializer t { serializer_correct p f } )
 
+unfold
+let coerce_serializer
+  (t2: Type0)
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#p: parser k t1)
+  (s: serializer p)
+  (u: unit { t2 == t1 } )
+: Tot (serializer (coerce_parser t2 p))
+= s
+
 let serialize_ext
   (#k1: parser_kind)
   (#t: Type0)

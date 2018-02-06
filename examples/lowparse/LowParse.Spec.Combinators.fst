@@ -686,6 +686,41 @@ let parse_strengthen
 = bare_parse_strengthen_correct p1 p2 prf;
   bare_parse_strengthen p1 p2 prf
 
+let serialize_strengthen'
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+  (s: serializer p1)
+  (input: t1 { p2 input } )
+: GTot bytes
+= serialize s input
+
+let serialize_strengthen_correct
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+  (s: serializer p1)
+  (input: t1 { p2 input } )
+: Lemma
+  (let output = serialize_strengthen' p2 prf s input in
+  parse (parse_strengthen p1 p2 prf) output == Some (input, Seq.length output))
+= ()
+
+let serialize_strengthen
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#p1: parser k t1)
+  (p2: t1 -> GTot Type0)
+  (prf: parse_strengthen_prf p1 p2)
+  (s: serializer p1)
+: Tot (serializer (parse_strengthen p1 p2 prf))
+= Classical.forall_intro (serialize_strengthen_correct p2 prf s);
+  serialize_strengthen' p2 prf s
+
 /// monadic return for the parser monad
 unfold
 let parse_fret' (#t #t':Type) (f: t -> GTot t') (v:t) : Tot (bare_parser t') =

@@ -222,6 +222,105 @@ let parse_array
 = parse_array_prop p (array_byte_size) precond ;
   strengthen (parse_array_kind k array_byte_size) (parse_array' p array_byte_size precond)
 
+let synth_array
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (array_byte_size: nat)
+  (precond: unit { array_type_of_parser_kind_precond p array_byte_size == true } )
+  (lprecond: unit { serialize_list_precond k } )
+  (data: parse_fldata_strong_t (serialize_list #k p s) array_byte_size)
+: GTot (array_type_of_parser p array_byte_size)
+= assert (serialize_list_precond k);
+  assert (
+    FStar.Math.Lemmas.multiple_division_lemma (L.length #t data) k.parser_kind_low;
+    let res = serialize (serialize_list _ s) data in
+    list_length_constant_size_parser_correct p res;
+    array_pred #t (array_byte_size / k.parser_kind_low) data
+  );
+  data <: list t
+
+#set-options "--z3rlimit 32"
+
+let parse_array_with_serializer
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (array_byte_size: nat)
+  (precond: unit { array_type_of_parser_kind_precond p array_byte_size == true } )
+  (lprecond: unit { serialize_list_precond k } )
+: Tot (parser default_parser_kind (array_type_of_parser p array_byte_size))
+= assert (serialize_list_precond k);
+  weaken default_parser_kind
+    (parse_fldata_strong (serialize_list #k p s) array_byte_size
+      `parse_synth`
+      (synth_array s array_byte_size precond lprecond))
+
+#set-options "--z3rlimit 64"
+
+let parse_array_with_serializer_correct
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (array_byte_size: nat)
+  (precond: unit { array_type_of_parser_kind_precond p array_byte_size == true } )
+  (lprecond: unit { serialize_list_precond k } )
+: Lemma
+  (requires (True))
+  (ensures (
+    forall (input: bytes) . parse (parse_array_with_serializer s array_byte_size precond lprecond) input == parse (parse_array p array_byte_size precond) input
+  ))
+= admit ()
+
+let synth_array_recip
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (array_byte_size: nat)
+  (precond: unit { array_type_of_parser_kind_precond p array_byte_size == true } )
+  (lprecond: unit { serialize_list_precond k } )
+  (data: array_type_of_parser p array_byte_size) 
+: Tot (parse_fldata_strong_t (serialize_list #k p s) array_byte_size)
+= assert (serialize_list_precond k);
+  assume (
+    let res = serialize (serialize_list #k p s) data in
+    list_length_constant_size_parser_correct p res;
+    FStar.Math.Lemmas.euclidean_division_definition (Seq.length res) k.parser_kind_low;
+    parse_fldata_strong_pred (serialize_list #k p s) array_byte_size data
+  );
+  data <: list t
+
+#reset-options
+
+#set-options "--z3rlimit 32"
+
+let serialize_array
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (array_byte_size: nat)
+  (precond: unit { array_type_of_parser_kind_precond p array_byte_size == true } )
+  (lprecond: unit { serialize_list_precond k } )
+: Tot (serializer (parse_array p array_byte_size precond))
+= parse_array_with_serializer_correct s array_byte_size precond lprecond;
+  assert (serialize_list_precond k);
+  serialize_ext
+    _
+    (serialize_synth
+      _
+      (synth_array s array_byte_size precond lprecond)
+      (serialize_fldata_strong (serialize_list #k p s) array_byte_size)
+      (synth_array_recip s array_byte_size precond ())
+      ()
+    )
+    (parse_array p array_byte_size precond)
+
+#reset-options
 
 include LowParse.Spec.VLData
 
@@ -316,3 +415,15 @@ let parse_vlarray
     (parse_bounded_vldata array_byte_size_min array_byte_size_max (parse_list p))
     (vlarray_pred (array_byte_size_min / elem_byte_size) (array_byte_size_max / elem_byte_size))
     (parse_vlarray_correct p array_byte_size_min array_byte_size_max precond)
+
+assume
+val serialize_vlarray
+  (#k: parser_kind)
+  (#t: Type0)
+  (#p: parser k t)
+  (s: serializer p)
+  (array_byte_size: nat)
+  (array_byte_size_min array_byte_size_max: nat)
+  (precond: unit {vlarray_type_of_parser_kind_precond p array_byte_size_min array_byte_size_max == true})
+  (lprecond: unit { serialize_list_precond k } )
+: Tot (serializer (parse_vlarray p array_byte_size_min array_byte_size_max precond))
