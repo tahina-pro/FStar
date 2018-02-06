@@ -42,6 +42,7 @@ FSTAR_SLOW= \
         LowParse.SLow.VLData.Proof.Serialize.BoundedInteger3.fst \
         LowParse.SLow.VLData.Proof.fst \
 	LowParse.SLow.VLData.fst \
+        LowParse.SLow.Bytes.fst \
 	LowParse.SLow.Enum.fst \
         LowParse.SLow.fst \
 
