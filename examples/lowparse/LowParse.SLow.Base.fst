@@ -39,6 +39,17 @@ let make_parser32
 : Tot (parser32 p)
 = (fun (input: bytes32) -> (p32 input <: (res: option (t * U32.t) { parser32_correct p input res } )))
 
+inline_for_extraction
+let coerce_parser32
+  (t2: Type0)
+  (#k: parser_kind)
+  (#t1: Type0)
+  (#p: parser k t1)
+  (p32: parser32 p)
+  (u: unit { t2 == t1 } )
+: Tot (parser32 (coerce_parser t2 p))
+= p32
+
 let validator_correct
   (#k: parser_kind)
   (#t: Type0)
