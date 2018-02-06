@@ -251,14 +251,14 @@ let parse_array_with_serializer
   (array_byte_size: nat)
   (precond: unit { array_type_of_parser_kind_precond p array_byte_size == true } )
   (lprecond: unit { serialize_list_precond k } )
-: Tot (parser default_parser_kind (array_type_of_parser p array_byte_size))
+: Tot (parser _ (* default_parser_kind *) (array_type_of_parser p array_byte_size))
 = assert (serialize_list_precond k);
-  weaken default_parser_kind
+  // weaken default_parser_kind
     (parse_fldata_strong (serialize_list #k p s) array_byte_size
       `parse_synth`
       (synth_array s array_byte_size precond lprecond))
 
-#set-options "--z3rlimit 64"
+#set-options "--z3rlimit 128 --max_fuel 32 --max_ifuel 32"
 
 let parse_array_with_serializer_correct
   (#k: parser_kind)
@@ -273,7 +273,19 @@ let parse_array_with_serializer_correct
   (ensures (
     forall (input: bytes) . parse (parse_array_with_serializer s array_byte_size precond lprecond) input == parse (parse_array p array_byte_size precond) input
   ))
-= admit ()
+= let f
+    (input: bytes)
+  : Lemma
+    (parse (parse_array_with_serializer s array_byte_size precond lprecond) input == parse (parse_array p array_byte_size precond) input)
+  = match parse (parse_fldata (parse_list p) array_byte_size) input with
+    | None -> ()
+    | Some (data, consumed) ->
+      assert (Some? (parse (parse_fldata_strong (serialize_list _ s) array_byte_size) input));
+      ()
+  in
+  Classical.forall_intro f
+
+#set-options "--z3rlimit 64"
 
 let synth_array_recip
   (#k: parser_kind)
@@ -286,12 +298,15 @@ let synth_array_recip
   (data: array_type_of_parser p array_byte_size) 
 : Tot (parse_fldata_strong_t (serialize_list #k p s) array_byte_size)
 = assert (serialize_list_precond k);
-  assume (
+  let f () : Lemma
+    (parse_fldata_strong_pred (serialize_list #k p s) array_byte_size data)
+  =
     let res = serialize (serialize_list #k p s) data in
     list_length_constant_size_parser_correct p res;
-    FStar.Math.Lemmas.euclidean_division_definition (Seq.length res) k.parser_kind_low;
-    parse_fldata_strong_pred (serialize_list #k p s) array_byte_size data
-  );
+    FStar.Math.Lemmas.euclidean_division_definition array_byte_size k.parser_kind_low;
+    FStar.Math.Lemmas.euclidean_division_definition (Seq.length res) k.parser_kind_low
+  in
+  f ();
   data <: list t
 
 #reset-options
@@ -388,7 +403,7 @@ let parse_vlarray_correct #k #t p array_byte_size_min array_byte_size_max u b co
   let elem_byte_size : pos = k.parser_kind_low in
 (*
   let sz : integer_size = log256 array_byte_size_max in
-  assume (consumed >= sz);
+  assume1 (consumed >= sz);
   let b' : bytes = Seq.slice b sz consumed in
   assert (b' == Seq.slice (Seq.slice b sz (Seq.length b)) 0 (consumed - sz));
   let (Some (data', consumed')) = parse (parse_seq p) b' in
