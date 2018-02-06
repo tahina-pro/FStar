@@ -430,13 +430,15 @@ let is_weaker_than
   (k1.parser_kind_total == true ==> k2.parser_kind_total == true) /\
   (Some? k1.parser_kind_subkind ==> k1.parser_kind_subkind == k2.parser_kind_subkind)
 
-// inline_for_extraction
+#set-options "--use_two_phase_tc false"
+
 unfold
 let weaken (k1: parser_kind) (#k2: parser_kind) (#t: Type0) (p2: parser k2 t) : Pure (parser k1 t)
   (requires (k1 `is_weaker_than` k2))
   (ensures (fun _ -> True))
-= let p : bare_parser t = p2 in
-  p
+= (p2 <: bare_parser t) <: (parser k1 t)
+
+#reset-options
 
 // inline_for_extraction
 unfold

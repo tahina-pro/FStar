@@ -113,7 +113,7 @@ let parse_vldata_payload
 : Tot (parser (parse_vldata_payload_kind sz) t)
 = weaken (parse_vldata_payload_kind sz) (parse_fldata p (U32.v i))
 
-#set-options "--z3rlimit 32"
+#set-options "--z3rlimit 64"
 
 let parse_fldata_and_then_cases_injective
   (sz: integer_size)

@@ -165,7 +165,7 @@ let bare_serialize_enum_key
 : Tot (bare_serializer (enum_key e))
 = fun (k: enum_key e) -> s (enum_repr_of_key e k)
 
-#set-options "--z3rlimit 16"
+#set-options "--z3rlimit 32"
 
 let bare_serialize_enum_key_correct
   (#k: parser_kind)
