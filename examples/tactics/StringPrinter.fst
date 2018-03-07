@@ -4,6 +4,7 @@ module StringPrinter
 
 module S = FStar.Seq
 module U8 = FStar.UInt8
+module Loops = C.Loops
 
 type string = S.seq U8.t
 
@@ -28,6 +29,40 @@ let seq (#t2: Type0) (x: m unit) (y: m t2) : Tot (m t2) =
 
 let print_char (c: U8.t) : Tot (m unit) =
   fun () -> ((), S.create 1 c)
+
+let do_while_body_ret_pred
+  (#t: Type0)
+  (inv: (bool -> t -> GTot Type0))
+  (measure: (t -> GTot nat))
+  (x: t { inv true x } )
+  (y: (bool * t))
+: GTot Type0
+= let (continue, x') = y in
+  inv continue x' /\
+  (continue == true ==> measure x' < measure x)
+
+let do_while_body_ret_t
+  (#t: Type0)
+  (inv: (bool -> t -> GTot Type0))
+  (measure: (t -> GTot nat))
+  (x: t { inv true x } )
+: Tot Type0
+= (y: (bool * t) { do_while_body_ret_pred inv measure x y } )
+
+let rec do_while
+  (#t: Type0)
+  (inv: (bool -> t -> GTot Type0))
+  (measure: (t -> GTot nat))
+  (body: ((x: t { inv true x } ) -> Tot (m (do_while_body_ret_t inv measure x))))
+  (x: t { inv true x } )
+: Tot (m (y: t { inv false y } ))
+  (decreases (measure x))
+= bind (body x) (fun y ->
+    let (continue, x') = y in
+    if continue
+    then do_while inv measure body x'
+    else ret x'
+  )
 
 let log (#t: Type0) (x: m t) : GTot string = 
   let (_, log) = x () in
@@ -178,6 +213,8 @@ let print_char_sz
   (c: U8.t)
 : Tot (m_sz (print_char c))
 = fun g -> g () 1ul ()
+
+#set-options "--use_two_phase_tc true"
 
 let cond_unit (c: bool) (b: bool) : Tot Type0 =
   (u: unit { c == b } )
