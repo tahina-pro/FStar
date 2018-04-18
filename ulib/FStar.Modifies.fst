@@ -5,11 +5,41 @@ module HST = FStar.HyperStack.ST
 module B = FStar.Buffer
 module U32 = FStar.UInt32
 
+type abuffer' = {
+  b_region: HS.rid;
+  b_addr: nat;
+  b_max_length: nat;
+  b_offset: nat;
+  b_length: nat;
+}
+
+type abuffer = (x: abuffer' { x.b_offset + x.b_length <= x.b_max_length } )
+
+let abuffer_of_buffer (#a: Type) (b: B.buffer a) : GTot abuffer = {
+  b_region = B.frameOf b;
+  b_addr = B.as_addr b;
+  b_max_length = B.max_length b;
+  b_offset = B.idx b;
+  b_length = B.length b;
+}
+
+let abuffer_matches (x: abuffer) (#a: Type) (b: B.buffer a) (h: HS.mem) : GTot Type0 =
+  abuffer_of_buffer b == x /\ B.live h b
+
+let abuffer_live_at (x: abuffer) (a: Type) (h: HS.mem) : GTot Type0 =
+  exists (b: B.buffer a) . abuffer_matches x b h
+
+(*
+let buffer_of_abuffer_prop (#a: Type) (p: (B.buffer a -> GTot Type0)) (x: abuffer) : GTot Type0 =
+  forall (b: B.buffer a) (r: HS.reference (B.lseq a (B.max_length b))) .
+  (HS.frameOf r == x.b_region /\ HS.as_addr r == x.b_addr /\ B.content b == r /\ B.idx b == x.b_offset /\ B.length b == x.b_length) ==>
+  p b
+*)
+
 noeq
-type loc_aux : Type =
+type loc_aux : Type u#0 =
   | LocBuffer:
-    (#t: Type) ->
-    (b: B.buffer t) ->
+    abuffer ->
     loc_aux
   | LocUnion:
     (l1: loc_aux) ->
@@ -25,8 +55,8 @@ let rec loc_aux_in_addr
 = match l with
   | LocUnion l1 l2 -> loc_aux_in_addr l1 r n /\ loc_aux_in_addr l2 r n
   | LocBuffer b ->
-    B.frameOf b == r /\
-    B.as_addr b == n
+    b.b_region == r /\
+    b.b_addr == n
 
 (* TODO: move to FStar.Set?
    Necessary to handle quantifiers *)
@@ -143,7 +173,7 @@ let loc_buffer #t b =
       (fun _ -> Set.empty)
       (Ghost.hide (Set.singleton (B.frameOf b)))
       (fun _ -> Set.singleton (B.as_addr b))
-      (fun _ _ -> LocBuffer b)
+      (fun _ _ -> LocBuffer (abuffer_of_buffer b))
 
 let loc_addresses r n =
   Loc
@@ -163,15 +193,21 @@ let loc_regions r =
     (fun _ -> Set.empty)
     (fun _ _ -> false_elim ())
 
+let abuffer_includes (larger smaller: abuffer) : GTot Type0 =
+  larger.b_region == smaller.b_region /\
+  larger.b_addr == smaller.b_addr /\
+  larger.b_max_length == smaller.b_max_length /\
+  larger.b_offset <= smaller.b_offset /\
+  smaller.b_offset + smaller.b_length <= larger.b_offset + larger.b_length
+
 let rec loc_aux_includes_buffer
-  (#a: Type)
   (s: loc_aux)
-  (b: B.buffer a)
+  (b: abuffer)
 : GTot Type0
   (decreases s)
 = match s with
   | LocUnion s1 s2 -> loc_aux_includes_buffer s1 b \/ loc_aux_includes_buffer s2 b
-  | LocBuffer #a0 b0 -> a == a0 /\ b0 `B.includes` b
+  | LocBuffer b0 -> b0 `abuffer_includes` b
 
 let rec loc_aux_includes
   (s1 s2: loc_aux)
@@ -218,11 +254,10 @@ let loc_aux_includes_union_l_l
   loc_aux_includes_union_l s' s s
 
 let rec loc_aux_includes_buffer_includes
-  (#a: Type)
   (s: loc_aux)
-  (b1 b2: B.buffer a)
+  (b1 b2: abuffer)
 : Lemma
-  (requires (loc_aux_includes_buffer s b1 /\ b1 `B.includes` b2))
+  (requires (loc_aux_includes_buffer s b1 /\ b1 `abuffer_includes` b2))
   (ensures (loc_aux_includes_buffer s b2))
   (decreases s)
 = match s with
@@ -236,9 +271,8 @@ let rec loc_aux_includes_buffer_includes
   | _ -> ()
 
 let rec loc_aux_includes_loc_aux_includes_buffer
-  (#a: Type)
   (s1 s2: loc_aux)
-  (b: B.buffer a)
+  (b: abuffer)
 : Lemma
   (requires (loc_aux_includes s1 s2 /\ loc_aux_includes_buffer s2 b))
   (ensures (loc_aux_includes_buffer s1 b))
@@ -403,16 +437,21 @@ let loc_includes_region_union_l l s1 s2 = ()
 
 (* Disjointness of two memory locations *)
 
+let abuffer_disjoint (x1 x2: abuffer) : GTot Type0 =
+  (x1.b_region == x2.b_region /\ x1.b_addr == x2.b_addr) ==>
+  (x1.b_max_length == x2.b_max_length /\
+    (x1.b_offset + x1.b_length <= x2.b_offset \/
+     x2.b_offset + x2.b_length <= x1.b_offset))
+
 let rec loc_aux_disjoint_buffer
   (l: loc_aux)
-  (#t: Type)
-  (p: B.buffer t)
+  (p: abuffer)
 : GTot Type0
   (decreases l)
 = match l with
   | LocUnion ll lr ->
     loc_aux_disjoint_buffer ll p /\ loc_aux_disjoint_buffer lr p
-  | LocBuffer b -> B.disjoint b p
+  | LocBuffer b -> abuffer_disjoint b p
 
 let rec loc_aux_disjoint
   (l1 l2: loc_aux)
@@ -530,11 +569,10 @@ let loc_disjoint_union_r s s1 s2 = ()
 
 let rec loc_aux_disjoint_buffer_includes
   (l: loc_aux)
-  (#t: Type)
-  (p1: B.buffer t)
-  (p2: B.buffer t)
+  (p1: abuffer)
+  (p2: abuffer)
 : Lemma
-  (requires (loc_aux_disjoint_buffer l p1 /\ p1 `B.includes` p2))
+  (requires (loc_aux_disjoint_buffer l p1 /\ p1 `abuffer_includes` p2))
   (ensures (loc_aux_disjoint_buffer l p2))
   (decreases l)
 = match l with
@@ -545,8 +583,7 @@ let rec loc_aux_disjoint_buffer_includes
 
 let rec loc_aux_disjoint_loc_aux_includes_buffer
   (l1 l2: loc_aux)
-  (#t3: Type)
-  (b3: B.buffer t3)
+  (b3: abuffer)
 : Lemma
   (requires (loc_aux_disjoint l1 l2 /\ loc_aux_includes_buffer l2 b3))
   (ensures (loc_aux_disjoint_buffer l1 b3))
@@ -642,7 +679,7 @@ let modifies_preserves_buffers
       B.live h1 b /\
       B.length b <> 0 /\
       (Set.mem r (regions_of_loc s) ==> ~ (Set.mem a (addrs_of_loc_weak s r))) /\
-      ((Set.mem r (Ghost.reveal (Loc?.aux_regions s)) /\ Set.mem a (Loc?.aux_addrs s r)) ==> loc_aux_disjoint_buffer (Loc?.aux s r a) b)
+      ((Set.mem r (Ghost.reveal (Loc?.aux_regions s)) /\ Set.mem a (Loc?.aux_addrs s r)) ==> loc_aux_disjoint_buffer (Loc?.aux s r a) (abuffer_of_buffer b))
     ) ==> (
       B.live h2 b /\
       B.as_seq h2 b == B.as_seq h1 b
@@ -667,13 +704,11 @@ let loc_aux_disjoint_buffer_loc_aux_includes
   (l1: loc_aux)
 : Lemma
   (forall (l2: loc_aux)
-    (t3: Type)
-    (b3: B.buffer t3) .
+    (b3: abuffer) .
   (loc_aux_disjoint_buffer l1 b3 /\ loc_aux_includes l1 l2) ==> loc_aux_disjoint_buffer l2 b3)
 = let f
   (l2: loc_aux)
-  (t3: Type)
-  (b3: B.buffer t3)
+  (b3: abuffer)
   : Lemma
     (requires (loc_aux_disjoint_buffer l1 b3 /\ loc_aux_includes l1 l2))
     (ensures (loc_aux_disjoint_buffer l2 b3))
@@ -681,7 +716,7 @@ let loc_aux_disjoint_buffer_loc_aux_includes
     loc_aux_disjoint_loc_aux_includes (LocBuffer b3) l1 l2;
     loc_aux_disjoint_sym (LocBuffer b3) l2
   in
-  Classical.forall_intro_3 (fun (l2: loc_aux) (t3: Type) (b3: B.buffer t3) -> Classical.move_requires (f l2 t3) b3)
+  Classical.forall_intro_2 (fun (l2: loc_aux) (b3: abuffer) -> Classical.move_requires (f l2) b3)
 
 #set-options "--z3rlimit 32"
 
@@ -872,7 +907,7 @@ let modifies_0_modifies h1 h2 =
   B.lemma_reveal_modifies_0 h1 h2
 
 let modifies_1_modifies #a b h1 h2 =
-  B.lemma_reveal_modifies_1 b h1 h2
+  B.lemma_reveal_modifies_1 b h1 h2 // FAIL: types of elements...
 
 let modifies_2_modifies #a1 #a2 b1 b2 h1 h2 =
   B.lemma_reveal_modifies_2 b1 b2 h1 h2
