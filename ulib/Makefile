@@ -47,10 +47,10 @@ fstartaclib.mgen: fstarlib.mgen
 	$(MAKE) -f Makefile.extract all-ml
 	mkdir -p tactics_ml/fstarlib_leftovers
 	echo OCaml says:
-	echo $(FSTARLIB_LEFTOVERS)
+	for f in $(FSTARLIB_LEFTOVERS) ; do echo $$f ; done | sort
 	echo
 	echo Python says:
-	python fstarlib_leftovers.py +ml +ml/extracted -../bin/fstar-compiler-lib/
+	python fstarlib_leftovers.py +ml +ml/extracted -../bin/fstar-compiler-lib/ | sort
 	false
 #	cp $(FSTARLIB_LEFTOVERS) tactics_ml/fstarlib_leftovers
 #	touch fstartaclib.mgen
