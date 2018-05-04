@@ -45,8 +45,14 @@ fstartaclib.mgen: fstarlib.mgen
 	EXTRACT_MODULES='$(FSTAR_TAC_LIB_EXTRACT) $(FSTAR_DEFAULT_ARGS)' \
 	$(MAKE) -f Makefile.extract all-ml
 	mkdir -p tactics_ml/fstarlib_leftovers
-	cp $(FSTARLIB_LEFTOVERS) tactics_ml/fstarlib_leftovers
-	touch fstartaclib.mgen
+	echo OCaml says:
+	echo $(FSTARLIB_LEFTOVERS)
+	echo
+	echo Python says:
+	python fstarlib_leftovers.py +ml +ml/extracted -../bin/fstar-compiler-lib/
+	false
+#	cp $(FSTARLIB_LEFTOVERS) tactics_ml/fstarlib_leftovers
+#	touch fstartaclib.mgen
 
 ######################################################
 # OCaml extraction of fstarlib and fstar-tactics-lib #
