@@ -410,7 +410,7 @@ let rec inline_closure_env cfg (env:env) stack t =
       | Tm_fvar _ ->
         rebuild_closure cfg env stack t
 
-      | Tm_uvar _ ->
+      | Tm_uvar (uv, s) ->
         if cfg.steps.check_no_uvars
         then let t = compress t in
              match t.n with
@@ -420,7 +420,28 @@ let rec inline_closure_env cfg (env:env) stack t =
                         (Print.term_to_string t))
              | _ ->
               inline_closure_env cfg env stack t
-        else rebuild_closure cfg env stack t //should be closed anyway
+        else
+            let s' = fst s |> List.map (fun s ->
+                    s |> List.map (function
+                | NT(x, t) ->
+                  NT(x, inline_closure_env cfg env [] t)
+                | NM(x, i) ->
+                  let x_i = S.bv_to_tm ({x with index=i}) in
+                  let t = inline_closure_env cfg env [] x_i in
+                  (match t.n with
+                   | Tm_bvar x_j -> NM(x, x_j.index)
+                   | _ -> NT(x, t))
+                | _ -> failwith "Impossible: subst invariant of uvar nodes"))
+             in
+             //let _ = match s with
+             //        | [], _
+             //        | [[]], _ -> ()
+             //        | _::_, _ -> BU.print2 "inline_closure_env\n\tBefore %s\n\t After %s"
+             //                               (List.map Print.subst_to_string (fst s) |> String.concat "@")
+             //                               (List.map Print.subst_to_string s' |> String.concat "@")
+             //        | _ -> () in
+             let t = {t with n=Tm_uvar(uv, (s', snd s))} in
+             rebuild_closure cfg env stack t
 
       | Tm_type u ->
         let t = mk (Tm_type (norm_universe cfg env u)) t.pos in
@@ -1081,17 +1102,21 @@ let tr_norm_step = function
 let tr_norm_steps s =
     List.concatMap tr_norm_step s
 
-let get_norm_request (full_norm:term -> term) args =
+let get_norm_request cfg (full_norm:term -> term) args =
     let parse_steps s =
       match EMB.try_unembed (EMB.e_list EMB.e_norm_step) s with
       | Some steps -> Some (tr_norm_steps steps)
       | None -> None
     in
+    let inherited_steps =
+        (if cfg.steps.erase_universes then [EraseUniverses] else [])
+      @ (if cfg.steps.allow_unbound_universes then [AllowUnboundUniverses] else [])
+    in
     match args with
     | [_; (tm, _)]
     | [(tm, _)] ->
       let s = [Beta; Zeta; Iota; Primops; UnfoldUntil delta_constant; Reify] in
-      Some (s, tm)
+      Some (inherited_steps @ s, tm)
     | [(steps, _); _; (tm, _)] ->
       let add_exclude s z = if List.contains z s then s else Exclude z :: s in
       begin
@@ -1101,7 +1126,7 @@ let get_norm_request (full_norm:term -> term) args =
         let s = Beta::s in
         let s = add_exclude s Zeta in
         let s = add_exclude s Iota in
-        Some (s, tm)
+        Some (inherited_steps @ s, tm)
       end
     | _ ->
       None
@@ -1224,7 +1249,7 @@ let rec norm : cfg -> env -> stack -> term -> term =
                                   delta_level=[Unfold delta_constant];
                                   normalize_pure_lets=true} in
             begin
-            match get_norm_request (norm cfg' env []) args with
+            match get_norm_request cfg (norm cfg' env []) args with
             | None -> //just normalize it as a normal application
               let stack =
                 stack |>
@@ -1294,15 +1319,19 @@ let rec norm : cfg -> env -> stack -> term -> term =
                           (not cfg.steps.unfold_tac ||
                            not (cases (BU.for_some (U.attr_eq U.tac_opaque_attr)) false attrs)) &&
                           //otherwise, unfold fv if it appears in "Delta_only" or if one of the Delta_attr matches
-                          ( //delta_only l
-                            (match cfg.steps.unfold_only with
-                             | None -> true
-                             | Some lids -> BU.for_some (fv_eq_lid fv) lids) ||
-                           ( //delta_attrs a
-                             match attrs, cfg.steps.unfold_attr with
-                             | None, Some _ -> false
-                             | Some ats, Some ats' -> BU.for_some (fun at -> BU.for_some (U.attr_eq at) ats') ats
-                             | _, _ -> false)))
+                          //delta_only l
+                          (match cfg.steps.unfold_only, cfg.steps.unfold_attr with
+                           | Some lids, Some ats' -> BU.for_some (fv_eq_lid fv) lids ||
+                                                     begin match attrs with
+                                                     | Some ats -> BU.for_some (fun at -> BU.for_some (U.attr_eq at) ats') ats
+                                                     | None -> true
+                                                     end
+                           | Some lids, None -> BU.for_some (fv_eq_lid fv) lids
+                           | None, Some ats' -> begin match attrs with
+                                                | Some ats -> BU.for_some (fun at -> BU.for_some (U.attr_eq at) ats') ats
+                                                | None -> true
+                                                end
+                           | None, None -> true))
                  in
                  let should_delta, fully =
                      match cfg.steps.unfold_fully with
@@ -1650,7 +1679,7 @@ let rec norm : cfg -> env -> stack -> term -> term =
             then failwith (BU.format2 "(%s) CheckNoUvars: Unexpected unification variable remains: %s"
                                     (Range.string_of_range t.pos)
                                     (Print.term_to_string t))
-            else rebuild cfg env stack t
+            else rebuild cfg env stack (inline_closure_env cfg env [] t)
 
           | _ ->
             norm cfg env stack t
@@ -2727,7 +2756,10 @@ let normalize_refinement steps env t0 =
          let t0 = aux x.sort in
          begin match t0.n with
             | Tm_refine(y, phi1) ->
-              mk (Tm_refine(y, U.mk_conj phi1 phi)) t0.pos
+              //NB: this is working on de Bruijn
+              //    representations; so no need
+              //    to substitute y/x in phi
+              mk (Tm_refine(y, U.mk_conj_simp phi1 phi)) t0.pos
             | _ -> t
          end
        | _ -> t in
@@ -2765,8 +2797,8 @@ let eta_expand (env:Env.env) (t:term) : term =
   | _ ->
       let head, args = U.head_and_args t in
       begin match (SS.compress head).n with
-      | Tm_uvar(_, thead) ->
-        let formals, tres = U.arrow_formals thead in
+      | Tm_uvar (u,s) ->
+        let formals, _tres = U.arrow_formals (SS.subst' s u.ctx_uvar_typ) in
         if List.length formals = List.length args
         then t
         else let _, ty, _ = env.type_of ({env with lax=true; use_bv_sorts=true; expected_typ=None}) t in
@@ -2852,8 +2884,8 @@ let rec elim_delayed_subst_term (t:term) : term =
       mk (Tm_let((fst lbs, List.map elim_lb (snd lbs)),
                   elim_delayed_subst_term t))
 
-    | Tm_uvar(uv, t) ->
-      mk (Tm_uvar(uv, elim_delayed_subst_term t))
+    | Tm_uvar(u,s) ->
+      mk (Tm_uvar(u,s)) //explicitly don't descend into (bs,t) to not break sharing there
 
     | Tm_quoted (tm, qi) ->
       let qi = S.on_antiquoted elim_delayed_subst_term qi in

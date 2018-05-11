@@ -8,7 +8,7 @@
       1,
       [ "@query" ],
       0,
-      "8887bda7aba00b1d9acaddb4bc84c45e"
+      "1ce0ac813744d449364ec3f91d449bbe"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_length",
@@ -22,7 +22,7 @@
         "typing_ArrayUtils.get_some_equivalent"
       ],
       0,
-      "8552631e7a5979df58dce0da4b628a0c"
+      "6a44388fc60c3e10cc511bb969f51bcc"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_index",
@@ -38,7 +38,7 @@
         "typing_ArrayUtils.get_some_equivalent"
       ],
       0,
-      "fe385e3db6cc44dc1f48984f36d6dbb9"
+      "2457a7c59d6318945b0517b0978d7b5d"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_snoc",
@@ -72,7 +72,7 @@
         "typing_FStar.Seq.Base.length", "typing_FStar.Seq.Properties.snoc"
       ],
       0,
-      "38b87f05c2eef012ce970d89f37d8fc0"
+      "f69945619bc331fb5439fcb4270eb38f"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_append",
@@ -100,7 +100,7 @@
         "typing_FStar.Seq.Base.append", "typing_FStar.Seq.Base.index"
       ],
       0,
-      "00a6707815bd261f3ddd85373f98a134"
+      "cc5e7222ef927bcb9fad0c1c6a705514"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_slice",
@@ -127,7 +127,7 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "f07ea0c9aeff707e95839de738e36b3d"
+      "77037c5321040073629437e2d2d3aa76"
     ],
     [
       "ArrayUtils.lemma_get_equivalent_sequence_slice",
@@ -162,44 +162,30 @@
         "typing_FStar.Seq.Base.index", "unit_typing"
       ],
       0,
-      "648795bf55ac983158b16635c7a15225"
+      "70d435e6da63adfd2fdb0844b7eb877a"
     ],
     [
       "ArrayUtils.copy_seq",
       1,
-      2,
-      1,
-      [ "@query", "assumption_Prims.HasEq_int" ],
-      0,
-      "5924e7baf600a5fff35ae3f814f91cb8"
-    ],
-    [
-      "ArrayUtils.copy_seq",
-      2,
-      2,
-      1,
-      [ "@query", "assumption_Prims.HasEq_int" ],
-      0,
-      "4911ba72aad306f6ab3aab2f82c8c473"
-    ],
-    [
-      "ArrayUtils.copy_seq",
-      3,
       2,
       1,
       [
         "@MaxIFuel_assumption", "@query",
         "Prims_pretyping_ae567c2fb75be05905677af440075565",
-        "equation_Prims.nat", "int_inversion", "primitive_Prims.op_Addition",
+        "assumption_Prims.HasEq_int", "equation_Prims.nat", "int_inversion",
+        "kinding_FStar.Pervasives.Native.option@tok",
+        "primitive_Prims.op_Addition",
+        "primitive_Prims.op_GreaterThanOrEqual",
         "primitive_Prims.op_LessThanOrEqual",
         "primitive_Prims.op_Subtraction",
         "projection_inverse_BoxBool_proj_0",
         "projection_inverse_BoxInt_proj_0",
         "refinement_interpretation_ArrayUtils_Tm_refine_077237cabd91707d6b4c088d07b1fa1e",
-        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
+        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d",
+        "typing_FStar.Seq.Base.length"
       ],
       0,
-      "1e87de8b4b70560cb54d8002fab29905"
+      "76d16cb2ae9f867628c10650e6b2aec7"
     ],
     [
       "ArrayUtils.is_prefix_of",
@@ -208,7 +194,7 @@
       1,
       [ "@query" ],
       0,
-      "e41a635205ac49b23a80db9804d8eca2"
+      "7c0ff862826e38c9795ac5e2cb026625"
     ],
     [
       "ArrayUtils.lemma_is_prefix_of_slice",
@@ -225,7 +211,7 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "3a0c8c207924389d7eba925ef581ba3d"
+      "a417714a2aac4b30306b49d49b6a14c7"
     ],
     [
       "ArrayUtils.seq_map",
@@ -237,16 +223,7 @@
         "haseqPrims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "7ef998a336eb71287754ba60ce6b709b"
-    ],
-    [
-      "ArrayUtils.seq_map",
-      2,
-      2,
-      1,
-      [ "@query" ],
-      0,
-      "ee46636ae16ca9ace05e50e75ce226a4"
+      "af0203756afd8919c382588a1e2971d7"
     ],
     [
       "ArrayUtils.some_equivalent_seqs",
@@ -255,7 +232,7 @@
       1,
       [ "@query" ],
       0,
-      "b4cc9f40c0742345c1b968cda61a8856"
+      "399b54f7e6e7189f8b33ee0644c720c5"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_index",
@@ -264,7 +241,7 @@
       1,
       [ "@query", "lemma_ArrayUtils.lemma_get_some_equivalent_length" ],
       0,
-      "3a42228881bc7d20054d425c74d2c4f2"
+      "c1a5ac54fb091d9724aa0653f203409a"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_snoc",
@@ -298,7 +275,7 @@
         "typing_FStar.Seq.Base.length", "typing_FStar.Seq.Properties.snoc"
       ],
       0,
-      "b163c7a2840642f04b4a36699224f55b"
+      "f82bbc56bb2b1789055623e1c65367d4"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_append",
@@ -326,7 +303,7 @@
         "typing_FStar.Seq.Base.append", "typing_FStar.Seq.Base.index"
       ],
       0,
-      "c5808230d86c49c8a370b405e569f661"
+      "674732a4ad62773a65adc21a519d82be"
     ],
     [
       "ArrayUtils.lemma_get_some_equivalent_slice",
@@ -353,7 +330,7 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "7af5a7e967da13c255441bf2ee43b5c6"
+      "f20811e00dd907929ff26972ad91202d"
     ],
     [
       "ArrayUtils.lemma_get_equivalent_sequence_slice",
@@ -388,17 +365,18 @@
         "typing_FStar.Seq.Base.index", "unit_typing"
       ],
       0,
-      "44b70f6e06a90b9fe6ae47970fb00c21"
+      "c4f0eb75e3f21c600c6129a13f4dd672"
     ],
     [
       "ArrayUtils.copy_seq",
-      4,
+      2,
       2,
       1,
       [
         "@MaxIFuel_assumption", "@query",
         "Prims_pretyping_ae567c2fb75be05905677af440075565",
         "assumption_Prims.HasEq_int", "equation_Prims.nat", "int_inversion",
+        "kinding_FStar.Pervasives.Native.option@tok",
         "primitive_Prims.op_Addition",
         "primitive_Prims.op_GreaterThanOrEqual",
         "primitive_Prims.op_LessThanOrEqual",
@@ -406,10 +384,11 @@
         "projection_inverse_BoxBool_proj_0",
         "projection_inverse_BoxInt_proj_0",
         "refinement_interpretation_ArrayUtils_Tm_refine_077237cabd91707d6b4c088d07b1fa1e",
-        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
+        "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d",
+        "typing_FStar.Seq.Base.length"
       ],
       0,
-      "019d3f7d1b4f724a3d15ce9469a854a8"
+      "3b1a712727edb2c28b65a3ca2f70dbd0"
     ],
     [
       "ArrayUtils.is_prefix_of",
@@ -418,7 +397,7 @@
       1,
       [ "@query" ],
       0,
-      "cc330e0947de292cdfb8b5118473e481"
+      "7b340c77ae87b04bb3aa85d7dc17a180"
     ],
     [
       "ArrayUtils.lemma_is_prefix_of_slice",
@@ -435,11 +414,11 @@
         "refinement_interpretation_Prims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "9178034654854525761847868d040157"
+      "6fa540fc75ed64dcf262e1bd699c18d3"
     ],
     [
       "ArrayUtils.seq_map",
-      3,
+      2,
       2,
       1,
       [
@@ -447,7 +426,7 @@
         "haseqPrims_Tm_refine_ba523126f67e00e7cd55f0b92f16681d"
       ],
       0,
-      "987eb007596c9a39fef710bdf34714af"
+      "3beade8f13cb763905aac09ebf8dbf7e"
     ]
   ]
 ]
