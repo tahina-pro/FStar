@@ -13,6 +13,18 @@ type aloc (#al: aloc_t) (c: cls al) : Type0 = | ALoc:
 let aloc_domain (#al: aloc_t) (c: cls al) (regions: Ghost.erased (Set.set HS.rid)) (addrs: ((r: HS.rid { Set.mem r (Ghost.reveal regions) } ) -> GTot (Set.set nat))) : GTot (GSet.set (aloc c)) =
   GSet.comprehend (fun a -> Set.mem a.region (Ghost.reveal regions) && Set.mem a.addr (addrs a.region))
 
+let aux_nonempty
+  (#al: aloc_t) (c: cls al)
+  (regions: Ghost.erased (Set.set HS.rid))
+  (aux_addrs: ((r: HS.rid { Set.mem r (Ghost.reveal regions) } ) -> GTot (Set.set nat)))
+  (aux: Ghost.erased (GSet.set (aloc c)))
+: GTot Type0
+= forall (r: HS.rid) (a: nat) .
+  (Set.mem r (Ghost.reveal regions) /\ Set.mem a (aux_addrs r)) ==> (
+    exists (x: aloc c) .
+    (GSet.mem x (Ghost.reveal aux) /\ x.region == r /\ x.addr == a)
+  )
+
 noeq
 type loc' (#al: aloc_t) (c: cls al) : Type =
   | Loc:
@@ -29,7 +41,8 @@ type loc' (#al: aloc_t) (c: cls al) : Type =
       (aux_addrs_disjoint: ((r: HS.rid { Set.mem r (Ghost.reveal regions) } ) -> Lemma (Set.subset (Set.intersect (aux_addrs r) (addrs r)) Set.empty ))) ->
       (aux: Ghost.erased (GSet.set (aloc c)) {
         aloc_domain c regions addrs `GSet.subset` Ghost.reveal aux /\
-        Ghost.reveal aux `GSet.subset` (aloc_domain c regions addrs `GSet.union` aloc_domain c regions aux_addrs)
+        Ghost.reveal aux `GSet.subset` (aloc_domain c regions addrs `GSet.union` aloc_domain c regions aux_addrs) /\
+	aux_nonempty c regions aux_addrs aux
       } ) ->
       loc' c
 
@@ -568,7 +581,7 @@ let modifies_preserves_alocs_intro
     (requires (
       Set.mem r (regions_of_loc s) /\ 
       (~ (Set.mem a (addrs_of_loc_weak s r))) /\
-      (Set.mem a (addrs_of_loc_aux s r) ==> loc_aux_disjoint (Ghost.reveal (Loc?.aux s)) (GSet.singleton (ALoc r a b)))
+      (Set.mem a (addrs_of_loc_aux s r) /\ loc_aux_disjoint (Ghost.reveal (Loc?.aux s)) (GSet.singleton (ALoc r a b)))
     ))
     (ensures (c.aloc_preserved b h1 h2))
   ))
@@ -582,9 +595,13 @@ let modifies_preserves_alocs_intro
     (requires (loc_aux_disjoint (Ghost.reveal (Loc?.aux s)) (GSet.singleton (ALoc r a b))))
     (ensures (c.aloc_preserved b h1 h2))
   = if Set.mem r (regions_of_loc s) && (not (Set.mem a (addrs_of_loc_weak s r)))
-    then
-      Classical.move_requires (f r a) b
-    else if Set.mem r (regions_of_loc s)
+    then begin
+      if Set.mem a (addrs_of_loc_aux s r)
+      then
+	Classical.move_requires (f r a) b
+      else
+	c.same_mreference_aloc_preserved b h1 h2 (fun a' pre' r' -> ())        
+    end else if Set.mem r (regions_of_loc s)
     then begin
       assert (Set.mem a (addrs_of_loc_weak s r));
       assert (GSet.mem (ALoc r a b) (Ghost.reveal (Loc?.aux s)));
@@ -1341,72 +1358,63 @@ let union_loc_of_loc_disjoint #al c b s1 s2 =
   Classical.move_requires (union_loc_of_loc_disjoint_elim c b s1) s2;
   Classical.move_requires (union_loc_of_loc_disjoint_intro c b s1) s2
 
-(*
-  assert (forall x . GSet.mem x auxl ==> bool_of_cls_union_aloc #c #x.region #x.addr x.loc == b);
-  assert (forall xl xs . (GSet.mem xl auxl /\ GSet.mem xs auxs) ==> (bool_of_cls_union_aloc #c #xl.region #xl.addr xl.loc == b /\ bool_of_cls_union_aloc #c #xs.region #xs.addr xs.loc == b /\  aloc_disjoint (ALoc xl.region xl.addr (aloc_of_cls_union_aloc #c #xl.region #xl.addr xl.loc)) (ALoc xs.region xs.addr (aloc_of_cls_union_aloc #c #xs.region #xs.addr xs.loc))));
-  assert (forall (xl xs: aloc (cls_union c)) . (bool_of_cls_union_aloc #c #xl.region #xl.addr xl.loc == b /\ bool_of_cls_union_aloc #c #xs.region #xs.addr xs.loc == b /\  aloc_disjoint (ALoc xl.region xl.addr (aloc_of_cls_union_aloc #c #xl.region #xl.addr xl.loc)) (ALoc xs.region xs.addr (aloc_of_cls_union_aloc #c #xs.region #xs.addr xs.loc))) ==> aloc_disjoint xl xs);
-  assert (forall xl xs . (GSet.mem xl auxl /\ GSet.mem xs auxs) ==> aloc_disjoint xl xs);
-  assert (auxl `loc_aux_disjoint` auxs)
-
-(*
-  assert (forall xl xs . (GSet.mem xl auxl /\ GSet.mem xs auxs) ==> aloc_disjoint xl xs);
-  assert (larger `loc_disjoint` smaller ==> auxl `loc_aux_disjoint` auxs)
-
-#set-options "--z3rlimit 32"
-
-let union_loc_of_loc_includes_disjoint
-  (c: (bool -> Tot cls))
-  (b: bool)
-  (larger smaller: loc (c b))
-: Lemma
-  (larger `loc_disjoint` smaller ==> union_loc_of_loc c b larger `loc_disjoint` union_loc_of_loc c b smaller)
-= ()
-
-let union_loc_of_loc_includes_elim
-  (c: (bool -> Tot cls))
-  (b: bool)
-  (larger smaller: loc (c b))
-: Lemma
-  (requires (union_loc_of_loc c b larger `loc_includes` union_loc_of_loc c b smaller))
-  (ensures (larger `loc_includes` smaller))
-= let auxl =  (Ghost.reveal (Loc?.aux larger)) in
-  let auxs = (Ghost.reveal (Loc?.aux smaller)) in
-  assert (
-  assume (auxl `loc_aux_includes` auxs);
-  let doml = aloc_domain (c b) (Loc?.regions larger) (Loc?.addrs larger) in
-  let doms = aloc_domain (c b) (Loc?.regions smaller) (Loc?.addrs smaller) in
-  assert (doml `loc_aux_includes` doms)
-
 let modifies_union_loc_of_loc_elim
-  (c: (bool -> Tot cls))
+  (#al: (bool -> HS.rid -> nat -> Tot Type0))
+  (c: ((b: bool) -> Tot (cls (al b))))
   (b: bool)
   (l: loc (c b))
   (h1 h2: HS.mem)
 : Lemma
-  (requires (modifies #(cls_union c) (union_loc_of_loc c b l) h1 h2))
-  (ensures (modifies #(c b) l h1 h2))
+  (requires (modifies #_ #(cls_union c) (union_loc_of_loc c b l) h1 h2))
+  (ensures (modifies #_ #(c b) l h1 h2))
 = assert (modifies_preserves_regions l h1 h2);
   assert (modifies_preserves_mreferences l h1 h2);
-  modifies_preserves_alocs_intro #(c b) l h1 h2 () (fun r' a' b' ->
+  modifies_preserves_alocs_intro #_ #(c b) l h1 h2 () (fun r' a' b' ->
     let g
       (x: aloc (cls_union c))
     : Lemma
       (requires (
-        Set.mem a' (addrs_of_loc_aux #(cls_union c) (union_loc_of_loc c b l) r') /\
-        GSet.mem x (Ghost.reveal (Loc?.aux #(cls_union c) (union_loc_of_loc c b l)))
+        Set.mem a' (addrs_of_loc_aux #_ #(cls_union c) (union_loc_of_loc c b l) r') /\
+        GSet.mem x (Ghost.reveal (Loc?.aux #_ #(cls_union c) (union_loc_of_loc c b l)))
       ))
       (ensures (
-        aloc_disjoint #(cls_union c) x (ALoc #(cls_union c) r' a' (make_cls_union_aloc c b b'))))
+        aloc_disjoint #_ #(cls_union c) x (ALoc #_ #(cls_union c) r' a' (make_cls_union_aloc b b'))))
     = if r' = x.region && a' = x.addr
       then begin
-        let x' = (ALoc #(c b) r' a' (aloc_of_cls_union_aloc x.loc)) in
-        assert (aloc_disjoint #(c b) x' (ALoc r' a' b'));
+        let x' = (ALoc #_ #(c b) r' a' (aloc_of_cls_union_aloc x.loc)) in
+        assert (aloc_disjoint #_ #(c b) x' (ALoc r' a' b'));
         ()
       end else
         ()
     in
     Classical.forall_intro (Classical.move_requires g);
-    assert ((cls_union c).aloc_preserved (make_cls_union_aloc c b b') h1 h2)
+    assert ((cls_union c).aloc_preserved (make_cls_union_aloc b b') h1 h2)
+  )
+
+let modifies_union_loc_of_loc_intro
+  (#al: (bool -> HS.rid -> nat -> Tot Type0))
+  (c: ((b: bool) -> Tot (cls (al b))))
+  (b: bool)
+  (l: loc (c b))
+  (h1 h2: HS.mem)
+: Lemma
+  (requires (modifies #_ #(c b) l h1 h2))
+  (ensures (modifies #_ #(cls_union c) (union_loc_of_loc c b l) h1 h2))
+= let l' = union_loc_of_loc c b l in
+  assert (modifies_preserves_regions l' h1 h2);
+  assert (modifies_preserves_mreferences l' h1 h2);
+  modifies_preserves_alocs_intro #_ #(cls_union c) l' h1 h2 () (fun r' a' b' ->
+    let b_ = bool_of_cls_union_aloc b' in
+    let a_ = aloc_of_cls_union_aloc b' in
+    if GSet.mem (ALoc r' a' b') (Ghost.reveal (Loc?.aux l'))
+    then begin
+      assert (aloc_disjoint #_ #(cls_union c) (ALoc r' a' b') (ALoc r' a' b'));
+      assert ((cls_union c).aloc_disjoint b' b') ;
+      (cls_union c).aloc_disjoint_self_preserved b' h1 h2
+    end else begin
+      assume (exists x . GSet.mem x (Ghost.reveal (Loc?.aux l)));
+      assert ((cls_union c).aloc_preserved b' h1 h2)
+    end
   )
 
 (*
