@@ -13,18 +13,6 @@ type aloc (#al: aloc_t) (c: cls al) : Type0 = | ALoc:
 let aloc_domain (#al: aloc_t) (c: cls al) (regions: Ghost.erased (Set.set HS.rid)) (addrs: ((r: HS.rid { Set.mem r (Ghost.reveal regions) } ) -> GTot (Set.set nat))) : GTot (GSet.set (aloc c)) =
   GSet.comprehend (fun a -> Set.mem a.region (Ghost.reveal regions) && Set.mem a.addr (addrs a.region))
 
-let aux_nonempty
-  (#al: aloc_t) (c: cls al)
-  (regions: Ghost.erased (Set.set HS.rid))
-  (aux_addrs: ((r: HS.rid { Set.mem r (Ghost.reveal regions) } ) -> GTot (Set.set nat)))
-  (aux: Ghost.erased (GSet.set (aloc c)))
-: GTot Type0
-= forall (r: HS.rid) (a: nat) .
-  (Set.mem r (Ghost.reveal regions) /\ Set.mem a (aux_addrs r)) ==> (
-    exists (x: aloc c) .
-    (GSet.mem x (Ghost.reveal aux) /\ x.region == r /\ x.addr == a)
-  )
-
 noeq
 type loc' (#al: aloc_t) (c: cls al) : Type =
   | Loc:
@@ -34,15 +22,8 @@ type loc' (#al: aloc_t) (c: cls al) : Type =
 	(r: HS.rid { Set.mem r (Ghost.reveal regions) } ) ->
 	GTot (Set.set nat)
       )) ->
-      (aux_addrs: (
-	(r: HS.rid { Set.mem r (Ghost.reveal regions) } ) ->
-	GTot (Set.set nat)
-      )) ->
-      (aux_addrs_disjoint: ((r: HS.rid { Set.mem r (Ghost.reveal regions) } ) -> Lemma (Set.subset (Set.intersect (aux_addrs r) (addrs r)) Set.empty ))) ->
       (aux: Ghost.erased (GSet.set (aloc c)) {
-        aloc_domain c regions addrs `GSet.subset` Ghost.reveal aux /\
-        Ghost.reveal aux `GSet.subset` (aloc_domain c regions addrs `GSet.union` aloc_domain c regions aux_addrs) /\
-	aux_nonempty c regions aux_addrs aux
+        aloc_domain c regions addrs `GSet.subset` Ghost.reveal aux
       } ) ->
       loc' c
 
@@ -52,8 +33,6 @@ let loc_none #a #c = Loc
   (Ghost.hide (Set.empty))
   (Ghost.hide (Set.empty))
   (fun _ -> Set.empty)
-  (fun _ -> Set.empty)
-  (fun _ -> ())
   (Ghost.hide GSet.empty)
 
 let regions_of_loc
@@ -71,22 +50,29 @@ let addrs_of_loc_weak
   then Loc?.addrs l r
   else Set.empty
 
+let addrs_of_loc_aux_pred
+  (#al: aloc_t) (#c: cls al)
+  (l: loc c)
+  (r: HS.rid)
+  (addr: nat)
+: GTot bool
+= StrongExcludedMiddle.strong_excluded_middle (exists a . GSet.mem a (Ghost.reveal (Loc?.aux l)) /\ a.region == r /\ a.addr == addr)
+
 let addrs_of_loc_aux
   (#al: aloc_t) (#c: cls al)
   (l: loc c)
   (r: HS.rid)
-: GTot (y: Set.set nat { Set.subset (Set.intersect y (addrs_of_loc_weak l r)) Set.empty } )
-= if Set.mem r (regions_of_loc l)
-  then (Loc?.aux_addrs_disjoint l r; Loc?.aux_addrs l r)
-  else Set.empty
+: GTot (y: GSet.set nat { GSet.subset (GSet.intersect y (GSet.of_set (addrs_of_loc_weak l r))) GSet.empty } )
+= GSet.comprehend (addrs_of_loc_aux_pred l r)
+    `GSet.intersect` (GSet.of_set (Set.complement (addrs_of_loc_weak l r)))
 
 let addrs_of_loc
   (#al: aloc_t) (#c: cls al)
   (l: loc c)
   (r: HS.rid)
-: GTot (Set.set nat)
-= Set.union
-    (addrs_of_loc_weak l r)
+: GTot (GSet.set nat)
+= GSet.union
+    (GSet.of_set (addrs_of_loc_weak l r))
     (addrs_of_loc_aux l r)
 
 let addrs_of_loc_aux_prop
@@ -94,7 +80,7 @@ let addrs_of_loc_aux_prop
   (l: loc c)
   (r: HS.rid)
 : Lemma
-  (Set.subset (Set.intersect (addrs_of_loc_aux l r) (addrs_of_loc_weak l r)) Set.empty)
+  (GSet.subset (GSet.intersect (addrs_of_loc_aux l r) (GSet.of_set (addrs_of_loc_weak l r))) GSet.empty)
   [SMTPatOr [
     [SMTPat (addrs_of_loc_aux l r)];
     [SMTPat (addrs_of_loc_weak l r)];
@@ -113,15 +99,6 @@ let loc_union #al #c s1 s2 =
       (if Set.mem r regions1 then addrs_of_loc_weak s1 r else Set.empty)
       (if Set.mem r regions2 then addrs_of_loc_weak s2 r else Set.empty)
   in
-  let aux_addrs
-    (r: HS.rid { Set.mem r regions } )
-  : Ghost (Set.set nat)
-    (requires True)
-    (ensures (fun y -> Set.subset (Set.intersect y (addrs r)) Set.empty))
-  = Set.intersect
-      (Set.union (addrs_of_loc_aux s1 r) (addrs_of_loc_aux s2 r))
-      (Set.complement (addrs r))
-  in
   let aux = Ghost.hide
       (Ghost.reveal (Loc?.aux s1) `GSet.union` Ghost.reveal (Loc?.aux s2))
   in
@@ -129,8 +106,6 @@ let loc_union #al #c s1 s2 =
     (Ghost.hide regions)
     (Ghost.hide (Set.union (Ghost.reveal (Loc?.region_liveness_tags s1)) (Ghost.reveal (Loc?.region_liveness_tags s2))))
     addrs
-    aux_addrs
-    (fun _ -> ())
     aux
 
 let fun_set_equal (#t: Type) (#t': eqtype) (f1 f2: (t -> GTot (Set.set t'))) : GTot Type0 =
@@ -143,19 +118,18 @@ let fun_set_equal_elim (#t: Type) (#t' : eqtype) (f1 f2: (t -> GTot (Set.set t')
 = assert (f1 `FunctionalExtensionality.gfeq` f2)
 
 let loc_equal (#al: aloc_t) (#c: cls al) (s1 s2: loc c) : GTot Type0 =
-  let Loc regions1 region_liveness_tags1 addrs1 aux_addrs1 _ aux1 = s1 in
-  let Loc regions2 region_liveness_tags2 addrs2 aux_addrs2 _ aux2 = s2 in
+  let Loc regions1 region_liveness_tags1 addrs1 aux1 = s1 in
+  let Loc regions2 region_liveness_tags2 addrs2 aux2 = s2 in
   Ghost.reveal regions1 `Set.equal` Ghost.reveal regions2 /\
   Ghost.reveal region_liveness_tags1 `Set.equal` Ghost.reveal region_liveness_tags2 /\
   fun_set_equal (Loc?.addrs s1) (Loc?.addrs s2) /\
-  fun_set_equal (Loc?.aux_addrs s1) (Loc?.aux_addrs s2) /\
   Ghost.reveal (Loc?.aux s1) `GSet.equal` Ghost.reveal (Loc?.aux s2)
 
 let loc_equal_elim (#al: aloc_t) (#c: cls al) (s1 s2: loc c) : Lemma
   (requires (loc_equal s1 s2))
   (ensures (s1 == s2))
   [SMTPat (s1 `loc_equal` s2)]
-= assert (Loc?.aux_addrs_disjoint s1 `FunctionalExtensionality.gfeq` Loc?.aux_addrs_disjoint s2)
+= ()
 
 let loc_union_idem #al #c s =
   assert (loc_union s s `loc_equal` s)
@@ -177,8 +151,6 @@ let loc_of_aloc #al #c #r #n b =
       (Ghost.hide (Set.singleton r))
       (Ghost.hide Set.empty)
       (fun _ -> Set.empty)
-      (fun _ -> Set.singleton n)
-      (fun _ -> ())
       (Ghost.hide (GSet.singleton (ALoc r n b)))
 
 let loc_addresses #al #c r n =
@@ -187,8 +159,6 @@ let loc_addresses #al #c r n =
     regions
     (Ghost.hide Set.empty)
     (fun _ -> n)
-    (fun _ -> Set.empty)
-    (fun _ -> ())
     (Ghost.hide (aloc_domain c regions (fun _ -> n)))
 
 let loc_regions #al #c r =
@@ -199,8 +169,6 @@ let loc_regions #al #c r =
     (Ghost.hide r)
     (Ghost.hide r)
     addrs
-    (fun _ -> Set.empty)
-    (fun _ -> ())
     (Ghost.hide (aloc_domain c (Ghost.hide r) addrs))
 
 let aloc_includes (#al: aloc_t) (#c: cls al) (b0 b: aloc c) : GTot Type0 =
@@ -313,9 +281,9 @@ let addrs_of_loc_union
   (l1 l2: loc c)
   (r: HS.rid)
 : Lemma
-  (addrs_of_loc (loc_union l1 l2) r == Set.union (addrs_of_loc l1 r) (addrs_of_loc l2 r))
+  (addrs_of_loc (loc_union l1 l2) r == GSet.union (addrs_of_loc l1 r) (addrs_of_loc l2 r))
   [SMTPat (addrs_of_loc (loc_union l1 l2) r)]
-= assert (Set.equal (addrs_of_loc (loc_union l1 l2) r) (Set.union (addrs_of_loc l1 r) (addrs_of_loc l2 r)))
+= assert (GSet.equal (addrs_of_loc (loc_union l1 l2) r) (GSet.union (addrs_of_loc l1 r) (addrs_of_loc l2 r)))
 
 let loc_includes #al #c s1 s2 =
   let regions1 = Ghost.reveal (Loc?.regions s1) in
@@ -327,7 +295,7 @@ let loc_includes #al #c s1 s2 =
       Set.subset (addrs_of_loc_weak s2 r) (addrs_of_loc_weak s1 r)
     ) /\ (
       forall (r: HS.rid) .
-      Set.subset (addrs_of_loc s2 r) (addrs_of_loc s1 r)
+      GSet.subset (addrs_of_loc s2 r) (addrs_of_loc s1 r)
     ) /\ (
       (Ghost.reveal (Loc?.aux s1)) `loc_aux_includes` (Ghost.reveal (Loc?.aux s2))
     )
