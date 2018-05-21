@@ -113,18 +113,6 @@ val live_buffers_same_region_same_address_same_type
 : Lemma
   (requires ((live h b1 /\ live h b2) /\ frameOf b1 == frameOf b2 /\ as_addr b1 == as_addr b2))
   (ensures (t1 == t2 /\ max_length b1 == max_length b2))
-(*  
-  [SMTPatOr [
-    [SMTPat (live h b1); SMTPat (frameOf b1); SMTPat (frameOf b2);];
-    [SMTPat (live h b1); SMTPat (as_addr b1); SMTPat (frameOf b2);];
-    [SMTPat (live h b1); SMTPat (frameOf b1); SMTPat (as_addr b2);];
-    [SMTPat (live h b1); SMTPat (as_addr b1); SMTPat (as_addr b2);];
-    [SMTPat (live h b2); SMTPat (frameOf b1); SMTPat (frameOf b2);];
-    [SMTPat (live h b2); SMTPat (as_addr b1); SMTPat (frameOf b2);];
-    [SMTPat (live h b2); SMTPat (frameOf b1); SMTPat (as_addr b2);];
-    [SMTPat (live h b2); SMTPat (as_addr b1); SMTPat (as_addr b2);];
-  ]]
-*)
 
 (* Disjointness between two buffers *)
 let disjoint #a #a' (x:buffer a) (y:buffer a') : GTot Type0 =

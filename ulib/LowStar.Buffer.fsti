@@ -152,6 +152,21 @@ val len (#a: Type) (b: buffer a) : GTot U32.t
 let length (#a: Type) (b: buffer a) : GTot nat = U32.v (len b)
 
 
+/// If two live buffers live in the same region at the same address,
+/// then their element types have the same types (unless both buffers
+/// are empty, because of the null pointer.)
+
+val live_buffers_same_region_same_address_same_type
+  (t1: Type)
+  (b1: buffer t1)
+  (t2: Type)
+  (b2: buffer t2)
+  (h: HS.mem)
+: Lemma
+  (requires ((live h b1 /\ live h b2 /\ frameOf b1 == frameOf b2 /\ as_addr b1 == as_addr b2 /\ length b1 > 0)))
+  (ensures (t1 == t2))
+
+
 /// The null pointer has length 0.
 
 val len_null (a: Type) : Lemma
