@@ -111,7 +111,7 @@ val live_buffers_same_region_same_address_same_type
   (b2: buffer t2)
   (h: HS.mem)
 : Lemma
-  (requires ((live h b1 /\ live h b2) /\ frameOf b1 == frameOf b2 /\ as_addr b1 == as_addr b2))
+  (requires ((live h b1 /\ live h b2) /\ frameOf b1 == frameOf b2 /\ as_addr b1 == as_addr b2 /\ length b1 > 0))
   (ensures (t1 == t2 /\ max_length b1 == max_length b2))
 (*  
   [SMTPatOr [
