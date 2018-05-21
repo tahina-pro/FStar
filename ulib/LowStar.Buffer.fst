@@ -66,7 +66,6 @@ let len #a b =
 
 let len_null a = ()
 
-
 let lseq (a: Type) (l: nat) : Type =
   (s: Seq.seq a { Seq.length s == l } )
 
@@ -413,6 +412,17 @@ let upd #a b i v =
   // prove modifies_1_preserves_abuffers
   Heap.lemma_distinct_addrs_distinct_preorders ();
   Heap.lemma_distinct_addrs_distinct_mm ()
+
+let live_buffers_same_region_same_address_same_type
+  (t1: Type)
+  (b1: buffer t1)
+  (t2: Type)
+  (b2: buffer t2)
+  (h: HS.mem)
+: Lemma
+  (requires ((live h b1 /\ live h b2 /\ frameOf b1 == frameOf b2 /\ as_addr b1 == as_addr b2 /\ length b1 > 0)))
+  (ensures (t1 == t2))
+= let s0 = lseq_of_vec (HS.sel h (Buffer?.content b1)) in ()
 
 (* Recall *)
 

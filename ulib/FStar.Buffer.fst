@@ -102,10 +102,34 @@ let includes_trans #a (x y z: buffer a)
   (ensures (x `includes` z))
 = ()
 
+private
+assume
+val live_buffers_same_region_same_address_same_type
+  (t1: Type)
+  (b1: buffer t1)
+  (t2: Type)
+  (b2: buffer t2)
+  (h: HS.mem)
+: Lemma
+  (requires ((live h b1 /\ live h b2) /\ frameOf b1 == frameOf b2 /\ as_addr b1 == as_addr b2))
+  (ensures (t1 == t2 /\ max_length b1 == max_length b2))
+(*  
+  [SMTPatOr [
+    [SMTPat (live h b1); SMTPat (frameOf b1); SMTPat (frameOf b2);];
+    [SMTPat (live h b1); SMTPat (as_addr b1); SMTPat (frameOf b2);];
+    [SMTPat (live h b1); SMTPat (frameOf b1); SMTPat (as_addr b2);];
+    [SMTPat (live h b1); SMTPat (as_addr b1); SMTPat (as_addr b2);];
+    [SMTPat (live h b2); SMTPat (frameOf b1); SMTPat (frameOf b2);];
+    [SMTPat (live h b2); SMTPat (as_addr b1); SMTPat (frameOf b2);];
+    [SMTPat (live h b2); SMTPat (frameOf b1); SMTPat (as_addr b2);];
+    [SMTPat (live h b2); SMTPat (as_addr b1); SMTPat (as_addr b2);];
+  ]]
+*)
+
 (* Disjointness between two buffers *)
 let disjoint #a #a' (x:buffer a) (y:buffer a') : GTot Type0 =
   frameOf x =!= frameOf y \/ as_addr x =!= as_addr y
-  \/ (a == a' /\ as_addr x == as_addr y /\ frameOf x == frameOf y /\ x.max_length == y.max_length /\
+  \/ ((* a == a' /\ *) as_addr x == as_addr y /\ frameOf x == frameOf y /\ x.max_length == y.max_length /\
      (idx x + length x <= idx y \/ idx y + length y <= idx x))
 
 (* Disjointness is symmetric *)
@@ -958,7 +982,8 @@ private let lemma_aux_0
 	            (let h1 = HS.upd h0 b.content (Seq.upd (sel h0 b) (idx b + v n) z) in
 		     as_seq h0 bb == as_seq h1 bb)))
   = Heap.lemma_distinct_addrs_distinct_preorders ();
-    Heap.lemma_distinct_addrs_distinct_mm ()
+    Heap.lemma_distinct_addrs_distinct_mm ();
+    Classical.move_requires (live_buffers_same_region_same_address_same_type a b tt bb) h0
 
 #set-options "--z3rlimit 10"
 private let lemma_aux_1

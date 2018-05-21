@@ -6,7 +6,7 @@ module B = FStar.Buffer
 
 (*** The modifies clause *)
 
-val loc : Type u#1
+val loc : Type u#0
 
 val loc_none: loc
 
