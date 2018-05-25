@@ -508,6 +508,34 @@ let loc_disjoint_regions #al #c rs1 rs2 =
   // FIXME: WHY WHY WHY this assert?
   assert (loc_aux_disjoint (Ghost.reveal (Loc?.aux (loc_regions #_ #c rs1))) (Ghost.reveal (Loc?.aux (loc_regions #_ #c rs2))))
 
+let liveness_preserved' (#al: aloc_t) (#c: cls al) (l: loc c) (h1 h2: HS.mem) : GTot Type0 =
+  forall (t: Type0) (pre: Preorder.preorder t) (p: HS.mreference t pre) .
+  (HS.frameOf p `Set.mem` regions_of_loc l /\ HS.as_addr p `GSet.mem` addrs_of_loc l (HS.frameOf p) /\ h1 `HS.contains` p) ==> h2 `HS.contains` p
+
+let liveness_preserved = liveness_preserved'
+
+let liveness_preserved_none #al #c h1 h2 = ()
+
+let liveness_preserved_union #al #c l1 l2 h1 h2 = ()
+
+let liveness_preserved_includes #al #c larger smaller h1 h2 = ()
+
+let liveness_preserved_aloc #al c #r #a l h1 h2 =
+  let f () : Lemma
+    (requires (liveness_preserved (loc_of_aloc #_ #c l) h1 h2))
+    (ensures (c.aloc_liveness_preserved l h1 h2))
+  = c.aloc_liveness_preserved_intro l h1 h2 (fun _ _ _ -> ())
+  in
+  let g () : Lemma
+    (requires (c.aloc_liveness_preserved l h1 h2))
+    (ensures (liveness_preserved (loc_of_aloc #_ #c l) h1 h2))
+  = Classical.forall_intro_3 (fun t pre r' -> Classical.move_requires (c.aloc_liveness_preserved_elim l h1 h2 #t #pre) r')
+  in
+  Classical.move_requires f ();
+  Classical.move_requires g ()
+
+let liveness_preserved_mreference #al c #t #pre b h1 h2 =
+  HS.lemma_same_addr_contains ()
 
 (** The modifies clause proper *)
 
@@ -627,6 +655,8 @@ let modifies'
   modifies_preserves_alocs s h1 h2
 
 let modifies = modifies'
+
+let modifies_liveness_preserved #al #c s h1 h2 s' = ()
 
 #reset-options "--z3rlimit 16"
 

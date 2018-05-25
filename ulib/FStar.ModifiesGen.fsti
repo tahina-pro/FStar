@@ -108,6 +108,44 @@ type cls (aloc: aloc_t) : Type = | Cls:
     Lemma
     (aloc_preserved b h1 h2)
   )) ->
+  (aloc_liveness_preserved: (
+    (#r: HS.rid) ->
+    (#a: nat) ->
+    (b: aloc r a) ->
+    (h1: HS.mem) ->
+    (h2: HS.mem) ->
+    GTot Type0
+  )) ->
+  (aloc_liveness_preserved_intro: (
+    (#r: HS.rid) ->
+    (#a: nat) ->
+    (b: aloc r a) ->
+    (h1: HS.mem) ->
+    (h2: HS.mem) ->
+    (f: (
+      (a' : Type0) ->
+      (pre: Preorder.preorder a') ->
+      (r' : HS.mreference a' pre) ->
+      Lemma
+      (requires (HS.frameOf r' == r /\ HS.as_addr r' == a /\ h1 `HS.contains` r'))
+      (ensures (h2 `HS.contains` r'))
+    )) ->
+    Lemma
+    (ensures (aloc_liveness_preserved b h1 h2))
+  )) ->
+  (aloc_liveness_preserved_elim: (
+    (#r: HS.rid) ->
+    (#a: nat) ->
+    (b: aloc r a) ->
+    (h1: HS.mem) ->
+    (h2: HS.mem) ->
+    (#a' : Type0) ->
+    (#pre: Preorder.preorder a') ->
+    (r' : HS.mreference a' pre) ->
+    Lemma
+    (requires (HS.frameOf r' == r /\ HS.as_addr r' == a /\ aloc_liveness_preserved b h1 h2 /\ h1 `HS.contains` r'))
+    (ensures (h2 `HS.contains` r'))
+  )) ->
   cls aloc
 
 val loc (#aloc: aloc_t u#x) (c: cls aloc) : Tot (Type u#x)
@@ -390,6 +428,57 @@ val loc_disjoint_regions
   (requires (Set.subset (Set.intersect rs1 rs2) Set.empty))
   (ensures (loc_disjoint (loc_regions #_ #c rs1) (loc_regions rs2)))
 
+val liveness_preserved
+  (#aloc: aloc_t)
+  (#c: cls aloc)
+  (s: loc c)
+  (h1 h2: HS.mem)
+: GTot Type0
+
+val liveness_preserved_none
+  (#aloc: aloc_t)
+  (#c: cls aloc)
+  (h1 h2: HS.mem)
+: Lemma
+  (liveness_preserved #_ #c loc_none h1 h2)
+
+val liveness_preserved_union
+  (#aloc: aloc_t)
+  (#c: cls aloc)
+  (l1 l2: loc c)
+  (h1 h2: HS.mem)
+: Lemma
+  (liveness_preserved (loc_union l1 l2) h1 h2 <==> (liveness_preserved l1 h1 h2 /\ liveness_preserved l2 h1 h2))
+
+val liveness_preserved_includes
+  (#aloc: aloc_t)
+  (#c: cls aloc)
+  (larger smaller: loc c)
+  (h1 h2: HS.mem)
+: Lemma
+  (requires (liveness_preserved larger h1 h2 /\ larger `loc_includes` smaller))
+  (ensures (liveness_preserved smaller h1 h2))
+
+val liveness_preserved_aloc
+  (#aloc: aloc_t)
+  (c: cls aloc)
+  (#r: HS.rid)
+  (#a: nat)
+  (l: aloc r a)
+  (h1 h2: HS.mem)
+: Lemma
+  (liveness_preserved (loc_of_aloc #_ #c l) h1 h2 <==> c.aloc_liveness_preserved l h1 h2)
+
+val liveness_preserved_mreference
+  (#aloc: aloc_t)
+  (c: cls aloc)
+  (#t: Type)
+  (#pre: Preorder.preorder t)
+  (b: HS.mreference t pre)
+  (h1 h2: HS.mem)
+: Lemma
+  (requires (h1 `HS.contains` b))
+  (ensures (liveness_preserved (loc_mreference #_ #c b) h1 h2 <==> h2 `HS.contains` b))
 
 (** The modifies clause proper *)
 
@@ -398,6 +487,15 @@ val modifies
   (s: loc c)
   (h1 h2: HS.mem)
 : GTot Type0
+
+val modifies_liveness_preserved
+  (#aloc: aloc_t) (#c: cls aloc)
+  (s: loc c)
+  (h1 h2: HS.mem)
+  (s' : loc c)
+: Lemma
+  (requires (modifies s h1 h2 /\ liveness_preserved s h1 h2))
+  (ensures (liveness_preserved s' h1 h2))
 
 val modifies_intro
   (#al: aloc_t) (#c: cls al) (l: loc c) (h h' : HS.mem)
