@@ -390,6 +390,11 @@ let mreference_distinct_sel_disjoint
   Heap.lemma_distinct_addrs_distinct_mm ();
   Heap.lemma_sel_same_addr #a #rel1 (Map.sel h.h (frameOf r1)) (as_ref r1) (as_ref r2)
 
+let lemma_same_addr_contains (u: unit) : Lemma
+  (forall (t1: Type0) (rel1: preorder t1) (r1: mreference t1 rel1) (t2: Type0) (rel2: preorder t2) (r2: mreference t2 rel2) (h h': mem) . (h `contains` r1 /\ h `contains` r2 /\ h' `contains` r1 /\ frameOf r1 == frameOf r2 /\ as_addr r1 == as_addr r2) ==> (t1 == t2 /\ rel1 == rel2 /\ h' `contains` r2))
+= Heap.lemma_same_addr_contains ()
+
+
 (*
 // //  * AR: 12/26: modifies clauses
 // //  *            NOTE: the modifies clauses used to have a m0.tip == m1.tip conjunct too

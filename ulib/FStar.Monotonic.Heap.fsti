@@ -103,6 +103,9 @@ val lemma_distinct_addrs_distinct_mm (u:unit)
             {:pattern (h `contains` r1); (h `contains` r2)}
 	    (h `contains` r1 /\ h `contains` r2 /\ is_mm r1 =!= is_mm r2) ==> addr_of r1 <> addr_of r2)
 
+val lemma_same_addr_contains (u: unit) : Lemma
+  (forall (t1: Type0) (rel1: preorder t1) (r1: mref t1 rel1) (t2: Type0) (rel2: preorder t2) (r2: mref t2 rel2) (h h': heap) . (h `contains` r1 /\ h `contains` r2 /\ h' `contains` r1 /\ addr_of r1 == addr_of r2) ==> (t1 == t2 /\ rel1 == rel2 /\ h' `contains` r2))
+
 (*
  * AR: this is a bit surprising. i had to add ~ (r1 === r2) postcondition to make the lemma
  * lemma_live_1 in hyperstack to go through. if addr_of r1 <> addr_of r2, shouldn't we get ~ (r1 === r2)
