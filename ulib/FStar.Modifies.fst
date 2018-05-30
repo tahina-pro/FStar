@@ -143,6 +143,10 @@ let loc_aux_preserved (l: loc_aux) (h1 h2: HS.mem) : GTot Type0
       B.as_seq h2 b == B.as_seq h1 b
     )
 
+let loc_aux_liveness_preserved (l: loc_aux) (h1 h2: HS.mem) : GTot Type0 =
+  match l with
+  | LocBuffer b -> (B.live h1 b ==> B.live h2 b)
+
 module MG = FStar.ModifiesGen
 
 let cls : MG.cls aloc = MG.Cls #aloc
@@ -164,6 +168,20 @@ let cls : MG.cls aloc = MG.Cls #aloc
       = f _ _ (B.content b')
       in
       Classical.move_requires g ()
+  )
+  (fun #r #a -> loc_aux_liveness_preserved)
+  (fun #r #a b h1 h2 f ->
+    match b with
+    | LocBuffer b' ->
+      let g () : Lemma
+        (requires (B.live h1 b'))
+        (ensures (loc_aux_liveness_preserved b h1 h2))
+      = f _ _ (B.content b')
+      in
+      Classical.move_requires g ()
+  )
+  (fun #r #a b h1 h2 #a' #pre r' ->
+    HS.lemma_same_addr_contains ()
   )
 
 let loc = MG.loc cls
