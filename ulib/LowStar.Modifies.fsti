@@ -464,10 +464,6 @@ val modifies_live_region
 : Lemma
   (requires (modifies s h1 h2 /\ loc_disjoint s (loc_region_only false r) /\ HS.live_region h1 r))
   (ensures (HS.live_region h2 r))
-  [SMTPatOr [
-    [SMTPat (modifies s h1 h2); SMTPat (HS.live_region h1 r)];
-    [SMTPat (modifies s h1 h2); SMTPat (HS.live_region h2 r)];
-  ]]
 
 /// If a reference ``b`` is disjoint from a set ``p`` of memory locations
 /// which is modified, then its liveness and contents are preserved.
@@ -488,12 +484,6 @@ val modifies_mreference_elim
     HS.contains h' b /\
     HS.sel h b == HS.sel h' b
   ))
-  [SMTPatOr [
-    [ SMTPat (modifies p h h'); SMTPat (HS.sel h b) ] ;
-    [ SMTPat (modifies p h h'); SMTPat (HS.contains h b) ];
-    [ SMTPat (modifies p h h'); SMTPat (HS.sel h' b) ] ;
-    [ SMTPat (modifies p h h'); SMTPat (HS.contains h' b) ]
-  ] ]
 
 /// If a buffer ``b`` is disjoint from a set ``p`` of
 /// memory locations which is modified, then its liveness and contents
@@ -514,12 +504,6 @@ val modifies_buffer_elim
     B.live h' b /\ (
     B.as_seq h b == B.as_seq h' b
   )))
-  [SMTPatOr [
-    [ SMTPat (modifies p h h'); SMTPat (B.as_seq h b) ] ;
-    [ SMTPat (modifies p h h'); SMTPat (B.live h b) ];
-    [ SMTPat (modifies p h h'); SMTPat (B.as_seq h' b) ] ;
-    [ SMTPat (modifies p h h'); SMTPat (B.live h' b) ]
-  ] ]
 
 /// If the memory state does not change, then any memory location is
 /// modified (and, in particular, the empty set, ``loc_none``.)
@@ -529,7 +513,7 @@ val modifies_refl
   (h: HS.mem)
 : Lemma
   (modifies s h h)
-  [SMTPat (modifies s h h)]
+//  [SMTPat (modifies s h h)]
 
 /// If a set ``s2`` of memory locations is modified, then so is any set
 /// ``s1`` that includes ``s2``. In other words, it is always possible to
@@ -542,11 +526,6 @@ val modifies_loc_includes
 : Lemma
   (requires (modifies s2 h h' /\ loc_includes s1 s2))
   (ensures (modifies s1 h h'))
-  [SMTPatOr [
-    [SMTPat (modifies s1 h h'); SMTPat (modifies s2 h h')];
-    [SMTPat (modifies s1 h h'); SMTPat (loc_includes s1 s2)];
-    [SMTPat (modifies s2 h h'); SMTPat (loc_includes s1 s2)];
-  ]]
 
 /// Some memory locations are tagged as liveness-insensitive: the
 /// liveness preservation of a memory location only depends on its
@@ -610,10 +589,6 @@ let modifies_liveness_insensitive_mreference_weak
 : Lemma
   (requires (modifies l h h' /\ address_liveness_insensitive_locs `loc_includes` l /\ h `HS.contains` x))
   (ensures (h' `HS.contains` x))
-  [SMTPatOr [
-    [SMTPat (h `HS.contains` x); SMTPat (modifies l h h');];
-    [SMTPat (h' `HS.contains` x); SMTPat (modifies l h h');];
-  ]]
 = modifies_liveness_insensitive_mreference loc_none l h h' x
 
 let modifies_liveness_insensitive_buffer_weak
@@ -624,10 +599,6 @@ let modifies_liveness_insensitive_buffer_weak
 : Lemma
   (requires (modifies l h h' /\ address_liveness_insensitive_locs `loc_includes` l /\ B.live h x))
   (ensures (B.live h' x))
-  [SMTPatOr [
-    [SMTPat (B.live h x); SMTPat (modifies l h h');];
-    [SMTPat (B.live h' x); SMTPat (modifies l h h');];
-  ]]
 = modifies_liveness_insensitive_buffer loc_none l h h' x
 
 val modifies_liveness_insensitive_region
@@ -667,10 +638,6 @@ let modifies_liveness_insensitive_region_weak
 : Lemma
   (requires (modifies l2 h h' /\ region_liveness_insensitive_locs `loc_includes` l2 /\ HS.live_region h x))
   (ensures (HS.live_region h' x))
-  [SMTPatOr [
-    [SMTPat (modifies l2 h h'); SMTPat (HS.live_region h x)];
-    [SMTPat (modifies l2 h h'); SMTPat (HS.live_region h' x)];
-  ]]
 = modifies_liveness_insensitive_region loc_none l2 h h' x
 
 let modifies_liveness_insensitive_region_mreference_weak
@@ -682,10 +649,6 @@ let modifies_liveness_insensitive_region_mreference_weak
 : Lemma
   (requires (modifies l2 h h' /\ region_liveness_insensitive_locs `loc_includes` l2 /\ HS.live_region h (HS.frameOf x)))
   (ensures (HS.live_region h' (HS.frameOf x)))
-  [SMTPatOr [
-    [SMTPat (modifies l2 h h'); SMTPat (HS.live_region h (HS.frameOf x))];
-    [SMTPat (modifies l2 h h'); SMTPat (HS.live_region h' (HS.frameOf x))];
-  ]]
 = modifies_liveness_insensitive_region_mreference loc_none l2 h h' x
 
 let modifies_liveness_insensitive_region_buffer_weak
@@ -696,10 +659,6 @@ let modifies_liveness_insensitive_region_buffer_weak
 : Lemma
   (requires (modifies l2 h h' /\ region_liveness_insensitive_locs `loc_includes` l2 /\ HS.live_region h (B.frameOf x)))
   (ensures (HS.live_region h' (B.frameOf x)))
-  [SMTPatOr [
-    [SMTPat (modifies l2 h h'); SMTPat (HS.live_region h (B.frameOf x))];
-    [SMTPat (modifies l2 h h'); SMTPat (HS.live_region h' (B.frameOf x))];
-  ]]
 = modifies_liveness_insensitive_region_buffer loc_none l2 h h' x
 
 
@@ -714,7 +673,6 @@ val modifies_trans
 : Lemma
   (requires (modifies s12 h1 h2 /\ modifies s23 h2 h3))
   (ensures (modifies (loc_union s12 s23) h1 h3))
-  [SMTPat (modifies s12 h1 h2); SMTPat (modifies s23 h2 h3)]
 
 /// Regions that are not live can be removed from sets of memory
 /// locations that are modified.
@@ -741,12 +699,10 @@ val no_upd_fresh_region: r:HS.rid -> l:loc -> h0:HS.mem -> h1:HS.mem -> Lemma
 val fresh_frame_modifies (h0 h1: HS.mem) : Lemma
   (requires (HS.fresh_frame h0 h1))
   (ensures (modifies loc_none h0 h1))
-  [SMTPat (HS.fresh_frame h0 h1)]
 
 val popped_modifies (h0 h1: HS.mem) : Lemma
   (requires (HS.popped h0 h1))
   (ensures (modifies (loc_region_only false (HS.get_tip h0)) h0 h1))
-//  [SMTPat (HS.popped h0 h1)]
 
 /// Stack discipline: any stack frame (and all its transitively
 /// extending regions) that is pushed, modified and popped can be
@@ -847,10 +803,6 @@ val modifies_0_modifies
 : Lemma
   (requires (B.modifies_0 h1 h2))
   (ensures (modifies loc_none h1 h2))
-  [SMTPatOr [
-    [SMTPat (B.modifies_0 h1 h2)];
-    [SMTPat (modifies loc_none h1 h2)];
-  ]]
 
 /// Case ``modifies_1``: update.
 
@@ -861,10 +813,6 @@ val modifies_1_modifies
 : Lemma
   (requires (B.modifies_1 b h1 h2))
   (ensures (modifies (loc_buffer b) h1 h2))
-  [SMTPatOr [
-    [SMTPat (B.modifies_1 b h1 h2)];
-    [SMTPat (modifies (loc_buffer b) h1 h2)];
-  ]]
 
 /// Case ``modifies_addr_of``: free. 
 
@@ -875,7 +823,6 @@ val modifies_addr_of_modifies
 : Lemma
   (requires (B.modifies_addr_of b h1 h2))
   (ensures (modifies (loc_addresses false (B.frameOf b) (Set.singleton (B.as_addr b))) h1 h2))
-  [SMTPat (B.modifies_addr_of b h1 h2)]
 
 
 /// Any live reference is disjoint from a buffer which has not been allocated yet.
