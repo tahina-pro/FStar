@@ -123,17 +123,17 @@ let rec solve_goal () : T.Tac unit =
   match T.trytac imm_solve_goal with
   | Some _ -> ()
   | _ ->
-  begin match T.trytac (fun () -> T.with_policy T.Drop T.forall_intro) with
+  begin match T.trytac T.forall_intro (* (fun () -> T.with_policy T.Drop T.forall_intro) *) with
   | Some _ ->
     T.print ("Applied: forall_intro");
     admit_others solve_goal
   | _ ->
-    begin match T.trytac (fun () -> T.with_policy T.Drop T.implies_intro) with
+    begin match T.trytac T.implies_intro (* (fun () -> T.with_policy T.Drop T.implies_intro) *) with
     | Some _ ->
       T.print ("Applied: implies_intro");
       admit_others solve_goal
     | _ ->
-      begin match T.trytac (fun () -> T.with_policy T.Drop T.split) with
+      begin match T.trytac T.split (* (fun () -> T.with_policy T.Drop T.split) *) with
       | Some _ ->
         let n = T.ngoals () in
         if n > 2
