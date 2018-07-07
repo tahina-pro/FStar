@@ -11,7 +11,7 @@ let make_constant_size_parser_aux
   (sz: nat)
   (t: Type0)
   (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
-: Tot (bare_parser t)
+: Tot (p: parser t)
 = fun (s: bytes) ->
   if Seq.length s < sz
   then None
@@ -60,16 +60,16 @@ let make_constant_size_parser_injective
   (ensures (
     injective (make_constant_size_parser_aux sz t f)
   ))
-= let p : bare_parser t = make_constant_size_parser_aux sz t f in
+= let p : parser t = make_constant_size_parser_aux sz t f in
   let prf1
     (b1 b2: bytes)
   : Lemma
     (requires (injective_precond p b1 b2))
     (ensures (injective_postcond p b1 b2))
-  = assert (Some? (bparse p b1));
-    assert (Some? (bparse p b2));
-    let (Some (v1, len1)) = bparse p b1 in
-    let (Some (v2, len2)) = bparse p b2 in
+  = assert (Some? (parse p b1));
+    assert (Some? (parse p b2));
+    let (Some (v1, len1)) = parse p b1 in
+    let (Some (v2, len2)) = parse p b2 in
     assert ((len1 <: nat) == (len2 <: nat));
     assert ((len1 <: nat) == sz);
     assert ((len2 <: nat) == sz);
@@ -82,17 +82,14 @@ let make_constant_size_parser
   (sz: nat)
   (t: Type0)
   (f: ((s: bytes {Seq.length s == sz}) -> GTot (option t)))
-: Pure (
-    parser
-      t
-  )
+: Pure (p: parser t { no_lookahead p /\ injective p } )
   (requires (
     make_constant_size_parser_precond sz t f
   ))
   (ensures (fun _ -> True))
-= let p : bare_parser t = make_constant_size_parser_aux sz t f in
+= let p : parser t = make_constant_size_parser_aux sz t f in
   make_constant_size_parser_injective sz t f;
-  Parser p
+  p
 
 let make_total_constant_size_parser_precond
   (sz: nat)
@@ -106,10 +103,7 @@ let make_total_constant_size_parser
   (sz: nat)
   (t: Type0)
   (f: ((s: bytes {Seq.length s == sz}) -> GTot t))
-: Pure (
-    parser
-      t
-  )
+: Pure (p: parser t { no_lookahead p /\ injective p } )
   (requires (
     make_total_constant_size_parser_precond sz t f
   ))
@@ -120,45 +114,28 @@ let make_total_constant_size_parser
 
 /// monadic return for the parser monad
 unfold
-let parse_ret' (#t:Type) (v:t) : Tot (bare_parser t) =
+let parse_ret' (#t:Type) (v:t) : Tot (parser t) =
   fun (b: bytes) -> Some (v, (0 <: consumed_length b))
 
-let parse_ret (#t:Type) (v:t) : Tot (parser t) =
-  Parser (parse_ret' v)
+let parse_ret (#t:Type) (v:t) : Tot (p: parser t { no_lookahead p /\ injective p } ) =
+  (parse_ret' v)
 
-let parse_empty : parser unit =
+let parse_empty : (p: parser unit { no_lookahead p /\ injective p } )  =
   parse_ret ()
 
-let serialize_empty : serializer parse_empty =
-  Serializer (fun _ -> Seq.createEmpty)
+val and_then : #t:Type -> #t':Type ->
+                p:parser t ->
+                p': (t -> Tot (parser t')) ->
+                Tot (parser t')
 
-#set-options "--z3rlimit 16"
-
-let fail_parser'
-  (t: Type0)
-: Tot (bare_parser t)
-= fun _ -> None
-
-let fail_parser
-  (t: Type0)
-: Tot (parser t)
-= let p = fail_parser' t in
-  Parser p
-
-/// monadic bind for the parser monad
-
-val and_then_bare : #t:Type -> #t':Type ->
-                p:bare_parser t ->
-                p': (t -> Tot (bare_parser t')) ->
-                Tot (bare_parser t')
-let and_then_bare #t #t' p p' =
+let and_then #t #t' p p' =
     fun (b: bytes) ->
-    match bparse p b with
+    match parse p b with
     | Some (v, l) ->
       begin
-	let p'v = p' v in
+	let p'v : parser t' = p' v in
 	let s' : bytes = Seq.slice b l (Seq.length b) in
-	match bparse p'v s' with
+	match parse p'v s' with
 	| Some (v', l') ->
 	  let res : consumed_length b = l + l' in
 	  Some (v', res)
@@ -166,11 +143,27 @@ let and_then_bare #t #t' p p' =
       end
     | None -> None
 
+let serialize_empty : serializer parse_empty =
+  Serializer (fun _ -> Seq.empty)
+
+let fail_parser'
+  (t: Type0)
+: Tot (parser t)
+= fun _ -> None
+
+let fail_parser
+  (t: Type0)
+: Tot (p: parser t { no_lookahead p /\ injective p })
+= let p = fail_parser' t in
+  p
+
+/// monadic bind for the parser monad
+
 val and_then_no_lookahead_weak_on
     (#t:Type)
     (#t':Type)
-    (p: bare_parser t)
-    (p': (t -> Tot (bare_parser t')))
+    (p: parser t)
+    (p': (t -> Tot (parser t')))
     (x: bytes) 
     (x' : bytes)
   : Lemma
@@ -178,10 +171,10 @@ val and_then_no_lookahead_weak_on
       no_lookahead_weak p /\
       (forall (x: t) . no_lookahead_weak (p' x))
     ))
-    (ensures (no_lookahead_weak_on (and_then_bare p p') x x'))
+    (ensures (no_lookahead_weak_on (and_then p p') x x'))
 
 let and_then_no_lookahead_weak_on #t #t' p p' x x' =
-    let f = and_then_bare p p' in
+    let f = and_then p p' in
     match f x with
     | Some v -> 
       let (y, off) = v in
@@ -193,27 +186,27 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 	let g () : Lemma
 	  (requires (Seq.length x' <= Seq.length x /\ Seq.slice x' 0 off_x' == Seq.slice x 0 off_x))
 	  (ensures (
-	    Some? (bparse f x') /\ (
-	    let (Some v') = bparse f x' in
+	    Some? (parse f x') /\ (
+	    let (Some v') = parse f x' in
 	    let (y', off') = v' in
 	    y == y' /\ (off <: nat) == (off' <: nat)
 	  )))
-	= assert (Some? (bparse p x));
-	  let (Some (y1, off1)) = bparse p x in
+	= assert (Some? (parse p x));
+	  let (Some (y1, off1)) = parse p x in
 	  assert (off1 <= off);
 	  assert (off1 <= Seq.length x');
 	  assert (Seq.slice x' 0 off1 == Seq.slice (Seq.slice x' 0 off_x') 0 off1);
 	  assert (Seq.slice x' 0 off1 == Seq.slice x 0 off1);
 	  assert (no_lookahead_weak_on p x x');
-	  assert (Some? (bparse p x'));
-	  let (Some v1') = bparse p x' in
+	  assert (Some? (parse p x'));
+	  let (Some v1') = parse p x' in
 	  let (y1', off1') = v1' in
 	  assert (y1 == y1' /\ (off1 <: nat) == (off1' <: nat));
 	  let x2 : bytes = Seq.slice x off1 (Seq.length x) in
 	  let x2' : bytes = Seq.slice x' off1 (Seq.length x') in
 	  let p2 = p' y1 in
-	  assert (Some? (bparse p2 x2));
-	  let (Some (y', off2)) = bparse p2 x2 in
+	  assert (Some? (parse p2 x2));
+	  let (Some (y', off2)) = parse p2 x2 in
 	  assert (off == off1 + off2);
 	  assert (off2 <= Seq.length x2);
 	  assert (off2 <= Seq.length x2');
@@ -230,20 +223,21 @@ let and_then_no_lookahead_weak_on #t #t' p p' x x' =
 let and_then_no_lookahead_weak
   (#t:Type)
   (#t':Type)
-  (p: bare_parser t)
-  (p': (t -> Tot (bare_parser t')))
+  (p: parser t)
+  (p': (t -> Tot (parser t')))
 : Lemma
   (requires (
     no_lookahead_weak p /\
     (forall (x: t) . no_lookahead_weak (p' x))
   ))
-  (ensures (no_lookahead_weak (and_then_bare p p')))
+  (ensures (no_lookahead_weak (and_then p p')))
+  [SMTPat (no_lookahead_weak_on (and_then p p'))]  
 = Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_weak_on p p' x))
 
 let and_then_cases_injective_precond
   (#t:Type)
   (#t':Type)
-  (p': (t -> Tot (bare_parser t')))
+  (p': (t -> Tot (parser t')))
   (x1 x2: t)
   (b1 b2: bytes)
 : GTot Type0
@@ -257,32 +251,24 @@ let and_then_cases_injective_precond
 let and_then_cases_injective'
   (#t:Type)
   (#t':Type)
-  (p': (t -> Tot (bare_parser t')))
+  (p': (t -> Tot (parser t')))
 : GTot Type0
 = forall (x1 x2: t) (b1 b2: bytes) .
   and_then_cases_injective_precond p' x1 x2 b1 b2 ==>
   x1 == x2
-
-let coerce_to_bare_param_parser
-  (#t: Type)
-  (#t' : Type)
-  (p' : (t -> Tot (parser t')))
-  (x: t)
-: Tot (bare_parser t')
-= coerce_to_bare_parser _ (p' x)
 
 let and_then_cases_injective
   (#t: Type)
   (#t' : Type)
   (p' : (t -> Tot (parser t')))
 : GTot Type0
-= and_then_cases_injective' (coerce_to_bare_param_parser p')
+= and_then_cases_injective' p'
 
 val and_then_injective
   (#t:Type)
   (#t':Type)
-  (p: bare_parser t)
-  (p': (t -> Tot (bare_parser t')))
+  (p: parser t)
+  (p': (t -> Tot (parser t')))
 : Lemma
   (requires (
     injective p /\
@@ -325,8 +311,8 @@ let and_then_injective #t #t' p p' =
 val and_then_no_lookahead_on
     (#t:Type)
     (#t':Type)
-    (p: bare_parser t)
-    (p': (t -> Tot (bare_parser t')))
+    (p: parser t)
+    (p': (t -> Tot (parser t')))
     (x: bytes) 
     (x' : bytes)
   : Lemma
@@ -353,7 +339,7 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
 	    Some? (f x') /\ (
 	    let (Some v') = f x' in
 	    let (y', off') = v' in
-	    y == y'
+	    y == y' /\ off == off'
 	  )))
 	= assert (Some? (p x));
 	  let (Some (y1, off1)) = p x in
@@ -381,9 +367,10 @@ let and_then_no_lookahead_on #t #t' p p' x x' =
 	  assert (no_lookahead_on p2 x2 x2');
 	  assert (Some? (p2 x2'));
 	  let (Some v2') = p2 x2' in
-	  let (y2', _) = v2' in
-	  assert (y2 == y2')
-	in
+	  let (y2', off2') = v2' in
+	  assert (y2 == y2');
+          assert ((off2 <: nat) == (off2' <: nat))
+	  in
 	Classical.move_requires g ()
       else ()
     | _ -> ()
@@ -395,30 +382,13 @@ let and_then_no_lookahead
   (p': (t -> Tot (parser t')))
 : Lemma
   (requires (
+    no_lookahead p /\
+    injective p /\
+    (forall (x: t) . no_lookahead (p' x)) /\
     and_then_cases_injective p'
   ))
-  (ensures (no_lookahead (and_then_bare (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p'))))
-= Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_on (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p') x))
-
-#set-options "--max_fuel 8 --max_ifuel 8 --z3rlimit 64"
-
-let and_then_correct
-  (#t:Type)
-  (p:parser t)
-  (#t':Type)
-  (p': (t -> Tot (parser t')))
-: Lemma
-  (requires (
-    and_then_cases_injective p'
-  ))
-  (ensures (
-    no_lookahead_weak (and_then_bare (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p')) /\
-    injective (and_then_bare (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p')) /\
-    no_lookahead (and_then_bare (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p'))
-  ))
-= and_then_no_lookahead_weak (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p');
-  and_then_injective (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p');
-  and_then_no_lookahead p p'
+  (ensures (no_lookahead (and_then_bare p p')))
+= Classical.forall_intro_2 (fun x -> Classical.move_requires (and_then_no_lookahead_on (p) (p') x))
 
 #reset-options
 
@@ -434,7 +404,7 @@ val and_then
   (ensures (fun _ -> True))
 
 let and_then #t p #t' p' =
-  let f : bare_parser t' = and_then_bare (coerce_to_bare_parser _ p) (coerce_to_bare_param_parser p') in
+  let f : parser t' = and_then_bare (coerce_to_parser _ p) (coerce_to_bare_param_parser p') in
   and_then_correct p p' ;
   Parser f
 
@@ -491,17 +461,17 @@ let bare_serialize_nondep_then_correct
   = let v1' = parse p1 (bare_serialize_nondep_then p1 s1 p2 s2 x) in
     let v1 = parse p1 (serialize s1 (fst x)) in
     assert (Some? v1);
-    assert (no_lookahead_on (coerce_to_bare_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (no_lookahead_on (coerce_to_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
     let (Some (_, len')) = parse p1 (serialize s1 (fst x)) in
     assert (len' == Seq.length (serialize s1 (fst x)));
     assert (len' <= Seq.length (bare_serialize_nondep_then p1 s1 p2 s2 x));
     assert (Seq.slice (serialize s1 (fst x)) 0 len' == serialize s1 (fst x));
     seq_slice_append_l (serialize s1 (fst x)) (serialize s2 (snd x));
-    assert (no_lookahead_on_precond (coerce_to_bare_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
-    assert (no_lookahead_on_postcond (coerce_to_bare_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (no_lookahead_on_precond (coerce_to_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (no_lookahead_on_postcond (coerce_to_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
     assert (Some? v1');
-    assert (injective_precond (coerce_to_bare_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
-    assert (injective_postcond (coerce_to_bare_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (injective_precond (coerce_to_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
+    assert (injective_postcond (coerce_to_parser _ p1) (serialize s1 (fst x)) (bare_serialize_nondep_then p1 s1 p2 s2 x));
     let (Some (x1, len1)) = v1 in
     let (Some (x1', len1')) = v1' in
     assert (x1 == x1');
@@ -530,7 +500,7 @@ let serialize_nondep_then
 
 /// monadic return for the parser monad
 unfold
-let parse_fret' (#t #t':Type) (f: t -> GTot t') (v:t) : Tot (bare_parser t') =
+let parse_fret' (#t #t':Type) (f: t -> GTot t') (v:t) : Tot (parser t') =
   fun (b: bytes) -> Some (f v, (0 <: consumed_length b))
 
 unfold
@@ -631,7 +601,7 @@ unfold
 let lift_parser'
   (#t: Type0)
   (f: unit -> GTot (parser t))
-: Tot (bare_parser t)
+: Tot (parser t)
 = fun (input: bytes) -> parse (f ()) input
 
 unfold
@@ -640,9 +610,9 @@ let lift_parser
   (f: unit -> GTot (parser t))
 : Tot (parser t)
 = let p = lift_parser' f in
-  no_lookahead_weak_ext p (coerce_to_bare_parser _ (f ()));
-  no_lookahead_ext p (coerce_to_bare_parser _ (f ()));
-  injective_ext p (coerce_to_bare_parser _ (f ()));
+  no_lookahead_weak_ext p (coerce_to_parser _ (f ()));
+  no_lookahead_ext p (coerce_to_parser _ (f ()));
+  injective_ext p (coerce_to_parser _ (f ()));
   Parser p
 
 (** Refinements *)
