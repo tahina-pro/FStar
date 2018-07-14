@@ -1,0 +1,128 @@
+
+
+/// A buffer ``smaller`` is included in another buffer ``larger``, denoted
+/// as ``includes larger smaller``, if ``smaller`` is a sub-buffer of
+/// ``larger``. (See ``gsub`` below for how to actually construct such a
+/// sub-buffer of a buffer.)
+
+val includes (#a: Type) (larger smaller: buffer a) : GTot Type0
+
+
+/// The liveness of a sub-buffer is exactly equivalent to the liveness
+/// of its enclosing buffer.
+
+val includes_live (#a: Type) (h: HS.mem) (larger smaller: buffer a) : Lemma
+  (requires (larger `includes` smaller))
+  (ensures (live h larger <==> live h smaller))
+  [SMTPatOr [
+    [SMTPat (includes larger smaller); SMTPat (live h larger)];
+    [SMTPat (includes larger smaller); SMTPat (live h smaller)];
+  ]]
+
+
+/// If the contents of a buffer are equal in two given heaps, then so
+/// are the contents of any of its sub-buffers.
+
+val includes_as_seq (#a: Type) (h1 h2: HS.mem) (larger smaller: buffer a) : Lemma
+  (requires (larger `includes` smaller /\ as_seq h1 larger == as_seq h2 larger))
+  (ensures (as_seq h1 smaller == as_seq h2 smaller))
+
+
+/// Inclusion is a preorder.
+
+val includes_refl (#a: Type) (x: buffer a) : Lemma
+  (includes x x)
+  [SMTPat (includes x x)]
+
+val includes_trans (#a: Type) (x y z: buffer a) : Lemma
+  (requires (x `includes` y /\ y `includes` z))
+  (ensures (x `includes` z))
+  [SMTPatOr [
+    [SMTPat (x `includes` y); SMTPat (y `includes` z)];
+    [SMTPat (x `includes` y); SMTPat (x `includes` z)];
+    [SMTPat (y `includes` z); SMTPat (x `includes` z)];
+  ]]
+
+
+/// A buffer and any of its sub-buffers live in the same region, and
+/// at the same address, and are either both null or both not null.
+
+val includes_frameOf_as_addr (#a: Type) (larger smaller: buffer a) : Lemma
+  (requires (larger `includes` smaller))
+  (ensures (g_is_null larger == g_is_null smaller /\ frameOf larger == frameOf smaller /\ as_addr larger == as_addr smaller))
+  [SMTPat (larger `includes` smaller)]
+
+
+
+/// Two buffers are disjoint only if they span disjoint ranges of a
+/// common enclosing buffer, or if they live in different regions or
+/// at different addresses.
+
+val disjoint (#a1 #a2: Type) (b1: buffer a1) (b2: buffer a2) : GTot Type0
+
+
+/// Disjointness is symmetric.
+
+val disjoint_sym (#a1 #a2: Type) (b1: buffer a1) (b2: buffer a2) : Lemma
+  (disjoint b1 b2 <==> disjoint b2 b1)
+  [SMTPat (disjoint b1 b2)]
+
+
+/// If two buffers are disjoint, then so are any of their sub-buffers.
+
+val disjoint_includes_l (#a1 #a2: Type) (b1 b1' : buffer a1) (b2: buffer a2) : Lemma
+  (requires (includes b1 b1' /\ disjoint b1 b2))
+  (ensures (disjoint b1' b2))
+  [SMTPat (disjoint b1' b2); SMTPat (includes b1 b1')] 
+
+val disjoint_includes_r (#a1 #a2: Type) (b1 : buffer a1) (b2 b2': buffer a2) : Lemma
+  (requires (includes b2 b2' /\ disjoint b1 b2))
+  (ensures (disjoint b1 b2'))
+  [SMTPat (disjoint b1 b2'); SMTPat (includes b2 b2')] 
+
+
+/// A buffer that has not been allocated yet is disjoint from all
+/// buffers that are already currently allocated. Consequently, two
+/// buffers that are allocated separately are disjoint.
+
+val live_unused_in_disjoint (#a1 #a2: Type) (h: HS.mem) (b1: buffer a1) (b2: buffer a2) : Lemma
+  (requires (live h b1 /\ (unused_in b2 h)))
+  (ensures (disjoint b1 b2))
+(*
+  [SMTPatOr [
+    [SMTPat (live h b1); SMTPat (disjoint b1 b2)];
+    [SMTPat (live h b1); SMTPat (unused_in b2 h)];
+    [SMTPat (unused_in b2 h); SMTPat (disjoint b1 b2)];
+  ]]
+*)
+
+/// If two buffers live in different regions or at different
+/// addresses, then they are disjoint.
+
+val as_addr_disjoint (#a1 #a2: Type) (b1: buffer a1) (b2: buffer a2) : Lemma
+  (requires (frameOf b1 <> frameOf b2 \/ as_addr b1 <> as_addr b2))
+  (ensures (disjoint b1 b2))
+  [SMTPatOr [
+    [SMTPat (disjoint b1 b2)];
+    [SMTPat (frameOf b1); SMTPat (frameOf b2)];
+    [SMTPat (as_addr b1); SMTPat (as_addr b2)];
+  ]]
+
+
+/// The null pointer is disjoint from any buffer.
+
+val disjoint_null (a1: Type) (#a2: Type) (b2: buffer a2) : Lemma
+  (disjoint (null #a1) b2)
+
+/// If two buffers span disjoint ranges from a common enclosing
+/// buffer, then they are disjoint.
+
+val gsub_disjoint (#a: Type) (b: buffer a) (i1 len1 i2 len2: U32.t) : Lemma
+  (requires (
+    U32.v i1 + U32.v len1 <= length b /\
+    U32.v i2 + U32.v len2 <= length b /\
+    (U32.v i1 + U32.v len1 <= U32.v i2 \/ U32.v i2 + U32.v len2 <= U32.v i1)
+  ))
+  (ensures (disjoint (gsub b i1 len1) (gsub b i2 len2)))
+  [SMTPat (disjoint (gsub b i1 len1) (gsub b i2 len2))]
+
