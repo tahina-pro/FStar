@@ -490,7 +490,7 @@ val loc_includes_gsub_buffer_l
 
 val loc_includes_as_seq (#a: Type) (h1 h2: HS.mem) (larger smaller: buffer a) : Lemma
   (requires (loc_includes (loc_buffer larger) (loc_buffer smaller) /\ as_seq h1 larger == as_seq h2 larger /\ (live h1 larger \/ live h1 smaller) /\ (live h2 larger \/ live h2 smaller)))
-  (ensures (live h1 larger /\ live h1 smaller /\ live h2 larger /\ live h2 smaller /\ as_seq h1 smaller == as_seq h2 smaller))
+  (ensures (as_seq h1 smaller == as_seq h2 smaller))
 
 
 /// Given a buffer ``b``, if its address is in a set ``s`` of addresses in
@@ -1488,6 +1488,10 @@ let includes (#t: Type) (b1 b2: buffer t) : GTot Type0 =
   loc_includes (loc_buffer b1) (loc_buffer b2) /\
   (g_is_null b1 <==> g_is_null b2)
 
+val disjoint_neq (#a1 #a2: Type) (b1 : buffer a1) (b2 : buffer a2) : Lemma
+  (requires (disjoint b1 b2 /\ U32.v (len b1) > 0))
+  (ensures (~(b1 === b2)))
+
 /// The liveness of a sub-buffer is exactly equivalent to the liveness
 /// of its enclosing buffer.
 
@@ -1514,6 +1518,9 @@ inline_for_extraction
 type pointer_or_null (t: Type0) =
   b:buffer t { if g_is_null b then True else length b == 1 }
 
+unfold
+let deref #a (h: HS.mem) (x: pointer a) =
+  get h x 0
 
 /// Two pointers having different contents are disjoint. This is valid
 /// only for pointers, i.e. buffers of size 1.
@@ -1793,7 +1800,11 @@ val gcmalloc_of_list
     as_seq h' b == Seq.of_list init
   ))
 
-val blit
+/// Derived operations
+
+#set-options "--z3rlimit 16" // necessary here because of interleaving blit with the .fst file
+
+let rec blit
   (#t: Type)
   (src: buffer t)
   (idx_src: U32.t)
@@ -1816,12 +1827,23 @@ val blit
     Seq.slice (as_seq h' dst) (U32.v idx_dst + U32.v len) (length dst) ==
     Seq.slice (as_seq h dst) (U32.v idx_dst + U32.v len) (length dst)
   ))
+= let h0 = HST.get () in
+  if len = 0ul then ()
+  else begin
+    let len' = U32.(len -^ 1ul) in
+    blit #t src idx_src dst idx_dst len';
+    let z = U32.(index src (idx_src +^ len')) in
+    upd dst (U32.(idx_dst +^ len')) z;
+    let h1 = HST.get() in
+    Seq.snoc_slice_index (as_seq h1 dst) (U32.v idx_dst) (U32.v idx_dst + U32.v len');
+    Seq.cons_head_tail (Seq.slice (as_seq h0 dst) (U32.v idx_dst + U32.v len') (length dst));
+    Seq.cons_head_tail (Seq.slice (as_seq h1 dst) (U32.v idx_dst + U32.v len') (length dst))
+  end
+
+#set-options "--z3rlimit 16" // necessary here because of assign_list in the .fsti itself
 
 module L = FStar.List.Tot
 
-#set-options "--z3rlimit 16"
-
-/// TODO: remove two assumptions + make this meta-evaluate properly
 inline_for_extraction
 let rec assign_list #a (l: list a) (b: buffer a): HST.Stack unit
   (requires (fun h0 ->
@@ -1830,15 +1852,15 @@ let rec assign_list #a (l: list a) (b: buffer a): HST.Stack unit
   (ensures (fun h0 _ h1 ->
     live h1 b /\
     (modifies (loc_buffer b) h0 h1) /\
-    as_seq h1 b == Seq.of_list l))
+    as_seq h1 b == Seq.seq_of_list l))
 =
   match l with
-  | [] ->
+  | [] -> 
       let h = HST.get () in
       assert (length b = 0);
       assert (Seq.length (as_seq h b) = 0);
       assert (Seq.equal (as_seq h b) (Seq.empty #a));
-      assume (Seq.of_list [] == Seq.empty #a)
+      assert (Seq.seq_of_list [] `Seq.equal` Seq.empty #a)
   | hd :: tl ->
       let b_hd = sub b 0ul 1ul in
       let b_tl = offset b 1ul in
@@ -1849,12 +1871,12 @@ let rec assign_list #a (l: list a) (b: buffer a): HST.Stack unit
       let h1 = HST.get () in
       assert (as_seq h1 b_hd == as_seq h0 b_hd);
       assert (get h1 b_hd 0 == hd);
-      assert (as_seq h1 b_tl == Seq.of_list tl);
+      assert (as_seq h1 b_tl == Seq.seq_of_list tl);
       assert (Seq.equal (as_seq h1 b) (Seq.append (as_seq h1 b_hd) (as_seq h1 b_tl)));
-//    assert ((Seq.of_list l) == (Seq.cons hd (Seq.of_list tl)));
-      assume (as_seq h1 b == Seq.of_list l)
+      assert ((Seq.seq_of_list l) == (Seq.cons hd (Seq.seq_of_list tl)))
 
 #reset-options
+
 
 /// Type class instantiation for compositionality with other kinds of memory locations than regions, references or buffers (just in case).
 /// No usage pattern has been found yet.

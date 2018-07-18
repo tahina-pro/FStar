@@ -38,31 +38,6 @@ let ( *= ) (#a: Type) (p: B.pointer a) (v: a) : HST.Stack unit
   (ensures (fun h0 _ h1 ->
     B.live h1 p /\
     B.as_seq h1 p `Seq.equal` Seq.create 1 v /\
-    B.modifies_1 p h0 h1
+    B.modifies (B.loc_buffer p) h0 h1
   ))
 = B.upd p 0ul v
-
-module M = LowStar.Modifies // many people will forget about it, so add it here so that it appears in the dependencies, and so its patterns will be in the SMT verification context without polluting the F* scope
-module MP = LowStar.ModifiesPat
-
-unfold
-let deref #a (h: HS.mem) (x: B.pointer a) =
-  B.get h x 0
-
-module M = LowStar.ModifiesPat // many people will forget about it, so add it here so that it appears in the dependencies, and so its patterns will be in the SMT verification context without polluting the F* scope
-
-let rec blit #t a idx_a b idx_b len =
-  let h0 = HST.get () in
-  if len = 0ul then ()
-  else begin
-    let len' = U32.(len -^ 1ul) in
-    blit #t a idx_a b idx_b len';
-    let z = U32.(a.(idx_a +^ len')) in
-    b.(U32.(idx_b +^ len')) <- z;
-    let h1 = HST.get() in
-    Seq.snoc_slice_index (B.as_seq h1 b) (U32.v idx_b) (U32.v idx_b + U32.v len');
-    Seq.cons_head_tail (Seq.slice (B.as_seq h0 b) (U32.v idx_b + U32.v len') (B.length b));
-    Seq.cons_head_tail (Seq.slice (B.as_seq h1 b) (U32.v idx_b + U32.v len') (B.length b))
-  end
-
-assign_list

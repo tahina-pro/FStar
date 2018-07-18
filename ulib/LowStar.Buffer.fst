@@ -659,6 +659,19 @@ let loc_includes_gsub_buffer_l #t b i1 len1 i2 len2 =
   let b2 = gsub b1 (U32.sub i2 i1) len2 in
   loc_includes_buffer b1 b2
 
+let loc_includes_as_seq #a h1 h2 larger smaller =
+  if Null? smaller then () else
+  if Null? larger then begin
+    MG.loc_includes_none_elim (loc_buffer smaller);
+    MG.loc_of_aloc_not_none #_ #cls #(frameOf smaller) #(as_addr smaller) (ubuffer_of_buffer smaller)
+  end else begin
+    MG.loc_includes_aloc_elim #_ #cls #(frameOf larger) #(frameOf smaller) #(as_addr larger) #(as_addr smaller) (ubuffer_of_buffer larger) (ubuffer_of_buffer smaller);
+    let ul = Ghost.reveal (ubuffer_of_buffer larger) in
+    let us = Ghost.reveal (ubuffer_of_buffer smaller) in
+    assert (as_seq h1 smaller == Seq.slice (as_seq h1 larger) (us.b_offset - ul.b_offset) (us.b_offset - ul.b_offset + length smaller));
+    assert (as_seq h2 smaller == Seq.slice (as_seq h2 larger) (us.b_offset - ul.b_offset) (us.b_offset - ul.b_offset + length smaller))
+  end
+
 let loc_includes_addresses_buffer #t preserve_liveness r s p =
   MG.loc_includes_addresses_aloc #_ #cls preserve_liveness r s #(as_addr p) (ubuffer_of_buffer p)
 
@@ -912,6 +925,24 @@ let mreference_live_loc_not_unused_in =
 let mreference_unused_in_loc_unused_in =
   MG.mreference_unused_in_loc_unused_in cls
 
+let disjoint_neq #a1 #a2 b1 b2 =
+  if frameOf b1 = frameOf b2 && as_addr b1 = as_addr b2
+  then
+    MG.loc_disjoint_aloc_elim #_ #cls #(frameOf b1) #(as_addr b1) #(frameOf b2) #(as_addr b2) (ubuffer_of_buffer b1) (ubuffer_of_buffer b2)
+  else ()
+
+let includes_live #a h larger smaller =
+  if Null? larger || Null? smaller
+  then ()
+  else
+    MG.loc_includes_aloc_elim #_ #cls #(frameOf larger) #(frameOf smaller) #(as_addr larger) #(as_addr smaller) (ubuffer_of_buffer larger) (ubuffer_of_buffer smaller)
+
+let includes_frameOf_as_addr #a larger smaller =
+  if Null? larger || Null? smaller
+  then ()
+  else
+    MG.loc_includes_aloc_elim #_ #cls #(frameOf larger) #(frameOf smaller) #(as_addr larger) #(as_addr smaller) (ubuffer_of_buffer larger) (ubuffer_of_buffer smaller)
+
 let pointer_distinct_sel_disjoint #a b1 b2 h =
   if frameOf b1 = frameOf b2 && as_addr b1 = as_addr b2
   then begin
@@ -927,6 +958,7 @@ let pointer_distinct_sel_disjoint #a b1 b2 h =
   end
   else
     loc_disjoint_buffer b1 b2
+            
 
 (* Basic stateful operations *)
 
@@ -994,39 +1026,11 @@ let recallable' (#a: Type) (b: buffer a) : GTot Type0 =
 
 let recallable = recallable'
 
-(*
 let recallable_includes #a larger smaller =
-
-
-  let g1 () : Lemma
-    (requires (recallable larger))
-    (ensures (recallable smaller))
-  = if Null? smaller
-    then ()
-    else if Null? larger
-    then begin
-      MG.loc_includes_none_elim (loc_buffer smaller);
-      MG.loc_of_aloc_not_none #_ #cls #(frameOf smaller) #(as_addr smaller) (ubuffer_of_buffer smaller)
-    end else begin
-      MG.loc_includes_aloc_elim #_ #cls #(frameOf larger) #(frameOf smaller) #(as_addr larger) #(as_addr smaller) (ubuffer_of_buffer larger) (ubuffer_of_buffer smaller)
-    end
-  in
-  let g2 () : Lemma
-    (requires (recallable smaller))
-    (ensures (recallable larger))
-  = if Null? larger
-    then ()
-    else if Null? smaller
-    then begin
-      MG.loc_includes_none_elim (loc_buffer smaller);
-      MG.loc_of_aloc_not_none #_ #cls #(frameOf smaller) #(as_addr smaller) (ubuffer_of_buffer smaller)
-    end else begin
-      MG.loc_includes_aloc_elim #_ #cls #(frameOf larger) #(frameOf smaller) #(as_addr larger) #(as_addr smaller) (ubuffer_of_buffer larger) (ubuffer_of_buffer smaller)
-    end
-  in
-  Classical.move_requires g1 ();
-  Classical.move_requires g2 ()
-*)
+  if Null? larger || Null? smaller
+  then ()
+  else
+    MG.loc_includes_aloc_elim #_ #cls #(frameOf larger) #(frameOf smaller) #(as_addr larger) #(as_addr smaller) (ubuffer_of_buffer larger) (ubuffer_of_buffer smaller)
 
 let recall #a b =
   if Null? b
@@ -1104,67 +1108,38 @@ let gcmalloc_of_list #a r init =
   b
 
 
+(* type class *)
 
+let abuffer' = ubuffer'
 
+let coerce (t2: Type) (#t1: Type) (x1: t1) : Pure t2 (requires (t1 == t2)) (ensures (fun y -> y == x1)) = x1
 
+let cloc_cls =
+  assert_norm (MG.cls abuffer == MG.cls ubuffer);
+  coerce (MG.cls abuffer) cls
 
-(* Inclusion *)
+let cloc_of_loc l =
+  assert_norm (MG.cls abuffer == MG.cls ubuffer);
+  coerce (MG.loc cloc_cls) l
 
-(*
-let includes #a larger smaller =
-  match larger, smaller with
-  | Null, Null -> True
-  | Buffer max_len_l content_l idx_l len_l, Buffer max_len_s content_s idx_s len_s ->
-    max_len_l == max_len_s /\
-    content_l == content_s /\
-    U32.v idx_s >= U32.v idx_l /\
-    U32.v idx_l + U32.v len_l >= U32.v idx_s + U32.v len_s
-  | _ -> False
+let loc_of_cloc l =
+  assert_norm (MG.cls abuffer == MG.cls ubuffer);
+  coerce loc l
 
-let includes_live #a h larger smaller = ()
+let loc_of_cloc_of_loc l = ()
 
-let includes_as_seq #a h1 h2 larger smaller =
-  match larger, smaller with
-  | Buffer max_len_l content_l idx_l len_l, Buffer max_len_s content_s idx_s len_s ->
-    Seq.slice_slice (lseq_of_vec (HS.sel h1 content_l)) (U32.v idx_l) (U32.v idx_l + U32.v len_l) (U32.v idx_s - U32.v idx_l) (U32.v idx_s - U32.v idx_l + U32.v len_s);
-    Seq.slice_slice (lseq_of_vec (HS.sel h2 content_l)) (U32.v idx_l) (U32.v idx_l + U32.v len_l) (U32.v idx_s - U32.v idx_l) (U32.v idx_s - U32.v idx_l + U32.v len_s)
-  | _ -> ()
+let cloc_of_loc_of_cloc l = ()
 
-let includes_refl #a x = ()
+let cloc_of_loc_none _ = ()
 
-let includes_trans #a x y z = ()
+let cloc_of_loc_union _ _ = ()
 
-let includes_frameOf_as_addr #a larger smaller = ()
+let cloc_of_loc_addresses _ _ _ = ()
 
-let includes_gsub #a b i len = ()
+let cloc_of_loc_regions _ _ = ()
 
-(* Disjointness *)
+let loc_includes_to_cloc l1 l2 = ()
 
-let disjoint #a1 #a2 b1 b2 =
-  match b1, b2 with
-  | Buffer max_len1 content1 idx1 len1, Buffer max_len2 content2 idx2 len2 ->
-    if HS.frameOf content1 = HS.frameOf content2 && HS.as_addr content1 = HS.as_addr content2
-    then
-      (max_len1 == max_len2 /\ (
-        U32.v idx1 + U32.v len1 <= U32.v idx2 \/
-        U32.v idx2 + U32.v len2 <= U32.v idx1
-      ))
-    else True
-  | _ -> True
+let loc_disjoint_to_cloc l1 l2 = ()
 
-let disjoint_sym #a1 #a2 b1 b2 = ()
-
-let disjoint_includes_l #a1 #a2 b1 b1' b2 = ()
-
-let disjoint_includes_r #a1 #a2 b1 b2 b2' = ()
-
-let live_unused_in_disjoint #a1 #a2 h b1 b2 = ()
-
-let as_addr_disjoint #a1 #a2 b1 b2 = ()
-
-let disjoint_null a1 #a2 b2 = ()
-
-let gsub_disjoint #a b i1 len1 i2 len2 = ()
-
-
-
+let modifies_to_cloc l h1 h2 = ()
