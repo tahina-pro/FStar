@@ -25,9 +25,7 @@ module U8 = FStar.UInt8
 module U32 = FStar.UInt32
 module HST = FStar.HyperStack.ST
 
-assume type parser' (t: Type0) : Type0
-
-let parser : Type u#1 = (t: Type0 & parser' t)
+assume val parser (t: Type0) : Tot Type0
 
 inline_for_extraction
 let dsnd
@@ -39,7 +37,8 @@ let dsnd
 
 assume
 val valid_pos
-  (p: parser)
+  (t: Type0)
+  (p: parser t)
   (h: HS.mem)
   (b: B.buffer U8.t)
   (pos: U32.t)
@@ -54,67 +53,76 @@ val valid_pos
 
 assume
 val contents
-  (p: parser)
+  (t: Type)
+  (p: parser t)
   (h: HS.mem)
   (b: B.buffer U8.t)
   (pos: U32.t)
   (pos' : U32.t)
-: Ghost (dfst p)
-  (requires (valid_pos p h b pos pos'))
+: Ghost t
+  (requires (valid_pos t p h b pos pos'))
   (ensures (fun _ -> True))
 
 inline_for_extraction
-let repr_spec (a:Type u#x) (r_in: parser) (r_out:a -> parser) : Tot (Type u#x) =
-  (v_in: dfst r_in) ->
-  GTot (v: a & dfst (r_out v))
+let repr_spec (a:Type u#x) (r_in_t: Type0) (r_in: parser r_in_t) (r_out_t: a -> Type0) (r_out: (x:a -> parser (r_out_t x))) : Tot (Type u#x) =
+  (v_in: r_in_t) ->
+  GTot (v: a & r_out_t v)
 
 inline_for_extraction
-let repr_impl (a:Type u#x) (r_in: parser) (r_out:a -> parser) (b: B.buffer U8.t) (spec: repr_spec a r_in r_out) : Tot Type0 =
+let repr_impl (a:Type u#x) (r_in_t: Type0) (r_in: parser r_in_t) (r_out_t: a -> Type0) (r_out: (x:a -> parser (r_out_t x))) (b: B.buffer U8.t) (spec: repr_spec a r_in_t r_in r_out_t r_out) : Tot Type0 =
   (pos1: U32.t { U32.v pos1 <= B.length b }) ->
   HST.Stack (a & U32.t)
     (requires (fun h ->
-      valid_pos r_in h b 0ul pos1
+      valid_pos r_in_t r_in h b 0ul pos1
     ))
     (ensures (fun h (v, pos2) h' ->
       U32.v pos1 <= U32.v pos2 /\
-      valid_pos (r_out v) h' b 0ul pos2 /\
+      valid_pos (r_out_t v) (r_out v) h' b 0ul pos2 /\
       B.modifies (B.loc_buffer_from_to b 0ul pos2) h h' /\
-      spec (contents r_in h b 0ul pos1) ==
-        (| v, contents (r_out v) h' b 0ul pos2 |)
+      spec (contents r_in_t r_in h b 0ul pos1) ==
+        (| v, contents (r_out_t v) (r_out v) h' b 0ul pos2 |)
     ))
 
 inline_for_extraction
 let repr
   (a: Type u#x)
-  (r_in: parser) (r_out:a -> parser)
+  (r_in_t: Type0)
+  (r_in: parser r_in_t)
+  (r_out_t: (a -> Type0))
+  (r_out: (x:a -> parser (r_out_t x)))
   (b: B.buffer U8.t)
 : Tot (Type u#x)
-= dtuple2 (repr_spec a r_in r_out) (repr_impl a r_in r_out b)
+= dtuple2 (repr_spec a r_in_t r_in r_out_t r_out) (repr_impl a r_in_t r_in r_out_t r_out b)
 
 let return_spec
-  (a:Type) (x:a) (r: a -> parser)
-: Tot (repr_spec a (r x) r)
+  (a:Type) (x:a) (r_t: a -> Type0)  (r: (x:a) -> parser (r_t x))
+: Tot (repr_spec a (r_t x) (r x) r_t r)
 = fun c -> (| x, c |)
 
 inline_for_extraction
 let return_impl
-  (a:Type) (x:a) (r: a -> parser)
+  (a:Type) (x:a) (r_t: a -> Type0) (r: (x:a) -> parser (r_t x))
   (b: B.buffer U8.t)
-: Tot (repr_impl a (r x) r b (return_spec a x r))
+: Tot (repr_impl a (r_t x) (r x) r_t r b (return_spec a x r_t r))
 = fun pos1 -> (x, pos1)
 
 inline_for_extraction
 let returnc
-  (a:Type) (x:a) (r: a -> parser)
-  (b: B.buffer U8.t) 
-: Tot (repr a (r x) r b)
-= (| return_spec a x r, return_impl a x r b |)
+  (a:Type) (x:a) (r_t: a -> Type0) (r: (x:a) -> parser (r_t x))
+  (b: B.buffer U8.t)
+: Tot (repr a (r_t x) (r x) r_t r b)
+= (| return_spec a x r_t r, return_impl a x r_t r b |)
 
 let bind_spec (a:Type) (b:Type)
-  (r_in_f:parser) (r_out_f:a -> parser)
-  (r_out_g:b -> parser)
-  (f:repr_spec a r_in_f r_out_f) (g:(x:a -> repr_spec b (r_out_f x) r_out_g))
-: Tot (repr_spec b r_in_f r_out_g)
+  (r_in_t: Type0)
+  (r_in_f:parser r_in_t)
+  (r_out_f_t: a -> Type0)
+  (r_out_f: (x:a -> parser (r_out_f_t x)))
+  (r_out_g_t: b -> Type0)
+  (r_out_g: (x:b -> parser (r_out_g_t x)))
+  (f:repr_spec a r_in_t r_in_f r_out_f_t r_out_f)
+  (g:(x:a -> repr_spec b (r_out_f_t x) (r_out_f x) r_out_g_t r_out_g))
+: Tot (repr_spec b r_in_t r_in_f r_out_g_t r_out_g)
 = fun c ->
   let (| x, cf |) = f c in
   g x cf
@@ -141,48 +149,60 @@ let loc_includes_loc_buffer_from_to
 inline_for_extraction
 let bind_impl
   (a:Type) (b:Type)
-  (r_in_f:parser) (r_out_f:a -> parser)
-  (r_out_g:b -> parser)
-  (f:repr_spec a r_in_f r_out_f)
-  (g:(x:a -> repr_spec b (r_out_f x) r_out_g))
+  (r_in_f_t: Type0) (r_in_f:parser r_in_f_t) (r_out_f_t: a -> Type0) (r_out_f: (x:a -> parser (r_out_f_t x)))
+  (r_out_g_t: b -> Type0)
+  (r_out_g: (x:b -> parser (r_out_g_t x)))
+  (f:repr_spec a r_in_f_t r_in_f r_out_f_t r_out_f)
+  (g:(x:a -> repr_spec b (r_out_f_t x) (r_out_f x) r_out_g_t r_out_g))
   (buf: B.buffer U8.t)
-  (f' : repr_impl a r_in_f r_out_f buf f)
-  (g' : (x: a -> repr_impl b (r_out_f x) r_out_g buf (g x)))
-: Tot (repr_impl b r_in_f r_out_g buf (bind_spec a b r_in_f r_out_f r_out_g f g))
+  (f' : repr_impl a r_in_f_t r_in_f r_out_f_t r_out_f buf f)
+  (g' : (x: a -> repr_impl b (r_out_f_t x) (r_out_f x) r_out_g_t r_out_g buf (g x)))
+: Tot (repr_impl b r_in_f_t r_in_f r_out_g_t r_out_g buf (bind_spec a b r_in_f_t r_in_f r_out_f_t r_out_f r_out_g_t r_out_g f g))
 = fun pos ->
   match f' pos with
   | (x, posf) -> g' x posf
 
 inline_for_extraction
 let bind (a:Type) (b:Type)
-  (r_in_f: parser) (r_out_f:a -> parser)
-  (r_out_g:b -> parser)
+  (r_in_f_t: Type0)
+  (r_in_f: parser r_in_f_t)
+  (r_out_f_t: a -> Type0)
+  (r_out_f: (x:a -> parser (r_out_f_t x)))
+  (r_out_g_t: b -> Type0)
+  (r_out_g: (x:b -> parser (r_out_g_t x)))
   (buf: B.buffer U8.t)
-  (f:repr a r_in_f r_out_f buf) (g:(x:a -> repr b (r_out_f x) r_out_g buf))
-: Tot (repr b r_in_f r_out_g buf)
-= (| bind_spec a b r_in_f r_out_f r_out_g (dfst f) (fun x -> dfst (g x)), bind_impl a b r_in_f r_out_f r_out_g (dfst f) (fun x -> dfst (g x)) buf (dsnd f) (fun x -> dsnd (g x)) |)
+  (f:repr a r_in_f_t r_in_f r_out_f_t r_out_f buf) (g:(x:a -> repr b (r_out_f_t x) (r_out_f x) r_out_g_t r_out_g buf))
+: Tot (repr b r_in_f_t r_in_f r_out_g_t r_out_g buf)
+= (| bind_spec a b r_in_f_t r_in_f r_out_f_t r_out_f r_out_g_t r_out_g (dfst f) (fun x -> dfst (g x)), bind_impl a b r_in_f_t r_in_f r_out_f_t r_out_f r_out_g_t r_out_g (dfst f) (fun x -> dfst (g x)) buf (dsnd f) (fun x -> dsnd (g x)) |)
 
 inline_for_extraction
 let subcomp (a:Type)
-  (r_in:parser) (r_out:a -> parser)
+  (r_in_t: Type0)
+  (r_in:parser r_in_t)
+  (r_out_t: a -> Type0)
+  (r_out: (x: a -> parser (r_out_t x)))
   (buf: B.buffer U8.t)
-  (f:repr a r_in r_out buf)
-: (repr a r_in r_out buf)
+  (f:repr a r_in_t r_in r_out_t r_out buf)
+: (repr a r_in_t r_in r_out_t r_out buf)
 = f
 
 let if_then_else (a:Type)
-  (r_in:parser) (r_out:a -> parser)
+  (r_in_t: Type0)
+  (r_in:parser r_in_t)
+  (r_out_t: a -> Type0)
+  (r_out: (x: a -> parser (r_out_t x)))
   (buf: B.buffer U8.t)
-  (f:repr a r_in r_out buf) (g:repr a r_in r_out buf)
-  (p:Type0)
+  (f:repr a r_in_t r_in r_out_t r_out buf)
+  (g:repr a r_in_t r_in r_out_t r_out buf)
+  (p: Type0)
 : Type
-= repr a r_in r_out buf
+= repr a r_in_t r_in r_out_t r_out buf
 
 #push-options "--print_universes"
 
 reifiable reflectable
 layered_effect {
-  WRITE : a:Type -> parser -> (a -> parser) -> B.buffer U8.t -> Effect
+  WRITE : a:Type -> in_t: Type0 -> parser in_t -> out_t:(a -> Type0) -> (x: a -> parser (out_t x)) -> B.buffer U8.t -> Effect
   with
   repr = repr;
   return = returnc;
