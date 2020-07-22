@@ -486,7 +486,7 @@ let extract_t
     | Correct (v, v_out), IOverflow ->
       size (r_out) v_out > B.length b
     | Error s, IError s' ->
-      s == s'
+      True // s == s'
     | Error _, IOverflow ->
       (* overflow happened in implementation before specification could reach error *)
       True
@@ -496,7 +496,7 @@ let extract_t
 
 inline_for_extraction
 let extract
-  (#a:Type u#x)
+  (#a:Type0)
   (#r_in: parser)
   (#r_out: parser)
   (l: memory_invariant)

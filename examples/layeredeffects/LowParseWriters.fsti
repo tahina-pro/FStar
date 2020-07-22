@@ -88,7 +88,7 @@ val read_repr_impl
   (post_err: pure_post_err pre)
   (l: memory_invariant)
   (spec: read_repr_spec a pre post post_err)
-: Tot Type0
+: Tot (Type u#(max 1 x))
 
 inline_for_extraction
 val mk_read_repr_impl
@@ -108,14 +108,17 @@ val mk_read_repr_impl
     ))
     (ensures (fun h res h' ->
       B.modifies B.loc_none h h' /\
-      res == spec ()
+      begin match spec () with
+      | Correct r -> res == Correct r
+      | Error _ -> Error? res
+      end
     ))
   ))
 : Tot (read_repr_impl a pre post post_err l spec)
 
 inline_for_extraction
 val extract_read_repr_impl
-  (a:Type u#x)
+  (a:Type0)
   (pre: pure_pre)
   (post: pure_post' a pre)
   (post_err: pure_post_err pre)
@@ -130,7 +133,10 @@ val extract_read_repr_impl
   ))
   (ensures (fun h res h' ->
     B.modifies B.loc_none h h' /\
-    res == spec ()
+    begin match spec () with
+    | Correct r -> res == Correct r
+    | Error _ -> Error? res
+    end
   ))
 
 [@@ commute_nested_matches ]
@@ -386,7 +392,7 @@ let destr_read_repr_impl
 
 inline_for_extraction
 let reify_read
-  (a:Type u#x)
+  (a:Type0)
   (pre: pure_pre)
   (post: pure_post' a pre)
   (post_err: pure_post_err pre)
@@ -400,7 +406,10 @@ let reify_read
     ))
     (ensures (fun h res h' ->
       B.modifies B.loc_none h h' /\
-      res == destr_read_repr_spec _ _ _ _ _ r ()
+      begin match destr_read_repr_spec _ _ _ _ _ r () with
+      | Correct r -> res == Correct r
+      | Error _ -> Error? res
+      end
     ))
 =
   extract_read_repr_impl _ _ _ _ _ _ (destr_read_repr_impl _ _ _ _ _ r)
@@ -816,7 +825,7 @@ let repr_impl_post
     | Correct (v, v_out), IOverflow ->
       size (r_out) v_out > B.length b
     | Error s, IError s' ->
-      s == s'
+      True // s == s'
     | Error _, IOverflow ->
       (* overflow happened in implementation before specification could reach error *)
       True
@@ -840,7 +849,7 @@ val repr_impl
   (post_err: post_err_t r_in pre)
   (l: memory_invariant)
   (spec: repr_spec a r_in r_out pre post post_err)
-: Tot Type0
+: Tot (Type u#(max 1 x))
 
 inline_for_extraction
 val mk_repr_impl
@@ -871,7 +880,7 @@ val mk_repr_impl
 
 inline_for_extraction
 val extract_repr_impl
-  (a:Type u#x)
+  (a:Type0)
   (r_in: parser)
   (r_out: parser)
   (pre: pre_t r_in)
@@ -1256,7 +1265,7 @@ let extract_t
     | Correct (v, v_out), IOverflow ->
       size (r_out) v_out > B.length b
     | Error s, IError s' ->
-      s == s'
+      True // s == s'
     | Error _, IOverflow ->
       (* overflow happened in implementation before specification could reach error *)
       True
@@ -1266,7 +1275,7 @@ let extract_t
 
 inline_for_extraction
 let extract
-  (#a:Type u#x)
+  (#a:Type0)
   (#r_in: parser)
   (#r_out: parser)
   (#pre: pre_t r_in)
