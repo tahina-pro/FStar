@@ -294,9 +294,18 @@ let (test_z3_process_ctrl : Prims.bool -> unit) =
       (let uu___2 = FStar_Options.z3_exe () in
        FStar_Util.start_process "z3" uu___2 ["-smt2"; "-in"]
          (fun s -> s = "Done!")) in
-    let kill p_ =
-      FStar_Util.kill_process p_; FStar_Util.print_string "Killed z3\n" in
-    if should_kill then let q = fp () in kill q else ()
+    if should_kill
+    then
+      let kill p_ =
+        FStar_Util.kill_process p_; FStar_Util.print_string "Killed z3\n" in
+      let q = fp () in kill q
+    else
+      (let p = fp () in
+       let finish uu___1 =
+         let msg =
+           FStar_Util.ask_process p "(exit)\n" (fun uu___2 -> " ... exited") in
+         FStar_Util.print1 "Send z3 (exit) ... got %s\n" msg in
+       finish ())
 let main : 'uuuuu . unit -> 'uuuuu =
   fun uu___ ->
     try
