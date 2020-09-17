@@ -234,18 +234,18 @@ let test_z3_process_ctrl (should_kill:bool) =
       ["-smt2"; "-in"]
       (fun s -> s = "Done!")
   in
+(*
   let p = fp () in
+*)
   let kill p_ =
     Util.kill_process p_;
     Util.print_string "Killed z3\n"
   in
   begin if should_kill then begin
     let q = fp () in kill q;
-    let q = fp () in kill q;
-    let q = fp () in kill q;
-    let _ = fp () in
     ()
   end end;
+(*
   let ask () =
     let msg = Util.ask_process p "(echo \"Something\") (echo \"Done!\")\n" (fun _ -> "\nkilled\n") in
     Util.print1 "Asked z3 ... got %s\n" msg
@@ -255,7 +255,9 @@ let test_z3_process_ctrl (should_kill:bool) =
     Util.print1 "Send z3 (exit) ... got %s\n" msg
   in
   ask();  ask();  ask();
-  if should_kill then kill p else finish()
+  if should_kill then kill p else finish();
+*)
+  ()
 
 let main () =
   try
