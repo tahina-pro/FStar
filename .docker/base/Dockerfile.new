@@ -1,0 +1,37 @@
+FROM ubuntu:20.04
+
+MAINTAINER Benjamin Beurdouche <benjamin.beurdouche@inria.fr>; Victor Dumitrescu <victor.dumitrescu@nomadic-labs.com>; Daniel Fabian <daniel.fabian@integral-it.ch>;
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required packages
+RUN apt-get -qq update
+# RUN apt-get install -y software-properties-common
+# RUN add-apt-repository -y ppa:avsm/ppa # for opam 2
+# RUN apt-get -qq update
+RUN apt-get install --no-install-recommends -y ca-certificates sudo wget libssl-dev libsqlite3-dev g++ gcc m4 make opam pkg-config python libgmp3-dev unzip cmake git
+
+# Create user
+RUN useradd -ms /bin/bash build
+RUN echo "build ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
+USER build
+WORKDIR /home/build
+
+# Prepare and build OPAM and OCaml
+RUN opam init -y --disable-sandboxing --compiler=4.12.0
+RUN opam update
+RUN opam install -y ocamlbuild ocamlfind batteries stdint zarith yojson fileutils pprint menhir sedlex ppx_deriving ppx_deriving_yojson process pprint visitors fix wasm ppxlib=0.22.0 z3=4.8.5
+
+# Prepare and build F*
+WORKDIR /home/build
+ADD update-fstar.sh .
+RUN git clone --branch _taramana_ppxlib https://github.com/FStarLang/FStar.git --depth=1
+ENV FSTAR_HOME=/home/build/FStar
+WORKDIR $FSTAR_HOME
+RUN opam config exec -- make -C src boot-ocaml
+RUN opam config exec -- make -C src clean_extracted
+RUN opam config exec -- make -C src fstar-ocaml
+RUN opam config exec -- make -C src ocaml-unit-tests
+RUN opam config exec -- make -C src .fstarlib
+RUN opam config exec -- make -C src uregressions
+WORKDIR /home/build
