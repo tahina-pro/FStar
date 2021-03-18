@@ -355,8 +355,7 @@ function build_fstar() {
 
     # BEGIN  TODO: remove once global CI fixed
     if ocamlfind query ulex ; then opam remove ulex ; fi &&
-    if ocamlfind query ocaml-migrate-parsetree ; then opam remove ocaml-migrate-parsetree ; fi &&
-    if ! ocamlfind query ppxlib ; then opam install ppxlib=0.22.0 ; fi &&
+    opam install ppxlib=0.22.0 &&
     # END
 
     if [[ $localTarget == "fstar-binary-build" ]]; then
