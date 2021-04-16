@@ -414,3 +414,19 @@ val elim_vrewrite
 : SteelSel unit (vrewrite v f) (fun _ -> v)
     (fun _ -> elim_vrewrite_precond v f g)
     (fun h _ h' -> h (vrewrite v f) == f (h' v))
+
+val intro_vbox
+  (v: vprop)
+: SteelSel unit
+    v
+    (fun _ -> vbox v)
+    (fun _ -> True)
+    (fun h _ h' -> h'  (vbox v) == h v)
+
+val elim_vbox
+  (v: vprop)
+: SteelSel unit
+    (vbox v)
+    (fun _ -> v)
+    (fun _ -> True)
+    (fun h _ h' -> h (vbox v) == h' v)

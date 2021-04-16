@@ -262,6 +262,17 @@ let vrewrite' (v: vprop) (#t: Type) (f: (normal (t_of v) -> GTot t)) : Tot vprop
 [@__steel_reduce__]
 let vrewrite (v: vprop) (#t: Type) (f: (normal (t_of v) -> GTot t)) : Tot vprop = VUnit (vrewrite' v f)
 
+// [@__steel_reduce__]
+
+let vbox_id
+  (v: vprop)
+  (x: t_of v)
+: Tot (t_of v)
+= x
+
+[@__steel_reduce__]
+let vbox (v: vprop) : Tot vprop = vrewrite v #(t_of v) (vbox_id v)
+
 (* Specialize visit_tm to reimplement name_appears_in.
    AF: As of Jan 14, 2021, calling name_appears_in from FStar.Tactics.Derived leads to a segfault *)
 

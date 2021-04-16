@@ -800,3 +800,30 @@ let elim_vrewrite
     (fun m ->
       vrewrite_sel_eq v f m
     )
+
+unfold
+let coerce
+  (#a: Type)
+  (x: a)
+  (b: Type)
+: Pure b
+  (requires (a == b))
+  (ensures (fun y -> y == x))
+=
+  x
+
+let intro_vbox
+  v
+=
+  intro_vrewrite v #(t_of v) (vbox_id v);
+  change_equal_slprop
+    (vrewrite v #(t_of v) (vbox_id v))
+    (vbox v)
+
+let elim_vbox
+  v
+=
+  change_equal_slprop
+    (vbox v)
+    (vrewrite v #(t_of v) (vbox_id v));
+  elim_vrewrite v #(t_of v) (vbox_id v) (vbox_id v)
