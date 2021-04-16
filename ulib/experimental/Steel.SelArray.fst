@@ -170,8 +170,7 @@ let intro_vcons
 
 #set-options "--ide_id_info_off" 
 
-#push-options "--z3rlimit 64 --ifuel 4" // --query_stats"
-
+#push-options "--z3rlimit 16"
 #restart-solver
 
 let elim_vcons
@@ -185,7 +184,7 @@ let elim_vcons
       length a > 0 /\
       begin let s = coerce (h (varray1 a)) (Seq.lseq t (length a)) in
       h' (vptr (fst res)) == Seq.head s /\
-      True // Seq.tail s `Seq.equal` coerce (h' (varray1 (snd res))) (Seq.lseq t (length (snd res)))
+      Seq.tail s `Seq.equal` coerce (h' (varray1 (snd res))) (Seq.lseq t (length (snd res)))
       end
     )
 =
@@ -200,21 +199,16 @@ let elim_vcons
   change_equal_slprop
     (varray1 a)
     (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
-  let m1 = get #(vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ())) () in
-  assert (coerce (m0 (varray1 a)) (Seq.lseq t (length a)) == coerce (m1 (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()))) (Seq.lseq t (length a)));
   elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()) (vcons_rewrite_recip (Seq.length (q)) (r) (varray1 (q)) ());
   reveal_star (vptr (r)) (varray1 (q));
   let m = get #(vptr (r) `star` varray1 (q)) () in
   Seq.head_cons (m (vptr (r))) (coerce (m (varray1 (q))) (Seq.lseq t (length (q))));
   Seq.lemma_tl (m (vptr (r))) (coerce (m (varray1 (q))) (Seq.lseq t (length (q))));
-//  assume (m (varray1 q) == snd (m (vptr r `star` varray1 q)));
-//  assert (Seq.tail (coerce (m0 (varray1 a)) (Seq.lseq t (length a))) == coerce (m (varray1 q)) (Seq.lseq t (length q)));
   let res : (ref t & array t) = (r, q) in
   change_equal_slprop
     (vptr (r) `star` varray1 (q))
     (vptr (fst res) `star` varray1 (snd res));
   reveal_star (vptr (fst res)) (varray1 (snd res));
-  sladmit ();
   res
 
 #pop-options
