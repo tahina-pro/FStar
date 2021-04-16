@@ -1,5 +1,32 @@
 module Steel.SelArray
 
+(* Once brought into the Z3 context, the following equations allow sequences to behave like lists *)
+
+let _ : squash (
+  (forall (t: Type) (a: t) (s: Seq.seq t) .
+    Seq.head (Seq.cons a s) == a /\ Seq.tail (Seq.cons a s) == s) /\
+  (forall (t: Type) (s: Seq.seq t) .
+    Seq.length s > 0 ==>
+    s == Seq.cons (Seq.head s) (Seq.tail s))
+) =
+  let f
+    (t: Type) (a: t) (s: Seq.seq t)
+  : Lemma
+    (Seq.head (Seq.cons a s) == a /\ Seq.tail (Seq.cons a s) == s)
+  = Seq.head_cons a s;
+    Seq.lemma_tl a s
+  in
+  let g
+    (t: Type) (s: Seq.seq t)
+  : Lemma
+    (Seq.length s > 0 ==> s == Seq.cons (Seq.head s) (Seq.tail s))
+  =
+    if Seq.length s > 0
+    then Seq.cons_head_tail s
+  in
+  Classical.forall_intro_3 f;
+  Classical.forall_intro_2 g
+
 let array t = Seq.seq (ref t)
 let length #t a = Seq.length a
 
@@ -46,13 +73,6 @@ let vcons_rewrite_recip_correct
   (elim_vrewrite_precond (vptr r `star` v) (vcons_rewrite n r v sq) (vcons_rewrite_recip n r v sq))
   [SMTPat (elim_vrewrite_precond (vptr r `star` v) (vcons_rewrite n r v sq) (vcons_rewrite_recip n r v sq))]
 =
-  let g (xy: t_of (vptr r `star` v)) 
-    : Lemma
-      (vcons_rewrite_recip n r v sq (vcons_rewrite n r v sq xy) == xy)
-      [SMTPat (vcons_rewrite_recip n r v sq (vcons_rewrite n r v sq xy))]
-  = Seq.head_cons (fst xy) (snd xy);
-    Seq.lemma_tl (fst xy) (snd xy)
-  in
   ()
 
 let vcons
@@ -173,8 +193,6 @@ let intro_vcons1
   reveal_star (vptr r) (varray1 a); // FIXME: WHY WHY WHY?
   intro_vrewrite (vptr r `star` varray1 a) (vcons_rewrite (Seq.length a) r (varray1 a) ());
   let a' : array t = Seq.cons r a in
-  Seq.head_cons r a;
-  Seq.lemma_tl r a;
   change_equal_slprop
     (vrewrite (vptr r `star` varray1 a) (vcons_rewrite (Seq.length a) r (varray1 a) ()))
     (varray1 a');
@@ -217,22 +235,14 @@ let elim_vcons1
       end
     )
 =
-  let m0 = get #(varray1 a) () in
-  Seq.cons_head_tail (coerce (m0 (varray1 a)) (Seq.lseq t (length a)));
   let a0 : Seq.seq (ref t) = a in
-  Seq.cons_head_tail a0;
   let r = Seq.head a0 in
   let q = Seq.tail a0 in
-  Seq.head_cons r q;
-  Seq.lemma_tl r q;
   change_equal_slprop
     (varray1 a)
     (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
   elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()) (vcons_rewrite_recip (Seq.length (q)) (r) (varray1 (q)) ());
   reveal_star (vptr (r)) (varray1 (q));
-  let m = get #(vptr (r) `star` varray1 (q)) () in
-  Seq.head_cons (m (vptr (r))) (coerce (m (varray1 (q))) (Seq.lseq t (length (q))));
-  Seq.lemma_tl (m (vptr (r))) (coerce (m (varray1 (q))) (Seq.lseq t (length (q))));
   let res : (ref t & array t) = (r, q) in
   change_equal_slprop
     (vptr (r) `star` varray1 (q))
