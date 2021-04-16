@@ -433,9 +433,12 @@ let adjacent #_ _ _ = True
 let merge #t a1 a2 = Seq.append a1 a2
 let freeable #t a = True
 
-let join #t al ar = sladmit ()
+let join #t al ar =
+  vappend al ar
 
-let split #t a i = sladmit ()
+let split #t a i =
+  Seq.lemma_split a (U32.v i);
+  vsplit a i
 
 let alloc x n = sladmit ()
 (*
