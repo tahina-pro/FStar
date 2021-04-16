@@ -2,7 +2,7 @@ module Steel.SelArray
 
 (* Once brought into the Z3 context, the following equations allow sequences to behave like lists *)
 
-let _ : squash (
+let seq_facts () : Lemma (
   (forall (t: Type) (s: Seq.seq t) .
     Seq.length s == 0 ==> s == Seq.empty) /\
   (forall (t: Type) (a: t) (s: Seq.seq t) .
@@ -83,7 +83,7 @@ let vcons_rewrite_recip_correct
   (elim_vrewrite_precond (vptr r `star` v) (vcons_rewrite n r v sq) (vcons_rewrite_recip n r v sq))
   [SMTPat (elim_vrewrite_precond (vptr r `star` v) (vcons_rewrite n r v sq) (vcons_rewrite_recip n r v sq))]
 =
-  ()
+  seq_facts ()
 
 let vcons
   (#t: Type)
@@ -186,6 +186,7 @@ let intro_vnil
       h' (varray r) == Seq.empty
     )
 =
+  seq_facts ();
   let res = intro_vnil1 t in
   intro_varray res;
   res
@@ -204,6 +205,7 @@ let intro_vcons1
         Seq.cons (h (vptr r)) (coerce (h (varray1 a)) (Seq.lseq t (length a)))
     )
 =
+  seq_facts ();
   reveal_star (vptr r) (varray1 a); // FIXME: WHY WHY WHY?
   intro_vrewrite (vptr r `star` varray1 a) (vcons_rewrite (Seq.length a) r (varray1 a) ());
   let a' : array t = Seq.cons r a in
@@ -337,6 +339,7 @@ let rec vappend
     )
     (decreases (length a1))
 =
+  seq_facts ();
   if Seq.length a1 = 0
   then begin
     elim_nil a1;
@@ -351,6 +354,78 @@ let rec vappend
 
 #pop-options
 
+let slice_cons_left
+  (#t: Type)
+  (a: t)
+  (x: Seq.seq t)
+  (i: nat)
+: Lemma
+  ((i > 0 /\ i <= Seq.length x + 1) ==> Seq.slice (Seq.cons a x) 0 i == Seq.cons a (Seq.slice x 0 (i - 1)))
+= if i > 0 && i <= Seq.length x + 1 then assert (Seq.slice (Seq.cons a x) 0 i `Seq.equal` Seq.cons a (Seq.slice x 0 (i - 1)))
+
+let slice_cons_right
+  (#t: Type)
+  (a: t)
+  (x: Seq.seq t)
+  (i: nat)
+: Lemma
+  ((i > 0 /\ i <= Seq.length x + 1) ==> Seq.slice (Seq.cons a x) i (Seq.length x + 1) == Seq.slice x (i - 1) (Seq.length x))
+= if i > 0 && i <= Seq.length x + 1 then assert (Seq.slice (Seq.cons a x) i (Seq.length x + 1) `Seq.equal` Seq.slice x (i - 1) (Seq.length x))
+
+#push-options "--z3rlimit 16"  // 256 --fuel 6 --ifuel 6"
+#restart-solver
+
+let rec vsplit
+  (#t: Type)
+  (a: array t)
+  (i: U32.t)
+: SteelSel (array t & array t)
+    (varray a)
+    (fun res -> varray (pfst res) `star` varray (psnd res))
+    (fun _ -> U32.v i <= length a)
+    (fun h res h' ->
+      let s = h (varray a) in
+      U32.v i <= length a /\
+      pfst res `Seq.equal` Seq.slice a 0 (U32.v i) /\
+      psnd res `Seq.equal` Seq.slice a (U32.v i) (length a) /\
+      h' (varray (pfst res)) == Seq.slice s 0 (U32.v i) /\
+      h' (varray (psnd res)) `Seq.equal` Seq.slice s (U32.v i) (length a)
+    )
+    (decreases (U32.v i))
+=
+  seq_facts ();
+  let m0 = get #(varray a) () in
+  if i = 0ul
+  then begin
+    let n = intro_vnil t in
+    reveal_star (varray n) (varray a);
+    let res = (n, a) in
+    change_equal_slprop
+      (varray n `star` varray a)
+      (varray (pfst res) `star` varray (psnd res));
+    reveal_star (varray (pfst res)) (varray (psnd res));
+    res
+  end else begin
+    let hd_tl : (ref t & array t) = elim_vcons a in
+    reveal_star (vptr (pfst hd_tl)) (varray (psnd hd_tl));
+    let j = i `U32.sub` 1ul in
+    assert (U32.v j == U32.v i - 1);
+    let m2 = get #(vptr (pfst hd_tl) `star` varray (psnd hd_tl)) () in
+    slice_cons_left (m2 (vptr (pfst hd_tl))) (m2 (varray (psnd hd_tl))) (U32.v i);
+    slice_cons_right (m2 (vptr (pfst hd_tl))) (m2 (varray (psnd hd_tl))) (U32.v i);
+    let sl_sr = vsplit (psnd hd_tl) j in
+    reveal_star_3 (vptr (pfst hd_tl)) (varray (pfst sl_sr)) (varray (psnd sl_sr)); // FIXME: WHY WHY WHY?
+    let sl = intro_vcons (pfst hd_tl) (pfst sl_sr) in
+    reveal_star (varray sl) (varray (psnd sl_sr));
+    let res = (sl, psnd sl_sr) in
+    change_equal_slprop
+      (varray sl `star` varray (psnd sl_sr))
+      (varray (pfst res) `star` varray (psnd res));
+    reveal_star (varray (pfst res)) (varray (psnd res));
+    res
+  end
+
+#pop-options
 
 (* FIXME: refine the model with nontrivial boundaries. To do that, I will need fractional permissions. *)
 
