@@ -63,7 +63,7 @@ let vcons
 : Pure vprop
   (requires (t_of v == Seq.lseq t n))
   (ensures (fun v' -> t_of v' == Seq.lseq t (n + 1)))
-= vrewrite (vptr r `star` v) (vcons_rewrite n r v ())
+= vrewrite (vptr r `star` vbox v) (vcons_rewrite n r v ())
 
 let rec varray1
   (#t: Type0)
@@ -159,33 +159,35 @@ let intro_vcons
     )
 =
   reveal_star (vptr r) (varray1 a); // FIXME: WHY WHY WHY?
-  intro_vrewrite (vptr r `star` varray1 a) (vcons_rewrite (Seq.length a) r (varray1 a) ());
+  intro_vbox (varray1 a);
+  reveal_star (vptr r) (vbox (varray1 a));
+  intro_vrewrite (vptr r `star` vbox (varray1 a)) (vcons_rewrite (Seq.length a) r (varray1 a) ());
   let a' : array t = Seq.cons r a in
   Seq.head_cons r a;
   Seq.lemma_tl r a;
   change_equal_slprop
-    (vrewrite (vptr r `star` varray1 a) (vcons_rewrite (Seq.length a) r (varray1 a) ()))
+    (vrewrite (vptr r `star` vbox (varray1 a)) (vcons_rewrite (Seq.length a) r (varray1 a) ()))
     (varray1 a');
   a'
 
 #set-options "--ide_id_info_off" 
 
-#push-options "--z3rlimit 64 --ifuel 4" // --query_stats"
+#push-options "--z3rlimit 16"
 
 #restart-solver
 
-let elim_vcons
+let elim_vcons'
   (#t: Type)
   (a: array t)
 : SteelSel (ref t & array t)
     (varray1 a)
-    (fun res -> vptr (fst res) `star` varray1 (snd res))
+    (fun res -> vptr (fst res) `star` vbox (varray1 (snd res)))
     (fun _ -> length a > 0)
     (fun h res h' ->
       length a > 0 /\
       begin let s = coerce (h (varray1 a)) (Seq.lseq t (length a)) in
       h' (vptr (fst res)) == Seq.head s /\
-      True // Seq.tail s `Seq.equal` coerce (h' (varray1 (snd res))) (Seq.lseq t (length (snd res)))
+      Seq.tail s == coerce (h' (vbox (varray1 (snd res)))) (Seq.lseq t (length (snd res)))
       end
     )
 =
@@ -199,25 +201,45 @@ let elim_vcons
   Seq.lemma_tl r q;
   change_equal_slprop
     (varray1 a)
-    (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
-  let m1 = get #(vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ())) () in
-  assert (coerce (m0 (varray1 a)) (Seq.lseq t (length a)) == coerce (m1 (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()))) (Seq.lseq t (length a)));
-  elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()) (vcons_rewrite_recip (Seq.length (q)) (r) (varray1 (q)) ());
-  reveal_star (vptr (r)) (varray1 (q));
-  let m = get #(vptr (r) `star` varray1 (q)) () in
-  Seq.head_cons (m (vptr (r))) (coerce (m (varray1 (q))) (Seq.lseq t (length (q))));
-  Seq.lemma_tl (m (vptr (r))) (coerce (m (varray1 (q))) (Seq.lseq t (length (q))));
-//  assume (m (varray1 q) == snd (m (vptr r `star` varray1 q)));
-//  assert (Seq.tail (coerce (m0 (varray1 a)) (Seq.lseq t (length a))) == coerce (m (varray1 q)) (Seq.lseq t (length q)));
+    (vrewrite (vptr (r) `star` vbox (varray1 q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
+  vcons_rewrite_recip_correct (Seq.length q) r (varray1 q) ();
+  elim_vrewrite (vptr (r) `star` vbox (varray1 q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()
+  ) (vcons_rewrite_recip (Seq.length (q)) (r) (varray1 (q)) ());
+  reveal_star (vptr (r)) (vbox (varray1 (q)));
+  let m = get #(vptr (r) `star` vbox (varray1 q)) () in
+  Seq.head_cons (m (vptr (r))) (coerce (m (vbox (varray1 q))) (Seq.lseq t (length (q))));
+  Seq.lemma_tl (m (vptr (r))) (coerce (m (vbox (varray1 q))) (Seq.lseq t (length (q))));
   let res : (ref t & array t) = (r, q) in
   change_equal_slprop
-    (vptr (r) `star` varray1 (q))
-    (vptr (fst res) `star` varray1 (snd res));
-  reveal_star (vptr (fst res)) (varray1 (snd res));
-  sladmit ();
+    (vptr (r) `star` vbox (varray1 q))
+    (vptr (fst res) `star` vbox (varray1 (snd res)));
+  reveal_star (vptr (fst res)) (vbox (varray1 (snd res)));
   res
 
 #pop-options
+
+let elim_vcons
+  (#t: Type)
+  (a: array t)
+: SteelSel (ref t & array t)
+    (varray1 a)
+    (fun res -> vptr (fst res) `star` (varray1 (snd res)))
+    (fun _ -> length a > 0)
+    (fun h res h' ->
+      length a > 0 /\
+      begin let s = coerce (h (varray1 a)) (Seq.lseq t (length a)) in
+      h' (vptr (fst res)) == Seq.head s /\
+      Seq.tail s == coerce (h' ((varray1 (snd res)))) (Seq.lseq t (length (snd res)))
+      end
+    )
+= let res : (ref t & array t)  = elim_vcons' a in
+  reveal_star (vptr (fst res)) (vbox (varray1 (snd res)));
+  let m = get #(vptr (fst res) `star` vbox (varray1 (snd res))) () in
+  elim_vbox (varray1 (snd res));
+  reveal_star (vptr (fst res)) (varray1 (snd res));
+  let m' = get #(vptr (fst res)`star` varray1 (snd res)) () in
+//  assert (m' (varray1 (snd res)) == m (vbox (varray1 (snd res))));
+  res
 
 (* FIXME: refine the model with nontrivial boundaries. To do that, I will need fractional permissions. *)
 
