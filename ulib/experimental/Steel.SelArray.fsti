@@ -20,6 +20,24 @@ open Steel.SelEffect
 open FStar.Ghost
 module U32 = FStar.UInt32
 
+(* escape hatches to avoid normalization by SteelSel tactics *)
+
+let pfst
+  (#t1 #t2: Type)
+  (x: (t1 & t2))
+: Pure t1
+  (requires True)
+  (ensures (fun y -> y == fst x))
+= fst x
+
+let psnd
+  (#t1 #t2: Type)
+  (x: (t1 & t2))
+: Pure t2
+  (requires True)
+  (ensures (fun y -> y == snd x))
+= snd x
+
 val array (t:Type u#0) : Type u#0
 val length (#t: Type) (a: array t) : GTot nat
 
@@ -79,7 +97,7 @@ val join (#t:Type) (al ar:array t)
 val split (#t:Type) (a:array t) (i:U32.t)
   : SteelSel (array t & array t)
           (varray a)
-          (fun res -> varray (fst res) `star` varray (snd res))
+          (fun res -> varray (pfst res) `star` varray (psnd res))
           (fun _ -> U32.v i <= length a)
           (fun h (al, ar) h' ->
             let s = h (varray a) in
