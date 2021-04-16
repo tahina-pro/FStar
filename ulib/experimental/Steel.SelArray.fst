@@ -127,7 +127,7 @@ let elim_varray
     x'
     (fun _ -> ())
 
-let intro_nil
+let intro_nil1
   (t: Type)
 : SteelSel (array t)
     vemp
@@ -145,7 +145,19 @@ let intro_nil
     (fun _ -> ());
   r
 
-let intro_vcons
+let intro_nil
+  (t: Type)
+: SteelSel (array t)
+    vemp
+    (fun r -> varray r)
+    (fun _ -> True)
+    (fun _ r _ -> length r == 0)
+=
+  let res = intro_nil1 t in
+  intro_varray res;
+  res
+
+let intro_vcons1
   (#t: Type)
   (r: ref t)
   (a: array t)
@@ -168,12 +180,29 @@ let intro_vcons
     (varray1 a');
   a'
 
+let intro_vcons
+  (#t: Type)
+  (r: ref t)
+  (a: array t)
+: SteelSel (array t)
+    (vptr r `star` varray a)
+    (fun a' -> varray a')
+    (fun _ -> True)
+    (fun h a' h' ->
+      h' (varray a') ==
+        Seq.cons (h (vptr r)) (h (varray a))
+    )
+= elim_varray a;
+  let res = intro_vcons1 r a in
+  intro_varray res;
+  res
+
 #set-options "--ide_id_info_off" 
 
 #push-options "--z3rlimit 16"
 #restart-solver
 
-let elim_vcons
+let elim_vcons1
   (#t: Type)
   (a: array t)
 : SteelSel (ref t & array t)
@@ -184,7 +213,7 @@ let elim_vcons
       length a > 0 /\
       begin let s = coerce (h (varray1 a)) (Seq.lseq t (length a)) in
       h' (vptr (fst res)) == Seq.head s /\
-      Seq.tail s `Seq.equal` coerce (h' (varray1 (snd res))) (Seq.lseq t (length (snd res)))
+      Seq.tail s == coerce (h' (varray1 (snd res))) (Seq.lseq t (length (snd res)))
       end
     )
 =
@@ -212,6 +241,26 @@ let elim_vcons
   res
 
 #pop-options
+
+let elim_vcons
+  (#t: Type)
+  (a: array t)
+: SteelSel (ref t & array t)
+    (varray a)
+    (fun res -> vptr (fst res) `star` varray (snd res))
+    (fun _ -> length a > 0)
+    (fun h res h' ->
+      length a > 0 /\
+      begin let s = h (varray a) in
+      h' (vptr (fst res)) == Seq.head s /\
+      Seq.tail s == h' (varray (snd res))
+      end
+    )
+=
+  elim_varray a;
+  let res = elim_vcons1 a in
+  intro_varray (snd res);
+  res
 
 (* FIXME: refine the model with nontrivial boundaries. To do that, I will need fractional permissions. *)
 
