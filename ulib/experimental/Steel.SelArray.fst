@@ -3,12 +3,21 @@ module Steel.SelArray
 (* Once brought into the Z3 context, the following equations allow sequences to behave like lists *)
 
 let _ : squash (
+  (forall (t: Type) (s: Seq.seq t) .
+    Seq.length s == 0 ==> s == Seq.empty) /\
   (forall (t: Type) (a: t) (s: Seq.seq t) .
     Seq.head (Seq.cons a s) == a /\ Seq.tail (Seq.cons a s) == s) /\
   (forall (t: Type) (s: Seq.seq t) .
     Seq.length s > 0 ==>
     s == Seq.cons (Seq.head s) (Seq.tail s))
 ) =
+  let e
+    (t: Type) (s: Seq.seq t)
+  : Lemma
+    (Seq.length s == 0 ==> s == Seq.empty)
+  =
+    if Seq.length s = 0 then assert (s `Seq.equal` Seq.empty)
+  in
   let f
     (t: Type) (a: t) (s: Seq.seq t)
   : Lemma
@@ -24,6 +33,7 @@ let _ : squash (
     if Seq.length s > 0
     then Seq.cons_head_tail s
   in
+  Classical.forall_intro_2 e;
   Classical.forall_intro_3 f;
   Classical.forall_intro_2 g
 
@@ -147,7 +157,7 @@ let elim_varray
     x'
     (fun _ -> ())
 
-let intro_nil1
+let intro_vnil1
   (t: Type)
 : SteelSel (array t)
     vemp
@@ -165,15 +175,18 @@ let intro_nil1
     (fun _ -> ());
   r
 
-let intro_nil
+let intro_vnil
   (t: Type)
 : SteelSel (array t)
     vemp
     (fun r -> varray r)
     (fun _ -> True)
-    (fun _ r _ -> length r == 0)
+    (fun _ r h' ->
+      r == Seq.empty /\
+      h' (varray r) == Seq.empty
+    )
 =
-  let res = intro_nil1 t in
+  let res = intro_vnil1 t in
   intro_varray res;
   res
 
@@ -186,6 +199,7 @@ let intro_vcons1
     (fun a' -> varray1 a')
     (fun _ -> True)
     (fun h a' h' ->
+      a' == Seq.cons r a /\
       (coerce (h' (varray1 a')) (Seq.lseq t (Seq.length a')) <: Seq.seq t) ==
         Seq.cons (h (vptr r)) (coerce (h (varray1 a)) (Seq.lseq t (length a)))
     )
@@ -207,6 +221,7 @@ let intro_vcons
     (fun a' -> varray a')
     (fun _ -> True)
     (fun h a' h' ->
+      a' == Seq.cons r a /\
       h' (varray a') ==
         Seq.cons (h (vptr r)) (h (varray a))
     )
@@ -220,18 +235,27 @@ let intro_vcons
 #push-options "--z3rlimit 16"
 #restart-solver
 
+noeq
+type res_t
+  (t: Type)
+= {
+  hd : ref t;
+  tl : array t;
+}
+
 let elim_vcons1
   (#t: Type)
   (a: array t)
-: SteelSel (ref t & array t)
+: SteelSel (res_t t)
     (varray1 a)
-    (fun res -> vptr (fst res) `star` varray1 (snd res))
+    (fun res -> vptr (res.hd) `star` varray1 (res.tl))
     (fun _ -> length a > 0)
     (fun h res h' ->
       length a > 0 /\
       begin let s = coerce (h (varray1 a)) (Seq.lseq t (length a)) in
-      h' (vptr (fst res)) == Seq.head s /\
-      Seq.tail s == coerce (h' (varray1 (snd res))) (Seq.lseq t (length (snd res)))
+      h' (vptr (res.hd)) == Seq.head s /\
+      Seq.tail s == coerce (h' (varray1 (res.tl))) (Seq.lseq t (length (res.tl))) /\
+      a == Seq.cons (res.hd) (res.tl)
       end
     )
 =
@@ -243,11 +267,11 @@ let elim_vcons1
     (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
   elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()) (vcons_rewrite_recip (Seq.length (q)) (r) (varray1 (q)) ());
   reveal_star (vptr (r)) (varray1 (q));
-  let res : (ref t & array t) = (r, q) in
+  let res : (res_t t) = { hd = r; tl = q } in
   change_equal_slprop
     (vptr (r) `star` varray1 (q))
-    (vptr (fst res) `star` varray1 (snd res));
-  reveal_star (vptr (fst res)) (varray1 (snd res));
+    (vptr (res.hd) `star` varray1 (res.tl));
+  reveal_star (vptr (res.hd)) (varray1 (res.tl));
   res
 
 #pop-options
@@ -255,22 +279,86 @@ let elim_vcons1
 let elim_vcons
   (#t: Type)
   (a: array t)
-: SteelSel (ref t & array t)
+: SteelSel (res_t t)
     (varray a)
-    (fun res -> vptr (fst res) `star` varray (snd res))
+    (fun res -> vptr (res.hd) `star` varray (res.tl))
     (fun _ -> length a > 0)
     (fun h res h' ->
       length a > 0 /\
       begin let s = h (varray a) in
-      h' (vptr (fst res)) == Seq.head s /\
-      Seq.tail s == h' (varray (snd res))
+      s == Seq.cons (h' (vptr (res.hd))) (h' (varray (res.tl))) /\
+      a == Seq.cons (res.hd) (res.tl)
       end
     )
 =
   elim_varray a;
   let res = elim_vcons1 a in
-  intro_varray (snd res);
+  intro_varray (res.tl);
   res
+
+let elim_nil
+  (#t: Type)
+  (a: array t)
+: SteelSel unit
+    (varray a)
+    (fun _ -> vemp)
+    (fun _ -> length a == 0)
+    (fun _ _ _ -> True)
+= sladmit ()
+
+let seq_append_nil
+  (#t: Type)
+  (a2: Seq.seq t)
+: Lemma
+  (Seq.append Seq.empty a2 == a2)
+  [SMTPat (Seq.append Seq.empty a2)]
+= assert (Seq.append Seq.empty a2 `Seq.equal` a2)
+
+#push-options "--z3rlimit 16"
+#restart-solver
+
+let seq_append_cons
+  (#t: Type)
+  (c: t)
+  (a1 a2: Seq.seq t)
+: Lemma
+  (Seq.append (Seq.cons c a1) a2 == Seq.cons c (Seq.append a1 a2))
+  [SMTPat (Seq.append (Seq.cons c a1) a2)]
+=
+  assert (Seq.append (Seq.cons c a1) a2 `Seq.equal` Seq.cons c (Seq.append a1 a2))
+
+#pop-options
+
+#push-options "--z3rlimit 16"
+#restart-solver
+
+let rec vappend
+  (#t: Type)
+  (a1 a2: array t)
+: SteelSel (array t)
+    (varray a1 `star` varray a2)
+    (fun r -> varray r)
+    (fun _ -> True)
+    (fun h r h' ->
+      h' (varray r) == Seq.append (h (varray a1)) (h (varray a2)) /\
+      r == Seq.append a1 a2
+    )
+    (decreases (length a1))
+=
+  if Seq.length a1 = 0
+  then begin
+    elim_nil a1;
+    a2
+  end else begin
+    let hd_tl = elim_vcons a1 in
+    reveal_star_3 (vptr (hd_tl.hd)) (varray (hd_tl.tl)) (varray a2); // FIXME: WHY WHY WHY?
+    let tl' = vappend hd_tl.tl a2 in
+    let res = intro_vcons hd_tl.hd tl' in
+    res
+  end
+
+#pop-options
+
 
 (* FIXME: refine the model with nontrivial boundaries. To do that, I will need fractional permissions. *)
 
