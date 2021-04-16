@@ -33,7 +33,6 @@ let varray' #a r : vprop' =
    sel = array_sel r}
 
 [@@ __steel_reduce__]
-unfold
 let varray r = VUnit (varray' r)
 
 [@@ __steel_reduce__]
