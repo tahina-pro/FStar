@@ -99,12 +99,12 @@ val split (#t:Type) (a:array t) (i:U32.t)
           (varray a)
           (fun res -> varray (pfst res) `star` varray (psnd res))
           (fun _ -> U32.v i <= length a)
-          (fun h (al, ar) h' ->
+          (fun h res h' ->
             let s = h (varray a) in
-            let sl = h' (varray al) in
-            let sr = h' (varray ar) in
+            let sl = h' (varray (pfst res)) in
+            let sr = h' (varray (psnd res)) in
             U32.v i <= length a /\
-            merge_into al ar a /\
+            merge_into (pfst res) (psnd res) a /\
             sl == Seq.slice s 0 (U32.v i) /\
             sr == Seq.slice s (U32.v i) (length a)
           )
