@@ -274,10 +274,9 @@ let elim_vcons
 
 (* FIXME: refine the model with nontrivial boundaries. To do that, I will need fractional permissions. *)
 
-let boundary = unit
-let lhs #_ _ = ()
-let rhs #_ _ = ()
-let freeable_boundaries _ _ = true
+let adjacent #_ _ _ = True
+let merge #t a1 a2 = Seq.append a1 a2
+let freeable #t a = True
 
 let join #t al ar = sladmit ()
 

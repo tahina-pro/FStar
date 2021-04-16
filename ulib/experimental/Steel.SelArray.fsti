@@ -45,29 +45,26 @@ let asel (#a:Type) (#p:vprop) (r:array a)
 
 (* Splitting an array (inspired from Steel.Array) *)
 
-noextract
-val boundary: Type0
-
-val lhs
+val adjacent
   (#t: Type)
-  (r: array t)
-: GTot boundary
-
-val rhs
-  (#t: Type)
-  (r: array t)
-: GTot boundary
-
-let adjacent
-  (#t: Type)
-  (al ar: array t)
+  (r1 r2: array t)
 : Tot prop
-= rhs al == lhs ar
 
-val freeable_boundaries (lhs rhs: boundary) : GTot bool
+val merge
+  (#t: Type)
+  (r1 r2: array t)
+: Ghost (array t)
+  (requires (adjacent r1 r2))
+  (ensures (fun _ -> True))
 
-let freeable (#t: Type) (a: array t) : GTot bool =
-  freeable_boundaries (lhs a) (rhs a)
+let merge_into
+  (#t: Type)
+  (r1 r2 r3: array t)
+: Tot prop
+= adjacent r1 r2 /\
+  merge r1 r2 == r3
+
+val freeable (#t: Type) (a: array t) : Tot prop
 
 val join (#t:Type) (al ar:array t)
   : SteelSel (array t)
@@ -77,8 +74,7 @@ val join (#t:Type) (al ar:array t)
           (fun h a h' ->
             let s = h' (varray a) in
             s == (h (varray al) `Seq.append` h (varray ar)) /\
-            lhs a == lhs al /\
-            rhs a == rhs ar
+            merge_into al ar a
           )
 
 val split (#t:Type) (a:array t) (i:U32.t)
@@ -91,9 +87,7 @@ val split (#t:Type) (a:array t) (i:U32.t)
             let sl = h' (varray al) in
             let sr = h' (varray ar) in
             U32.v i <= length a /\
-            adjacent al ar /\
-            lhs al == lhs a /\
-            rhs ar == rhs a /\
+            merge_into al ar a /\
             sl == Seq.slice s 0 (U32.v i) /\
             sr == Seq.slice s (U32.v i) (length a)
           )
