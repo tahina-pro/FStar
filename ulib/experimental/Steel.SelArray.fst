@@ -235,27 +235,19 @@ let intro_vcons
 #push-options "--z3rlimit 16"
 #restart-solver
 
-noeq
-type res_t
-  (t: Type)
-= {
-  hd : ref t;
-  tl : array t;
-}
-
 let elim_vcons1
   (#t: Type)
   (a: array t)
-: SteelSel (res_t t)
+: SteelSel (ref t & array t)
     (varray1 a)
-    (fun res -> vptr (res.hd) `star` varray1 (res.tl))
+    (fun res -> vptr (pfst res) `star` varray1 (psnd res))
     (fun _ -> length a > 0)
     (fun h res h' ->
       length a > 0 /\
       begin let s = coerce (h (varray1 a)) (Seq.lseq t (length a)) in
-      h' (vptr (res.hd)) == Seq.head s /\
-      Seq.tail s == coerce (h' (varray1 (res.tl))) (Seq.lseq t (length (res.tl))) /\
-      a == Seq.cons (res.hd) (res.tl)
+      h' (vptr (pfst res)) == Seq.head s /\
+      Seq.tail s == coerce (h' (varray1 (psnd res))) (Seq.lseq t (length (psnd res))) /\
+      a == Seq.cons (pfst res) (psnd res)
       end
     )
 =
@@ -267,11 +259,11 @@ let elim_vcons1
     (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
   elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()) (vcons_rewrite_recip (Seq.length (q)) (r) (varray1 (q)) ());
   reveal_star (vptr (r)) (varray1 (q));
-  let res : (res_t t) = { hd = r; tl = q } in
+  let res : (ref t & array t) = (r, q) in
   change_equal_slprop
     (vptr (r) `star` varray1 (q))
-    (vptr (res.hd) `star` varray1 (res.tl));
-  reveal_star (vptr (res.hd)) (varray1 (res.tl));
+    (vptr (pfst res) `star` varray1 (psnd res));
+  reveal_star (vptr (pfst res)) (varray1 (psnd res));
   res
 
 #pop-options
@@ -279,21 +271,21 @@ let elim_vcons1
 let elim_vcons
   (#t: Type)
   (a: array t)
-: SteelSel (res_t t)
+: SteelSel (ref t & array t)
     (varray a)
-    (fun res -> vptr (res.hd) `star` varray (res.tl))
+    (fun res -> vptr (pfst res) `star` varray (psnd res))
     (fun _ -> length a > 0)
     (fun h res h' ->
       length a > 0 /\
       begin let s = h (varray a) in
-      s == Seq.cons (h' (vptr (res.hd))) (h' (varray (res.tl))) /\
-      a == Seq.cons (res.hd) (res.tl)
+      s == Seq.cons (h' (vptr (pfst res))) (h' (varray (psnd res))) /\
+      a == Seq.cons (pfst res) (psnd res)
       end
     )
 =
   elim_varray a;
   let res = elim_vcons1 a in
-  intro_varray (res.tl);
+  intro_varray (psnd res);
   res
 
 let elim_nil
@@ -351,9 +343,9 @@ let rec vappend
     a2
   end else begin
     let hd_tl = elim_vcons a1 in
-    reveal_star_3 (vptr (hd_tl.hd)) (varray (hd_tl.tl)) (varray a2); // FIXME: WHY WHY WHY?
-    let tl' = vappend hd_tl.tl a2 in
-    let res = intro_vcons hd_tl.hd tl' in
+    reveal_star_3 (vptr (pfst hd_tl)) (varray (psnd hd_tl)) (varray a2); // FIXME: WHY WHY WHY?
+    let tl' = vappend (psnd hd_tl) a2 in
+    let res = intro_vcons (pfst hd_tl) tl' in
     res
   end
 
