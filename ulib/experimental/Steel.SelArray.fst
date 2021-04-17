@@ -427,6 +427,89 @@ let rec vsplit
 
 #pop-options
 
+noeq
+type ith_t
+  (t: Type)
+= {
+  ith_lhs: array t;
+  ith_item: ref t;
+  ith_rhs: array t;
+}
+
+let unpack_ith
+  (#t: Type)
+  (a: array t)
+  (i: U32.t)
+: SteelSel (ith_t t)
+    (varray a)
+    (fun res -> varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs)
+    (fun _ -> U32.v i < length a)
+    (fun h res h' ->
+      U32.v i < length a /\
+      a == Seq.append res.ith_lhs (Seq.cons res.ith_item res.ith_rhs) /\
+      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (varray res.ith_lhs) /\
+      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (vptr res.ith_item) /\
+      h (varray a) == Seq.append (h' (varray res.ith_lhs)) (Seq.cons (h' (vptr res.ith_item)) (h' (varray res.ith_rhs))) /\
+      length res.ith_lhs == U32.v i
+    )
+=
+  let m = get #(varray a) () in
+  Seq.lemma_split a (U32.v i);
+  Seq.lemma_split (m (varray a)) (U32.v i);
+  let rsplit = vsplit a i in
+  reveal_star (varray (pfst rsplit)) (varray (psnd rsplit));
+  noop ();
+  let rcons = elim_vcons (psnd rsplit) in
+  reveal_star_3 (varray (pfst rsplit)) (vptr (pfst rcons)) (varray (psnd rcons));
+  let res = { ith_lhs = pfst rsplit; ith_item = pfst rcons; ith_rhs = psnd rcons } in
+  change_equal_slprop
+    (varray (pfst rsplit) `star` vptr (pfst rcons) `star` varray (psnd rcons))
+    (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs);
+  reveal_star_3 (varray res.ith_lhs) (vptr res.ith_item) (varray res.ith_rhs);
+  res
+
+let pack_ith
+  (#t: Type)
+  (res: ith_t t)
+  (a: array t)
+: SteelSel unit
+    (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs)
+    (fun _ -> varray a)
+    (fun _ ->
+      a == Seq.append res.ith_lhs (Seq.cons res.ith_item res.ith_rhs)
+    )
+    (fun h _ h' ->
+      let i = length res.ith_lhs in
+      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (varray res.ith_lhs) /\
+      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (vptr res.ith_item) /\
+      h' (varray a) == Seq.append (h (varray res.ith_lhs)) (Seq.cons (h (vptr res.ith_item)) (h (varray res.ith_rhs)))
+    )
+=
+  reveal_star_3 (varray res.ith_lhs) (vptr res.ith_item) (varray res.ith_rhs);
+  let rhs = intro_vcons res.ith_item res.ith_rhs in
+  reveal_star (varray res.ith_lhs) (varray rhs);
+  let a' = vappend res.ith_lhs rhs in
+  change_equal_slprop (varray a') (varray a)
+
+let seq_index_append_cons
+  (#t: Type)
+  (i: nat)
+  (a: Seq.seq t) (x: t) (b: Seq.seq t)
+: Lemma
+  (requires (Seq.length a == i))
+  (ensures (Seq.index (Seq.append a (Seq.cons x b)) i == x))
+= ()
+
+let seq_upd_append_cons
+  (#t: Type)
+  (i: nat)
+  (y: t)
+  (a: Seq.seq t) (x: t) (b: Seq.seq t)
+: Lemma
+  (Seq.length a == i ==> Seq.upd (Seq.append a (Seq.cons x b)) i y == Seq.append a (Seq.cons y b))
+=
+  assert (Seq.length a == i ==> Seq.upd (Seq.append a (Seq.cons x b)) i y `Seq.equal` Seq.append a (Seq.cons y b))
+
 (* FIXME: refine the model with nontrivial boundaries. To do that, I will need fractional permissions. *)
 
 let adjacent #_ _ _ = True
@@ -446,18 +529,20 @@ let alloc x n = sladmit ()
   alloc s
 *)
 
-let index r i = sladmit ()
-(*
-  let s = read r in
-  Seq.index s (U32.v i)
-*)
+let index #t r i =
+  let p = unpack_ith r i in
+  let m1 = get #(varray p.ith_lhs `star` vptr p.ith_item `star` varray p.ith_rhs) () in
+  seq_index_append_cons (U32.v i) (m1 (varray p.ith_lhs)) (m1 (vptr p.ith_item)) (m1 (varray p.ith_rhs));
+  let res = read p.ith_item in 
+  pack_ith p r;
+  res
 
-let upd r i x = sladmit ()
-(*
-  let s = read r in
-  let s' = Seq.upd s (U32.v i) x in
-  write r s'
-*)
+let upd #t r i x =
+  let p = unpack_ith r i in
+  let m1 = get #(varray p.ith_lhs `star` vptr p.ith_item `star` varray p.ith_rhs) () in
+  seq_upd_append_cons (U32.v i) x (m1 (varray p.ith_lhs)) (m1 (vptr p.ith_item)) (m1 (varray p.ith_rhs));
+  write p.ith_item x;
+  pack_ith p r
 
 let free #t r =
   reveal_vemp ();
