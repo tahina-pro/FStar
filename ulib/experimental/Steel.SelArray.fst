@@ -510,7 +510,35 @@ let seq_upd_append_cons
 =
   assert (Seq.length a == i ==> Seq.upd (Seq.append a (Seq.cons x b)) i y `Seq.equal` Seq.append a (Seq.cons y b))
 
-(* FIXME: refine the model with nontrivial boundaries. To do that, I will need fractional permissions. *)
+let rec valloc
+  (#t: Type)
+  (i: nat)
+  (x: t)
+: SteelSel (array t)
+    vemp
+    (fun res -> varray res)
+    (fun _ -> True)
+    (fun _ res h' ->
+      h' (varray res) == Seq.create i x
+    )
+    (decreases i)
+=
+  if i = 0
+  then
+    let res = intro_vnil t in
+    assert (Seq.create 0 x `Seq.equal` Seq.empty);
+    noop ();
+    res
+  else begin
+    let hd = Steel.SelEffect.alloc x in
+    let j : nat = i - 1 in
+    assert (Seq.cons x (Seq.create j x) `Seq.equal` Seq.create i x);
+    let tl = valloc j x in
+    let res = intro_vcons hd tl in
+    res
+  end
+
+(* FIXME: refine the model with nontrivial allocation units. To do that, I will need fractional permissions. *)
 
 let adjacent #_ _ _ = True
 let merge #t a1 a2 = Seq.append a1 a2
@@ -523,11 +551,7 @@ let split #t a i =
   Seq.lemma_split a (U32.v i);
   vsplit a i
 
-let alloc x n = sladmit ()
-(*
-  let s = Seq.create (U32.v n) x in
-  alloc s
-*)
+let alloc x n = valloc (U32.v n) x
 
 let index #t r i =
   let p = unpack_ith r i in
@@ -544,6 +568,7 @@ let upd #t r i x =
   write p.ith_item x;
   pack_ith p r
 
+(* TODO: properly deallocate instead of just dropping the vprop *)
 let free #t r =
   reveal_vemp ();
   let res : Ghost.erased (t_of vemp) = Ghost.hide (coerce () (t_of vemp)) in
