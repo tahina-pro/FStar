@@ -63,28 +63,6 @@ let vcons_rewrite
 : GTot (Seq.lseq t (n + 1))
 = Seq.cons (fst xy) (snd xy)
 
-let vcons_rewrite_recip
-  (#t: Type)
-  (n: nat)
-  (r: ref t)
-  (v: vprop)
-  (sq: squash (t_of v == Seq.lseq t n))
-  (l: Seq.lseq t (n + 1))
-: GTot (t_of (vptr r `star` v))
-= (Seq.head l, Seq.tail l)
-
-let vcons_rewrite_recip_correct
-  (#t: Type)
-  (n: nat)
-  (r: ref t)
-  (v: vprop)
-  (sq: squash (t_of v == Seq.lseq t n))
-: Lemma
-  (elim_vrewrite_precond (vptr r `star` v) (vcons_rewrite n r v sq) (vcons_rewrite_recip n r v sq))
-  [SMTPat (elim_vrewrite_precond (vptr r `star` v) (vcons_rewrite n r v sq) (vcons_rewrite_recip n r v sq))]
-=
-  seq_facts ()
-
 let vcons
   (#t: Type)
   (n: nat)
@@ -253,13 +231,14 @@ let elim_vcons1
       end
     )
 =
+  seq_facts ();
   let a0 : Seq.seq (ref t) = a in
   let r = Seq.head a0 in
   let q = Seq.tail a0 in
   change_equal_slprop
     (varray1 a)
     (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
-  elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()) (vcons_rewrite_recip (Seq.length (q)) (r) (varray1 (q)) ());
+  elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ());
   reveal_star (vptr (r)) (varray1 (q));
   let res : (ref t & array t) = (r, q) in
   change_equal_slprop
