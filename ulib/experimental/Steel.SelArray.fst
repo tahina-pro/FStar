@@ -37,8 +37,10 @@ let seq_facts () : Lemma (
   Classical.forall_intro_3 f;
   Classical.forall_intro_2 g
 
-let array t = Seq.seq (ref t)
-let length #t a = Seq.length a
+let array' (t: Type) : Tot Type = Seq.seq (ref t)
+let fits32 (x: nat) : Tot prop = FStar.UInt.fits x U32.n == true
+let array t = (x: array' t { fits32 (Seq.length x) })
+let len #t a = U32.uint_to_t (Seq.length a)
 
 let vnil_rewrite
   (t: Type)
@@ -176,7 +178,7 @@ let intro_vcons1
 : SteelSel (array t)
     (vptr r `star` varray1 a)
     (fun a' -> varray1 a')
-    (fun _ -> True)
+    (fun _ -> fits32 (Seq.length a + 1))
     (fun h a' h' ->
       a' == Seq.cons r a /\
       (coerce (h' (varray1 a')) (Seq.lseq t (Seq.length a')) <: Seq.seq t) ==
@@ -199,7 +201,7 @@ let intro_vcons
 : SteelSel (array t)
     (vptr r `star` varray a)
     (fun a' -> varray a')
-    (fun _ -> True)
+    (fun _ -> fits32 (Seq.length a + 1))
     (fun h a' h' ->
       a' == Seq.cons r a /\
       h' (varray a') ==
@@ -234,7 +236,7 @@ let elim_vcons1
   seq_facts ();
   let a0 : Seq.seq (ref t) = a in
   let r = Seq.head a0 in
-  let q = Seq.tail a0 in
+  let q : array t = Seq.tail a0 in
   change_equal_slprop
     (varray1 a)
     (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
@@ -277,7 +279,12 @@ let elim_nil
     (fun _ -> vemp)
     (fun _ -> length a == 0)
     (fun _ _ _ -> True)
-= sladmit ()
+=
+  elim_varray a; 
+  change_equal_slprop
+    (varray1 a)
+    (vrewrite vemp (vnil_rewrite t));
+  elim_vrewrite vemp (vnil_rewrite t)
 
 let seq_append_nil
   (#t: Type)
@@ -311,7 +318,7 @@ let rec vappend
 : SteelSel (array t)
     (varray a1 `star` varray a2)
     (fun r -> varray r)
-    (fun _ -> True)
+    (fun _ -> fits32 (Seq.length a1 + Seq.length a2))
     (fun h r h' ->
       h' (varray r) == Seq.append (h (varray a1)) (h (varray a2)) /\
       r == Seq.append a1 a2
@@ -415,6 +422,8 @@ type ith_t
   ith_rhs: array t;
 }
 
+#push-options "--z3rlimit 16"
+
 let unpack_ith
   (#t: Type)
   (a: array t)
@@ -446,6 +455,8 @@ let unpack_ith
     (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs);
   reveal_star_3 (varray res.ith_lhs) (vptr res.ith_item) (varray res.ith_rhs);
   res
+
+#pop-options
 
 let pack_ith
   (#t: Type)
@@ -489,29 +500,36 @@ let seq_upd_append_cons
 =
   assert (Seq.length a == i ==> Seq.upd (Seq.append a (Seq.cons x b)) i y `Seq.equal` Seq.append a (Seq.cons y b))
 
+let decr32 (a:U32.t) (sq: squash (a <> 0ul)) : Pure U32.t
+  (requires True)
+  (ensures (fun c -> U32.v a - 1 == U32.v c))
+= U32.sub a 1ul
+
 let rec valloc
   (#t: Type)
-  (i: nat)
+  (i: U32.t)
   (x: t)
 : SteelSel (array t)
     vemp
     (fun res -> varray res)
     (fun _ -> True)
     (fun _ res h' ->
-      h' (varray res) == Seq.create i x
+      length res == U32.v i /\
+      h' (varray res) == Seq.create (U32.v i) x
     )
-    (decreases i)
+    (decreases (U32.v i))
 =
-  if i = 0
+  if i = 0ul
   then
     let res = intro_vnil t in
     assert (Seq.create 0 x `Seq.equal` Seq.empty);
     noop ();
     res
   else begin
+    let sq : squash (i <> 0ul) = () in
     let hd = Steel.SelEffect.alloc x in
-    let j : nat = i - 1 in
-    assert (Seq.cons x (Seq.create j x) `Seq.equal` Seq.create i x);
+    let j = decr32 i sq in
+    assert (Seq.cons x (Seq.create (U32.v j) x) `Seq.equal` Seq.create (U32.v i) x);
     let tl = valloc j x in
     let res = intro_vcons hd tl in
     res
@@ -519,7 +537,7 @@ let rec valloc
 
 (* FIXME: refine the model with nontrivial allocation units. To do that, I will need fractional permissions. *)
 
-let adjacent #_ _ _ = True
+let adjacent #_ a b = fits32 (length a + length b)
 let merge #t a1 a2 = Seq.append a1 a2
 let freeable #t a = True
 
@@ -530,7 +548,7 @@ let split #t a i =
   Seq.lemma_split a (U32.v i);
   vsplit a i
 
-let alloc x n = valloc (U32.v n) x
+let alloc x n = valloc n x
 
 let index #t r i =
   let p = unpack_ith r i in
