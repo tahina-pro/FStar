@@ -18,7 +18,7 @@
         "projection_inverse_Selectors.Tree.Core.Mknode_right"
       ],
       0,
-      "0ab8f765c926f4140617b1b5f494485d"
+      "75eb065685125a53653367aca928fb0b"
     ],
     [
       "Selectors.Tree.Core.is_null_t",
@@ -27,7 +27,7 @@
       1,
       [ "@query", "equation_Selectors.Tree.Core.null_t" ],
       0,
-      "4926a0861bf7e8a31da38ac0ddf2d4bd"
+      "dd79ad76ae98c6ccecced8332089573c"
     ],
     [
       "Selectors.Tree.Core.tree_sl'",
@@ -48,7 +48,7 @@
         "subterm_ordering_FStar.Trees.Node"
       ],
       0,
-      "875e501b36de99fc464de64643a087f7"
+      "dee7dd21f0d211247611559852ded20c"
     ],
     [
       "Selectors.Tree.Core.tree_view",
@@ -64,7 +64,7 @@
         "subterm_ordering_FStar.Trees.Node"
       ],
       0,
-      "e238a7236efd9cdb20acb1b49947ff35"
+      "35cc2061ebd0e073f984935686a39b63"
     ],
     [
       "Selectors.Tree.Core.tree_sel_node'",
@@ -77,7 +77,7 @@
         "refinement_interpretation_Tm_refine_400bb352f566e46f66fa061261e6a34a"
       ],
       0,
-      "b26467614d4aedc06534a867c6f857f2"
+      "076471c3b75e6906d3b8df056858caf5"
     ],
     [
       "Selectors.Tree.Core.tree_sl'_witinv",
@@ -128,7 +128,7 @@
         "unit_inversion", "unit_typing"
       ],
       0,
-      "37a2b10f37d3dc59cc13bbe93291b72e"
+      "baa377a0fe70c0d1186a9636fe26efab"
     ],
     [
       "Selectors.Tree.Core.tree_sel_depends_only_on",
@@ -147,7 +147,7 @@
         "typing_Selectors.Tree.Core.tree_sl_"
       ],
       0,
-      "d22548bb28516d078267b2865194d1bc"
+      "7c0a75c8ab8f67cc91c63b85cfbf6145"
     ],
     [
       "Selectors.Tree.Core.tree_sel_depends_only_on_core",
@@ -166,7 +166,7 @@
         "typing_Selectors.Tree.Core.tree_sl_"
       ],
       0,
-      "96e7b14afeb6bac8d6f8be0f9c802a11"
+      "47e975452a1ba74a93802ab44be27461"
     ],
     [
       "Selectors.Tree.Core.tree_sel_node",
@@ -185,7 +185,7 @@
         "typing_Selectors.Tree.Core.tree_sl"
       ],
       0,
-      "e0922a2ff65e45d284d540e9bf768b8a"
+      "b7ffd95d1969dee7832b9efc4492b2e6"
     ],
     [
       "Selectors.Tree.Core.tree_sel",
@@ -205,7 +205,7 @@
         "token_correspondence_Selectors.Tree.Core.tree_sel_node"
       ],
       0,
-      "50d13d663588ce80c167d7318325c4ae"
+      "a5b8685e4528dca8e97572302b57417f"
     ],
     [
       "Selectors.Tree.Core.v_linked_tree",
@@ -222,7 +222,7 @@
         "refinement_kinding_Tm_refine_2de20c066034c13bf76e9c0b94f4806c"
       ],
       0,
-      "d7485bd3eba73baadc7ca02c16e140a3"
+      "fe04855559c8afa469b9c6a314c12de9"
     ],
     [
       "Selectors.Tree.Core.tree_sel_interp",
@@ -246,7 +246,7 @@
         "typing_FStar.Ghost.reveal", "typing_Steel.Memory.id_elim_exists"
       ],
       0,
-      "98a51ba13afd7e97be4e204c2b542c1e"
+      "2dbc007eb914218ad1007afdcbd09a63"
     ],
     [
       "Selectors.Tree.Core.intro_leaf_lemma",
@@ -275,7 +275,7 @@
         "true_interp", "typing_tok_Prims.T@tok"
       ],
       0,
-      "48f39b7779ea704ad6b00a9cd8f90804"
+      "763b8cca2d829de91d07636761062d65"
     ],
     [
       "Selectors.Tree.Core.intro_linked_tree_leaf",
@@ -303,7 +303,7 @@
         "typing_Selectors.Tree.Core.null_t"
       ],
       0,
-      "975a34140eea33fb87e67bfe71409e68"
+      "35b00fb325290a157623578d315d7faa"
     ],
     [
       "Selectors.Tree.Core.elim_leaf_lemma",
@@ -333,7 +333,7 @@
         "token_correspondence_Selectors.Tree.Core.tree_sel_node_"
       ],
       0,
-      "df0619827d53b359eb5f63b268e29786"
+      "c1e0f939a58f96eb1a2d3f7e7640dc09"
     ],
     [
       "Selectors.Tree.Core.elim_linked_tree_leaf",
@@ -354,7 +354,7 @@
         "typing_Selectors.Tree.Core.is_null_t"
       ],
       0,
-      "b92d756efb2f1f8013a4df4c52c9fdd4"
+      "66afa2f7fce246a4eba224498228196e"
     ],
     [
       "Selectors.Tree.Core.lemma_node_not_null",
@@ -396,7 +396,7 @@
         "typing_Steel.Memory.star", "typing_Steel.Reference.pts_to"
       ],
       0,
-      "cdf564dbcf3e2c561979540887d2151c"
+      "8d0c9f81a9f36503f290415c82f8ea54"
     ],
     [
       "Selectors.Tree.Core.node_is_not_null",
@@ -421,7 +421,7 @@
         "typing_Selectors.Tree.Core.tree"
       ],
       0,
-      "e9bca6057c9ec271b5d720c2fbad0370"
+      "de63a647fcd16cffbe3dbc38f82d2f2a"
     ],
     [
       "Selectors.Tree.Core.pack_tree_lemma_aux",
@@ -451,7 +451,7 @@
         "refinement_interpretation_Tm_refine_2de20c066034c13bf76e9c0b94f4806c"
       ],
       0,
-      "7eefa08a02051cc888d876d8243de03c"
+      "09d5ae7fa096f4674bce56df30c79427"
     ],
     [
       "Selectors.Tree.Core.pack_tree_lemma",
@@ -523,7 +523,7 @@
         "typing_Steel.SelEffect.ptr", "typing_Steel.SelEffect.vptr_"
       ],
       0,
-      "24293f58786f57c17f6cfbcdce7ac38f"
+      "684715ae23d81aa1f850753fb20d6a53"
     ],
     [
       "Selectors.Tree.Core.pack_tree",
@@ -534,28 +534,22 @@
         "@MaxIFuel_assumption", "@query",
         "data_typing_intro_FStar.Pervasives.Native.Mktuple2@tok",
         "data_typing_intro_FStar.Trees.Node@tok",
-        "data_typing_intro_Steel.SelEffect.Common.VUnit@tok",
         "equation_Selectors.Tree.Core.linked_tree_",
-        "equation_Selectors.Tree.Core.t",
         "equation_Selectors.Tree.Core.tree",
         "equation_Selectors.Tree.Core.v_linked_tree",
-        "equation_Steel.SelEffect.Common.pre_t",
         "equation_Steel.SelEffect.Common.true_p",
         "equation_Steel.SelEffect.sel", "equation_Steel.SelEffect.vptr_",
         "fuel_guarded_inversion_Selectors.Tree.Core.node",
         "kinding_FStar.Pervasives.Native.tuple2@tok",
         "kinding_Selectors.Tree.Core.node@tok",
         "lemma_FStar.Ghost.reveal_hide",
-        "lemma_Steel.SelEffect.Common.can_be_split_star_r",
         "projection_inverse_FStar.Pervasives.Native.Mktuple2__1",
         "projection_inverse_FStar.Pervasives.Native.Mktuple2__2",
         "true_interp", "typing_Selectors.Tree.Core.get_data",
-        "typing_Selectors.Tree.Core.linked_tree_",
-        "typing_Selectors.Tree.Core.tree",
-        "typing_Steel.SelEffect.Common.star", "typing_Steel.SelEffect.vptr_"
+        "typing_Selectors.Tree.Core.tree"
       ],
       0,
-      "bfeb158cfff6ee6bf8fa4e070cd05602"
+      "24ef0b9a8233eed58041a72d7006dcb6"
     ],
     [
       "Selectors.Tree.Core.v_node",
@@ -572,7 +566,7 @@
         "refinement_kinding_Tm_refine_2de20c066034c13bf76e9c0b94f4806c"
       ],
       0,
-      "95a980ec5392fe1ec2f486feb02f30ed"
+      "f8bb4b40f19ed50d7a664afb9254d784"
     ],
     [
       "Selectors.Tree.Core.reveal_non_empty_lemma",
@@ -597,7 +591,7 @@
         "token_correspondence_Selectors.Tree.Core.tree_sel_node"
       ],
       0,
-      "e1f88a5236ce79064f47c15e763b161a"
+      "f734598366b14f3575fc11310d5fb33c"
     ],
     [
       "Selectors.Tree.Core.is_node",
@@ -618,7 +612,7 @@
         "typing_tok_Prims.T@tok"
       ],
       0,
-      "30eee5b93ebc194203ae49cdf98409ad"
+      "29113c67c5b9921f89b995f69731ebdb"
     ],
     [
       "Selectors.Tree.Core.reveal_non_empty_tree",
@@ -639,7 +633,7 @@
         "typing_Selectors.Tree.Core.tree"
       ],
       0,
-      "62efbd54de5151095ad158c9a51bddc6"
+      "4238fc5b35745c1fca93b16b2284ecbf"
     ],
     [
       "Selectors.Tree.Core.head",
@@ -648,7 +642,7 @@
       1,
       [ "@query" ],
       0,
-      "066f588868e8c8551fb9d5a78acc7327"
+      "b11b4512d75dadce377aca5a204e29ef"
     ],
     [
       "Selectors.Tree.Core.gleft",
@@ -657,7 +651,7 @@
       1,
       [ "@query" ],
       0,
-      "d3743d5abd933f57bcf0a3efb25566a9"
+      "65c656ab493140bf5333978eb016597a"
     ],
     [
       "Selectors.Tree.Core.gright",
@@ -666,7 +660,7 @@
       1,
       [ "@query" ],
       0,
-      "f08bd6c53f918caae4406c061642dbb4"
+      "6f0c9640d7f86dc0fdd04594af09c8cc"
     ],
     [
       "Selectors.Tree.Core.unpack_tree_node_lemma",
@@ -754,7 +748,7 @@
         "typing_Steel.SelEffect.vptr_"
       ],
       0,
-      "6ccd3ab3a17171b5c8e0d27c508c220f"
+      "8f85166dae46353975c9524f1d57c372"
     ],
     [
       "Selectors.Tree.Core.unpack_tree_node",
@@ -803,7 +797,7 @@
         "typing_Selectors.Tree.Core.tree", "typing_Steel.SelEffect.vptr_"
       ],
       0,
-      "fbc7d61eb07d1d0df077f604df9b13f3"
+      "2e4e2f4beda0b9379d756a2fca2eabe3"
     ],
     [
       "Selectors.Tree.Core.unpack_tree",
@@ -837,7 +831,7 @@
         "token_correspondence_Selectors.Tree.Core.tree_sel", "true_interp"
       ],
       0,
-      "dc8b8c31e72bf3ec6788a790923f5b0e"
+      "7702f2bef27b07f6abb7ffb506c5e15b"
     ]
   ]
 ]
