@@ -8,7 +8,7 @@
       1,
       [ "@query" ],
       0,
-      "cca6ff2289eed22983050220bee6173a"
+      "4b9233ac9e4d915fdfd0e98a11008d3a"
     ],
     [
       "StructUpdate.__proj__Both__item___0",
@@ -20,7 +20,7 @@
         "refinement_interpretation_Tm_refine_98107e6b7315063dc6bd76cc8e26b604"
       ],
       0,
-      "320f5768f019a47ed3159a436699553b"
+      "b4fe29c6948b18bbde1b3a546f0b098d"
     ],
     [
       "StructUpdate.__proj__Both__item___1",
@@ -32,7 +32,7 @@
         "refinement_interpretation_Tm_refine_98107e6b7315063dc6bd76cc8e26b604"
       ],
       0,
-      "91d84506fb87b08e4d76d8badea923e6"
+      "371f3618f44a0f009e7614315a6e2454"
     ],
     [
       "StructUpdate.__proj__First__item___0",
@@ -44,7 +44,7 @@
         "refinement_interpretation_Tm_refine_0e8db6bc544539abd696ca9e03b4b7c3"
       ],
       0,
-      "69dbd2b97f3ba51a71fca460ecb1d836"
+      "f64847e966d6b6150da84112b7f0901a"
     ],
     [
       "StructUpdate.__proj__Second__item___0",
@@ -56,7 +56,7 @@
         "refinement_interpretation_Tm_refine_f7ccb138f3449f7541d6fd15f6692f09"
       ],
       0,
-      "dce4acda9ee5873a39d6428f939ad02e"
+      "0bfcd12b6033088cc0f4a4501e2c884d"
     ],
     [
       "StructUpdate.comp",
@@ -74,7 +74,7 @@
         "typing_tok_Prims.T@tok"
       ],
       0,
-      "b2c77934d04412cb3aae533370d63a0e"
+      "2f98850624d855c13aa1093f3d6a2111"
     ],
     [
       "StructUpdate.combine",
@@ -94,7 +94,7 @@
         "refinement_interpretation_Tm_refine_8531fe32b408b37dc2f604ba6db5ed5a"
       ],
       0,
-      "840e64c76618ef725a81512e451b22c2"
+      "744c5261dd3bc8e982c236e9efa9248f"
     ],
     [
       "StructUpdate.pcm_t",
@@ -152,7 +152,7 @@
         "typing_StructUpdate.combine", "unit_typing"
       ],
       0,
-      "fc8daceec6d2b2563b2641b6c1aa7339"
+      "f5e69a2571583bc64daff032f6ce4402"
     ],
     [
       "StructUpdate.upd_first",
@@ -171,8 +171,6 @@
         "constructor_distinct_StructUpdate.Second",
         "constructor_distinct_StructUpdate.t",
         "constructor_distinct_Tm_unit", "data_elim_FStar.PCM.Mkpcm_",
-        "data_elim_StructUpdate.Both",
-        "data_typing_intro_StructUpdate.Both@tok",
         "data_typing_intro_StructUpdate.First@tok",
         "disc_equation_StructUpdate.Both",
         "disc_equation_StructUpdate.First",
@@ -223,7 +221,7 @@
         "typing_StructUpdate.pcm_t", "unit_typing"
       ],
       0,
-      "3b12a97b996bc3407b860b55b266200d"
+      "0bbf797a6a43c8943a2923f42b510afe"
     ],
     [
       "StructUpdate.upd_second",
@@ -293,7 +291,7 @@
         "typing_StructUpdate.pcm_t", "unit_typing"
       ],
       0,
-      "358d48bc171954c22482d539b76dc409"
+      "ababc7543d601e025777e67adaae2d39"
     ]
   ]
 ]

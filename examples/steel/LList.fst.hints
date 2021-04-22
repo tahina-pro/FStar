@@ -14,7 +14,7 @@
         "projection_inverse_BoxBool_proj_0", "subterm_ordering_Prims.Cons"
       ],
       0,
-      "36f084d8838cbf5992a9702fc9ad2f6c"
+      "e7cc6e74bb5e5a1adc0ac7be847296c8"
     ],
     [
       "LList.new_llist",
@@ -35,7 +35,7 @@
         "typing_tok_Prims.T@tok"
       ],
       0,
-      "4c5c57af1e28a4d0d7d8d7f6f26ee441"
+      "ab78c576a3b7f818ec1d2d939b6c44e5"
     ],
     [
       "LList.new_llist",
@@ -61,7 +61,7 @@
         "typing_LList.Invariant.cell", "typing_LList.Invariant.t"
       ],
       0,
-      "f705c6ea0d13fdc5719d1847a5ab5666"
+      "e0d46cf71d9593b3ff9567cf2971e104"
     ],
     [
       "LList.push",
@@ -83,7 +83,7 @@
         "typing_tok_Prims.T@tok"
       ],
       0,
-      "3a7faa35546a6195f65886a0a3c709c8"
+      "579eb7fb0426eb4c879f2def93828c82"
     ],
     [
       "LList.push",
@@ -108,7 +108,7 @@
         "typing_LList.Invariant.cell", "typing_LList.Invariant.t"
       ],
       0,
-      "5fbee61507767bf7c039a681b39c550d"
+      "012c35a34b282c0be76b8487b5950865"
     ],
     [
       "LList.pop",
@@ -130,7 +130,7 @@
         "typing_tok_Prims.T@tok"
       ],
       0,
-      "208fbfcab91b3d347f205bb27eaaca37"
+      "64c586c20a72d001c75832570c98bad5"
     ],
     [
       "LList.pop",
@@ -142,7 +142,6 @@
         "disc_equation_Prims.Cons", "equation_FStar.List.Tot.Base.hd",
         "equation_FStar.List.Tot.Base.tail",
         "equation_FStar.List.Tot.Base.tl",
-        "equation_Steel.Effect.Atomic.obs_at_most_one",
         "equation_Steel.Effect.Common.true_p",
         "fuel_guarded_inversion_Prims.list", "lemma_FStar.Ghost.reveal_hide",
         "projection_inverse_BoxBool_proj_0",
@@ -150,7 +149,7 @@
         "true_interp", "typing_LList.Invariant.cell"
       ],
       0,
-      "d6c29a4fc3c45449df0ff31d85e92f6b"
+      "8bab2e75852db7e246090cfa0bc3e123"
     ]
   ]
 ]
