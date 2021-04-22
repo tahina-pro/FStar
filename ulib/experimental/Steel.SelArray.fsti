@@ -39,7 +39,8 @@ let psnd
 = snd x
 
 val array (t:Type u#0) : Type u#0
-val length (#t: Type) (a: array t) : GTot nat
+val len (#t: Type) (a: array t) : GTot U32.t
+let length (#t: Type) (a: array t) : GTot nat = U32.v (len a)
 
 val is_array (#a:Type0) (r:array a) : slprop u#1
 val array_sel (#a:Type0) (r:array a) : selector (Seq.lseq a (length r)) (is_array r)
