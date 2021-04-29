@@ -37,10 +37,16 @@ let seq_facts () : Lemma (
   Classical.forall_intro_3 f;
   Classical.forall_intro_2 g
 
-let array' (t: Type) : Tot Type = Seq.seq (ref t)
 let fits32 (x: nat) : Tot prop = FStar.UInt.fits x U32.n == true
-let array t = (x: array' t { fits32 (Seq.length x) })
-let len #t a = U32.uint_to_t (Seq.length a)
+let array1 (t: Type) : Tot Type = (x: Seq.seq (ref t) {fits32 (Seq.length x)})
+let array2 (t: Type) : Tot Type = (* Ghost.erased *) (array1 t) // FIXME: currently cannot be ghost because of the case analysis in vappend below; we need support for something like SteelSelGhost
+noeq
+type array t = {
+  base: array1 t;
+  from: U32.t;
+  to: (to: (* Ghost.erased *) U32.t { U32.v from <= U32.v to /\ U32.v to <= Seq.length base }) // same here
+}
+let len #t a = a.to `U32.sub` a.from
 
 let vnil_rewrite
   (t: Type)
@@ -57,8 +63,8 @@ let vnil
 
 let vcons_rewrite
   (#t: Type)
-  (n: nat)
-  (r: ref t)
+  (n: nat) // FIXME: should be ghost, see above
+  (r: ref t) // same here
   (v: vprop)
   (sq: squash (t_of v == Seq.lseq t n))
   (xy: t_of (vptr r `star` v))
@@ -77,76 +83,130 @@ let vcons
 
 let rec varray1
   (#t: Type0)
-  (a: array t)
+  (a: array2 t)
 : Pure vprop
   (requires True)
-  (ensures (fun v -> t_of v == Seq.lseq t (length a)))
-  (decreases (length a))
-= if length a = 0
+  (ensures (fun v -> t_of v == Seq.lseq t (Seq.length a)))
+  (decreases (Seq.length a))
+= if Seq.length a = 0
   then vnil t
-  else vcons (Seq.length a - 1) (Seq.index a 0) (varray1 (Seq.slice a 1 (length a)))
+  else vcons (Seq.length a - 1) (Seq.index a 0) (varray1 (Seq.slice a 1 (Seq.length a)))
 
-let is_array #a r = hp_of (varray1 r)
+[@@ __steel_reduce__]
+unfold
+let sel_varray1 (#a:Type) (#p:vprop) (r:array2 a)
+  (h:rmem p{FStar.Tactics.with_tactic selector_tactic (can_be_split p (varray1 r) /\ True)})
+: GTot (Seq.lseq a (Seq.length r))
+= let x : t_of (varray1 r) = h (varray1 r) in
+  x
 
-let array_sel #a r = fun h -> sel_of (varray1 r) h
+let sel_varray2
+  (#a: Type0)
+  (r: array2 a)
+: Tot (selector (Seq.lseq a (Seq.length r)) (hp_of (varray1 r)))
+= fun h -> sel_of (varray1 r) h
+
+[@@ __steel_reduce__]
+let varray2' (#a: Type0) (r: array2 a) : vprop' =
+  {hp = hp_of (varray1 r);
+   t = Seq.lseq a (Seq.length r);
+   sel = sel_varray2 r}
+
+[@@ __steel_reduce__]
+let varray2 r = VUnit (varray2' r)
+
+let varray9
+  (#t: Type0)
+  (a: array t)
+: Tot vprop
+= varray2 (Seq.slice a.base (U32.v a.from) (U32.v a.to))
+
+let is_array #a r = hp_of (varray9 r)
+
+let array_sel #a r = fun h -> sel_of (varray9 r) h
 
 let intro_varray
   (#t: Type)
+  (q: array2 t)
   (r: array t)
 : SteelSel unit
-    (varray1 r)
+    (varray2 q)
     (fun _ -> varray r)
-    (fun _ -> True)
-    (fun h _ h' -> h' (varray r) == h (varray1 r))
+    (fun _ -> Ghost.reveal q `Seq.equal` Seq.slice r.base (U32.v r.from) (U32.v r.to))
+    (fun h _ h' ->
+      (h (varray2 q) <: Seq.seq t) == h' (varray r)
+    )
 =
-  let m = get #(varray1 r) () in
-  let x : Ghost.erased (t_of (varray1 r)) = Ghost.hide (m (varray1 r <: vprop)) in
-  let x' : Ghost.erased (Seq.lseq t (length r)) = Ghost.hide (Ghost.reveal x) in
-  change_slprop
-    (varray1 r)
+  change_slprop_rel
+    (varray2 q)
     (varray r)
-    x
-    x'
+    (fun (x: t_of (varray2 q)) (y: t_of (varray r)) -> (x <: Seq.seq t) == y)
     (fun _ -> ())
-
-#restart-solver
-
-unfold
-let coerce (#t1: Type) (x: t1) (t2: Type) : Pure t2
-  (requires (t1 == t2))
-  (ensures (fun y -> y == x))
-= x
 
 let elim_varray
   (#t: Type)
   (r: array t)
-: SteelSel unit
+: SteelSel (array2 t)
     (varray r)
+    (fun q -> varray2 q)
+    (fun _ -> True)
+    (fun h q h' ->
+      Ghost.reveal q == Seq.slice r.base (U32.v r.from) (U32.v r.to) /\
+      (h (varray r) <: Seq.seq t) == h' (varray2 q)
+    )
+=
+  let q : array2 t = (Seq.slice r.base (U32.v r.from) (U32.v r.to)) in
+  change_slprop_rel
+    (varray r)
+    (varray2 q)
+    (fun (y: t_of (varray r)) (x: t_of (varray2 q)) -> (x <: Seq.seq t) == y)
+    (fun _ -> ());
+  q
+
+let intro_varray2
+  (#t: Type)
+  (q: array2 t)
+: SteelSel unit
+    (varray1 q)
+    (fun _ -> varray2 q)
+    (fun _ -> True)
+    (fun h _ h' ->
+      (h' (varray2 q) <: Seq.seq t) == sel_varray1 q h 
+    )
+=
+  change_slprop_rel
+    (varray1 q)
+    (varray2 q)
+    (fun (x: t_of (varray1 q)) (y: t_of (varray2 q)) -> (x <: Seq.seq t) == y)
+    (fun _ -> ())
+
+let elim_varray2
+  (#t: Type)
+  (r: array2 t)
+: SteelSel unit
+    (varray2 r)
     (fun _ -> varray1 r)
     (fun _ -> True)
-    (fun h _ h' -> h' (varray1 r) == h (varray r))
+    (fun h _ h' ->
+      (h (varray2 r) <: Seq.seq t) == sel_varray1 r h'
+    )
 =
-  let m = get #(varray r) () in
-  let x : Ghost.erased (t_of (varray r)) = Ghost.hide (m (varray r)) in
-  assert (t_of (varray1 r) == t_of (varray r));
-  let x' : Ghost.erased (t_of (varray1 r)) = Ghost.hide (coerce (Ghost.reveal x) (t_of (varray1 r))) in
-  change_slprop
-    (varray r)
+  change_slprop_rel
+    (varray2 r)
     (varray1 r)
-    x
-    x'
+    (fun (y: t_of (varray2 r)) (x: t_of (varray1 r)) -> (x <: Seq.seq t) == y)
     (fun _ -> ())
 
 let intro_vnil1
   (t: Type)
-: SteelSel (array t)
+: SteelSel (array2 t)
     vemp
     (fun r -> varray1 r)
     (fun _ -> True)
-    (fun _ r _ -> length r == 0)
+    (fun _ r _ -> Seq.length r == 0)
 =
   intro_vrewrite vemp (vnil_rewrite t);
-  let r : array t = Seq.empty in
+  let r : array2 t = Seq.empty in
   change_slprop
     (vrewrite vemp (vnil_rewrite t))
     (varray1 r)
@@ -157,38 +217,38 @@ let intro_vnil1
 
 let intro_vnil
   (t: Type)
-: SteelSel (array t)
+: SteelSel (array2 t)
     vemp
-    (fun r -> varray r)
+    (fun r -> varray2 r)
     (fun _ -> True)
     (fun _ r h' ->
-      r == Seq.empty /\
-      h' (varray r) == Seq.empty
+      Ghost.reveal r == Seq.empty /\
+      h' (varray2 r) == Seq.empty
     )
 =
   seq_facts ();
   let res = intro_vnil1 t in
-  intro_varray res;
+  intro_varray2 res;
   res
 
 let intro_vcons1
   (#t: Type)
-  (r: ref t)
-  (a: array t)
-: SteelSel (array t)
+  (r: (ref t)) // FIXME: should be ghost, see at the beginning of the file
+  (a: array2 t)
+: SteelSel (array2 t)
     (vptr r `star` varray1 a)
     (fun a' -> varray1 a')
     (fun _ -> fits32 (Seq.length a + 1))
     (fun h a' h' ->
-      a' == Seq.cons r a /\
-      (coerce (h' (varray1 a')) (Seq.lseq t (Seq.length a')) <: Seq.seq t) ==
-        Seq.cons (h (vptr r)) (coerce (h (varray1 a)) (Seq.lseq t (length a)))
+      Ghost.reveal a' == Seq.cons (Ghost.reveal r) a /\
+      (sel_varray1 a' h' <: Seq.seq t) ==
+        Seq.cons (h (vptr r)) (sel_varray1 a h)
     )
 =
   seq_facts ();
   reveal_star (vptr r) (varray1 a); // FIXME: WHY WHY WHY?
   intro_vrewrite (vptr r `star` varray1 a) (vcons_rewrite (Seq.length a) r (varray1 a) ());
-  let a' : array t = Seq.cons r a in
+  let a' : array2 t = Seq.cons (r) a in
   change_equal_slprop
     (vrewrite (vptr r `star` varray1 a) (vcons_rewrite (Seq.length a) r (varray1 a) ()))
     (varray1 a');
@@ -196,20 +256,20 @@ let intro_vcons1
 
 let intro_vcons
   (#t: Type)
-  (r: ref t)
-  (a: array t)
-: SteelSel (array t)
-    (vptr r `star` varray a)
-    (fun a' -> varray a')
+  (r: (ref t))
+  (a: array2 t)
+: SteelSel (array2 t)
+    (vptr r `star` varray2 a)
+    (fun a' -> varray2 a')
     (fun _ -> fits32 (Seq.length a + 1))
     (fun h a' h' ->
-      a' == Seq.cons r a /\
-      h' (varray a') ==
-        Seq.cons (h (vptr r)) (h (varray a))
+      Ghost.reveal a' == Seq.cons (Ghost.reveal r) a /\
+      h' (varray2 a') ==
+        Seq.cons (h (vptr r)) (h (varray2 a))
     )
-= elim_varray a;
+= elim_varray2 a;
   let res = intro_vcons1 r a in
-  intro_varray res;
+  intro_varray2 res;
   res
 
 #set-options "--ide_id_info_off" 
@@ -219,30 +279,30 @@ let intro_vcons
 
 let elim_vcons1
   (#t: Type)
-  (a: array t)
-: SteelSel (ref t & array t)
+  (a: array2 t)
+: SteelSel ((ref t) & array2 t) // FIXME fst should be ghost
     (varray1 a)
     (fun res -> vptr (pfst res) `star` varray1 (psnd res))
-    (fun _ -> length a > 0)
+    (fun _ -> Seq.length a > 0)
     (fun h res h' ->
-      length a > 0 /\
-      begin let s = coerce (h (varray1 a)) (Seq.lseq t (length a)) in
+      Seq.length a > 0 /\
+      begin let s = sel_varray1 a h in
       h' (vptr (pfst res)) == Seq.head s /\
-      Seq.tail s == coerce (h' (varray1 (psnd res))) (Seq.lseq t (length (psnd res))) /\
-      a == Seq.cons (pfst res) (psnd res)
+      Seq.tail s == sel_varray1 (psnd res) h' /\
+      Ghost.reveal a == Seq.cons (Ghost.reveal (pfst res)) (psnd res)
       end
     )
 =
   seq_facts ();
-  let a0 : Seq.seq (ref t) = a in
-  let r = Seq.head a0 in
-  let q : array t = Seq.tail a0 in
+  let a0 : (Seq.seq (ref t)) = a in // same here
+  let r : (ref t) = (Seq.head a0) in
+  let q : array2 t = Seq.tail a0 in
   change_equal_slprop
     (varray1 a)
     (vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ()));
   elim_vrewrite (vptr (r) `star` varray1 (q)) (vcons_rewrite (Seq.length (q)) (r) (varray1 (q)) ());
   reveal_star (vptr (r)) (varray1 (q));
-  let res : (ref t & array t) = (r, q) in
+  let res : ((ref t) & array2 t) = (r, q) in
   change_equal_slprop
     (vptr (r) `star` varray1 (q))
     (vptr (pfst res) `star` varray1 (psnd res));
@@ -253,34 +313,34 @@ let elim_vcons1
 
 let elim_vcons
   (#t: Type)
-  (a: array t)
-: SteelSel (ref t & array t)
-    (varray a)
-    (fun res -> vptr (pfst res) `star` varray (psnd res))
-    (fun _ -> length a > 0)
+  (a: array2 t)
+: SteelSel ((ref t) & array2 t)
+    (varray2 a)
+    (fun res -> vptr (pfst res) `star` varray2 (psnd res))
+    (fun _ -> Seq.length a > 0)
     (fun h res h' ->
-      length a > 0 /\
-      begin let s = h (varray a) in
-      s == Seq.cons (h' (vptr (pfst res))) (h' (varray (psnd res))) /\
-      a == Seq.cons (pfst res) (psnd res)
+      Seq.length a > 0 /\
+      begin let s = h (varray2 a) in
+      s == Seq.cons (h' (vptr (pfst res))) (h' (varray2 (psnd res))) /\
+      Ghost.reveal a == Seq.cons (Ghost.reveal (pfst res)) (psnd res)
       end
     )
 =
-  elim_varray a;
+  elim_varray2 a;
   let res = elim_vcons1 a in
-  intro_varray (psnd res);
+  intro_varray2 (psnd res);
   res
 
 let elim_nil
   (#t: Type)
-  (a: array t)
+  (a: array2 t)
 : SteelSel unit
-    (varray a)
+    (varray2 a)
     (fun _ -> vemp)
-    (fun _ -> length a == 0)
+    (fun _ -> Seq.length a == 0)
     (fun _ _ _ -> True)
 =
-  elim_varray a; 
+  elim_varray2 a; 
   change_equal_slprop
     (varray1 a)
     (vrewrite vemp (vnil_rewrite t));
@@ -314,25 +374,25 @@ let seq_append_cons
 
 let rec vappend
   (#t: Type)
-  (a1 a2: array t)
-: SteelSel (array t)
-    (varray a1 `star` varray a2)
-    (fun r -> varray r)
+  (a1 a2: array2 t)
+: SteelSel (array2 t)
+    (varray2 a1 `star` varray2 a2)
+    (fun r -> varray2 r)
     (fun _ -> fits32 (Seq.length a1 + Seq.length a2))
     (fun h r h' ->
-      h' (varray r) == Seq.append (h (varray a1)) (h (varray a2)) /\
-      r == Seq.append a1 a2
+      h' (varray2 r) == Seq.append (h (varray2 a1)) (h (varray2 a2)) /\
+      Ghost.reveal r == Seq.append a1 a2
     )
-    (decreases (length a1))
+    (decreases (Seq.length a1))
 =
   seq_facts ();
-  if Seq.length a1 = 0
+  if Seq.length a1 = 0 // HERE is why a1 (and thus array.to) currently CANNOT be ghost. I think we need support for SteelSelGhost or something like that
   then begin
     elim_nil a1;
     a2
   end else begin
     let hd_tl = elim_vcons a1 in
-    reveal_star_3 (vptr (pfst hd_tl)) (varray (psnd hd_tl)) (varray a2); // FIXME: WHY WHY WHY?
+    reveal_star_3 (vptr (pfst hd_tl)) (varray2 (psnd hd_tl)) (varray2 a2); // FIXME: WHY WHY WHY?
     let tl' = vappend (psnd hd_tl) a2 in
     let res = intro_vcons (pfst hd_tl) tl' in
     res
@@ -363,51 +423,51 @@ let slice_cons_right
 
 let rec vsplit
   (#t: Type)
-  (a: array t)
+  (a: array2 t)
   (i: U32.t)
-: SteelSel (array t & array t)
-    (varray a)
-    (fun res -> varray (pfst res) `star` varray (psnd res))
-    (fun _ -> U32.v i <= length a)
+: SteelSel (array2 t & array2 t)
+    (varray2 a)
+    (fun res -> varray2 (pfst res) `star` varray2 (psnd res))
+    (fun _ -> U32.v i <= Seq.length a)
     (fun h res h' ->
-      let s = h (varray a) in
-      U32.v i <= length a /\
+      let s = h (varray2 a) in
+      U32.v i <= Seq.length a /\
       pfst res `Seq.equal` Seq.slice a 0 (U32.v i) /\
-      psnd res `Seq.equal` Seq.slice a (U32.v i) (length a) /\
-      h' (varray (pfst res)) == Seq.slice s 0 (U32.v i) /\
-      h' (varray (psnd res)) `Seq.equal` Seq.slice s (U32.v i) (length a)
+      psnd res `Seq.equal` Seq.slice a (U32.v i) (Seq.length a) /\
+      h' (varray2 (pfst res)) == Seq.slice s 0 (U32.v i) /\
+      h' (varray2 (psnd res)) `Seq.equal` Seq.slice s (U32.v i) (Seq.length a)
     )
     (decreases (U32.v i))
 =
   seq_facts ();
-  let m0 = get #(varray a) () in
+  let m0 = get #(varray2 a) () in
   if i = 0ul
   then begin
     let n = intro_vnil t in
-    reveal_star (varray n) (varray a);
+    reveal_star (varray2 n) (varray2 a);
     let res = (n, a) in
     change_equal_slprop
-      (varray n `star` varray a)
-      (varray (pfst res) `star` varray (psnd res));
-    reveal_star (varray (pfst res)) (varray (psnd res));
+      (varray2 n `star` varray2 a)
+      (varray2 (pfst res) `star` varray2 (psnd res));
+    reveal_star (varray2 (pfst res)) (varray2 (psnd res));
     res
   end else begin
-    let hd_tl : (ref t & array t) = elim_vcons a in
-    reveal_star (vptr (pfst hd_tl)) (varray (psnd hd_tl));
+    let hd_tl : (ref t & array2 t) = elim_vcons a in
+    reveal_star (vptr (pfst hd_tl)) (varray2 (psnd hd_tl));
     let j = i `U32.sub` 1ul in
     assert (U32.v j == U32.v i - 1);
-    let m2 = get #(vptr (pfst hd_tl) `star` varray (psnd hd_tl)) () in
-    slice_cons_left (m2 (vptr (pfst hd_tl))) (m2 (varray (psnd hd_tl))) (U32.v i);
-    slice_cons_right (m2 (vptr (pfst hd_tl))) (m2 (varray (psnd hd_tl))) (U32.v i);
+    let m2 = get #(vptr (pfst hd_tl) `star` varray2 (psnd hd_tl)) () in
+    slice_cons_left (m2 (vptr (pfst hd_tl))) (m2 (varray2 (psnd hd_tl))) (U32.v i);
+    slice_cons_right (m2 (vptr (pfst hd_tl))) (m2 (varray2 (psnd hd_tl))) (U32.v i);
     let sl_sr = vsplit (psnd hd_tl) j in
-    reveal_star_3 (vptr (pfst hd_tl)) (varray (pfst sl_sr)) (varray (psnd sl_sr)); // FIXME: WHY WHY WHY?
+    reveal_star_3 (vptr (pfst hd_tl)) (varray2 (pfst sl_sr)) (varray2 (psnd sl_sr)); // FIXME: WHY WHY WHY?
     let sl = intro_vcons (pfst hd_tl) (pfst sl_sr) in
-    reveal_star (varray sl) (varray (psnd sl_sr));
+    reveal_star (varray2 sl) (varray2 (psnd sl_sr));
     let res = (sl, psnd sl_sr) in
     change_equal_slprop
-      (varray sl `star` varray (psnd sl_sr))
-      (varray (pfst res) `star` varray (psnd res));
-    reveal_star (varray (pfst res)) (varray (psnd res));
+      (varray2 sl `star` varray2 (psnd sl_sr))
+      (varray2 (pfst res) `star` varray2 (psnd res));
+    reveal_star (varray2 (pfst res)) (varray2 (psnd res));
     res
   end
 
@@ -417,43 +477,44 @@ noeq
 type ith_t
   (t: Type)
 = {
-  ith_lhs: array t;
+  ith_lhs: array2 t;
   ith_item: ref t;
-  ith_rhs: array t;
+  ith_rhs: array2 t;
 }
 
 #push-options "--z3rlimit 16"
 
 let unpack_ith
   (#t: Type)
-  (a: array t)
+  (a: array2 t)
   (i: U32.t)
 : SteelSel (ith_t t)
-    (varray a)
-    (fun res -> varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs)
-    (fun _ -> U32.v i < length a)
+    (varray2 a)
+    (fun res -> varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs)
+    (fun _ -> U32.v i < Seq.length a)
     (fun h res h' ->
-      U32.v i < length a /\
+      U32.v i < Seq.length a /\
       a == Seq.append res.ith_lhs (Seq.cons res.ith_item res.ith_rhs) /\
-      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (varray res.ith_lhs) /\
-      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (vptr res.ith_item) /\
-      h (varray a) == Seq.append (h' (varray res.ith_lhs)) (Seq.cons (h' (vptr res.ith_item)) (h' (varray res.ith_rhs))) /\
-      length res.ith_lhs == U32.v i
+      can_be_split (varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs) (varray2 res.ith_lhs) /\
+      can_be_split (varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs) (vptr res.ith_item) /\
+      can_be_split (varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs) (varray2 res.ith_lhs) /\
+      h (varray2 a) == Seq.append (h' (varray2 res.ith_lhs)) (Seq.cons (h' (vptr res.ith_item)) (h' (varray2 res.ith_rhs))) /\
+      Seq.length res.ith_lhs == U32.v i
     )
 =
-  let m = get #(varray a) () in
+  let m = get #(varray2 a) () in
   Seq.lemma_split a (U32.v i);
-  Seq.lemma_split (m (varray a)) (U32.v i);
+  Seq.lemma_split (m (varray2 a)) (U32.v i);
   let rsplit = vsplit a i in
-  reveal_star (varray (pfst rsplit)) (varray (psnd rsplit));
+  reveal_star (varray2 (pfst rsplit)) (varray2 (psnd rsplit));
   noop ();
   let rcons = elim_vcons (psnd rsplit) in
-  reveal_star_3 (varray (pfst rsplit)) (vptr (pfst rcons)) (varray (psnd rcons));
+  reveal_star_3 (varray2 (pfst rsplit)) (vptr (pfst rcons)) (varray2 (psnd rcons));
   let res = { ith_lhs = pfst rsplit; ith_item = pfst rcons; ith_rhs = psnd rcons } in
   change_equal_slprop
-    (varray (pfst rsplit) `star` vptr (pfst rcons) `star` varray (psnd rcons))
-    (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs);
-  reveal_star_3 (varray res.ith_lhs) (vptr res.ith_item) (varray res.ith_rhs);
+    (varray2 (pfst rsplit) `star` vptr (pfst rcons) `star` varray2 (psnd rcons))
+    (varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs);
+  reveal_star_3 (varray2 res.ith_lhs) (vptr res.ith_item) (varray2 res.ith_rhs);
   res
 
 #pop-options
@@ -461,25 +522,25 @@ let unpack_ith
 let pack_ith
   (#t: Type)
   (res: ith_t t)
-  (a: array t)
+  (a: array2 t)
 : SteelSel unit
-    (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs)
-    (fun _ -> varray a)
+    (varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs)
+    (fun _ -> varray2 a)
     (fun _ ->
       a == Seq.append res.ith_lhs (Seq.cons res.ith_item res.ith_rhs)
     )
     (fun h _ h' ->
-      let i = length res.ith_lhs in
-      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (varray res.ith_lhs) /\
-      can_be_split (varray res.ith_lhs `star` vptr res.ith_item `star` varray res.ith_rhs) (vptr res.ith_item) /\
-      h' (varray a) == Seq.append (h (varray res.ith_lhs)) (Seq.cons (h (vptr res.ith_item)) (h (varray res.ith_rhs)))
+      let i = Seq.length res.ith_lhs in
+      can_be_split (varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs) (varray2 res.ith_lhs) /\
+      can_be_split (varray2 res.ith_lhs `star` vptr res.ith_item `star` varray2 res.ith_rhs) (vptr res.ith_item) /\
+      h' (varray2 a) == Seq.append (h (varray2 res.ith_lhs)) (Seq.cons (h (vptr res.ith_item)) (h (varray2 res.ith_rhs)))
     )
 =
-  reveal_star_3 (varray res.ith_lhs) (vptr res.ith_item) (varray res.ith_rhs);
+  reveal_star_3 (varray2 res.ith_lhs) (vptr res.ith_item) (varray2 res.ith_rhs);
   let rhs = intro_vcons res.ith_item res.ith_rhs in
-  reveal_star (varray res.ith_lhs) (varray rhs);
+  reveal_star (varray2 res.ith_lhs) (varray2 rhs);
   let a' = vappend res.ith_lhs rhs in
-  change_equal_slprop (varray a') (varray a)
+  change_equal_slprop (varray2 a') (varray2 a)
 
 let seq_index_append_cons
   (#t: Type)
@@ -509,13 +570,13 @@ let rec valloc
   (#t: Type)
   (i: U32.t)
   (x: t)
-: SteelSel (array t)
+: SteelSel (array2 t)
     vemp
-    (fun res -> varray res)
+    (fun res -> varray2 res)
     (fun _ -> True)
     (fun _ res h' ->
-      length res == U32.v i /\
-      h' (varray res) == Seq.create (U32.v i) x
+      Seq.length res == U32.v i /\
+      h' (varray2 res) == Seq.create (U32.v i) x
     )
     (decreases (U32.v i))
 =
@@ -535,42 +596,131 @@ let rec valloc
     res
   end
 
-(* FIXME: refine the model with nontrivial allocation units. To do that, I will need fractional permissions. *)
+let adjacent #_ a b = a.base == b.base /\ a.to == b.from
 
-let adjacent #_ a b = fits32 (length a + length b)
-let merge #t a1 a2 = Seq.append a1 a2
-let freeable #t a = True
+let tmerge
+  (#t: Type)
+  (r1 r2: array t)
+: Pure (array t)
+  (requires (adjacent r1 r2))
+  (ensures (fun r -> length r == length r1 + length r2))
+= {
+  base = r1.base;
+  from = r1.from;
+  to = r2.to;
+}
 
+let merge #t r1 r2 = tmerge r1 r2
+
+let merge_assoc r1 r2 r3 = ()
+
+let tsplit
+  (#t: Type)
+  (r: array t)
+  (i: U32.t)
+: Pure (array t & array t)
+  (requires (U32.v i <= length r))
+  (ensures (fun (rl, rr) ->
+    merge_into rl rr r /\
+    length rl == U32.v i
+  ))
+=
+  let mid = r.from `U32.add` i in
+  let r1 = {
+    base = r.base;
+    from = r.from;
+    to = mid;
+  } in
+  let r2 = {
+    base = r.base;
+    from = mid;
+    to = r.to
+  } in
+  (r1, r2)
+
+let merge_zero_left #t r1 r2 = ()
+
+let merge_zero_right #t r1 r2 = ()
+
+let gsplit #t r i = tsplit r i
+
+let gsplit_unique #t r rl rr = ()
+
+let freeable #t a = a.from == 0ul /\ U32.v a.to == Seq.length a.base
+
+#push-options "--z3rlimit 16"
 let join #t al ar =
-  vappend al ar
+  let al2 = elim_varray al in
+  let ar2 = elim_varray ar in
+  let a2 = vappend al2 ar2 in
+  let a = tmerge al ar in
+  intro_varray a2 a;
+  a
+#pop-options
 
+#push-options "--z3rlimit 16"
 let split #t a i =
-  Seq.lemma_split a (U32.v i);
-  vsplit a i
+  let a2 = elim_varray a in
+  Seq.lemma_split a2 (U32.v i);
+  let res2 = vsplit a2 i in
+  let res = tsplit a i in
+  intro_varray (pfst res2) (pfst res);
+  intro_varray (psnd res2) (psnd res);
+  res
+#pop-options
 
-let alloc x n = valloc n x
+let alloc x n =
+  let base = valloc n x in
+  let res = {
+    base = base;
+    from = 0ul;
+    to = n;
+  } in
+  intro_varray base res;
+  res
 
 let index #t r i =
-  let p = unpack_ith r i in
-  let m1 = get #(varray p.ith_lhs `star` vptr p.ith_item `star` varray p.ith_rhs) () in
-  seq_index_append_cons (U32.v i) (m1 (varray p.ith_lhs)) (m1 (vptr p.ith_item)) (m1 (varray p.ith_rhs));
-  let res = read p.ith_item in 
-  pack_ith p r;
+  let r2 = elim_varray r in
+  let p = unpack_ith r2 i in
+  let gl = gget (varray2 p.ith_lhs) in
+  let gg = gget (vptr p.ith_item) in
+  let gr = gget (varray2 p.ith_rhs) in
+  seq_index_append_cons (U32.v i) (Ghost.reveal gl) (Ghost.reveal gg) (Ghost.reveal gr);
+  (* In the future, r2 and p will be ghost,
+     so the proper way is to index into base *)
+  seq_index_append_cons (U32.v i) p.ith_lhs p.ith_item p.ith_rhs;
+  let j : nat = U32.v r.from + U32.v i in
+  let pi = Seq.index r.base j in
+  change_equal_slprop (vptr p.ith_item) (vptr pi);
+  let res = read pi in 
+  change_equal_slprop (vptr pi) (vptr p.ith_item);
+  pack_ith p r2;
+  intro_varray r2 r;
   res
 
 let upd #t r i x =
-  let p = unpack_ith r i in
-  let m1 = get #(varray p.ith_lhs `star` vptr p.ith_item `star` varray p.ith_rhs) () in
-  seq_upd_append_cons (U32.v i) x (m1 (varray p.ith_lhs)) (m1 (vptr p.ith_item)) (m1 (varray p.ith_rhs));
-  write p.ith_item x;
-  pack_ith p r
+  let r2 = elim_varray r in
+  let p = unpack_ith r2 i in
+  let gl = gget (varray2 p.ith_lhs) in
+  let gg = gget (vptr p.ith_item) in
+  let gr = gget (varray2 p.ith_rhs) in
+  seq_upd_append_cons (U32.v i) x (Ghost.reveal gl) (Ghost.reveal gg) (Ghost.reveal gr);
+  (* In the future, r2 and p will be ghost,
+     so the proper way is to index into base *)
+  seq_index_append_cons (U32.v i) p.ith_lhs p.ith_item p.ith_rhs;
+  let j : nat = U32.v r.from + U32.v i in
+  let pi = Seq.index r.base j in
+  change_equal_slprop (vptr p.ith_item) (vptr pi);
+  write pi x;
+  change_equal_slprop (vptr pi) (vptr p.ith_item);
+  pack_ith p r2;
+  intro_varray r2 r
 
 (* TODO: properly deallocate instead of just dropping the vprop *)
 let free #t r =
   reveal_vemp ();
-  let res : Ghost.erased (t_of vemp) = Ghost.hide (coerce () (t_of vemp)) in
-  change_slprop_2
+  change_slprop_rel
     (varray r)
     (vemp)
-    res
+    (fun _ _ -> True)
     (fun m -> intro_emp m)

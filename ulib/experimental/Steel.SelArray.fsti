@@ -73,7 +73,7 @@ val merge
   (r1 r2: array t)
 : Ghost (array t)
   (requires (adjacent r1 r2))
-  (ensures (fun _ -> True))
+  (ensures (fun r -> length r == length r1 + length r2))
 
 let merge_into
   (#t: Type)
@@ -81,6 +81,60 @@ let merge_into
 : Tot prop
 = adjacent r1 r2 /\
   merge r1 r2 == r3
+
+val merge_assoc
+  (#t: Type)
+  (r1 r2 r3: array t)
+: Lemma
+  (requires (adjacent r1 r2 /\ adjacent r2 r3))
+  (ensures (
+    adjacent r1 r2 /\ adjacent r2 r3 /\
+    begin
+      let r12 = merge r1 r2 in
+      let r23 = merge r2 r3 in
+      adjacent r1 r23 /\ adjacent r12 r3 /\
+      merge r1 r23 == merge r12 r3
+    end
+  ))
+  [SMTPat (merge (merge r1 r2) r3)]
+
+val merge_zero_left
+  (#t: Type)
+  (r1 r2: array t)
+: Lemma
+  (requires (adjacent r1 r2 /\ length r1 == 0))
+  (ensures (
+    merge_into r1 r2 r2
+  ))
+
+val merge_zero_right
+  (#t: Type)
+  (r1 r2: array t)
+: Lemma
+  (requires (adjacent r1 r2 /\ length r2 == 0))
+  (ensures (
+    merge_into r1 r2 r1
+  ))
+
+val gsplit
+  (#t: Type)
+  (r: array t)
+  (i: U32.t)
+: Ghost (array t & array t)
+  (requires (U32.v i <= length r))
+  (ensures (fun (rl, rr) ->
+    merge_into rl rr r /\
+    length rl == U32.v i
+  ))
+
+val gsplit_unique
+  (#t: Type)
+  (r rl rr: array t)
+: Lemma
+  (requires (merge_into rl rr r))
+  (ensures (
+    (rl, rr) == gsplit r (len rl)
+  ))
 
 val freeable (#t: Type) (a: array t) : Tot prop
 
@@ -105,7 +159,7 @@ val split (#t:Type) (a:array t) (i:U32.t)
             let sl = h' (varray (pfst res)) in
             let sr = h' (varray (psnd res)) in
             U32.v i <= length a /\
-            merge_into (pfst res) (psnd res) a /\
+            res == gsplit a i /\
             sl == Seq.slice s 0 (U32.v i) /\
             sr == Seq.slice s (U32.v i) (length a)
           )
