@@ -669,7 +669,19 @@ let split #t a i =
   res
 #pop-options
 
-let alloc x n =
+let alloc2 (#t:Type) (x:t) (n:U32.t)
+  : SteelSel (array t)
+             vemp
+             (fun r -> varray r)
+             (requires fun _ -> True)
+             (ensures fun _ r h1 ->
+               Seq.length r.base == U32.v n /\
+               r.from == 0ul /\
+               r.to == n /\
+               asel r h1 == Seq.create (U32.v n) x /\
+               freeable r
+             )
+=
   let base = valloc n x in
   let res = {
     base = base;
@@ -678,6 +690,8 @@ let alloc x n =
   } in
   intro_varray base res;
   res
+
+let alloc x n = alloc2 x n
 
 let index #t r i =
   let r2 = elim_varray r in
