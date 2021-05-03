@@ -2,9 +2,12 @@ module Selectors.Tree
 
 open Selectors.Tree.Core
 open Steel.Memory
+open Steel.SelEffect.Atomic
 open Steel.SelEffect
 
 module Spec = Trees
+
+#set-options "--ide_id_info_off"
 
 (**** High-level operations on trees *)
 

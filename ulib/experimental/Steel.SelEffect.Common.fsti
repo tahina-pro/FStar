@@ -86,9 +86,6 @@ type post_t (a:Type) = a -> vprop
 
 let return_pre (p:vprop) : vprop = p
 
-let admit_pre (p:pre_t) : pre_t = p
-let admit_post (#a:Type) (p:post_t a) : post_t a = p
-
 val can_be_split (p q:pre_t) : Type0
 val reveal_can_be_split (_:unit) : Lemma
   (forall p q. can_be_split p q == Mem.slimp (hp_of p) (hp_of q))
@@ -170,6 +167,65 @@ val reveal_vemp (_:unit) : Lemma (hp_of vemp == emp /\ t_of vemp == unit)
 let maybe_emp (framed:bool) (frame:pre_t) = if framed then frame == vemp else True
 let maybe_emp_dep (#a:Type) (framed:bool) (frame:post_t a) =
   if framed then (forall x. frame x == vemp) else True
+
+(* focus_rmem is an additional restriction of our view of memory.
+   We expose it here to be able to reduce through normalization;
+   Any valid application of focus_rmem h will be reduced to the application of h *)
+
+[@@ __steel_reduce__]
+unfold
+let unrestricted_focus_rmem (#r:vprop) (h:rmem r) (r0:vprop{r `can_be_split` r0})
+  = fun (r':vprop{can_be_split r0 r'}) -> can_be_split_trans r r0 r'; h r'
+
+[@@ __steel_reduce__]
+let focus_rmem (#r: vprop) (h: rmem r) (r0: vprop{r `can_be_split` r0}) : Tot (rmem r0)
+ = FExt.on_dom_g
+   (r':vprop{can_be_split r0 r'})
+   (unrestricted_focus_rmem h r0)
+
+(* State that all "atomic" subresources have the same selectors on both views *)
+
+(* AF 04/27/2021: The linear equality generation, where equalities are only
+   generated for leaf, VUnit nodes, works well for concrete code, but does
+   not allow to propagate information when handling abstract vprops.
+   While defining generic combinators on vprops such as vrefine and vdep,
+   Tahina encountered issues with this. For instance, elim_vdep returns
+   a v `star` q, where v and q are abstract vprops. As such, equalities
+   on the selectors of v and q are not propagated: Normalization gets stuck
+   on both v and q, since they are neither a VUnit nor a VStar.
+   An earlier fix was creating a "top-level" equality on the full vprop
+   to handle most generic vprops cases. Unfortunately, this does not
+   help when we have atomic, abstract vprops as in v `star` q.
+   For now, I'm reenabling quadratic equality generation. But we need
+   to find a better way to handle generic vprops selectors while avoiding
+   a context blowup; furthermore, equalities on composite resources are mostly
+   irrelevant because of AC-rewriting, and because we do not provide patterns
+   on lemmas relating sel (p * q) with (sel p, sel q), or sel (p * q) with
+   sel (q * p) for instance.
+   We should instead have a better way to define atomic vprops, which encapsulates
+   atomic, abstract vprops
+*)
+[@@ __steel_reduce__]
+let rec frame_equalities
+  (frame:vprop)
+  (h0:rmem frame) (h1:rmem frame) : prop
+  = h0 frame == h1 frame /\
+    begin match frame with
+    | VUnit p -> True
+    | VStar p1 p2 ->
+        can_be_split_star_l p1 p2;
+        can_be_split_star_r p1 p2;
+
+        let h01 = focus_rmem h0 p1 in
+        let h11 = focus_rmem h1 p1 in
+
+        let h02 = focus_rmem h0 p2 in
+        let h12 = focus_rmem h1 p2 in
+
+
+        frame_equalities p1 h01 h11 /\
+        frame_equalities p2 h02 h12
+    end
 
 open FStar.Tactics
 
@@ -1577,7 +1633,8 @@ let goal_to_equiv (t:term) (loc:string) : Tac unit
         ignore (forall_intro ());
         apply_lemma (`equiv_can_be_split)
       ) else if term_eq hd (`equiv_forall) then (
-        fail "equiv_forall"
+        apply_lemma (`equiv_forall_elim);
+        ignore (forall_intro ())
       ) else if term_eq hd (`can_be_split_post) then (
         apply_lemma (`can_be_split_post_elim);
         dismiss_slprops();
@@ -1591,29 +1648,6 @@ let goal_to_equiv (t:term) (loc:string) : Tac unit
         // This should never happen
         fail (loc ^ " goal in unexpected position")
     | _ -> fail (loc ^ " unexpected goal")
-
-let rec solve_sladmits (l:list goal) : Tac unit =
-  match l with
-  | [] -> ()
-  | hd::tl ->
-    let t = goal_type hd in
-    let is_preadmit = term_appears_in (`admit_pre) t in
-    let is_postadmit = term_appears_in (`admit_post) t in
-    if is_preadmit || is_postadmit then (
-      focus (fun _ ->
-        goal_to_equiv t "sladmit";
-        norm [delta_only [`%admit_pre; `%admit_post]];
-        apply_lemma (`equiv_refl);
-        // If we had both a preadmit and a postadmit, we had two successive sladmits calls,
-        // and this constraint corresponds to the inner equivalence, where slprops are
-        // irrelevant. We arbitrarily set them to emp
-        match goals () with
-        | [] -> ()
-        | [hd] -> if is_preadmit && is_postadmit then exact (`emp) else fail "sladmit case not supported"
-        | _ -> fail "solving sladmit generated too many goals, should not happen"
-      )
-    ) else later ();
-    solve_sladmits tl
 
 let rec solve_triv_eqs (l:list goal) : Tac unit =
   match l with
@@ -1762,13 +1796,7 @@ let init_sel_resolve_tac () : Tac unit =
   // Once unification has been done, we can then safely normalize and remove all return_pre
   norm_return_pre (goals());
 
-  // Handle all sladmits here. They are outside the scope of our calculus since
-  // they are not once-removed unitriangular. As such, they need a special handling
-  solve_sladmits (goals());
-
-  // TODO: If we had better handling of lifts from PURE, we might prove a true
-  // sl_implies here, "losing" extra assertions"
-
+  // Finally running the core of the tactic, scheduling and solving goals
   resolve_tac ();
 
   // We now solve the requires/ensures goals, which are all equalities
