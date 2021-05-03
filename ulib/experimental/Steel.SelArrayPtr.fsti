@@ -32,7 +32,7 @@
 module Steel.SelArrayPtr
 open Steel.Memory
 open Steel.SelEffect
-open FStar.Ghost
+open Steel.SelEffect.Atomic
 module U32 = FStar.UInt32
 module A = Steel.SelArray
 
@@ -64,8 +64,8 @@ let sel (#a:Type) (#p:vprop) (r:t a)
 
 (* Splitting an array (inspired from Steel.Array) *)
 
-val join (#a:Type) (al ar:t a)
-  : SteelSel unit
+val join (#opened: _) (#a:Type) (al ar:t a)
+  : SteelSelGhost unit opened
           (varrayptr al `star` varrayptr ar)
           (fun _ -> varrayptr al)
           (fun h -> A.adjacent (h (varrayptr al)).array (h (varrayptr ar)).array)

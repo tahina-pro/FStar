@@ -19,16 +19,16 @@ let to_t
   (base: A.array1 t)
   (from: U32.t)
 : Tot Type0
-= (to_v base from) // FIXME: should be Ghost.erased (to_v a), but we currently cannot because of the case analysis in Steel.SelArray.vappend; we need support for something like SteelSelGhost
+= Ghost.erased (to_v base from)
 
 noeq
 type t (a: Type u#0) = {
   base: A.array1 a;
   from: U32.t;
-  to: ref (to_t base from);
+  to: ghost_ref (to_v base from);
 }
 
-let mk_t (#a: Type u#0) (base: A.array1 a) (from: U32.t) (to: ref (to_t base from)) : Tot (t a) =
+let mk_t (#a: Type u#0) (base: A.array1 a) (from: U32.t) (to: ghost_ref (to_v base from)) : Tot (t a) =
   {
     base = base;
     from = from;
@@ -43,20 +43,20 @@ let array_of
 = {
   A.base = p.base;
   A.from = p.from;
-  A.to = to;
+  A.to = Ghost.hide (Ghost.reveal to);
 }
 
 let varrayptr0_dep
   (#a: Type)
   (p: t a)
-  (to: to_t p.base p.from)
+  (to: normal (t_of (ghost_vptr p.to)))
 : Tot vprop
 = A.varray (array_of p to)
 
 let varrayptr0_rewrite
   (#a: Type)
   (p: t a)
-  (x: normal (t_of (vptr p.to `vdep` varrayptr0_dep p)))
+  (x: normal (t_of (ghost_vptr p.to `vdep` varrayptr0_dep p)))
 : Tot (v a)
 = let (| to, contents |) = x in
   {
@@ -68,68 +68,70 @@ let varrayptr0
   (#a: Type)
   (r: t a)
 : Tot vprop
-= (vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r
+= (ghost_vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r
 
 let is_arrayptr #a r = hp_of (varrayptr0 r)
 
 let arrayptr_sel #a r = fun h -> sel_of (varrayptr0 r) h
 
 let intro_varrayptr
+  (#opened: _)
   (#a: Type)
   (r: t a)
-: SteelSel unit
-    ((vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
+: SteelSelGhost unit opened
+    ((ghost_vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
     (fun _ -> varrayptr r)
     (fun _ -> True)
-    (fun h0 _ h1 -> h1 (varrayptr r) == h0 ((vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r))
+    (fun h0 _ h1 -> h1 (varrayptr r) == h0 ((ghost_vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r))
 =
   change_slprop_rel
-    ((vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
+    ((ghost_vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
     (varrayptr r)
     (fun x y -> x == y)
     (fun _ -> ())
 
 let elim_varrayptr
+  (#opened: _)
   (#a: Type)
   (r: t a)
-: SteelSel unit
+: SteelSelGhost unit opened
     (varrayptr r)
-    (fun _ -> (vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
+    (fun _ -> (ghost_vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
     (fun _ -> True)
-    (fun h0 _ h1 -> h0 (varrayptr r) == h1 ((vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r))
+    (fun h0 _ h1 -> h0 (varrayptr r) == h1 ((ghost_vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r))
 =
   change_slprop_rel
     (varrayptr r)
-    ((vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
+    ((ghost_vptr r.to `vdep` varrayptr0_dep r) `vrewrite` varrayptr0_rewrite r)
     (fun x y -> x == y)
     (fun _ -> ())
 
 #push-options "--z3rlimit 32"
-let join #a al ar =
+let join #opened #a al ar =
   elim_varrayptr al;
-  elim_vrewrite (vptr al.to `vdep` varrayptr0_dep al) (varrayptr0_rewrite al);
-  let g_al_to = elim_vdep (vptr al.to) (varrayptr0_dep al) in
-  let al_to = read al.to in // FIXME: if to_t is Ghost, then this read is not necessary
+  elim_vrewrite (ghost_vptr al.to `vdep` varrayptr0_dep al) (varrayptr0_rewrite al);
+  let g_al_to = elim_vdep (ghost_vptr al.to) (varrayptr0_dep al) in
+  let al_to = ghost_read al.to in
   let aal = array_of al al_to in
   change_equal_slprop
     (varrayptr0_dep al (Ghost.reveal g_al_to))
     (A.varray aal);
   elim_varrayptr ar;
-  elim_vrewrite (vptr ar.to `vdep` varrayptr0_dep ar) (varrayptr0_rewrite ar);
-  let g_ar_to = elim_vdep (vptr ar.to) (varrayptr0_dep ar) in
-  let ar_to = read ar.to in // same here
-  free ar.to;
+  elim_vrewrite (ghost_vptr ar.to `vdep` varrayptr0_dep ar) (varrayptr0_rewrite ar);
+  let g_ar_to = elim_vdep (ghost_vptr ar.to) (varrayptr0_dep ar) in
+  let ar_to = ghost_read ar.to in
+  ghost_free ar.to;
   let aar = array_of ar ar_to in
   change_equal_slprop
     (varrayptr0_dep ar (Ghost.reveal g_ar_to))
     (A.varray aar);
-  let aj = A.join aal aar in
+  let aj = A.gjoin aal aar in
   let ar_to : U32.t = ar_to in
   let ar_to : to_t al.base al.from = ar_to in
-  write al.to ar_to;
-  assert (aj == array_of al ar_to);
-  intro_vdep (vptr al.to) (A.varray aj) (varrayptr0_dep al);
-  intro_vrewrite (vptr al.to `vdep` varrayptr0_dep al) (varrayptr0_rewrite al);
+  ghost_write al.to ar_to;
+  assert (Ghost.reveal aj == array_of al ar_to);
+  intro_vdep (ghost_vptr al.to) (A.varray aj) (varrayptr0_dep al);
+  intro_vrewrite (ghost_vptr al.to `vdep` varrayptr0_dep al) (varrayptr0_rewrite al);
   intro_varrayptr al
 #pop-options
 
@@ -145,39 +147,39 @@ let u32_bounded_add
 #restart-solver
 let split #a x i =
   elim_varrayptr x;
-  elim_vrewrite (vptr x.to `vdep` varrayptr0_dep x) (varrayptr0_rewrite x);
-  let g_x_to = elim_vdep (vptr x.to) (varrayptr0_dep x) in
-  let x_to = read x.to in // same here
-  let xa = array_of x x_to in
+  elim_vrewrite (ghost_vptr x.to `vdep` varrayptr0_dep x) (varrayptr0_rewrite x);
+  let x_to_1 : to_t x.base x.from = elim_vdep (ghost_vptr x.to) (varrayptr0_dep x) in
+  let xa = array_of x x_to_1 in
   change_equal_slprop
-    (varrayptr0_dep x (Ghost.reveal g_x_to))
+    (varrayptr0_dep x (Ghost.reveal x_to_1))
     (A.varray xa);
-  let res2 = A.split xa i in
+  let res2 : Ghost.erased (A.array a & A.array a) = A.gsplit0 xa i in
   reveal_star (A.varray (A.pfst res2)) (A.varray (A.psnd res2));
-  let x_to : U32.t = x_to in
-  let j : to_t x.base x.from = u32_bounded_add x.from i x_to in
-  let x_to : to_t x.base j = x_to in
-  write x.to j;
+  let x_to_2 : Ghost.erased U32.t = Ghost.hide (Ghost.reveal x_to_1) in
+  let j : to_v x.base x.from = u32_bounded_add x.from i x_to_2 in
+  let x_to_3 : to_t x.base j = Ghost.hide (Ghost.reveal x_to_2) in
+  ghost_write x.to j;
   assert (A.pfst res2 == array_of x j);
   intro_vdep
-    (vptr x.to)
+    (ghost_vptr x.to)
     (A.varray (A.pfst res2))
     (varrayptr0_dep x);
-  intro_vrewrite (vptr x.to `vdep` varrayptr0_dep x) (varrayptr0_rewrite x);
+  intro_vrewrite (ghost_vptr x.to `vdep` varrayptr0_dep x) (varrayptr0_rewrite x);
   intro_varrayptr x;
-  let to2 : ref (to_t x.base j) = alloc x_to in
+  let to2 : ghost_ref (to_v x.base j) = ghost_alloc x_to_3 in
   let res : t a = mk_t x.base j to2 in
-  assert (A.psnd res2 == array_of res x_to);
+  let x_to_4 : to_t res.base res.from = Ghost.hide (Ghost.reveal x_to_3 <: U32.t) in
+  assert (A.psnd res2 == array_of res x_to_4);
   change_equal_slprop
-    (vptr to2)
-    (vptr res.to);
+    (ghost_vptr to2)
+    (ghost_vptr res.to);
   intro_vdep
-    (vptr res.to)
+    (ghost_vptr res.to)
     (A.varray (A.psnd res2))
     (varrayptr0_dep res);
-  intro_vrewrite (vptr res.to `vdep` varrayptr0_dep res) (varrayptr0_rewrite res);
+  intro_vrewrite (ghost_vptr res.to `vdep` varrayptr0_dep res) (varrayptr0_rewrite res);
   intro_varrayptr res;
-  res
+  return res
 #pop-options
 
 let alloc
@@ -186,7 +188,7 @@ let alloc
   Seq.slice_length (Seq.create (U32.v n) x);
   let ar = A.alloc2 x n in
   let n2 : to_t ar.A.base 0ul = n in
-  let to : ref (to_t ar.A.base 0ul) = alloc n2 in
+  let to : ghost_ref (to_v ar.A.base 0ul) = ghost_alloc n2 in
   let res = {
     base = ar.A.base;
     from = 0ul;
@@ -194,63 +196,61 @@ let alloc
   } in
   assert (array_of res n2 == ar);
   change_equal_slprop
-    (vptr to)
-    (vptr res.to);
+    (ghost_vptr to)
+    (ghost_vptr res.to);
   intro_vdep
-    (vptr res.to)
+    (ghost_vptr res.to)
     (A.varray ar)
     (varrayptr0_dep res);
-  intro_vrewrite (vptr res.to `vdep` varrayptr0_dep res) (varrayptr0_rewrite res);
+  intro_vrewrite (ghost_vptr res.to `vdep` varrayptr0_dep res) (varrayptr0_rewrite res);
   intro_varrayptr res;
-  res
+  return res
 
 let index
   #a r i
 =
   elim_varrayptr r;
-  elim_vrewrite (vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
-  let g = elim_vdep (vptr r.to) (varrayptr0_dep r) in
-  let to = read r.to in
+  elim_vrewrite (ghost_vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
+  let g = elim_vdep (ghost_vptr r.to) (varrayptr0_dep r) in
+  let to = ghost_read r.to in
   let ar = array_of r to in
   change_equal_slprop
     (varrayptr0_dep r (Ghost.reveal g))
     (A.varray ar);
   let res = A.index ar i in
   intro_vdep
-    (vptr r.to)
+    (ghost_vptr r.to)
     (A.varray ar)
     (varrayptr0_dep r);
-  intro_vrewrite (vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
+  intro_vrewrite (ghost_vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
   intro_varrayptr r;
-  res
+  return res
 
 let upd
   #a r i x
 =
   elim_varrayptr r;
-  elim_vrewrite (vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
-  let g = elim_vdep (vptr r.to) (varrayptr0_dep r) in
-  let to = read r.to in
+  elim_vrewrite (ghost_vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
+  let to = elim_vdep (ghost_vptr r.to) (varrayptr0_dep r) in
   let ar = array_of r to in
   change_equal_slprop
-    (varrayptr0_dep r (Ghost.reveal g))
+    (varrayptr0_dep r (Ghost.reveal to))
     (A.varray ar);
   A.upd ar i x;
   intro_vdep
-    (vptr r.to)
+    (ghost_vptr r.to)
     (A.varray ar)
     (varrayptr0_dep r);
-  intro_vrewrite (vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
+  intro_vrewrite (ghost_vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
   intro_varrayptr r
 
 let free #a r =
   elim_varrayptr r;
-  elim_vrewrite (vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
-  let g = elim_vdep (vptr r.to) (varrayptr0_dep r) in
-  let to = read r.to in
-  free r.to;
+  elim_vrewrite (ghost_vptr r.to `vdep` varrayptr0_dep r) (varrayptr0_rewrite r);
+  let to = elim_vdep (ghost_vptr r.to) (varrayptr0_dep r) in
+  ghost_free r.to;
   let ar = array_of r to in
   change_equal_slprop
-    (varrayptr0_dep r (Ghost.reveal g))
+    (varrayptr0_dep r to)
     (A.varray ar);
   A.free ar
