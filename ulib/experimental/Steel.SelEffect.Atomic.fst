@@ -432,6 +432,8 @@ let reveal_star0 (#opened:inames) (p1 p2:vprop)
   : repr unit false opened Unobservable (p1 `star` p2) (fun _ -> p1 `star` p2)
    (fun _ -> True)
    (fun h0 _ h1 ->
+     can_be_split (p1 `star` p2) p1 /\
+     can_be_split (p1 `star` p2) p2 /\
      h0 p1 == h1 p1 /\ h0 p2 == h1 p2 /\
      h0 (p1 `star` p2) == (h0 p1, h0 p2) /\
      h1 (p1 `star` p2) == (h1 p1, h1 p2)
@@ -451,6 +453,7 @@ let reveal_star_30 (#opened:inames) (p1 p2 p3:vprop)
    (ensures fun h0 _ h1 ->
      can_be_split (p1 `star` p2 `star` p3) p1 /\
      can_be_split (p1 `star` p2 `star` p3) p2 /\
+     can_be_split (p1 `star` p2 `star` p3) p3 /\
      h0 p1 == h1 p1 /\ h0 p2 == h1 p2 /\ h0 p3 == h1 p3 /\
      h0 (p1 `star` p2 `star` p3) == ((h0 p1, h0 p2), h0 p3) /\
      h1 (p1 `star` p2 `star` p3) == ((h1 p1, h1 p2), h1 p3)
