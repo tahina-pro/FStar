@@ -1,5 +1,6 @@
 module Steel.SelArray
 open Steel.SelEffect.Atomic
+open Steel.SelReference
 
 let seq_facts () : Lemma (
   (forall (t: Type) (s: Seq.seq t) .
@@ -49,7 +50,7 @@ let len #t a = a.to `U32.sub` a.from
 
 let vnil_rewrite
   (t: Type)
-  (x: t_of vemp)
+  (x: t_of emp)
 : GTot (Seq.lseq t 0)
 = Seq.empty
 
@@ -58,7 +59,7 @@ let vnil
 : Pure vprop
   (requires True)
   (ensures (fun v -> t_of v == Seq.lseq t 0))
-= vrewrite vemp (vnil_rewrite t)
+= vrewrite emp (vnil_rewrite t)
 
 let vcons_rewrite
   (#t: Type)
@@ -204,17 +205,17 @@ let intro_vnil1
   (#opened: _)
   (t: Type)
 : SteelSelGhost (array2 t) opened
-    vemp
+    emp
     (fun r -> varray1 r)
     (fun _ -> True)
     (fun _ r _ -> Seq.length r == 0)
 =
-  intro_vrewrite vemp (vnil_rewrite t);
+  intro_vrewrite emp (vnil_rewrite t);
   let r : array2 t = Seq.empty in
   change_slprop
-    (vrewrite vemp (vnil_rewrite t))
+    (vrewrite emp (vnil_rewrite t))
     (varray1 r)
-    (Ghost.hide (Seq.empty #t <: t_of (vrewrite vemp (vnil_rewrite t))))
+    (Ghost.hide (Seq.empty #t <: t_of (vrewrite emp (vnil_rewrite t))))
     (Ghost.hide (Seq.empty #t <: t_of (varray1 r)))
     (fun _ -> ());
   r
@@ -223,7 +224,7 @@ let intro_vnil
   (#opened: _)
   (t: Type)
 : SteelSelGhost (array2 t) opened
-    vemp
+    emp
     (fun r -> varray2 r)
     (fun _ -> True)
     (fun _ r h' ->
@@ -346,15 +347,15 @@ let elim_nil
   (a: array2 t)
 : SteelSelGhost unit opened
     (varray2 a)
-    (fun _ -> vemp)
+    (fun _ -> emp)
     (fun _ -> Seq.length a == 0)
     (fun _ _ _ -> True)
 =
   elim_varray2 a; 
   change_equal_slprop
     (varray1 a)
-    (vrewrite vemp (vnil_rewrite t));
-  elim_vrewrite vemp (vnil_rewrite t)
+    (vrewrite emp (vnil_rewrite t));
+  elim_vrewrite emp (vnil_rewrite t)
 
 let seq_append_nil
   (#t: Type)
@@ -585,7 +586,7 @@ let rec valloc
   (i: U32.t)
   (x: t)
 : SteelSel (array1 t)
-    vemp
+    emp
     (fun res -> varray2 res)
     (fun _ -> True)
     (fun _ res h' ->
@@ -605,7 +606,7 @@ let rec valloc
     return res2
   else begin
     let sq : squash (i <> 0ul) = () in
-    let hd = Steel.SelEffect.alloc x in
+    let hd = Steel.SelReference.alloc x in
     let j = decr32 i sq in
     assert (Seq.cons x (Seq.create (U32.v j) x) `Seq.equal` Seq.create (U32.v i) x);
     let tl = valloc j x in
@@ -751,7 +752,7 @@ let split #t a i =
 
 let alloc2 (#t:Type) (x:t) (n:U32.t)
   : SteelSel (array t)
-             vemp
+             emp
              (fun r -> varray r)
              (requires fun _ -> True)
              (ensures fun _ r h1 ->
@@ -812,9 +813,9 @@ let upd #t r i x =
 
 (* TODO: properly deallocate instead of just dropping the vprop *)
 let free #t r =
-  reveal_vemp ();
+  reveal_emp ();
   change_slprop_rel
     (varray r)
-    (vemp)
+    (emp)
     (fun _ _ -> True)
     (fun m -> intro_emp m)

@@ -94,7 +94,7 @@ val split (#a:Type) (x: t a) (i:U32.t)
 
 val alloc (#a:Type) (x:a) (n:U32.t)
   : SteelSel (t a)
-             vemp
+             emp
              (fun r -> varrayptr r)
              (requires fun _ -> True)
              (ensures fun _ r h1 ->
@@ -128,6 +128,6 @@ val upd (#a:Type) (r: t a) (i:U32.t) (x:a)
 val free (#a:Type) (r:t a)
   : SteelSel unit
              (varrayptr r)
-             (fun _ -> vemp)
+             (fun _ -> emp)
              (requires fun h -> A.freeable (h (varrayptr r)).array)
              (ensures fun _ _ _ -> True)

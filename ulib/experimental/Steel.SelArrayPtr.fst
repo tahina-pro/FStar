@@ -1,4 +1,5 @@
 module Steel.SelArrayPtr
+open Steel.SelReference
 
 (* We could implement this module as a pointer to an array, 
    but we would like to be as close as possible to C 
