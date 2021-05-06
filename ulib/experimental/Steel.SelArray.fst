@@ -1,8 +1,6 @@
 module Steel.SelArray
 open Steel.SelEffect.Atomic
 
-(* Once brought into the Z3 context, the following equations allow sequences to behave like lists *)
-
 let seq_facts () : Lemma (
   (forall (t: Type) (s: Seq.seq t) .
     Seq.length s == 0 ==> s == Seq.empty) /\

@@ -3,6 +3,7 @@ module Selectors.LList
 open Steel.Memory
 open Steel.SelEffect.Atomic
 open Steel.SelEffect
+open Steel.SelReference
 
 module L = FStar.List.Tot
 
@@ -41,7 +42,7 @@ let v_llist (#a:Type0) (#p:vprop) (r:t a)
   = h (llist r)
 
 val intro_llist_nil (a:Type0)
-  : SteelSel unit vemp (fun _ -> llist (null_llist #a))
+  : SteelSel unit emp (fun _ -> llist (null_llist #a))
           (requires fun _ -> True)
           (ensures fun _ _ h1 -> v_llist #a null_llist h1 == [])
 

@@ -3,6 +3,7 @@ module Selectors.PtrLList
 open Steel.Memory
 open Steel.SelEffect.Atomic
 open Steel.SelEffect
+open Steel.SelReference
 
 module L = FStar.List.Tot
 
@@ -38,7 +39,7 @@ let v_ptrlist (#a:Type0) (#p:vprop) (r:t a)
   = h (llist_ptr r)
 
 val intro_llist_nil (a:Type0)
-  : SteelSel unit vemp (fun _ -> llist_ptr (null_llist #a))
+  : SteelSel unit emp (fun _ -> llist_ptr (null_llist #a))
           (requires fun _ -> True)
           (ensures fun _ _ h1 -> v_ptrlist #a null_llist h1 == [])
 
