@@ -16,6 +16,15 @@ irreducible let smt_fallback : unit = ()
 // Needed to avoid some logical vs prop issues during unification with no subtyping
 let true_p : prop = True
 
+let join_preserves_interp (hp:slprop) (m0:hmem hp) (m1:mem{disjoint m0 m1})
+: Lemma
+  (interp hp (join m0 m1))
+  [SMTPat (interp hp (join m0 m1))]
+= let open Steel.Memory in
+  intro_emp m1;
+  intro_star hp emp m0 m1;
+  affine_star hp emp (join m0 m1)
+
 (* Definition of a selector for a given slprop *)
 
 let selector' (a:Type0) (hp:slprop) = hmem hp -> GTot a
@@ -131,6 +140,7 @@ let can_be_split_post (#a #b:Type) (t1:a -> post_t b) (t2:post_t b) =
   forall (x:a). equiv_forall (t1 x) t2
 
 val equiv (p q:vprop) : prop
+val reveal_equiv (p q:vprop) : Lemma (p `equiv` q <==> hp_of p `Mem.equiv` hp_of q)
 
 (* A restricted view of the heap,
    that only allows to access selectors of the current slprop *)
