@@ -238,7 +238,19 @@ function fstar_default_build () {
     localTarget=$1
 
     if [[ $localTarget == "uregressions-ulong" ]]; then
+        # Nightly build only
+
+        # Record hints so that we can refresh them
         export OTHERFLAGS="--record_hints $OTHERFLAGS"
+
+        # Test the SSH connection to GitHub (mainly for authentication
+        # purposes.) Trying ssh git@github.com will fail. The best way
+        # I found is to test cloning some dummy repository.
+        if ! env GIT_SSH_COMMAND='ssh -v -v -v' git clone git@github.com:octocat/hello-world test-git-ssh ; then
+            echo Failed to clone dummy repo via SSH
+            echo false > $status_file
+            return
+        fi
     fi
 
     # Start fetching while we build F*

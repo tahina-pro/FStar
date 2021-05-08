@@ -23,7 +23,7 @@
     "NotificationChannel" : "#fstar-build",
     "PublicBranches" : [ "master" ],
 
-    "CompressBuildFolder": true,
+    "CompressBuildFolder": false,
     "FolderToCompress" : "FStar",
     "FoldersToExclude" : [ ],
 
