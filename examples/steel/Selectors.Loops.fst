@@ -25,7 +25,7 @@ let fact_test_pre
   let vres = snd x in
   vres == fact vi /\ vi + Ghost.reveal dist == n
 
-[@@ __steel_reduce__ ] // necessary for t_of
+[@@ __steel_reduce__; __reduce__ ] // necessary for t_of
 let fact_test_vprop
   (i: ref nat)
   (res: ref nat)
@@ -99,13 +99,14 @@ let fact_body
     (fact_test_vprop i res dist');
   return dist'
 
-(* this is necessary, otherwise verification of steel_fact fails to show fact_test_pre *)
-let alloc (#t: Type0) (x: t) : SteelSel (ref t)
-  emp
-  (fun res -> vptr res)
-  (fun _ -> True)
-  (fun _ res h' -> h' (vptr res) == x /\ not (is_null res))
-= alloc x
+// (* this is necessary, otherwise verification of steel_fact fails to show fact_test_pre
+//      without the call to get *)
+// let alloc (#t: Type0) (x: t) : SteelSel (ref t)
+//   emp
+//   (fun res -> vptr res)
+//   (fun _ -> True)
+//   (fun _ res h' -> h' (vptr res) == x /\ not (is_null res))
+// = alloc x
 
 let steel_fact
   (n: nat)
@@ -114,18 +115,18 @@ let steel_fact
     (fun _ -> emp)
     (fun _ -> True)
     (fun _ res _ -> res == fact n)
-=
-  let i = alloc 0 in 
+= let _ = get() in
+  let i = alloc 0 in
   let res = alloc 1 in
   let dist = Ghost.hide n in
   reveal_star (vptr i) (vptr res);
-  change_equal_slprop
-    (vptr i `star` vptr res)
-    (fact_test_vprop i res dist);
+  // change_equal_slprop
+  //   (vptr i `star` vptr res)
+  //   (fact_test_vprop i res dist);
   let dist' = while _ (fact_test_vprop i res) (fact_test_pre n) (fun _ -> fact_test_vprop i res) (fact_test_post n) (fact_test n i res) (fact_body n i res) dist in
-  change_equal_slprop
-    (fact_test_vprop i res dist')
-    (vptr i `star` vptr res);
+  // change_equal_slprop
+  //   (fact_test_vprop i res dist')
+  //   (vptr i `star` vptr res);
   reveal_star (vptr i) (vptr res);
   let gi = gget (vptr i) in // necessary to tell Z3 to show that i == n
   let vres = read res in
