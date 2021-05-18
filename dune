@@ -1,0 +1,43 @@
+
+(include_subdirs unqualified)
+
+  (dirs src ulib)
+  ; list directories from Makefile OCAMLBUILD_INCLUDES
+    ; src/ocaml-output
+    ; src/basic/ml
+    ; src/parser/ml
+    ; src/fstar/ml
+    ; src/extraction/ml
+    ; src/prettyprint/ml
+    ; src/tactics/ml
+    ; src/tests/ml
+    ; ulib/ml
+
+(env
+  (dev
+    (flags (:standard -warn-error -A))))
+
+(executable
+  (name main)
+  (public_name fstar)
+  (modes (native exe))
+  ; list packages from $FSTAR_HOME/_tags
+  (libraries
+     batteries
+     zarith
+     ppx_deriving
+     ppx_deriving.std
+     ppx_deriving_yojson
+     compiler-libs
+     compiler-libs.common
+     menhirLib
+     dynlink
+     pprint
+     sedlex
+     stdint
+     yojson
+     ppxlib
+     process
+  )
+  (preprocess (pps ppx_deriving.show ppx_deriving_yojson sedlex.ppx))
+)

@@ -50,8 +50,6 @@ queries*.smt2
 transcript
 dump
 
-# ignore .ml files on the root dir
-/*.ml
 
 *.cmi
 *.cmo
@@ -88,3 +86,5 @@ nubuild.progress
 
 # Z3/F* nightly/weekly files
 /nightly
+
+dune-project
