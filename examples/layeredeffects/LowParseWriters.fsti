@@ -1842,6 +1842,29 @@ let valid_rewrite_parse_pair_compat_r
   );
 }
 
+let valid_rewrite_emp_l
+  (p: parser)
+: Tot (valid_rewrite_t (p `parse_pair` parse_empty) p (fun _ -> True) (fun (x, _) -> x))
+= {
+    valid_rewrite_valid =
+      (fun h b pos pos' ->
+        let _ = valid_parse_pair_inv_spec h p parse_empty b pos pos' in
+        ()
+      );
+    valid_rewrite_size = (fun _ -> ());
+  }
+
+let valid_rewrite_emp_r
+  (p: parser)
+: Tot (valid_rewrite_t p (p `parse_pair` parse_empty) (fun _ -> True) (fun x -> (x, ())))
+= {
+    valid_rewrite_valid =
+      (fun h b pos pos' ->
+        valid_parse_pair p parse_empty h b pos pos' pos'
+      );
+    valid_rewrite_size = (fun _ -> ());
+  }
+
 let check_precond_t
   (p1: parser)
   (precond: pre_t p1)

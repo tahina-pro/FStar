@@ -1,6 +1,6 @@
 module LowParseWriters.Frame
 
-open LowParseWriters
+open LowParseWriters.NoHoare
 
 module U32 = FStar.UInt32
 
@@ -9,37 +9,12 @@ module U32 = FStar.UInt32
 irreducible let framing : unit = ()
 irreducible let __reduce__ : unit = ()
 
-assume
-val valid_rewrite_prop (p1 p2:parser) : Type0
-
-assume
-val valid_rewrite_refl (p:parser)
-  : Lemma (valid_rewrite_prop p p)
-          [SMTPat (valid_rewrite_prop p p)]
-
-assume
-val valid_rewrite_sym (p1 p2:parser)
-  : Lemma
-    (requires valid_rewrite_prop p2 p1)
-    (ensures valid_rewrite_prop p1 p2)
-
-assume
-val valid_rewrite_emp_l (p:parser)
-  : Lemma (valid_rewrite_prop (p `parse_pair` parse_empty) p)
-
-assume
-val valid_rewrite_emp_r (p:parser)
-  : Lemma (valid_rewrite_prop p (p `parse_pair` parse_empty))
-
-assume
-val valid_rewrite_pair (p p1 p2:parser)
+let valid_rewrite_pair (p p1 p2:parser)
   : Lemma (requires valid_rewrite_prop p1 p2)
           (ensures valid_rewrite_prop (p `parse_pair` p1) (p `parse_pair` p2))
+= valid_rewrite_parse_pair_compat_l p #p1 #p2 ()
 
 let maybe_emp (framed:bool) (p:parser) = if framed then p == parse_empty else True
-
-assume
-val memory_invariant : Type u#1
 
 (** Framing tactic for parsers **)
 
@@ -246,7 +221,10 @@ let solve_goal (t1 t2:term) : Tac unit =
   ignore (repeat (fun _ -> apply_lemma (`valid_rewrite_pair); dismiss_parsers ()));
 
   or_else (fun _ -> apply_lemma (`valid_rewrite_refl))
-          (fun _ -> apply_lemma (`valid_rewrite_emp_l))
+          (fun _ -> 
+          or_else
+            (fun _ -> apply_lemma (`valid_rewrite_emp_l))
+            (fun _ -> apply_lemma (`valid_rewrite_emp_r)))
 
 
 let rec solve_next (l:list goal) : Tac unit = match l with
@@ -259,11 +237,7 @@ let rec solve_next (l:list goal) : Tac unit = match l with
           let n1 = parser_uvars t1 in
           let n2 = parser_uvars t2 in
           if n1 + n2 <= 1 then (
-            if n2 = 1 then
-              focus (fun _ ->
-                apply_lemma (`valid_rewrite_sym);
-                solve_goal t2 t1)
-            else focus (fun _ -> solve_goal t1 t2)
+            focus (fun _ -> solve_goal t1 t2)
           ) else (
             later ();
             solve_next tl

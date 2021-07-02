@@ -648,6 +648,14 @@ let valid_rewrite_parse_pair_compat_r
 =
   tvalid_rewrite_of_evalid_rewrite (valid_rewrite_parse_pair_compat_r p _ _ _ _ (evalid_rewrite_of_tvalid_rewrite v))
 
+let valid_rewrite_emp_l (p:parser)
+  : Lemma (valid_rewrite_prop (p `parse_pair` parse_empty) p)
+= tvalid_rewrite_of_evalid_rewrite (valid_rewrite_emp_l p)
+
+let valid_rewrite_emp_r (p:parser)
+  : Lemma (valid_rewrite_prop p (p `parse_pair` parse_empty))
+= tvalid_rewrite_of_evalid_rewrite (valid_rewrite_emp_r p)
+
 inline_for_extraction
 let cat
   (#inv: memory_invariant)
