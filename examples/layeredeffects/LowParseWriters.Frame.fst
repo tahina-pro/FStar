@@ -11,8 +11,43 @@ irreducible let __reduce__ : unit = ()
 
 let valid_rewrite_pair (p p1 p2:parser)
   : Lemma (requires valid_rewrite_prop p1 p2)
+          (ensures valid_rewrite_prop (p1 `parse_pair` p) (p2 `parse_pair` p))
+= valid_rewrite_parse_pair_compat_r p #p1 #p2 ()
+
+let valid_rewrite_pair_l (p p1 p2:parser)
+  : Lemma (requires valid_rewrite_prop p1 p2)
           (ensures valid_rewrite_prop (p `parse_pair` p1) (p `parse_pair` p2))
 = valid_rewrite_parse_pair_compat_l p #p1 #p2 ()
+
+let valid_rewrite_trans (p1 p2 p3:parser)
+  : Lemma (requires valid_rewrite_prop p1 p2 /\ valid_rewrite_prop p2 p3)
+          (ensures valid_rewrite_prop p1 p3)
+  = valid_rewrite_compose #p1 #p2 () #p3 ()
+
+let valid_rewrite_trans4 (p1 p2 p3 p4:parser)
+  : Lemma (requires valid_rewrite_prop p1 p2 /\ valid_rewrite_prop p2 p3 /\ valid_rewrite_prop p3 p4)
+          (ensures valid_rewrite_prop p1 p4)
+  = valid_rewrite_trans p1 p2 p3;
+    valid_rewrite_trans p1 p3 p4
+
+let valid_rewrite_cong (p1 p1' p2 p2':parser)
+  : Lemma (requires valid_rewrite_prop p1 p1' /\ valid_rewrite_prop p2 p2')
+          (ensures valid_rewrite_prop (p1 `parse_pair` p2) (p1' `parse_pair` p2'))
+  = valid_rewrite_pair p2 p1 p1';
+    valid_rewrite_pair_l p1' p2 p2';
+    valid_rewrite_trans
+      (p1 `parse_pair` p2)
+      (p1' `parse_pair` p2)
+      (p1' `parse_pair` p2')
+
+let valid_rewrite_emp_l' (p:parser)
+  : Lemma (valid_rewrite_prop (parse_empty `parse_pair` p) p)
+= admit()
+
+let valid_rewrite_emp_r' (p:parser)
+  : Lemma (valid_rewrite_prop p (parse_empty `parse_pair` p))
+= admit()
+
 
 let maybe_emp (framed:bool) (p:parser) = if framed then p == parse_empty else True
 
@@ -106,18 +141,34 @@ let rec mdenote (am:amap parser) (e:exp) : parser =
   | Atom x -> select x am
   | Mult e1 e2 -> (mdenote am e1) `parse_pair` (mdenote am e2)
 
-let rec xsdenote (am:amap parser) (xs:list atom) : parser =
-  match xs with
-  | [] -> parse_empty
-  | [x] -> select x am
-  | x::xs' -> (select x am) `parse_pair` (xsdenote am xs')
+let rec size (e:exp) : pos = match e with
+  | Unit -> 1
+  | Atom _ -> 1
+  | Mult e1 e2 -> size e1 + size e2
 
-// Do a flatten composed with a rev, to simplify matching later on
+let rec right_assoc (e:exp) : Tot (e':exp{size e == size e'})  (decreases (size e)) =
+  match e with
+  | Unit -> Unit
+  | Atom x -> Atom x
+  | Mult e1 e2 ->
+    match right_assoc e2 with
+    | Unit -> Mult (right_assoc e1) Unit
+    | Atom x -> Mult (right_assoc e1) (Atom x)
+    | Mult e1' e2' -> Mult (right_assoc (Mult e1 e1')) e2'
+
+
+let rec xsdenote (xs:list atom) : exp =
+  match xs with
+  | [] -> Unit
+  | [x] -> Atom x
+  | x::xs' -> Mult (Atom x) (xsdenote xs')
+
 let rec flatten (e:exp) : list atom =
   match e with
   | Unit -> []
   | Atom x -> [x]
-  | Mult e1 e2 -> flatten e2 @ flatten e1
+  | Mult e1 e2 -> flatten e1 @ flatten e2
+
 
 
 /// Meta-F* internal: Transforms the atom map into a term
@@ -126,7 +177,6 @@ let rec convert_map (m : list (atom * term)) : term =
   | [] -> `[]
   | (a, t)::ps ->
       let a = pack_ln (Tv_Const (C_Int a)) in
-      (* let t = norm_term [delta] t in *)
       `((`#a, (`#t)) :: (`#(convert_map ps)))
 
 
@@ -135,7 +185,6 @@ let rec convert_map (m : list (atom * term)) : term =
 /// `am` into a single `term` of type `amap a`, suitable to call `mdenote` with *)
 let convert_am (am : amap term) : term =
   let (map, def) = am in
-  (* let def = norm_term [delta] def in *)
   `( (`#(convert_map map), `#def) )
 
 /// Transforms a term representatoin into a term through quotation
@@ -155,7 +204,7 @@ let rec quote_atoms (l:list atom) = match l with
 /// In particular, all the sorting/list functions are entirely reduced
 let normal_tac_steps = [primops; iota; zeta; delta_only [
           `%mdenote; `%select; `%List.Tot.Base.assoc; `%List.Tot.Base.append;
-          `%flatten; `%xsdenote;
+          `%flatten; `%xsdenote; `%right_assoc;
           `%fst; `%__proj__Mktuple2__item___1;
           `%snd; `%__proj__Mktuple2__item___2;]]
 
@@ -168,11 +217,180 @@ let normal_elim (x:Type0) : Lemma
   (ensures normal_tac x)
   = ()
 
-let monoid_reflect (am:amap parser) (e1 e2:exp)
-    (_ : squash (xsdenote am (flatten e1) `valid_rewrite_prop` xsdenote am (flatten e2)))
-       : squash (mdenote am e1 `valid_rewrite_prop` mdenote am e2) =
-    admit()
+let rec lemma_right_assoc (am:amap parser) (e:exp)
+  : Lemma (ensures
+      mdenote am (right_assoc e) `valid_rewrite_prop` mdenote am e /\
+      mdenote am e `valid_rewrite_prop` mdenote am (right_assoc e))
+          (decreases size e)
+  = match e with
+    | Unit -> ()
+    | Atom _ -> ()
+    | Mult e1 e2 -> match right_assoc e2 with
+      | Unit ->
+        lemma_right_assoc am e1;
+        valid_rewrite_pair parse_empty (mdenote am (right_assoc e1)) (mdenote am e1);
+        valid_rewrite_pair parse_empty (mdenote am e1) (mdenote am (right_assoc e1))
+      | Atom x ->
+        lemma_right_assoc am e1;
+        valid_rewrite_pair (select x am) (mdenote am (right_assoc e1)) (mdenote am e1);
+        valid_rewrite_pair (select x am) (mdenote am e1) (mdenote am (right_assoc e1))
+      | Mult e1' e2' ->
+        assert (mdenote am (right_assoc e) ==
+          mdenote am (right_assoc (Mult e1 e1')) `parse_pair` mdenote am e2');
+        lemma_right_assoc am (Mult e1 e1');
+        valid_rewrite_pair (mdenote am e2')
+          (mdenote am (right_assoc (Mult e1 e1')))
+          (mdenote am (Mult e1 e1'));
+        assert (mdenote am (right_assoc e) `valid_rewrite_prop`
+          (mdenote am (Mult e1 e1') `parse_pair` mdenote am e2'));
+        let _ = valid_rewrite_parse_pair_assoc_1 (mdenote am e1) (mdenote am e1') (mdenote am e2') in
+        valid_rewrite_trans
+          (mdenote am (right_assoc e))
+          (mdenote am (Mult e1 e1') `parse_pair` mdenote am e2')
+          (mdenote am e1 `parse_pair` mdenote am (right_assoc e2));
 
+        lemma_right_assoc am e2;
+        valid_rewrite_pair_l (mdenote am e1) (mdenote am (right_assoc e2)) (mdenote am e2);
+
+        valid_rewrite_trans
+          (mdenote am (right_assoc e))
+          (mdenote am e1 `parse_pair` mdenote am (right_assoc e2))
+          (mdenote am e);
+
+        // Other direction
+
+        valid_rewrite_pair_l (mdenote am e1) (mdenote am e2) (mdenote am (right_assoc e2));
+        let _ = valid_rewrite_parse_pair_assoc_2 (mdenote am e1) (mdenote am e1') (mdenote am e2') in
+
+        valid_rewrite_pair (mdenote am e2')
+          (mdenote am (Mult e1 e1'))
+          (mdenote am (right_assoc (Mult e1 e1')));
+
+        valid_rewrite_trans
+          (mdenote am e1 `parse_pair` mdenote am (right_assoc e2))
+          (mdenote am (Mult e1 e1') `parse_pair` mdenote am e2')
+          (mdenote am (right_assoc e));
+
+        valid_rewrite_trans
+          (mdenote am e)
+          (mdenote am e1 `parse_pair` mdenote am (right_assoc e2))
+          (mdenote am (right_assoc e))
+
+
+let right_assoc_reflect (am:amap parser) (e1 e2:exp) : Lemma
+  (requires mdenote am (right_assoc e1) `valid_rewrite_prop` mdenote am (right_assoc e2))
+  (ensures mdenote am e1 `valid_rewrite_prop` mdenote am e2)
+  = lemma_right_assoc am e1;
+    lemma_right_assoc am e2;
+    valid_rewrite_trans4
+      (mdenote am e1)
+      (mdenote am (right_assoc e1))
+      (mdenote am (right_assoc e2))
+      (mdenote am e2)
+
+let rec xsdenote_compose (am:amap parser) (l1 l2:list atom)
+  : Lemma (
+      (mdenote am (xsdenote l1) `parse_pair` mdenote am (xsdenote l2))
+        `valid_rewrite_prop`
+      mdenote am (xsdenote (l1 @ l2))
+        /\
+      mdenote am (xsdenote (l1 @ l2))
+        `valid_rewrite_prop`
+      (mdenote am (xsdenote l1) `parse_pair` mdenote am (xsdenote l2))
+    )
+  = let p2 = mdenote am (xsdenote l2) in
+
+    match l1 with
+    | [] -> valid_rewrite_emp_l' p2; valid_rewrite_emp_r' p2
+    | [x] ->
+        valid_rewrite_emp_l (mdenote am (Atom x));
+        valid_rewrite_emp_r (mdenote am (Atom x))
+    | hd::tl ->
+      assert (l1 @ l2 == hd::(tl @ l2));
+      assert (xsdenote l1 == Mult (Atom hd) (xsdenote tl));
+      assert (mdenote am (xsdenote l1) == select hd am `parse_pair` mdenote am (xsdenote tl));
+      assert (mdenote am (xsdenote (l1 @ l2)) ==
+        select hd am `parse_pair` mdenote am (xsdenote (tl @ l2)));
+
+      let _ = valid_rewrite_parse_pair_assoc_1
+        (select hd am)
+        (mdenote am (xsdenote tl))
+        p2 in
+
+      assert (
+        ((select hd am `parse_pair` mdenote am (xsdenote tl)) `parse_pair` p2)
+          `valid_rewrite_prop`
+        (select hd am `parse_pair` (mdenote am (xsdenote tl) `parse_pair` p2))
+      );
+
+      xsdenote_compose am tl l2;
+
+      valid_rewrite_cong
+        (select hd am) (select hd am)
+        (mdenote am (xsdenote tl) `parse_pair` p2)
+        (mdenote am (xsdenote (tl @ l2)));
+
+      valid_rewrite_trans
+        (mdenote am (xsdenote l1) `parse_pair` mdenote am (xsdenote l2))
+        (select hd am `parse_pair` (mdenote am (xsdenote tl) `parse_pair` p2))
+        (mdenote am (xsdenote (l1 @ l2)));
+
+      // Other direction
+
+      valid_rewrite_cong
+        (select hd am) (select hd am)
+        (mdenote am (xsdenote (tl @ l2)))
+        (mdenote am (xsdenote tl) `parse_pair` p2);
+
+      let _ = valid_rewrite_parse_pair_assoc_2
+        (select hd am)
+        (mdenote am (xsdenote tl))
+        p2 in
+
+      valid_rewrite_trans
+        (mdenote am (xsdenote (l1 @ l2)))
+        (select hd am `parse_pair` (mdenote am (xsdenote tl) `parse_pair` p2))
+        (mdenote am (xsdenote l1) `parse_pair` mdenote am (xsdenote l2))
+
+let rec flatten_correct (am:amap parser) (e:exp)
+  : Lemma (
+      mdenote am e `valid_rewrite_prop` mdenote am (xsdenote (flatten e)) /\
+      mdenote am (xsdenote (flatten e)) `valid_rewrite_prop` mdenote am e
+    )
+  = match e with
+    | Unit -> ()
+    | Atom _ -> ()
+    | Mult e1 e2 ->
+      flatten_correct am e1;
+      flatten_correct am e2;
+      let p1 = mdenote am e1 in
+      let p2 = mdenote am e2 in
+      let p1' = mdenote am (xsdenote (flatten e1)) in
+      let p2' = mdenote am (xsdenote (flatten e2)) in
+      assert (mdenote am e == mdenote am e1 `parse_pair` mdenote am e2);
+      valid_rewrite_cong p1 p1' p2 p2';
+      assert (mdenote am e `valid_rewrite_prop` (p1' `parse_pair` p2'));
+      xsdenote_compose am (flatten e1) (flatten e2);
+      valid_rewrite_trans
+        (mdenote am e)
+        (p1' `parse_pair` p2')
+        (mdenote am (xsdenote (flatten e)));
+      valid_rewrite_cong p1' p1 p2' p2;
+      valid_rewrite_trans
+        (mdenote am (xsdenote (flatten e)))
+        (p1' `parse_pair` p2')
+        (mdenote am e)
+
+let monoid_reflect (am:amap parser) (e1 e2:exp) : Lemma
+  (requires mdenote am (xsdenote (flatten e1)) `valid_rewrite_prop` mdenote am (xsdenote (flatten e2)))
+  (ensures mdenote am e1 `valid_rewrite_prop` mdenote am e2)
+  = flatten_correct am e1;
+    flatten_correct am e2;
+    valid_rewrite_trans4
+      (mdenote am e1)
+      (mdenote am (xsdenote (flatten e1)))
+      (mdenote am (xsdenote (flatten e2)))
+      (mdenote am e2)
 
 /// Counts the number of unification variables corresponding to vprops in the term [t]
 let rec parser_uvars (t:term) : Tac int =
@@ -214,18 +432,18 @@ let solve_goal (t1 t2:term) : Tac unit =
 
   change_sq g;
   apply_lemma (`normal_elim);
-  apply (`monoid_reflect );
+  apply_lemma (`monoid_reflect);
+  apply_lemma (`right_assoc_reflect);
 
   norm normal_tac_steps;
 
   ignore (repeat (fun _ -> apply_lemma (`valid_rewrite_pair); dismiss_parsers ()));
 
   or_else (fun _ -> apply_lemma (`valid_rewrite_refl))
-          (fun _ -> 
+          (fun _ ->
           or_else
-            (fun _ -> apply_lemma (`valid_rewrite_emp_l))
-            (fun _ -> apply_lemma (`valid_rewrite_emp_r)))
-
+            (fun _ -> apply_lemma (`valid_rewrite_emp_l'))
+            (fun _ -> apply_lemma (`valid_rewrite_emp_r')))
 
 let rec solve_next (l:list goal) : Tac unit = match l with
   | [] -> fail "didn't find a constraint to schedule"
@@ -391,7 +609,6 @@ val extend_vllist_snoc
   (max: U32.t { U32.v min <= U32.v max /\ U32.v max > 0 })
 : FWrite unit (parse_vllist p min max `parse_pair` p) (parse_vllist p min max) inv
 
-
 let write_one_int
   inv
   (x y: U32.t)
@@ -412,16 +629,16 @@ let write_two_ints
   write_u32 y;
   extend_vllist_snoc parse_u32 0ul max
 
-// let write_two_examples
-//   inv
-//   (left1 right1 left2 right2: U32.t)
-//   (max: U32.t { U32.v max > 0 })
-// : TWrite unit parse_empty (parse_vllist parse_example 0ul max) inv
-// = write_vllist_nil parse_example max;
-//   frame (fun _ -> write_example _ left1 right1);
-//   extend_vllist_snoc _ _ _;
-//   frame (fun _ -> write_example _ left2 right2);
-//   extend_vllist_snoc _ _ _
+let write_two_examples
+  inv
+  (left1 right1 left2 right2: U32.t)
+  (max: U32.t { U32.v max > 0 })
+: FWrite unit parse_empty (parse_vllist parse_example 0ul max) inv
+= write_vllist_nil parse_example max;
+  write_example _ left1 right1;
+  extend_vllist_snoc _ _ _;
+  write_example _ left2 right2;
+  extend_vllist_snoc _ _ _
 
 (* TODO: trying to rewrite write_example with write_u32 for individual fields instead of write_example will trigger associativity issues such as:
 
