@@ -595,6 +595,28 @@ let frame
 =
   twrite_of_ewrite (fun _ -> frame' _ _ _ _ (fun _ -> ewrite_of_twrite f))
 
+inline_for_extraction
+let frame2
+  (a: Type)
+  (frame: parser)
+  (ppre: parser)
+  (p: parser)
+  (l: memory_invariant)
+  ($inner: unit -> TWrite a ppre p l)
+: TWrite a (frame `parse_pair` ppre) (frame `parse_pair` p) l
+= twrite_of_ewrite (fun _ -> frame2 a frame ppre _ p _ _ l (fun _ -> ewrite_of_twrite inner))
+
+inline_for_extraction
+let frame2_repr
+  (a: Type)
+  (frame: parser)
+  (ppre: parser)
+  (p: parser)
+  (l: memory_invariant)
+  (inner: repr a ppre p l)
+: repr a (frame `parse_pair` ppre) (frame `parse_pair` p) l
+= reify (frame2 a frame ppre p l (fun _ -> TWrite?.reflect inner)) 
+
 let valid_rewrite_compose
   (#p1: parser)
   (#p2: parser)

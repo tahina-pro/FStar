@@ -489,17 +489,20 @@ let resolve () : Tac unit =
 
 (** End tactic **)
 
-val repr (a:Type u#a) (framed:bool) (r_in:parser) (r_out:parser) (l:memory_invariant) : Tot Type
-let repr a r_in r_out l = admit()
+inline_for_extraction
+let repr (a:Type u#a) (framed:bool) (r_in:parser) (r_out:parser) (l:memory_invariant) : Tot Type
+ = repr a r_in r_out l
 
+inline_for_extraction
 let returnc
   (t: Type)
   (x: t)
   (r: parser)
   (inv: memory_invariant)
 : Tot (repr t true r r inv)
-= admit()
+= returnc t x r inv
 
+inline_for_extraction
 val bind (a:Type) (b:Type)
   (ff fg:eqtype_as_type bool)
   (r_in_f:parser) (r_out_f: parser)
@@ -513,18 +516,32 @@ val bind (a:Type) (b:Type)
   (f : repr a ff r_in_f r_out_f l)
   (g : (x: a -> repr b fg r_in_g r_out_g l))
 : (repr b true (frame_f `parse_pair` r_in_f) (frame_g `parse_pair` r_out_g) l)
-let bind a b r_in_f r_out_f r_in_g r_out_g l f g = admit()
+let bind a b ff fg r_in_f r_out_f r_in_g r_out_g #frame_f #frame_g l f g =
+  bind _ _ _ _ _ _
+    (subcomp2 _ _ _ _ _ (frame2_repr _ _ _ _ _ f))
+    (fun x -> frame2_repr _ _ _ _ _ (g x))
 
+inline_for_extraction
 val subcomp (a:Type)
   (r_in r_in':parser) (r_out r_out':parser)
   (ff fg:eqtype_as_type bool)
-  (#[@@@ framing] _ : squash (valid_rewrite_prop r_in r_in'))
+  (#[@@@ framing] _ : squash (valid_rewrite_prop r_in' r_in))
   (#[@@@ framing] _ : squash (valid_rewrite_prop r_out r_out'))
   (l:memory_invariant)
+  (l': memory_invariant)
   (f:repr a ff r_in r_out l)
-  : (repr a fg r_in' r_out' l)
-let subcomp a r_in r_out r_out' l f = admit()
+: Pure (repr a fg r_in' r_out' l')
+  (requires (
+    l `memory_invariant_includes` l'
+  ))
+  (ensures (fun _ -> True))
+let subcomp a r_in r_in' r_out r_out' ff fg l l' f =
+  LowParseWriters.NoHoare.bind _ _ _ _ _ _
+    (valid_rewrite_repr #r_in' #r_in ())
+    (fun _ -> subcomp _ _ _ _ _ _ f)
 
+[@@allow_informative_binders]
+reifiable reflectable total
 layered_effect {
   FWriteBase : a:Type -> (f:bool) -> (pin: parser) -> (pout: parser) -> (memory_invariant) -> Effect
   with
@@ -537,13 +554,14 @@ layered_effect {
 effect FWrite (a:Type) (pin:parser) (pout:parser) (l:memory_invariant) =
   FWriteBase a false pin pout l
 
+inline_for_extraction
 val lift_pure_write (a:Type) (wp:pure_wp a)
   (l: memory_invariant)
   (f: eqtype_as_type unit -> PURE a wp)
 : Pure (repr a false parse_empty parse_empty l)
   (requires (wp (fun _ -> True)))
   (ensures (fun _ -> True))
-let lift_pure_write a wp l f = admit()
+let lift_pure_write a wp l f = lift_read _ _ _ (lift_pure_read' _ wp _ f)
 
 sub_effect PURE ~> FWriteBase = lift_pure_write
 
