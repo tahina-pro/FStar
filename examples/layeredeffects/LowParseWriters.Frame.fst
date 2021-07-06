@@ -40,15 +40,6 @@ let valid_rewrite_cong (p1 p1' p2 p2':parser)
       (p1' `parse_pair` p2)
       (p1' `parse_pair` p2')
 
-let valid_rewrite_emp_l' (p:parser)
-  : Lemma (valid_rewrite_prop (parse_empty `parse_pair` p) p)
-= admit()
-
-let valid_rewrite_emp_r' (p:parser)
-  : Lemma (valid_rewrite_prop p (parse_empty `parse_pair` p))
-= admit()
-
-
 let maybe_emp (framed:bool) (p:parser) = if framed then p == parse_empty else True
 
 (** Framing tactic for parsers **)

@@ -656,6 +656,14 @@ let valid_rewrite_emp_r (p:parser)
   : Lemma (valid_rewrite_prop p (p `parse_pair` parse_empty))
 = tvalid_rewrite_of_evalid_rewrite (valid_rewrite_emp_r p)
 
+let valid_rewrite_emp_l' (p:parser)
+  : Lemma (valid_rewrite_prop (parse_empty `parse_pair` p) p)
+= tvalid_rewrite_of_evalid_rewrite (valid_rewrite_emp_l' p)
+
+let valid_rewrite_emp_r' (p:parser)
+  : Lemma (valid_rewrite_prop p (parse_empty `parse_pair` p))
+= tvalid_rewrite_of_evalid_rewrite (valid_rewrite_emp_r' p)
+
 inline_for_extraction
 let cat
   (#inv: memory_invariant)
