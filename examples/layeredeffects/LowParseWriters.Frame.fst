@@ -555,6 +555,8 @@ layered_effect {
 effect FWrite (a:Type) (pin:parser) (pout:parser) (l:memory_invariant) =
   FWriteBase a false pin pout l
 
+(* FIXME? The explicit pure lift is still necessary even though PURE can still lift via TWrite. If this lift is not explicitly defined here, then examples below will fail *)
+
 inline_for_extraction
 val lift_pure_write (a:Type) (wp:pure_wp a)
   (l: memory_invariant)
@@ -566,23 +568,30 @@ let lift_pure_write a wp l f = fun _ -> f ()
 
 sub_effect PURE ~> FWriteBase = lift_pure_write
 
-assume val parse_u32 : parser
+inline_for_extraction
+val lift_twrite (a:Type) (pin:parser) (pout:parser)
+  (l: memory_invariant)
+  (f: LowParseWriters.NoHoare.repr a pin pout l)
+: Pure (repr a false pin pout l)
+  (requires True)
+  (ensures (fun _ -> True))
+let lift_twrite a pin pout l f _ = TWrite?.reflect f
 
-noeq
-type example = { left: U32.t; right: U32.t }
+sub_effect TWrite ~> FWriteBase = lift_twrite
+
+open LowParseWriters.Test
+
+// FIXME: commenting out this definition makes write_example2 FAIL despite lifting TWrite to FWrite
+let write_u32 (#inv: _) (x: U32.t) : FWrite unit parse_empty parse_u32 inv
+= write_u32 x
 
 [@@__reduce__]
-let parse_example = parse_u32 `parse_pair` parse_u32
+let parse_example2 = parse_u32 `parse_pair` parse_u32
 
-assume val write_u32
-  (#inv: _)
-  (x: U32.t)
-: FWrite unit parse_empty parse_u32 inv
-
-let write_example
+let write_example2
   inv
   (left right: U32.t)
-: FWrite unit parse_empty parse_example inv
+: FWrite unit parse_empty parse_example2 inv
 =
   write_u32 left;
   write_u32 right
@@ -597,27 +606,16 @@ let write_three
   write_u32 right
 
 
-assume
-val parse_vllist
-  (p: parser)
-  (min: U32.t)
-  (max: U32.t { U32.v min <= U32.v max /\ U32.v max > 0 })
-: Tot parser
+(* Using LowParseWriters.Test.parse_example *)
 
-assume
-val write_vllist_nil
-  (#inv: memory_invariant)
-  (p: parser)
-  (max: U32.t { U32.v max > 0 })
-: FWrite unit parse_empty (parse_vllist p 0ul max) inv
-
-assume
-val extend_vllist_snoc
-  (#inv: memory_invariant)
-  (p: parser)
-  (min: U32.t)
-  (max: U32.t { U32.v min <= U32.v max /\ U32.v max > 0 })
-: FWrite unit (parse_vllist p min max `parse_pair` p) (parse_vllist p min max) inv
+let write_example
+  inv
+  (left right: U32.t)
+: FWrite unit parse_empty parse_example inv
+=
+  write_u32 left;
+  write_u32 right;
+  valid_rewrite valid_rewrite_example // FIXME: WHY WHY WHY? subcomp SHOULD work automatically
 
 let write_one_int
   inv
