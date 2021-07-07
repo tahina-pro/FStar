@@ -491,7 +491,7 @@ let resolve () : Tac unit =
 
 inline_for_extraction
 let repr (a:Type u#a) (framed:bool) (r_in:parser) (r_out:parser) (l:memory_invariant) : Tot Type
- = repr a r_in r_out l
+ = unit -> TWrite a r_in r_out l
 
 inline_for_extraction
 let returnc
@@ -500,7 +500,7 @@ let returnc
   (r: parser)
   (inv: memory_invariant)
 : Tot (repr t true r r inv)
-= returnc t x r inv
+= fun _ -> x
 
 inline_for_extraction
 val bind (a:Type) (b:Type)
@@ -517,9 +517,10 @@ val bind (a:Type) (b:Type)
   (g : (x: a -> repr b fg r_in_g r_out_g l))
 : (repr b true (frame_f `parse_pair` r_in_f) (frame_g `parse_pair` r_out_g) l)
 let bind a b ff fg r_in_f r_out_f r_in_g r_out_g #frame_f #frame_g l f g =
-  bind _ _ _ _ _ _
-    (subcomp2 _ _ _ _ _ (frame2_repr _ _ _ _ _ f))
-    (fun x -> frame2_repr _ _ _ _ _ (g x))
+  fun _ ->
+  let x = frame2 a frame_f r_in_f r_out_f l f in
+  valid_rewrite #(frame_f `parse_pair` r_out_f) #(frame_g `parse_pair` r_in_g) ();
+  frame2 b frame_g r_in_g r_out_g l (g x)
 
 inline_for_extraction
 val subcomp (a:Type)
@@ -536,9 +537,9 @@ val subcomp (a:Type)
   ))
   (ensures (fun _ -> True))
 let subcomp a r_in r_in' r_out r_out' ff fg l l' f =
-  LowParseWriters.NoHoare.bind _ _ _ _ _ _
-    (valid_rewrite_repr #r_in' #r_in ())
-    (fun _ -> subcomp _ _ _ _ _ _ f)
+  (fun _ ->
+    valid_rewrite #r_in' #r_in ();
+    f ())
 
 [@@allow_informative_binders]
 reifiable reflectable total
@@ -561,7 +562,7 @@ val lift_pure_write (a:Type) (wp:pure_wp a)
 : Pure (repr a false parse_empty parse_empty l)
   (requires (wp (fun _ -> True)))
   (ensures (fun _ -> True))
-let lift_pure_write a wp l f = lift_read _ _ _ (lift_pure_read' _ wp _ f)
+let lift_pure_write a wp l f = fun _ -> f ()
 
 sub_effect PURE ~> FWriteBase = lift_pure_write
 
