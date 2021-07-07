@@ -8,6 +8,7 @@ module U32 = FStar.UInt32
 
 irreducible let framing : unit = ()
 irreducible let __reduce__ : unit = ()
+let last (#a:Type) (x:a) : a = x
 
 let valid_rewrite_pair (p p1 p2:parser)
   : Lemma (requires valid_rewrite_prop p1 p2)
@@ -46,14 +47,19 @@ let maybe_emp (framed:bool) (p:parser) = if framed then p == parse_empty else Tr
 
 open FStar.Tactics
 
-let rec filter_goals (l:list goal) : Tac (list goal) =
+let rec filter_goals (l:list goal) : Tac (list goal * list goal) =
   match l with
-  | [] -> []
+  | [] -> [], []
   | hd::tl ->
-    let tl = filter_goals tl in
+    let tl1, tl2 = filter_goals tl in
     match term_as_formula' (goal_type hd) with
-    | App t _ -> if term_eq t (`squash) then hd::tl else tl
-    | _ -> tl
+    | App t r -> if term_eq t (`squash) then (
+          let name, _ = collect_app r in
+          if term_eq name (`last) then
+            tl1, hd::tl2
+          else hd::tl1, tl2
+        ) else tl1, tl2
+    | _ -> tl1, tl2
 
 (* Reification *)
 
@@ -479,13 +485,30 @@ let rec solve_maybe_emps (l:list goal) : Tac unit =
     );
     solve_maybe_emps tl
 
+let rec solve_last () : Tac unit =
+  match goals () with
+  | [] -> ()
+  | hd::tl -> norm [delta_only [`%last]];
+    match term_as_formula' (cur_goal ()) with
+    | App _ t ->
+      let _, args = collect_app t in
+      begin match args with
+        | [(t1, _); (t2, _)] ->
+          focus (fun _ -> or_else (fun _ -> solve_goal t1 t2) smt)
+        | _ -> fail "ill-formed goal"
+      end
+    | _ -> fail "ill-formed goal"
+
+
 
 [@@ resolve_implicits; framing]
 let resolve () : Tac unit =
-  let gs = filter_goals (goals ()) in
+  let gs, lasts = filter_goals (goals ()) in
   set_goals gs;
   solve_maybe_emps (goals ());
-  solve ()
+  solve ();
+  set_goals lasts;
+  solve_last ()
 
 (** End tactic **)
 
@@ -527,7 +550,7 @@ val subcomp (a:Type)
   (r_in r_in':parser) (r_out r_out':parser)
   (ff fg:eqtype_as_type bool)
   (#[@@@ framing] _ : squash (valid_rewrite_prop r_in' r_in))
-  (#[@@@ framing] _ : squash (valid_rewrite_prop r_out r_out'))
+  (#[@@@ framing] _ : squash (last (valid_rewrite_prop r_out r_out')))
   (l:memory_invariant)
   (l': memory_invariant)
   (f:repr a ff r_in r_out l)
@@ -585,13 +608,13 @@ open LowParseWriters.Test
 let write_u32 (#inv: _) (x: U32.t) : FWrite unit parse_empty parse_u32 inv
 = write_u32 x
 
-[@@__reduce__]
-let parse_example2 = parse_u32 `parse_pair` parse_u32
+// [@@__reduce__]
+// let parse_example2 = parse_u32 `parse_pair` parse_u32
 
 let write_example2
   inv
   (left right: U32.t)
-: FWrite unit parse_empty parse_example2 inv
+: FWrite unit parse_empty parse_example inv
 =
   write_u32 left;
   write_u32 right
@@ -622,9 +645,9 @@ let write_one_int
   (x y: U32.t)
   (max: U32.t { U32.v max > 0 })
 : FWrite unit parse_empty (parse_vllist parse_u32 0ul max) inv
-= write_vllist_nil _ _;
+= write_vllist_nil parse_u32 _;
   write_u32 x;
-  extend_vllist_snoc _ _ _
+  extend_vllist_snoc parse_u32 _ _
 
 let write_two_ints
   inv
@@ -644,9 +667,9 @@ let write_two_examples
 : FWrite unit parse_empty (parse_vllist parse_example 0ul max) inv
 = write_vllist_nil parse_example max;
   write_example _ left1 right1;
-  extend_vllist_snoc _ _ _;
+  extend_vllist_snoc parse_example _ _;
   write_example _ left2 right2;
-  extend_vllist_snoc _ _ _
+  extend_vllist_snoc parse_example _ _
 
 (* TODO: trying to rewrite write_example with write_u32 for individual fields instead of write_example will trigger associativity issues such as:
 
