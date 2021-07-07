@@ -637,8 +637,7 @@ let write_example
 : FWrite unit parse_empty parse_example inv
 =
   write_u32 left;
-  write_u32 right;
-  valid_rewrite valid_rewrite_example // FIXME: WHY WHY WHY? subcomp SHOULD work automatically
+  write_u32 right
 
 let write_one_int
   inv
