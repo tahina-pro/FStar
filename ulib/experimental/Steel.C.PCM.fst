@@ -832,3 +832,91 @@ let opt_pcm_read
 = let y' = ref_read r in
   assert (Ghost.reveal x == y');
   Some?.v y'
+
+/// Fractional permissions: from Steel.HigherReference
+open Steel.FractionalPermission
+
+let fractional (a:Type u#1) = option (a & perm)
+
+let fractional_composable #a : symrel (fractional a) =
+  fun (f0 f1:fractional a) ->
+    match f0, f1 with
+    | None, _
+    | _, None -> True
+    | Some (x0, p0), Some (x1, p1) -> x0==x1 /\ sum_perm p0 p1 `lesser_equal_perm` full_perm
+
+let fractional_compose #a (f0:fractional a) (f1:fractional a{fractional_composable f0 f1}) : fractional a =
+  match f0, f1 with
+  | None, f
+  | f, None -> f
+  | Some (x0, p0), Some (_, p1) -> Some (x0, sum_perm p0 p1)
+
+let pcm_frac #a : pcm (fractional a) = {
+  FStar.PCM.p = {
+         composable = fractional_composable;
+         op = fractional_compose;
+         one = None
+      };
+  comm = (fun _ _ -> ());
+  assoc = (fun _ _ _ -> ());
+  assoc_r = (fun _ _ _ -> ());
+  is_unit = (fun _ -> ());
+  refine = (fun x -> Some? x /\ snd (Some?.v x) == full_perm)
+}
+
+/// Uninitialized
+
+noeq
+type uninit_t (a: Type)
+= | Uninitialized
+  | InitOrUnit: a -> uninit_t a
+
+let uninit_composable
+  (#a: Type)
+  (p: pcm a)
+: Tot (symrel (uninit_t a))
+= fun u1 u2 ->
+  match u1, u2 with
+  | Uninitialized, InitOrUnit x
+  | InitOrUnit x, Uninitialized
+    -> x == one p
+  | InitOrUnit x1, InitOrUnit x2
+    -> composable p x1 x2
+  | _ -> False
+
+let uninit_compose
+  (#a: Type)
+  (p: pcm a)
+  (u1: uninit_t a)
+  (u2: uninit_t a { uninit_composable p u1 u2 })
+: Tot (uninit_t a)
+= match u1, u2 with
+  | Uninitialized, _
+  | _, Uninitialized
+    -> Uninitialized
+  | InitOrUnit x1, InitOrUnit x2
+    -> InitOrUnit (op p x1 x2)
+
+let pcm_uninit #a (p: pcm a) : pcm (uninit_t a) = {
+  FStar.PCM.p = {
+         composable = uninit_composable p;
+         op = uninit_compose p;
+         one = InitOrUnit (one p);
+      };
+  comm = (fun _ _ ->
+    Classical.forall_intro_2 p.comm
+  );
+  assoc = (fun x1 x2 x3 ->
+    Classical.forall_intro_3 p.assoc;
+    Classical.forall_intro (is_unit p)
+  );
+  assoc_r = (fun _ _ _ -> 
+    Classical.forall_intro_3 p.assoc_r;
+    Classical.forall_intro (is_unit p)
+  );
+  is_unit = (fun _ -> Classical.forall_intro (is_unit p));
+  refine = (fun x -> match x with
+  | Uninitialized -> True
+  | InitOrUnit y -> p.refine y
+  )
+}
