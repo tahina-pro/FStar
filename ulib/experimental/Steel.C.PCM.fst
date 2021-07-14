@@ -771,6 +771,19 @@ let union_field
   conn_lift_frame_preserving_upd = union_field_lift_fpu p k;
 }
 
+let base_fpu
+  (#a: Type)
+  (p: pcm a)
+  (x: Ghost.erased a)
+  (y: a)
+: Pure (frame_preserving_upd p x y)
+  (requires (exclusive p x /\ p.refine y))
+  (ensures (fun _ -> True))
+= fun _ ->
+  Classical.forall_intro (is_unit p);
+  compatible_refl p y;
+  y
+
 /// If no custom PCM is needed, p and q can be instantiated with an all-or-none PCM:
 
 let opt_comp (x y: option 'a): prop = match x, y with
@@ -794,7 +807,7 @@ let opt_pcm_fpu
   (x: Ghost.erased (option a) { ~ (Ghost.reveal x == one opt_pcm) })
   (y: a)
 : Tot (frame_preserving_upd opt_pcm x (Some y))
-= fun _ -> Some y
+= base_fpu opt_pcm x (Some y)
 
 val opt_pcm_write
   (#a:Type) (#b: Type)
