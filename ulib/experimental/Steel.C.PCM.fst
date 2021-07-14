@@ -7,7 +7,9 @@ let one (#a: Type) (p: pcm a) = p.p.one
 let pcm (a: Type) : Tot Type =
   (p: FStar.PCM.pcm a {
     (forall (x:a) (y:a{composable p x y}).{:pattern (composable p x y)}
-      op p x y == one p ==> x == one p /\ y == one p)
+      op p x y == one p ==> x == one p /\ y == one p) /\ // necessary to lift frame-preserving updates to unions
+    (forall (x:a) . {:pattern (p.refine x)} p.refine x ==> exclusive p x) /\ // nice to have, but not used yet
+    (~ (p.refine (one p))) // necessary to maintain (refine ==> exclusive) for uninit
   })
 
 noeq
@@ -309,7 +311,7 @@ let prod_is_unit (p:(k:'a -> pcm ('b k))) (x: restricted_t 'a 'b)
   in ext (prod_op p x (prod_one p)) x (fun k -> (p k).is_unit (x k))
 
 let prod_refine (p:(k:'a -> pcm ('b k))) (x: restricted_t 'a 'b): prop =
-  forall k. (p k).refine (x k)
+  (exists (k: 'a). True) /\ (forall k. (p k).refine (x k))
 
 let prod_pcm' (p:(k:'a -> pcm ('b k))): FStar.PCM.pcm (restricted_t 'a 'b) = {
   comm = prod_comm p;
@@ -325,6 +327,7 @@ let prod_pcm (p:(k:'a -> pcm ('b k))): pcm (restricted_t 'a 'b) =
   assert (forall x y . (composable p' x y /\ op p' x y == one p') ==> (
     x `feq` one p' /\ y `feq` one p'
   ));
+  assert (forall x frame . (prod_refine p x /\ prod_comp p x frame) ==> frame `feq` prod_one p);
   p'
 
 let prod_pcm_composable_intro (p:(k:'a -> pcm ('b k))) (x y: restricted_t 'a 'b)
@@ -611,7 +614,9 @@ let union_pcm (p:(k:'a -> pcm ('b k))): pcm (union p) =
     [SMTPat (op p' x y)]
   = ext x (one p') (fun k -> let _ = p k in ());
     ext y (one p') (fun k -> let _ = p k in ())
-  in p'
+  in
+  assert (forall x frame . (union_refine p x /\ union_comp p x frame) ==> frame `feq` union_one p);
+  p'
 
 let field_to_union_f
   (#a: eqtype)
@@ -897,6 +902,15 @@ let uninit_compose
   | InitOrUnit x1, InitOrUnit x2
     -> InitOrUnit (op p x1 x2)
 
+let uninit_refine
+  (#a: Type)
+  (p: pcm a)
+  (x: uninit_t a)
+: Tot prop
+= match x with
+  | Uninitialized -> True
+  | InitOrUnit y -> p.refine y
+
 let pcm_uninit #a (p: pcm a) : pcm (uninit_t a) = {
   FStar.PCM.p = {
          composable = uninit_composable p;
@@ -915,8 +929,5 @@ let pcm_uninit #a (p: pcm a) : pcm (uninit_t a) = {
     Classical.forall_intro (is_unit p)
   );
   is_unit = (fun _ -> Classical.forall_intro (is_unit p));
-  refine = (fun x -> match x with
-  | Uninitialized -> True
-  | InitOrUnit y -> p.refine y
-  )
+  refine = uninit_refine p;
 }
