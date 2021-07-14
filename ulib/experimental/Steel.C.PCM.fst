@@ -931,3 +931,93 @@ let pcm_uninit #a (p: pcm a) : pcm (uninit_t a) = {
   is_unit = (fun _ -> Classical.forall_intro (is_unit p));
   refine = uninit_refine p;
 }
+
+let value_to_uninit
+  (#a: Type)
+  (p: pcm a)
+: Tot (morphism p (pcm_uninit p))
+= {
+  morph = (fun x -> InitOrUnit x);
+  morph_unit = ();
+  morph_compose = (fun _ _ -> ());
+}
+
+let uninit_to_value
+  (#a: Type)
+  (p: pcm a)
+: Tot (morphism (pcm_uninit p) p)
+= {
+  morph = (fun x -> match x with InitOrUnit y -> y | _ -> one p);
+  morph_unit = ();
+  morph_compose = (fun _ _ -> Classical.forall_intro (is_unit p));
+}
+
+let uninit_conn_fpu'
+  (#a: Type)
+  (p: pcm a)
+  (x: Ghost.erased a { ~ (Ghost.reveal x == one p) })
+  (y: Ghost.erased a)
+  (f: frame_preserving_upd p x y)
+  (v: uninit_t a {
+    (pcm_uninit p).refine v /\
+    compatible (pcm_uninit p) ((value_to_uninit p).morph x) v
+  })
+: Tot (uninit_t a)
+=
+  let InitOrUnit x' = v in
+  InitOrUnit (f x')
+
+let uninit_conn_fpu_prop
+  (#a: Type)
+  (p: pcm a)
+  (x: Ghost.erased a { ~ (Ghost.reveal x == one p) })
+  (y: Ghost.erased a)
+  (f: frame_preserving_upd p x y)
+  (v: uninit_t a {
+    (pcm_uninit p).refine v /\
+    compatible (pcm_uninit p) ((value_to_uninit p).morph x) v
+  })
+: Lemma
+  (let v_new = uninit_conn_fpu' p x y f v in
+    (pcm_uninit p).refine v_new /\
+    compatible (pcm_uninit p) ((value_to_uninit p).morph y) v_new /\
+    (forall (frame:_{composable (pcm_uninit p) ((value_to_uninit p).morph x) frame}).
+       composable (pcm_uninit p) ((value_to_uninit p).morph y) frame /\
+       (op (pcm_uninit p) ((value_to_uninit p).morph x) frame == v ==> op (pcm_uninit p) ((value_to_uninit p).morph y) frame == v_new))
+  )
+= Classical.forall_intro (is_unit p);
+  let y' = (value_to_uninit p).morph y in
+  let InitOrUnit x' = v in
+  let v_new = uninit_conn_fpu' p x y f v in
+  let frame : a = compatible_elim p y (f x') in
+  let frame' : uninit_t a = InitOrUnit frame in
+  assert (composable (pcm_uninit p) y' frame');
+  assert (op (pcm_uninit p) frame' y' == v_new);
+  compatible_intro (pcm_uninit p) y' v_new frame';
+  assert (forall (frame:_{composable (pcm_uninit p) ((value_to_uninit p).morph x) frame}).
+       composable (pcm_uninit p) ((value_to_uninit p).morph y) frame /\
+       (op (pcm_uninit p) ((value_to_uninit p).morph x) frame == v ==> op (pcm_uninit p) ((value_to_uninit p).morph y) frame == v_new));
+  ()
+
+let uninit_conn_fpu
+  (#a: Type)
+  (p: pcm a)
+  (x: Ghost.erased a { ~ (Ghost.reveal x == one p) })
+  (y: Ghost.erased a)
+  (f: frame_preserving_upd p x y)
+: Tot (frame_preserving_upd (pcm_uninit p) ((value_to_uninit p).morph x) ((value_to_uninit p).morph y))
+=
+  fun v ->
+    uninit_conn_fpu_prop p x y f v;
+    uninit_conn_fpu' p x y f v
+
+let uninit_conn
+  (#a: Type)
+  (p: pcm a)
+: Tot (connection (pcm_uninit p) p)
+= {
+  conn_small_to_large = value_to_uninit p;
+  conn_large_to_small = uninit_to_value p;
+  conn_small_to_large_inv = ();
+  conn_lift_frame_preserving_upd = uninit_conn_fpu p;
+}
