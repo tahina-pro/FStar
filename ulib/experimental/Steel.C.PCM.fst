@@ -869,6 +869,38 @@ let pcm_frac #a : pcm (fractional a) = {
   refine = (fun x -> Some? x /\ snd (Some?.v x) == full_perm)
 }
 
+let frac_pcm_fpu
+  (#a: Type)
+  (x: Ghost.erased (fractional a) { Some? x /\ snd (Some?.v x) == full_perm })
+  (y: a)
+: Tot (frame_preserving_upd pcm_frac x (Some (y, full_perm)))
+= base_fpu pcm_frac x (Some (y, full_perm))
+
+val frac_pcm_write
+  (#a:Type) (#b: Type)
+  (r: ref a (pcm_frac #b)) (x: Ghost.erased (fractional b)) (y: b)
+: Steel unit (r `pts_to` x) (fun _ -> r `pts_to` Some (y, full_perm))
+  (requires (fun _ -> Some? x /\ snd (Some?.v x) == full_perm))
+  (ensures (fun _ _ _ -> True))
+
+let frac_pcm_write
+  r x y
+= ref_upd r x (Some (y, full_perm)) (frac_pcm_fpu x y)
+
+val frac_pcm_read
+  (#a:Type) (#b: Type)
+  (r: ref a (pcm_frac #b)) (x: Ghost.erased (fractional b))
+: Steel b (r `pts_to` x) (fun _ -> r `pts_to` x)
+  (requires (fun _ -> Some? x))
+  (ensures (fun _ y _ -> Some? x /\ y == fst (Some?.v (Ghost.reveal x))))
+
+let frac_pcm_read
+  r x
+= let y' = ref_read r in
+  assert (Some? y' /\ fst (Some?.v (Ghost.reveal x)) == fst (Some?.v y'));
+  fst (Some?.v y')
+
+
 /// Uninitialized
 
 noeq
