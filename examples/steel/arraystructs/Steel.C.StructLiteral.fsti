@@ -461,7 +461,7 @@ val unaddr_of_struct_field_ref
 
 open Steel.C.Reference
 
-let addr_of_struct_field
+val addr_of_struct_field
   (#tag: string) (#fields: struct_fields) (#excluded: set string)
   (field: field_of fields)
   (p: ref 'a (struct tag fields) (struct_pcm tag fields))
@@ -488,11 +488,8 @@ let addr_of_struct_field
        ==
         (h' (p `pts_to_view` struct_view tag fields (insert field excluded)),
          h' (q `pts_to_view` (fields.get_field field).view)))
-=         
-//let addr_of_struct_field #a #tag #fields #excluded field p =
-  addr_of_struct_field_ref' #'a #tag #fields #excluded field p
 
-let unaddr_of_struct_field
+val unaddr_of_struct_field
   (#tag: string) (#fields: struct_fields) (#excluded: set string)
   (field: field_of fields)
   (p: ref 'a (struct tag fields) (struct_pcm tag fields))
@@ -520,6 +517,3 @@ let unaddr_of_struct_field
        ==
         (h (p `pts_to_view` struct_view tag fields excluded),
          h (q `pts_to_view` (fields.get_field field).view)))
-=
-//let unaddr_of_struct_field #a #tag #fields #excluded field p q =
-  unaddr_of_struct_field_ref' field p q

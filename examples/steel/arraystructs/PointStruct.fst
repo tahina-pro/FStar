@@ -66,12 +66,22 @@ let x_conn
 noextract
 let point = struct "point" point_fields
 
+assume
+val opt_drop
+  (#inames: _)
+  (#a: Type u#0) (#b: Type u#0)
+  (r: ref a (opt_pcm #b))
+: SteelGhostT unit inames
+  (pts_to_view r (opt_view b))
+  (fun _ -> emp)
+
+
 open Steel.C.Reference
 
 val swap (p: ref 'a point point_pcm)
 : Steel unit
     (p `pts_to_view` point_view emptyset)
-    (fun _ -> (p `pts_to_view` point_view emptyset))
+    (fun _ -> emp) // (p `pts_to_view` point_view emptyset))
     (requires fun _ -> True)
     (ensures fun h q h' -> True)
       // h' (p `pts_to_view` point_view emptyset) `struct_get` "x"
@@ -81,16 +91,19 @@ val swap (p: ref 'a point point_pcm)
 
 let swap #a p =
   let q: ref _ int _ = addr_of_struct_field "x" p in
+  opt_drop q;
   let r: ref _ int _ = addr_of_struct_field "y" p in
-  let x = opt_read_sel q in
-  let y = opt_read_sel r in
-  q `opt_write_sel` y;
-  r `opt_write_sel` x;
-  unaddr_of_struct_field "y" p r;
-  unaddr_of_struct_field "x" p q;
-  change_equal_slprop (p `pts_to_view` _) (p `pts_to_view` _);
+  opt_drop r;
+  drop (p `pts_to_view` _);
+  // let x = opt_read_sel q in
+  // let y = opt_read_sel r in
+  // q `opt_write_sel` y;
+  // r `opt_write_sel` x;
+  // unaddr_of_struct_field "y" p r;
+  // unaddr_of_struct_field "x" p q;
+  // change_equal_slprop (p `pts_to_view` _) (p `pts_to_view` _);
   return ()
-  
+
 (*
 ref 'a (struct tag fields)
 ref 'a (fields.get_field field).view_type
