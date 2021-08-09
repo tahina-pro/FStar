@@ -2317,7 +2317,8 @@ let (encode_top_level_val :
       FStar_Syntax_Syntax.fv ->
         FStar_Syntax_Syntax.term' FStar_Syntax_Syntax.syntax ->
           FStar_Syntax_Syntax.qualifier Prims.list ->
-            (FStar_SMTEncoding_Term.decls_t * FStar_SMTEncoding_Env.env_t))
+            (FStar_SMTEncoding_Term.decls_elt Prims.list *
+              FStar_SMTEncoding_Env.env_t))
   =
   fun uninterpreted ->
     fun env ->
@@ -2340,30 +2341,17 @@ let (encode_top_level_val :
                   FStar_TypeChecker_Env.Exclude FStar_TypeChecker_Env.Zeta]
                   env.FStar_SMTEncoding_Env.tcenv t
               else norm_before_encoding env t in
-            (let uu___1 =
-               FStar_Compiler_Effect.op_Less_Bar
-                 (FStar_TypeChecker_Env.debug env.FStar_SMTEncoding_Env.tcenv)
-                 (FStar_Options.Other "SMTEncoding") in
-             if uu___1
-             then
-               let uu___2 = FStar_Syntax_Print.fv_to_string fv in
-               let uu___3 = FStar_Syntax_Print.term_to_string t in
-               let uu___4 = FStar_Syntax_Print.term_to_string tt in
-               FStar_Compiler_Util.print3
-                 "Encoding top-level val %s : %s\\Normalized to is %s\n"
-                 uu___2 uu___3 uu___4
-             else ());
-            (let uu___1 = encode_free_var uninterpreted env fv t tt quals in
-             match uu___1 with
-             | (decls, env1) ->
-                 let uu___2 = FStar_Syntax_Util.is_smt_lemma t in
-                 if uu___2
-                 then
-                   let uu___3 =
-                     let uu___4 = encode_smt_lemma env1 fv tt in
-                     FStar_Compiler_List.op_At decls uu___4 in
-                   (uu___3, env1)
-                 else (decls, env1))
+            let uu___ = encode_free_var uninterpreted env fv t tt quals in
+            match uu___ with
+            | (decls, env1) ->
+                let uu___1 = FStar_Syntax_Util.is_smt_lemma t in
+                if uu___1
+                then
+                  let uu___2 =
+                    let uu___3 = encode_smt_lemma env1 fv tt in
+                    FStar_Compiler_List.op_At decls uu___3 in
+                  (uu___2, env1)
+                else (decls, env1)
 let (encode_top_level_vals :
   FStar_SMTEncoding_Env.env_t ->
     FStar_Syntax_Syntax.letbinding Prims.list ->

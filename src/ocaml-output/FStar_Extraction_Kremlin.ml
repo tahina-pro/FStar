@@ -870,6 +870,85 @@ and (translate_let :
     fun flavor ->
       fun lb ->
         match lb with
+        | { FStar_Extraction_ML_Syntax.mllb_name = uu___;
+            FStar_Extraction_ML_Syntax.mllb_tysc =
+              FStar_Pervasives_Native.Some
+              (uu___1, FStar_Extraction_ML_Syntax.MLTY_Named
+               ((FStar_Extraction_ML_Syntax.MLTY_Named
+                ([], view_type_name))::[], p));
+            FStar_Extraction_ML_Syntax.mllb_add_unit = uu___2;
+            FStar_Extraction_ML_Syntax.mllb_def =
+              {
+                FStar_Extraction_ML_Syntax.expr =
+                  FStar_Extraction_ML_Syntax.MLE_Name typedef_name;
+                FStar_Extraction_ML_Syntax.mlty = uu___3;
+                FStar_Extraction_ML_Syntax.loc = uu___4;_};
+            FStar_Extraction_ML_Syntax.mllb_meta = uu___5;
+            FStar_Extraction_ML_Syntax.print_typ = uu___6;_} when
+            let uu___7 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+            uu___7 = "Steel.C.Typedef.register_typedef_of" ->
+            ((let uu___8 =
+                FStar_Extraction_ML_Syntax.string_of_mlpath typedef_name in
+              let uu___9 =
+                FStar_Extraction_ML_Syntax.string_of_mlpath view_type_name in
+              FStar_Compiler_Util.print2
+                "Found %s : register_typedef_of %s\n" uu___8 uu___9);
+             FStar_Pervasives_Native.None)
+        | { FStar_Extraction_ML_Syntax.mllb_name = uu___;
+            FStar_Extraction_ML_Syntax.mllb_tysc =
+              FStar_Pervasives_Native.Some
+              (uu___1, FStar_Extraction_ML_Syntax.MLTY_Named
+               ((FStar_Extraction_ML_Syntax.MLTY_Named
+                ([], view_type_name))::[], p));
+            FStar_Extraction_ML_Syntax.mllb_add_unit = uu___2;
+            FStar_Extraction_ML_Syntax.mllb_def = fields;
+            FStar_Extraction_ML_Syntax.mllb_meta = uu___3;
+            FStar_Extraction_ML_Syntax.print_typ = uu___4;_} when
+            let uu___5 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+            uu___5 = "Steel.C.StructLiteral.register_fields_of" ->
+            ((let uu___6 =
+                FStar_Extraction_ML_Syntax.string_of_mlpath view_type_name in
+              FStar_Compiler_Util.print1
+                "Found _ : register_fields_of %s. Fields are:\n" uu___6);
+             (let rec parse_fields fields1 =
+                match fields1 with
+                | {
+                    FStar_Extraction_ML_Syntax.expr =
+                      FStar_Extraction_ML_Syntax.MLE_Name p1;
+                    FStar_Extraction_ML_Syntax.mlty = uu___6;
+                    FStar_Extraction_ML_Syntax.loc = uu___7;_} when
+                    let uu___8 =
+                      FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
+                    uu___8 = "Steel.C.StructLiteral.fields_nil" ->
+                    FStar_Compiler_Util.print_endline "End of fields"
+                | {
+                    FStar_Extraction_ML_Syntax.expr =
+                      FStar_Extraction_ML_Syntax.MLE_App
+                      ({
+                         FStar_Extraction_ML_Syntax.expr =
+                           FStar_Extraction_ML_Syntax.MLE_Name p1;
+                         FStar_Extraction_ML_Syntax.mlty = uu___6;
+                         FStar_Extraction_ML_Syntax.loc = uu___7;_},
+                       {
+                         FStar_Extraction_ML_Syntax.expr =
+                           FStar_Extraction_ML_Syntax.MLE_Const
+                           (FStar_Extraction_ML_Syntax.MLC_String name1);
+                         FStar_Extraction_ML_Syntax.mlty = uu___8;
+                         FStar_Extraction_ML_Syntax.loc = uu___9;_}::typedef::fields2::[]);
+                    FStar_Extraction_ML_Syntax.mlty = uu___10;
+                    FStar_Extraction_ML_Syntax.loc = uu___11;_} when
+                    let uu___12 =
+                      FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
+                    uu___12 = "Steel.C.StructLiteral.fields_cons" ->
+                    ((let uu___13 =
+                        FStar_Extraction_ML_Code.string_of_mlexpr ([], "")
+                          typedef in
+                      FStar_Compiler_Util.print2 "  Field %s : %s\n" name1
+                        uu___13);
+                     parse_fields fields2)
+                | uu___6 ->
+                    failwith "Couldn't parse fields from struct_fields" in
+              parse_fields fields; FStar_Pervasives_Native.None))
         | { FStar_Extraction_ML_Syntax.mllb_name = name1;
             FStar_Extraction_ML_Syntax.mllb_tysc =
               FStar_Pervasives_Native.Some (tvars, t0);
