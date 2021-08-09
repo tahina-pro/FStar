@@ -671,6 +671,63 @@ let (is_op : Prims.string -> Prims.bool) =
   fun op1 -> (mk_op op1) <> FStar_Pervasives_Native.None
 let (is_machine_int : Prims.string -> Prims.bool) =
   fun m -> (mk_width m) <> FStar_Pervasives_Native.None
+let opt_bind :
+  'a 'b .
+    'a FStar_Pervasives_Native.option ->
+      ('a -> 'b FStar_Pervasives_Native.option) ->
+        'b FStar_Pervasives_Native.option
+  =
+  fun m ->
+    fun k ->
+      match m with
+      | FStar_Pervasives_Native.Some x -> k x
+      | FStar_Pervasives_Native.None -> FStar_Pervasives_Native.None
+let (char_of_typechar :
+  FStar_Extraction_ML_Syntax.mlty ->
+    FStar_BaseTypes.char FStar_Pervasives_Native.option)
+  =
+  fun t ->
+    match t with
+    | FStar_Extraction_ML_Syntax.MLTY_Named ([], p) ->
+        let p1 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+        let n = FStar_String.strlen "Typestring.c" in
+        let uu___ =
+          ((FStar_String.strlen p1) > n) &&
+            (let uu___1 = FStar_String.substring p1 Prims.int_zero n in
+             uu___1 = "Typestring.c") in
+        if uu___
+        then
+          let uu___1 = FStar_String.get p1 n in
+          FStar_Pervasives_Native.Some uu___1
+        else FStar_Pervasives_Native.None
+    | uu___ -> FStar_Pervasives_Native.None
+let (string_of_typestring :
+  FStar_Extraction_ML_Syntax.mlty ->
+    Prims.string FStar_Pervasives_Native.option)
+  =
+  fun t ->
+    let rec go t1 =
+      match t1 with
+      | FStar_Extraction_ML_Syntax.MLTY_Named ([], p) when
+          let uu___ = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___ = "Typestring.string_nil" -> FStar_Pervasives_Native.Some []
+      | FStar_Extraction_ML_Syntax.MLTY_Named (c::t2::[], p) when
+          let uu___ = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___ = "Typestring.string_cons" ->
+          let uu___ = char_of_typechar c in
+          opt_bind uu___
+            (fun c' ->
+               let uu___1 = go t2 in
+               opt_bind uu___1
+                 (fun s' ->
+                    let uu___2 =
+                      let uu___3 = FStar_String.make Prims.int_one c' in
+                      uu___3 :: s' in
+                    FStar_Pervasives_Native.Some uu___2))
+      | uu___ -> FStar_Pervasives_Native.None in
+    let uu___ = go t in
+    opt_bind uu___
+      (fun ss -> FStar_Pervasives_Native.Some (FStar_String.concat "" ss))
 type env =
   {
   names: name Prims.list ;
@@ -870,30 +927,6 @@ and (translate_let :
     fun flavor ->
       fun lb ->
         match lb with
-        | { FStar_Extraction_ML_Syntax.mllb_name = uu___;
-            FStar_Extraction_ML_Syntax.mllb_tysc =
-              FStar_Pervasives_Native.Some
-              (uu___1, FStar_Extraction_ML_Syntax.MLTY_Named
-               ((FStar_Extraction_ML_Syntax.MLTY_Named
-                ([], view_type_name))::[], p));
-            FStar_Extraction_ML_Syntax.mllb_add_unit = uu___2;
-            FStar_Extraction_ML_Syntax.mllb_def =
-              {
-                FStar_Extraction_ML_Syntax.expr =
-                  FStar_Extraction_ML_Syntax.MLE_Name typedef_name;
-                FStar_Extraction_ML_Syntax.mlty = uu___3;
-                FStar_Extraction_ML_Syntax.loc = uu___4;_};
-            FStar_Extraction_ML_Syntax.mllb_meta = uu___5;
-            FStar_Extraction_ML_Syntax.print_typ = uu___6;_} when
-            let uu___7 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-            uu___7 = "Steel.C.Typedef.register_typedef_of" ->
-            ((let uu___8 =
-                FStar_Extraction_ML_Syntax.string_of_mlpath typedef_name in
-              let uu___9 =
-                FStar_Extraction_ML_Syntax.string_of_mlpath view_type_name in
-              FStar_Compiler_Util.print2
-                "Found %s : register_typedef_of %s\n" uu___8 uu___9);
-             FStar_Pervasives_Native.None)
         | { FStar_Extraction_ML_Syntax.mllb_name = uu___;
             FStar_Extraction_ML_Syntax.mllb_tysc =
               FStar_Pervasives_Native.Some
@@ -1155,6 +1188,74 @@ and (translate_type_decl :
       then FStar_Pervasives_Native.None
       else
         (match ty with
+         | { FStar_Extraction_ML_Syntax.tydecl_assumed = assumed;
+             FStar_Extraction_ML_Syntax.tydecl_name = name1;
+             FStar_Extraction_ML_Syntax.tydecl_ignored = uu___1;
+             FStar_Extraction_ML_Syntax.tydecl_parameters = args;
+             FStar_Extraction_ML_Syntax.tydecl_meta = flags;
+             FStar_Extraction_ML_Syntax.tydecl_defn =
+               FStar_Pervasives_Native.Some
+               (FStar_Extraction_ML_Syntax.MLTD_Abbrev
+               (FStar_Extraction_ML_Syntax.MLTY_Named (tag::fields::[], p)));_}
+             when
+             let uu___2 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+             uu___2 = "Steel.C.StructLiteral.mk_c_struct" ->
+             (FStar_Compiler_Util.print_endline "Parsing struct definition.";
+              (let uu___3 = string_of_typestring tag in
+               match uu___3 with
+               | FStar_Pervasives_Native.None ->
+                   ((let uu___5 =
+                       FStar_Extraction_ML_Code.string_of_mlty ([], "") tag in
+                     FStar_Compiler_Util.print1
+                       "Failed to parse struct tag from %s.\n" uu___5);
+                    FStar_Pervasives_Native.None)
+               | FStar_Pervasives_Native.Some tag1 ->
+                   let rec parse_fields fields1 =
+                     match fields1 with
+                     | FStar_Extraction_ML_Syntax.MLTY_Named ([], p1) when
+                         let uu___4 =
+                           FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
+                         uu___4 = "Steel.C.StructLiteral.struct_fields_t_nil"
+                         -> FStar_Pervasives_Native.Some []
+                     | FStar_Extraction_ML_Syntax.MLTY_Named
+                         (field::t::fields2::[], p1) when
+                         let uu___4 =
+                           FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
+                         uu___4 =
+                           "Steel.C.StructLiteral.struct_fields_t_cons"
+                         ->
+                         let uu___4 = string_of_typestring field in
+                         opt_bind uu___4
+                           (fun field1 ->
+                              let uu___5 = parse_fields fields2 in
+                              opt_bind uu___5
+                                (fun fields3 ->
+                                   FStar_Pervasives_Native.Some ((field1, t)
+                                     :: fields3)))
+                     | uu___4 -> FStar_Pervasives_Native.None in
+                   let uu___4 = parse_fields fields in
+                   (match uu___4 with
+                    | FStar_Pervasives_Native.None ->
+                        ((let uu___6 =
+                            FStar_Extraction_ML_Code.string_of_mlty ([], "")
+                              fields in
+                          FStar_Compiler_Util.print1
+                            "Failed to parse struct fields from %s.\n" uu___6);
+                         FStar_Pervasives_Native.None)
+                    | FStar_Pervasives_Native.Some fields1 ->
+                        (FStar_Compiler_Util.print1
+                           "Got struct %s with following fields:\n" tag1;
+                         FStar_Compiler_List.fold_left
+                           (fun uu___7 ->
+                              fun uu___8 ->
+                                match uu___8 with
+                                | (field, ty1) ->
+                                    let uu___9 =
+                                      FStar_Extraction_ML_Code.string_of_mlty
+                                        ([], "") ty1 in
+                                    FStar_Compiler_Util.print2 "  %s : %s"
+                                      field uu___9) () fields1;
+                         FStar_Pervasives_Native.None))))
          | { FStar_Extraction_ML_Syntax.tydecl_assumed = assumed;
              FStar_Extraction_ML_Syntax.tydecl_name = name1;
              FStar_Extraction_ML_Syntax.tydecl_ignored = uu___1;
