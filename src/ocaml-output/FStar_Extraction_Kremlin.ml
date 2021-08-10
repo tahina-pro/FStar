@@ -2825,6 +2825,103 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
                              ((EQualified (["FStar"; "Int"; "Cast"], c)),
                                uu___11) in
                            EApp uu___10)
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2);
+             FStar_Extraction_ML_Syntax.mlty = uu___3;
+             FStar_Extraction_ML_Syntax.loc = uu___4;_},
+           uu___5)
+          when
+          let uu___6 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___6 = "Steel.C.StructLiteral.unaddr_of_struct_field" ->
+          ESequence []
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2::struct_name::[]);
+             FStar_Extraction_ML_Syntax.mlty = uu___3;
+             FStar_Extraction_ML_Syntax.loc = uu___4;_},
+           uu___5::uu___6::{
+                             FStar_Extraction_ML_Syntax.expr =
+                               FStar_Extraction_ML_Syntax.MLE_Const
+                               (FStar_Extraction_ML_Syntax.MLC_String
+                               field_name);
+                             FStar_Extraction_ML_Syntax.mlty = uu___7;
+                             FStar_Extraction_ML_Syntax.loc = uu___8;_}::r::[])
+          when
+          let uu___9 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___9 = "Steel.C.StructLiteral.addr_of_struct_field" ->
+          let struct_name1 =
+            let uu___9 = string_of_typestring struct_name in
+            FStar_Compiler_Util.must uu___9 in
+          let uu___9 =
+            let uu___10 =
+              let uu___11 =
+                let uu___12 =
+                  let uu___13 = translate_expr env1 r in
+                  (uu___13, (EConstant (CInt, "0"))) in
+                EBufRead uu___12 in
+              ((TQualified ((env1.module_name), struct_name1)), uu___11,
+                field_name) in
+            EField uu___10 in
+          EAddrOf uu___9
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2::uu___3::[]);
+             FStar_Extraction_ML_Syntax.mlty = uu___4;
+             FStar_Extraction_ML_Syntax.loc = uu___5;_},
+           r::[])
+          when
+          let uu___6 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___6 = "Steel.C.Opt.opt_read_sel" ->
+          let uu___6 =
+            let uu___7 = translate_expr env1 r in
+            (uu___7, (EConstant (CInt, "0"))) in
+          EBufRead uu___6
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2::uu___3::[]);
+             FStar_Extraction_ML_Syntax.mlty = uu___4;
+             FStar_Extraction_ML_Syntax.loc = uu___5;_},
+           r::x::[])
+          when
+          let uu___6 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___6 = "Steel.C.Opt.opt_write_sel" ->
+          let uu___6 =
+            let uu___7 =
+              let uu___8 =
+                let uu___9 = translate_expr env1 r in
+                (uu___9, (EConstant (CInt, "0"))) in
+              EBufRead uu___8 in
+            let uu___8 = translate_expr env1 x in (uu___7, uu___8) in
+          EAssign uu___6
       | FStar_Extraction_ML_Syntax.MLE_App (head, args) ->
           let uu___ =
             let uu___1 = translate_expr env1 head in
