@@ -2837,11 +2837,26 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
                 uu___2);
              FStar_Extraction_ML_Syntax.mlty = uu___3;
              FStar_Extraction_ML_Syntax.loc = uu___4;_},
+           uu___5::uu___6::e1::[])
+          when
+          let uu___7 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___7 = "Steel.Effect.Atomic.return" -> translate_expr env1 e1
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2);
+             FStar_Extraction_ML_Syntax.mlty = uu___3;
+             FStar_Extraction_ML_Syntax.loc = uu___4;_},
            uu___5)
           when
           let uu___6 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-          uu___6 = "Steel.C.StructLiteral.unaddr_of_struct_field" ->
-          ESequence []
+          uu___6 = "Steel.C.StructLiteral.unaddr_of_struct_field" -> EUnit
       | FStar_Extraction_ML_Syntax.MLE_App
           ({
              FStar_Extraction_ML_Syntax.expr =
@@ -2872,7 +2887,7 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
               let uu___11 =
                 let uu___12 =
                   let uu___13 = translate_expr env1 r in
-                  (uu___13, (EConstant (CInt, "0"))) in
+                  (uu___13, (EConstant (UInt32, "0"))) in
                 EBufRead uu___12 in
               ((TQualified ((env1.module_name), struct_name1)), uu___11,
                 field_name) in
@@ -2896,7 +2911,7 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
           uu___6 = "Steel.C.Opt.opt_read_sel" ->
           let uu___6 =
             let uu___7 = translate_expr env1 r in
-            (uu___7, (EConstant (CInt, "0"))) in
+            (uu___7, (EConstant (UInt32, "0"))) in
           EBufRead uu___6
       | FStar_Extraction_ML_Syntax.MLE_App
           ({
@@ -2918,7 +2933,7 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
             let uu___7 =
               let uu___8 =
                 let uu___9 = translate_expr env1 r in
-                (uu___9, (EConstant (CInt, "0"))) in
+                (uu___9, (EConstant (UInt32, "0"))) in
               EBufRead uu___8 in
             let uu___8 = translate_expr env1 x in (uu___7, uu___8) in
           EAssign uu___6
