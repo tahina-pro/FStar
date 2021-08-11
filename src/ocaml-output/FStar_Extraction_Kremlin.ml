@@ -1211,15 +1211,13 @@ and (translate_type_decl :
                      | FStar_Extraction_ML_Syntax.MLTY_Named ([], p1) when
                          let uu___8 =
                            FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
-                         uu___8 = "Steel.C.StructLiteral.struct_fields_t_nil"
-                         -> FStar_Pervasives_Native.Some []
+                         uu___8 = "Steel.C.Fields.c_fields_t_nil" ->
+                         FStar_Pervasives_Native.Some []
                      | FStar_Extraction_ML_Syntax.MLTY_Named
                          (field::t::fields2::[], p1) when
                          let uu___8 =
                            FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
-                         uu___8 =
-                           "Steel.C.StructLiteral.struct_fields_t_cons"
-                         ->
+                         uu___8 = "Steel.C.Fields.c_fields_t_cons" ->
                          let uu___8 = string_of_typestring field in
                          opt_bind uu___8
                            (fun field1 ->
@@ -2866,33 +2864,33 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
                     FStar_Extraction_ML_Syntax.MLE_Name p;
                   FStar_Extraction_ML_Syntax.mlty = uu___;
                   FStar_Extraction_ML_Syntax.loc = uu___1;_},
-                uu___2::struct_name::[]);
-             FStar_Extraction_ML_Syntax.mlty = uu___3;
-             FStar_Extraction_ML_Syntax.loc = uu___4;_},
-           uu___5::uu___6::{
+                uu___2::uu___3::uu___4::struct_name::[]);
+             FStar_Extraction_ML_Syntax.mlty = uu___5;
+             FStar_Extraction_ML_Syntax.loc = uu___6;_},
+           uu___7::uu___8::{
                              FStar_Extraction_ML_Syntax.expr =
                                FStar_Extraction_ML_Syntax.MLE_Const
                                (FStar_Extraction_ML_Syntax.MLC_String
                                field_name);
-                             FStar_Extraction_ML_Syntax.mlty = uu___7;
-                             FStar_Extraction_ML_Syntax.loc = uu___8;_}::r::[])
+                             FStar_Extraction_ML_Syntax.mlty = uu___9;
+                             FStar_Extraction_ML_Syntax.loc = uu___10;_}::r::[])
           when
-          let uu___9 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-          uu___9 = "Steel.C.StructLiteral.addr_of_struct_field" ->
+          let uu___11 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___11 = "Steel.C.StructLiteral.addr_of_struct_field''" ->
           let struct_name1 =
-            let uu___9 = string_of_typestring struct_name in
-            FStar_Compiler_Util.must uu___9 in
-          let uu___9 =
-            let uu___10 =
-              let uu___11 =
-                let uu___12 =
-                  let uu___13 = translate_expr env1 r in
-                  (uu___13, (EConstant (UInt32, "0"))) in
-                EBufRead uu___12 in
-              ((TQualified ((env1.module_name), struct_name1)), uu___11,
+            let uu___11 = string_of_typestring struct_name in
+            FStar_Compiler_Util.must uu___11 in
+          let uu___11 =
+            let uu___12 =
+              let uu___13 =
+                let uu___14 =
+                  let uu___15 = translate_expr env1 r in
+                  (uu___15, (EConstant (UInt32, "0"))) in
+                EBufRead uu___14 in
+              ((TQualified ((env1.module_name), struct_name1)), uu___13,
                 field_name) in
-            EField uu___10 in
-          EAddrOf uu___9
+            EField uu___12 in
+          EAddrOf uu___11
       | FStar_Extraction_ML_Syntax.MLE_App
           ({
              FStar_Extraction_ML_Syntax.expr =
