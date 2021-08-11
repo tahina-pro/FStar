@@ -17,6 +17,8 @@ type decl =
   | DTypeAbstractStruct of (Prims.string Prims.list * Prims.string) 
   | DExternal of (cc FStar_Pervasives_Native.option * flag Prims.list *
   (Prims.string Prims.list * Prims.string) * typ * Prims.string Prims.list) 
+  | DUntaggedUnion of ((Prims.string Prims.list * Prims.string) * flag
+  Prims.list * Prims.int * (Prims.string * typ) Prims.list) 
 and cc =
   | StdCall 
   | CDecl 
@@ -208,6 +210,14 @@ let (__proj__DExternal__item___0 :
     (cc FStar_Pervasives_Native.option * flag Prims.list * (Prims.string
       Prims.list * Prims.string) * typ * Prims.string Prims.list))
   = fun projectee -> match projectee with | DExternal _0 -> _0
+let (uu___is_DUntaggedUnion : decl -> Prims.bool) =
+  fun projectee ->
+    match projectee with | DUntaggedUnion _0 -> true | uu___ -> false
+let (__proj__DUntaggedUnion__item___0 :
+  decl ->
+    ((Prims.string Prims.list * Prims.string) * flag Prims.list * Prims.int *
+      (Prims.string * typ) Prims.list))
+  = fun projectee -> match projectee with | DUntaggedUnion _0 -> _0
 let (uu___is_StdCall : cc -> Prims.bool) =
   fun projectee -> match projectee with | StdCall -> true | uu___ -> false
 let (uu___is_CDecl : cc -> Prims.bool) =
@@ -1183,7 +1193,63 @@ and (translate_type_decl :
           ty.FStar_Extraction_ML_Syntax.tydecl_meta
       then FStar_Pervasives_Native.None
       else
-        (match ty with
+        (let parse_fields fields =
+           let rec go fields1 =
+             match fields1 with
+             | FStar_Extraction_ML_Syntax.MLTY_Named ([], p) when
+                 let uu___1 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+                 uu___1 = "Steel.C.Fields.c_fields_t_nil" ->
+                 FStar_Pervasives_Native.Some []
+             | FStar_Extraction_ML_Syntax.MLTY_Named
+                 (field::t::fields2::[], p) when
+                 let uu___1 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+                 uu___1 = "Steel.C.Fields.c_fields_t_cons" ->
+                 let uu___1 = string_of_typestring field in
+                 opt_bind uu___1
+                   (fun field1 ->
+                      if field1 = ""
+                      then go fields2
+                      else
+                        (let uu___3 = go fields2 in
+                         opt_bind uu___3
+                           (fun fields3 ->
+                              FStar_Pervasives_Native.Some ((field1, t) ::
+                                fields3))))
+             | uu___1 -> FStar_Pervasives_Native.None in
+           let uu___1 = go fields in
+           match uu___1 with
+           | FStar_Pervasives_Native.None ->
+               ((let uu___3 =
+                   FStar_Extraction_ML_Code.string_of_mlty ([], "") fields in
+                 FStar_Compiler_Util.print1
+                   "Failed to parse fields from %s.\n" uu___3);
+                FStar_Pervasives_Native.None)
+           | FStar_Pervasives_Native.Some fields1 ->
+               (FStar_Compiler_Util.print_endline "Got fields:";
+                FStar_Compiler_List.fold_left
+                  (fun uu___4 ->
+                     fun uu___5 ->
+                       match uu___5 with
+                       | (field, ty1) ->
+                           let uu___6 =
+                             FStar_Extraction_ML_Code.string_of_mlty 
+                               ([], "") ty1 in
+                           FStar_Compiler_Util.print2 "  %s : %s\n" field
+                             uu___6) () fields1;
+                (let uu___4 =
+                   FStar_Compiler_List.map
+                     (fun uu___5 ->
+                        match uu___5 with
+                        | (field, ty1) ->
+                            ((let uu___7 =
+                                FStar_Extraction_ML_Code.string_of_mlty
+                                  ([], "") ty1 in
+                              FStar_Compiler_Util.print1 "Translating %s.\n"
+                                uu___7);
+                             (let uu___7 = translate_type env1 ty1 in
+                              (field, uu___7)))) fields1 in
+                 FStar_Pervasives_Native.Some uu___4)) in
+         match ty with
          | { FStar_Extraction_ML_Syntax.tydecl_assumed = uu___1;
              FStar_Extraction_ML_Syntax.tydecl_name = uu___2;
              FStar_Extraction_ML_Syntax.tydecl_ignored = uu___3;
@@ -1206,71 +1272,49 @@ and (translate_type_decl :
                        "Failed to parse struct tag from %s.\n" uu___9);
                     FStar_Pervasives_Native.None)
                | FStar_Pervasives_Native.Some tag1 ->
-                   let rec parse_fields fields1 =
-                     match fields1 with
-                     | FStar_Extraction_ML_Syntax.MLTY_Named ([], p1) when
-                         let uu___8 =
-                           FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
-                         uu___8 = "Steel.C.Fields.c_fields_t_nil" ->
-                         FStar_Pervasives_Native.Some []
-                     | FStar_Extraction_ML_Syntax.MLTY_Named
-                         (field::t::fields2::[], p1) when
-                         let uu___8 =
-                           FStar_Extraction_ML_Syntax.string_of_mlpath p1 in
-                         uu___8 = "Steel.C.Fields.c_fields_t_cons" ->
-                         let uu___8 = string_of_typestring field in
-                         opt_bind uu___8
-                           (fun field1 ->
-                              let uu___9 = parse_fields fields2 in
-                              opt_bind uu___9
-                                (fun fields3 ->
-                                   FStar_Pervasives_Native.Some ((field1, t)
-                                     :: fields3)))
-                     | uu___8 -> FStar_Pervasives_Native.None in
-                   let uu___8 = parse_fields fields in
-                   (match uu___8 with
-                    | FStar_Pervasives_Native.None ->
-                        ((let uu___10 =
-                            FStar_Extraction_ML_Code.string_of_mlty ([], "")
-                              fields in
-                          FStar_Compiler_Util.print1
-                            "Failed to parse struct fields from %s.\n"
-                            uu___10);
-                         FStar_Pervasives_Native.None)
-                    | FStar_Pervasives_Native.Some fields1 ->
-                        (FStar_Compiler_Util.print1
-                           "Got struct %s with following fields:\n" tag1;
-                         FStar_Compiler_List.fold_left
+                   let fields1 =
+                     let uu___8 = parse_fields fields in
+                     FStar_Compiler_Util.must uu___8 in
+                   let uu___8 =
+                     let uu___9 =
+                       let uu___10 =
+                         FStar_Compiler_List.map
                            (fun uu___11 ->
-                              fun uu___12 ->
-                                match uu___12 with
-                                | (field, ty1) ->
-                                    let uu___13 =
-                                      FStar_Extraction_ML_Code.string_of_mlty
-                                        ([], "") ty1 in
-                                    FStar_Compiler_Util.print2 "  %s : %s\n"
-                                      field uu___13) () fields1;
-                         (let uu___11 =
-                            let uu___12 =
-                              let uu___13 =
-                                FStar_Compiler_List.map
-                                  (fun uu___14 ->
-                                     match uu___14 with
-                                     | (field, ty1) ->
-                                         ((let uu___16 =
-                                             FStar_Extraction_ML_Code.string_of_mlty
-                                               ([], "") ty1 in
-                                           FStar_Compiler_Util.print1
-                                             "Translating %s.\n" uu___16);
-                                          (let uu___16 =
-                                             let uu___17 =
-                                               translate_type env1 ty1 in
-                                             (uu___17, true) in
-                                           (field, uu___16)))) fields1 in
-                              (((env1.module_name), tag1), [],
-                                Prims.int_zero, uu___13) in
-                            DTypeFlat uu___12 in
-                          FStar_Pervasives_Native.Some uu___11)))))
+                              match uu___11 with
+                              | (field, ty1) -> (field, (ty1, true))) fields1 in
+                       (((env1.module_name), tag1), [], Prims.int_zero,
+                         uu___10) in
+                     DTypeFlat uu___9 in
+                   FStar_Pervasives_Native.Some uu___8))
+         | { FStar_Extraction_ML_Syntax.tydecl_assumed = uu___1;
+             FStar_Extraction_ML_Syntax.tydecl_name = uu___2;
+             FStar_Extraction_ML_Syntax.tydecl_ignored = uu___3;
+             FStar_Extraction_ML_Syntax.tydecl_parameters = uu___4;
+             FStar_Extraction_ML_Syntax.tydecl_meta = uu___5;
+             FStar_Extraction_ML_Syntax.tydecl_defn =
+               FStar_Pervasives_Native.Some
+               (FStar_Extraction_ML_Syntax.MLTD_Abbrev
+               (FStar_Extraction_ML_Syntax.MLTY_Named (tag::fields::[], p)));_}
+             when
+             let uu___6 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+             uu___6 = "Steel.C.UnionLiteral.mk_union_def" ->
+             (FStar_Compiler_Util.print_endline "Parsing union definition.";
+              (let uu___7 = string_of_typestring tag in
+               match uu___7 with
+               | FStar_Pervasives_Native.None ->
+                   ((let uu___9 =
+                       FStar_Extraction_ML_Code.string_of_mlty ([], "") tag in
+                     FStar_Compiler_Util.print1
+                       "Failed to parse struct tag from %s.\n" uu___9);
+                    FStar_Pervasives_Native.None)
+               | FStar_Pervasives_Native.Some tag1 ->
+                   let fields1 =
+                     let uu___8 = parse_fields fields in
+                     FStar_Compiler_Util.must uu___8 in
+                   FStar_Pervasives_Native.Some
+                     (DUntaggedUnion
+                        (((env1.module_name), tag1), [], Prims.int_zero,
+                          fields1))))
          | { FStar_Extraction_ML_Syntax.tydecl_assumed = assumed;
              FStar_Extraction_ML_Syntax.tydecl_name = name1;
              FStar_Extraction_ML_Syntax.tydecl_ignored = uu___1;
@@ -1421,6 +1465,16 @@ and (translate_type : env -> FStar_Extraction_ML_Syntax.mlty -> typ) =
               FStar_Compiler_Util.must uu___4 in
             ((env1.module_name), uu___3) in
           TQualified uu___2
+      | FStar_Extraction_ML_Syntax.MLTY_Named (tag::uu___::[], p) when
+          let uu___1 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          FStar_Compiler_Util.starts_with uu___1 "Steel.C.UnionLiteral.union"
+          ->
+          let uu___1 =
+            let uu___2 =
+              let uu___3 = string_of_typestring tag in
+              FStar_Compiler_Util.must uu___3 in
+            ((env1.module_name), uu___2) in
+          TQualified uu___1
       | FStar_Extraction_ML_Syntax.MLTY_Named
           (uu___::arg::uu___1::uu___2::[], p) when
           let uu___3 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
@@ -2864,6 +2918,22 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
                     FStar_Extraction_ML_Syntax.MLE_Name p;
                   FStar_Extraction_ML_Syntax.mlty = uu___;
                   FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2);
+             FStar_Extraction_ML_Syntax.mlty = uu___3;
+             FStar_Extraction_ML_Syntax.loc = uu___4;_},
+           uu___5)
+          when
+          let uu___6 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___6 = "Steel.C.UnionLiteral.unaddr_of_union_field" -> EUnit
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
                 uu___2::uu___3::uu___4::struct_name::[]);
              FStar_Extraction_ML_Syntax.mlty = uu___5;
              FStar_Extraction_ML_Syntax.loc = uu___6;_},
@@ -2891,6 +2961,78 @@ and (translate_expr : env -> FStar_Extraction_ML_Syntax.mlexpr -> expr) =
                 field_name) in
             EField uu___12 in
           EAddrOf uu___11
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2::uu___3::uu___4::union_name::[]);
+             FStar_Extraction_ML_Syntax.mlty = uu___5;
+             FStar_Extraction_ML_Syntax.loc = uu___6;_},
+           uu___7::{
+                     FStar_Extraction_ML_Syntax.expr =
+                       FStar_Extraction_ML_Syntax.MLE_Const
+                       (FStar_Extraction_ML_Syntax.MLC_String field_name);
+                     FStar_Extraction_ML_Syntax.mlty = uu___8;
+                     FStar_Extraction_ML_Syntax.loc = uu___9;_}::r::[])
+          when
+          let uu___10 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___10 = "Steel.C.UnionLiteral.addr_of_union_field''" ->
+          let union_name1 =
+            let uu___10 = string_of_typestring union_name in
+            FStar_Compiler_Util.must uu___10 in
+          let uu___10 =
+            let uu___11 =
+              let uu___12 =
+                let uu___13 =
+                  let uu___14 = translate_expr env1 r in
+                  (uu___14, (EConstant (UInt32, "0"))) in
+                EBufRead uu___13 in
+              ((TQualified ((env1.module_name), union_name1)), uu___12,
+                field_name) in
+            EField uu___11 in
+          EAddrOf uu___10
+      | FStar_Extraction_ML_Syntax.MLE_App
+          ({
+             FStar_Extraction_ML_Syntax.expr =
+               FStar_Extraction_ML_Syntax.MLE_TApp
+               ({
+                  FStar_Extraction_ML_Syntax.expr =
+                    FStar_Extraction_ML_Syntax.MLE_Name p;
+                  FStar_Extraction_ML_Syntax.mlty = uu___;
+                  FStar_Extraction_ML_Syntax.loc = uu___1;_},
+                uu___2::uu___3::union_name::[]);
+             FStar_Extraction_ML_Syntax.mlty = uu___4;
+             FStar_Extraction_ML_Syntax.loc = uu___5;_},
+           uu___6::{
+                     FStar_Extraction_ML_Syntax.expr =
+                       FStar_Extraction_ML_Syntax.MLE_Const
+                       (FStar_Extraction_ML_Syntax.MLC_String field_name);
+                     FStar_Extraction_ML_Syntax.mlty = uu___7;
+                     FStar_Extraction_ML_Syntax.loc = uu___8;_}::new_value::r::[])
+          when
+          let uu___9 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
+          uu___9 = "Steel.C.UnionLiteral.switch_union_field'" ->
+          let union_name1 =
+            let uu___9 = string_of_typestring union_name in
+            FStar_Compiler_Util.must uu___9 in
+          let uu___9 =
+            let uu___10 =
+              let uu___11 =
+                let uu___12 =
+                  let uu___13 =
+                    let uu___14 = translate_expr env1 r in
+                    (uu___14, (EConstant (UInt32, "0"))) in
+                  EBufRead uu___13 in
+                ((TQualified ((env1.module_name), union_name1)), uu___12,
+                  field_name) in
+              EField uu___11 in
+            let uu___11 = translate_expr env1 new_value in (uu___10, uu___11) in
+          EAssign uu___9
       | FStar_Extraction_ML_Syntax.MLE_App
           ({
              FStar_Extraction_ML_Syntax.expr =
