@@ -59,11 +59,12 @@ let length (#base: Type) (#t: Type) (a: array base t) : GTot nat = size_v (len a
 // let varray (#base: Type) (#t: Type) (x: array base t) : Tot vprop
 // = Steel.C.Ref.pts_to_view (g_array_as_ref x) (array_view t (len x))
 
-val varray_hp (#base: Type) (#t: Type) (x: array base t) : Tot (slprop u#1)
-val varray_sel (#base: Type) (#t: Type) (x: array base t) : Tot (selector (array_view_type t (len x)) (varray_hp x))
+val varray_hp (#base: Type0) (#t: Type0) (x: array base t) : Tot (slprop u#1)
+
+val varray_sel (#base: Type0) (#t: Type0) (x: array base t) : GTot (selector (array_view_type t (len x)) (varray_hp x))
 
 [@@ __steel_reduce__ ]
-let varray' (#base: Type) (#t: Type) (x: array base t) : Tot vprop' = {
+let varray' (#base: Type) (#t: Type) (x: array base t) : GTot vprop' = {
   hp = varray_hp x;
   t = array_view_type t (len x);
   sel = varray_sel x;
@@ -89,6 +90,7 @@ val intro_varray (#base: Type u#0) (#t: Type u#0) (#n: size_t) (r: Steel.C.Refer
     h' (varray a) == h (Steel.C.Ref.pts_to_view r (array_view t n))
   ))
 
+(*
 val elim_varray (#inames: _) (#base: Type u#0) (#t: Type u#0) (#n: size_t) (r: Steel.C.Reference.ref base (array_view_type t n) (array_pcm t n)) (a: array base t) (_: squash (size_v n > 0))
 : SteelGhost unit inames
   (varray a)

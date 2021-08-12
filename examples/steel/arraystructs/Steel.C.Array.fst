@@ -350,6 +350,38 @@ let array_conn_id
   assume ((array_conn t base_len (mk_size_t (FStar.UInt32.uint_to_t 0)) base_len ()).Steel.C.Connection.conn_lift_frame_preserving_upd === (Steel.C.Connection.connection_id (array_pcm t base_len)).Steel.C.Connection.conn_lift_frame_preserving_upd);
   array_conn t base_len (mk_size_t (FStar.UInt32.uint_to_t 0)) base_len () `Steel.C.Connection.connection_eq` Steel.C.Connection.connection_id _
 
+#restart-solver
+
+let array_conn_compose
+  (t: Type0)
+  (base_len: Ghost.erased size_t)
+  (from1: size_t)
+  (to1: size_t)
+  (from2: size_t)
+  (to2: size_t)
+: Lemma
+  (requires (
+    size_v from1 <= size_v to1 /\
+    size_v to1 <= size_v base_len /\
+    size_v from2 <= size_v to2 /\
+    size_v from1 + size_v to2 <= size_v to1
+  ))
+  (ensures (
+    array_conn t base_len from1 to1 () `Steel.C.Connection.connection_compose` array_conn t (to1 `size_sub` from1) from2 to2 () ==
+    array_conn t base_len (from1 `size_add` from2) (from1 `size_add` to2) ()
+  ))
+=
+  let z = to1 `size_sub` from1 in
+  assert (forall x . array_small_to_large_f t base_len from1 to1 () (array_small_to_large_f t z from2 to2 ()  x) `feq` array_small_to_large_f t base_len (from1 `size_add` from2) (from1 `size_add` to2) () x);
+  assert (forall x . array_large_to_small_f t z from2 to2 () (array_large_to_small_f t base_len from1 to1 () x) `feq` array_large_to_small_f t base_len (from1 `size_add` from2) (from1 `size_add` to2) () x);
+  let cc = array_conn t base_len from1 to1 () `Steel.C.Connection.connection_compose` array_conn t z from2 to2 () in
+  let c = array_conn t base_len (from1 `size_add` from2) (from1 `size_add` to2) () in
+  assume (
+    cc.Steel.C.Connection.conn_lift_frame_preserving_upd ===
+    c.Steel.C.Connection.conn_lift_frame_preserving_upd
+  );
+  cc `Steel.C.Connection.connection_eq` c
+
 let to_view_array_conn
   (t: Type0)
   (base_len: Ghost.erased size_t)
@@ -373,12 +405,113 @@ let to_view_array_conn
 
 #pop-options
 
-
-
-(*
 let array_as_ref
   (#base: Type)
   (#t: Type)
   (a: array base t)
 : GTot (Steel.C.Reference.ref base (array_view_type t (len a)) (array_pcm t (len a)))
+= Steel.C.Ref.ref_focus a.base_ref (array_conn t a.base_len a.from a.to a.prf)
 
+[@@__steel_reduce__]
+let varray0
+  (#base: Type)
+  (#t: Type)
+  (x: array base t)
+: Tot vprop
+= Steel.C.Ref.pts_to_view
+    #base
+    #(array_pcm_carrier t (len x))
+    #(array_pcm t (len x))
+    (array_as_ref #base #t x)
+    #(array_view_type t (len x))
+    #(size_v (len x) = 0)
+    (array_view' t (len x))
+
+let varray_hp #base #t x = hp_of (varray0 #base #t x)
+
+#push-options "--debug Steel.C.Array --debug_level Extreme"
+
+let varray_sel #base #t x = sel_of (varray0 #base #t x)
+
+#pop-options
+
+let intro_varray1
+  (#inames: _)
+  (#base: Type)
+  (#t: Type)
+  (x: array base t)
+: SteelGhost unit inames
+    (varray0 x)
+    (fun _ -> varray x)
+    (fun _ -> True)
+    (fun h _ h' -> h' (varray x) == h (varray0 x))
+= change_slprop_rel
+    (varray0 x)
+    (varray x)
+    (fun u v -> u == v)
+    (fun m -> ())
+
+let elim_varray1
+  (#inames: _)
+  (#base: Type)
+  (#t: Type)
+  (x: array base t)
+: SteelGhost unit inames
+    (varray x)
+    (fun _ -> varray0 x)
+    (fun _ -> True)
+    (fun h _ h' -> h' (varray0 x) == h (varray x))
+= change_slprop_rel
+    (varray x)
+    (varray0 x)
+    (fun u v -> u == v)
+    (fun m -> ())
+
+val mk_array (#base: Type u#0) (#t: Type u#0) (#n: size_t) (r: Steel.C.Reference.ref base (array_view_type t n) (array_pcm t n))
+: Pure (array base t)
+  (requires (size_v n > 0))
+  (ensures (fun a -> len a == Ghost.reveal n))
+
+let mk_array #base #t #n r =
+  {
+    base_len = n;
+    base_ref = r;
+    from = mk_size_t 0ul;
+    to = n;
+    prf = ();
+  }
+
+let g_mk_array r = mk_array r
+
+#push-options "--z3rlimit 32"
+
+let intro_varray
+  #base #t #n r sq
+=
+  let res = mk_array r in
+  array_conn_id t n;
+  Steel.C.Ref.ref_focus_id r;
+  assert (array_as_ref res == r);
+  assume False;
+  change_equal_slprop
+    (r `Steel.C.Ref.pts_to_view` _)
+    (varray0 res);
+  intro_varray1 res;
+  return res
+
+#pop-options
+
+(*
+
+noeq
+type array base t = {
+  base_len: Ghost.erased size_t;
+  base_ref: Steel.C.Reference.ref base (array_view_type t base_len) (array_pcm t base_len);
+  from: size_t;
+  to: size_t; // must be Tot because of array_small_to_large below
+  prf: squash (
+    size_v base_len >= 0 /\
+    size_v from <= size_v to /\
+    size_v to <= size_v base_len
+  );
+}
