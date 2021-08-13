@@ -705,13 +705,14 @@ let (char_of_typechar :
     match t with
     | FStar_Extraction_ML_Syntax.MLTY_Named ([], p) ->
         let p1 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-        if p1 = "Typestring.cdot"
+        if p1 = "Steel.C.Typestring.cdot"
         then FStar_Pervasives_Native.Some 46
         else
-          if FStar_Compiler_Util.starts_with p1 "Typestring.c"
+          if FStar_Compiler_Util.starts_with p1 "Steel.C.Typestring.c"
           then
             (let uu___1 =
-               FStar_String.get p1 (FStar_String.strlen "Typestring.c") in
+               FStar_String.get p1
+                 (FStar_String.strlen "Steel.C.Typestring.c") in
              FStar_Pervasives_Native.Some uu___1)
           else FStar_Pervasives_Native.None
     | uu___ -> FStar_Pervasives_Native.None
@@ -724,10 +725,11 @@ let (string_of_typestring :
       match t1 with
       | FStar_Extraction_ML_Syntax.MLTY_Named ([], p) when
           let uu___ = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-          uu___ = "Typestring.string_nil" -> FStar_Pervasives_Native.Some []
+          uu___ = "Steel.C.Typestring.string_nil" ->
+          FStar_Pervasives_Native.Some []
       | FStar_Extraction_ML_Syntax.MLTY_Named (c::t2::[], p) when
           let uu___ = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-          uu___ = "Typestring.string_cons" ->
+          uu___ = "Steel.C.Typestring.string_cons" ->
           let uu___ = char_of_typechar c in
           opt_bind uu___
             (fun c' ->
@@ -770,10 +772,11 @@ let (int_of_typenat :
       match t1 with
       | FStar_Extraction_ML_Syntax.MLTY_Named ([], p) when
           let uu___ = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-          uu___ = "Typenat.z" -> FStar_Pervasives_Native.Some Prims.int_zero
+          uu___ = "Steel.C.Typenat.z" ->
+          FStar_Pervasives_Native.Some Prims.int_zero
       | FStar_Extraction_ML_Syntax.MLTY_Named (t2::[], p) when
           let uu___ = FStar_Extraction_ML_Syntax.string_of_mlpath p in
-          uu___ = "Typenat.s" ->
+          uu___ = "Steel.C.Typenat.s" ->
           let uu___ = go t2 in
           opt_bind uu___
             (fun n -> FStar_Pervasives_Native.Some (n + Prims.int_one))
