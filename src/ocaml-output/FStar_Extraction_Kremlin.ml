@@ -777,11 +777,7 @@ let (int_of_typenat :
           let uu___ = go t2 in
           opt_bind uu___
             (fun n -> FStar_Pervasives_Native.Some (n + Prims.int_one))
-      | uu___ ->
-          ((let uu___2 = FStar_Extraction_ML_Code.string_of_mlty ([], "") t1 in
-            FStar_Compiler_Util.print1 "int_of_typenat: got bad type %s\n"
-              uu___2);
-           FStar_Pervasives_Native.None) in
+      | uu___ -> FStar_Pervasives_Native.None in
     go t
 type env =
   {
@@ -1528,30 +1524,17 @@ and (translate_type_without_decay :
       | FStar_Extraction_ML_Syntax.MLTY_Named (t1::n::s::[], p) when
           let uu___ = FStar_Extraction_ML_Syntax.string_of_mlpath p in
           uu___ = "Steel.C.Array.array_view_type_sized" ->
-          (FStar_Compiler_Util.print_endline "parsing int_of_typenat";
-           (let uu___2 = FStar_Extraction_ML_Code.string_of_mlty ([], "") n in
-            FStar_Compiler_Util.print1 "n = %s\n" uu___2);
-           (let uu___3 =
-              FStar_Extraction_ML_Code.string_of_mlty ([], "")
-                (FStar_Extraction_ML_Syntax.MLTY_Named ([t1; n; s], p)) in
-            FStar_Compiler_Util.print1 "ty = %s\n" uu___3);
-           (let n' =
-              let uu___3 = int_of_typenat n in
-              FStar_Compiler_Util.must uu___3 in
-            FStar_Compiler_Util.print_endline "got int: ";
-            (let uu___5 = FStar_Compiler_Util.string_of_int n' in
-             FStar_Compiler_Util.print_endline uu___5);
-            (let uu___5 =
-               let uu___6 = translate_type_without_decay env1 t1 in
-               let uu___7 =
-                 let uu___8 =
-                   let uu___9 =
-                     let uu___10 = int_of_typenat n in
-                     FStar_Compiler_Util.must uu___10 in
-                   FStar_Compiler_Util.string_of_int uu___9 in
-                 (UInt32, uu___8) in
-               (uu___6, uu___7) in
-             TArray uu___5)))
+          let uu___ =
+            let uu___1 = translate_type_without_decay env1 t1 in
+            let uu___2 =
+              let uu___3 =
+                let uu___4 =
+                  let uu___5 = int_of_typenat n in
+                  FStar_Compiler_Util.must uu___5 in
+                FStar_Compiler_Util.string_of_int uu___4 in
+              (UInt32, uu___3) in
+            (uu___1, uu___2) in
+          TArray uu___
       | FStar_Extraction_ML_Syntax.MLTY_Named (uu___::arg::[], p) when
           let uu___1 = FStar_Extraction_ML_Syntax.string_of_mlpath p in
           uu___1 = "Steel.C.Array.array" ->
