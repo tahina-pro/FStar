@@ -489,17 +489,134 @@ let intro_varray
   #base #t #n r sq
 =
   let res = mk_array r in
+  assert (array_as_ref res == Steel.C.Ref.ref_focus r (array_conn t n (mk_size_t 0ul) n ()));
   array_conn_id t n;
+  assert (array_conn t n (mk_size_t 0ul) n () == Steel.C.Connection.connection_id (array_pcm t n));
+  assert (array_as_ref res == Steel.C.Ref.ref_focus r (Steel.C.Connection.connection_id (array_pcm t n)));
   Steel.C.Ref.ref_focus_id r;
+  assert (Steel.C.Ref.ref_focus r (Steel.C.Connection.connection_id (array_pcm t n)) == r);
   assert (array_as_ref res == r);
-  assume False;
   change_equal_slprop
     (r `Steel.C.Ref.pts_to_view` _)
     (varray0 res);
   intro_varray1 res;
   return res
 
+let elim_varray
+  #_ #base #t #n r res sq
+=
+  assert (res == g_mk_array r);
+  assert (array_as_ref res == Steel.C.Ref.ref_focus r (array_conn t n (mk_size_t 0ul) n ()));
+  array_conn_id t n;
+  assert (array_conn t n (mk_size_t 0ul) n () == Steel.C.Connection.connection_id (array_pcm t n));
+  assert (array_as_ref res == Steel.C.Ref.ref_focus r (Steel.C.Connection.connection_id (array_pcm t n)));
+  Steel.C.Ref.ref_focus_id r;
+  assert (Steel.C.Ref.ref_focus r (Steel.C.Connection.connection_id (array_pcm t n)) == r);
+  assert (array_as_ref res == r);
+  elim_varray1 res;
+  change_equal_slprop
+    (varray0 res)
+    (r `Steel.C.Ref.pts_to_view` _)
+
 #pop-options
+
+let adjacent r1 r2 =
+  r1.base_len == r2.base_len /\
+  r1.base_ref == r2.base_ref /\
+  r1.to == r2.from
+
+val t_merge
+  (#base: Type)
+  (#t: Type)
+  (r1 r2: array base t)
+: Pure (array base t)
+  (requires (adjacent r1 r2))
+  (ensures (fun r -> length r == length r1 + length r2))
+
+let t_merge r1 r2 =
+  {
+    base_len = r1.base_len;
+    base_ref = r1.base_ref;
+    from = r1.from;
+    to = r2.to;
+    prf = ();
+  }
+
+let merge r1 r2 = t_merge r1 r2
+
+let merge_assoc r1 r2 r3 = ()
+
+val tsplit
+  (#base: Type)
+  (#t: Type)
+  (r: array base t)
+  (i: size_t)
+: Pure (array base t & array base t)
+  (requires (size_v i <= length r))
+  (ensures (fun (rl, rr) ->
+    merge_into rl rr r /\
+    length rl == size_v i
+  ))
+
+let tsplit r i =
+  ({
+    base_len = r.base_len;
+    base_ref = r.base_ref;
+    from = r.from;
+    to = r.from `size_add` i;
+    prf = ()
+  }, {
+    base_len = r.base_len;
+    base_ref = r.base_ref;
+    from = r.from `size_add` i;
+    to = r.to;
+    prf = ()
+  })
+
+let gsplit r i = tsplit r i
+
+assume
+val pts_to_split
+  (t: Type)
+  (n: size_t)
+  (x: array_pcm_carrier t n)
+  (i: size_t)
+: Lemma
+  (requires (size_v i <= size_v n))
+  (ensures (
+    let z = mk_size_t 0ul in
+    let xl = array_small_to_large_f t n z i () (array_large_to_small_f t n z i () x) in
+    let xr = array_small_to_large_f t n i n () (array_large_to_small_f t n i n () x) in
+    composable (array_pcm t n) xl xr /\
+    op (array_pcm t n) xl xr == x
+  ))
+
+(*TODO: split focus into gfocus + tfocus *)
+
+let split
+  #j #base #t x i
+=
+  elim_varray1 x;
+  let v = Steel.C.Ref.pts_to_view_elim
+    #j
+    #base
+    #(array_pcm_carrier t (len x))
+    #(array_pcm t (len x))
+    (array_as_ref #base #t x)
+    #(array_view_type t (len x))
+    #(size_v (len x) = 0)
+    (array_view' t (len x))
+  in
+  let n = len x in
+  pts_to_split t n v i;
+  let z = mk_size_t 0ul in
+  let vl = array_small_to_large_f t n z i () (array_large_to_small_f t n z i () v) in
+  let vr = array_small_to_large_f t n i n () (array_large_to_small_f t n i n () v) in
+  
+  sladmit ();
+  magic ()
+  
+  
 
 (*
 

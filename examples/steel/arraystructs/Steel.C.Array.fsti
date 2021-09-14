@@ -90,7 +90,6 @@ val intro_varray (#base: Type u#0) (#t: Type u#0) (#n: size_t) (r: Steel.C.Refer
     h' (varray a) == h (Steel.C.Ref.pts_to_view r (array_view t n))
   ))
 
-(*
 val elim_varray (#inames: _) (#base: Type u#0) (#t: Type u#0) (#n: size_t) (r: Steel.C.Reference.ref base (array_view_type t n) (array_pcm t n)) (a: array base t) (_: squash (size_v n > 0))
 : SteelGhost unit inames
   (varray a)
@@ -100,7 +99,6 @@ val elim_varray (#inames: _) (#base: Type u#0) (#t: Type u#0) (#n: size_t) (r: S
     a == g_mk_array r /\
     h (varray a) == h' (Steel.C.Ref.pts_to_view r (array_view t n))
   ))
-
 
 /// Splitting an array into subarrays
 
