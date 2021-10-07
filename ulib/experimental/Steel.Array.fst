@@ -511,9 +511,8 @@ let compare2 (#t:eqtype)
 let compare3_inv
             (#t: eqtype)
             (a0 a1:array t)
-            (ctr: R.ref U32.t)
-            (pres: R.ref bool)
-: Tot vprop = (varray a0 `star` varray a1 `star` R.vptr pres `star` R.vptr ctr)
+            (ctr: R.ref (option U32.t))
+: Tot vprop = (varray a0 `star` varray a1 `star` R.vptr ctr)
 
 #push-options "--fuel 0 --ifuel 1 --z3rlimit_factor 5 --query_stats"
 #restart-solver
@@ -532,41 +531,45 @@ let compare3
 = 
     let init0 : Ghost.erased (Seq.lseq t (length a0)) = AT.gget (varray a0) in
     let init1 : Ghost.erased (Seq.lseq t (length a1)) = AT.gget (varray a1) in
-    let ctr : R.ref U32.t = R.malloc 0ul in
-    let pres : R.ref bool = R.malloc true in
-    let test_pre  (x: normal (t_of (compare3_inv a0 a1 ctr pres))) : Tot prop =
-      let (((s0, s1), res), i) = x in
-      s0 == Ghost.reveal init0 /\ s1 == Ghost.reveal init1 /\ U32.v i <= length a0 /\ Seq.slice init0 0 (U32.v i) `Seq.equal` Seq.slice init1 0 (U32.v i) /\
-      (res == false ==> Ghost.reveal init0 <> Ghost.reveal init1)
+    let ctr : R.ref (option U32.t) = R.malloc (Some 0ul) in
+    let test_pre  (x: normal (t_of (compare3_inv a0 a1 ctr))) : Tot prop =
+      let ((s0, s1), j) = x in
+      s0 == Ghost.reveal init0 /\ s1 == Ghost.reveal init1 /\
+      (Some? j ==> (
+        let i = Some?.v j in
+        U32.v i <= length a0 /\
+        Seq.slice init0 0 (U32.v i) == Seq.slice init1 0 (U32.v i)
+      )) /\
+      (None? j ==> Ghost.reveal init0 <> Ghost.reveal init1)
     in
-    let test_post (test: bool) (x: normal (t_of (compare3_inv a0 a1 ctr pres))) : Tot prop =
-      let (((s0, s1), res), i) = x in
+    let test_post (test: bool) (x: normal (t_of (compare3_inv a0 a1 ctr))) : Tot prop =
+      let ((s0, s1), j) = x in
       test_pre x /\
-      (test == false <==> (U32.v i == length a0 \/ res == false))
+      (test == false <==> (match j with None -> True | Some i -> U32.v i == length a0))
     in
     Loops.while3'
-        (compare3_inv a0 a1 ctr pres)
+        (compare3_inv a0 a1 ctr)
         test_pre
         test_post
         (fun _ ->
-          let res = R.read pres in
-          let i = R.read ctr in
-          AT.return (i `U32.lt` l && res)
+          let j = R.read ctr in
+          AT.return (Some? j && Some?.v j `U32.lt` l)
         )
         (fun _ ->
-          let i = R.read ctr in          
+          let j = R.read ctr in
+          let i = Some?.v j in
           let x0 = index a0 i in
           let x1 = index a1 i in
-          let res = x0 = x1 in
-          R.write pres res
+          let res = if x0 = x1 then Some (i `U32.add` 1ul) else None in
+          Seq.snoc_slice_index (Ghost.reveal init0) 0 (U32.v i);
+          Seq.snoc_slice_index (Ghost.reveal init1) 0 (U32.v i);
+          R.write ctr res
         );
-    let res = R.read pres in
-    R.free pres;
+    let res = R.read ctr in
     R.free ctr;
     Seq.slice_length (Ghost.reveal init0);
     Seq.slice_length (Ghost.reveal init1);
-    assert (res == true ==> Ghost.reveal init0 == Ghost.reveal init1);
-    AT.return res
+    AT.return (Some? res)
 
 #pop-options
 
