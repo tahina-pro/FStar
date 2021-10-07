@@ -56,16 +56,24 @@ val while_loop (inv: Ghost.erased bool -> vprop)
 
 val while3
   (test_vpre: vprop)
+  (test_pre: t_of test_vpre -> prop)
   (test_vpost: bool -> Tot vprop)
+  (test_post: (b: bool) -> t_of (test_vpost b) -> Tot prop)
   (test: unit ->
-    SteelT bool
+    Steel bool
     (test_vpre)
     (fun x -> test_vpost x)
+    (requires (fun h -> test_pre (h test_vpre)))
+    (ensures (fun _ x h' -> test_post x (h' (test_vpost x))))
   )
-  (body: unit -> SteelT unit
+  (body: unit -> Steel unit
     (test_vpost true)
     (fun _ -> test_vpre)
+    (requires (fun h -> test_post true (h (test_vpost true))))
+    (ensures (fun _ _ h' -> test_pre (h' test_vpre)))
   )
-: SteelT unit
+: Steel unit
     (test_vpre)
     (fun _ -> test_vpost false)
+    (requires (fun h -> test_pre (h test_vpre)))
+    (ensures (fun _ _ h' -> test_post false (h' (test_vpost false))))
