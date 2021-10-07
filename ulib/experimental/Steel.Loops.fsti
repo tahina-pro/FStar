@@ -51,3 +51,21 @@ val while_loop (inv: Ghost.erased bool -> vprop)
   : SteelT unit
     (AT.h_exists inv)
      (fun _ -> inv false)
+
+/// Alternative while loop combinator with 3 vprops instead of 2
+
+val while3
+  (test_vpre: vprop)
+  (test_vpost: bool -> Tot vprop)
+  (test: unit ->
+    SteelT bool
+    (test_vpre)
+    (fun x -> test_vpost x)
+  )
+  (body: unit -> SteelT unit
+    (test_vpost true)
+    (fun _ -> test_vpre)
+  )
+: SteelT unit
+    (test_vpre)
+    (fun _ -> test_vpost false)

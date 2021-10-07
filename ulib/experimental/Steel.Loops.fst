@@ -67,3 +67,20 @@ let rec while_loop inv cond body =
      AT.change_equal_slprop (inv b) (inv false);
      AT.return ()
   )
+
+let rec while3
+  test_vpre test_vpost test body
+=
+  let b = test () in
+  if b
+  then begin
+    AT.change_equal_slprop
+      (test_vpost b)
+      (test_vpost true);
+    body ();
+    while3 test_vpre test_vpost test body
+  end else begin
+    AT.change_equal_slprop
+      (test_vpost b)
+      (test_vpost false)
+  end
