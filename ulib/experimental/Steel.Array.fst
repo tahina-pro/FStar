@@ -480,7 +480,7 @@ let compare_pts (#t:eqtype)
     | None -> AT.return false
     | Some _ -> AT.return true
 
-let compare (#t:eqtype)
+let compare2 (#t:eqtype)
             (a0 a1:array t)
             (l:U32.t { length a0 == length a1 /\ U32.v l == length a0})
   : Steel bool
@@ -505,3 +505,69 @@ let compare (#t:eqtype)
       elim_varray_pts_to a1 _;
       AT.return b
     )
+
+[@@__steel_reduce__ (* to use normal (t_of ...) *) ; __reduce__ (* to avoid change_equal_slprop *) ]
+// FIXME: these attributes should be honored by the framing tactic and the selector tactic even for local bindings
+let compare3_inv
+            (#t: eqtype)
+            (a0 a1:array t)
+            (ctr: R.ref U32.t)
+            (pres: R.ref bool)
+: Tot vprop = (varray a0 `star` varray a1 `star` R.vptr pres `star` R.vptr ctr)
+
+#push-options "--fuel 0 --ifuel 1 --z3rlimit_factor 5 --query_stats"
+#restart-solver
+let compare3
+            (#t:eqtype)
+            (a0 a1:array t)
+            (l:U32.t { length a0 == length a1 /\ U32.v l == length a0})
+  : Steel bool
+    (varray a0 `star` varray a1)
+    (fun _ -> varray a0 `star` varray a1)
+    (requires fun _ -> True)
+    (ensures fun h0 b h1 ->
+      asel a0 h0 == asel a0 h1 /\
+      asel a1 h0 == asel a1 h1 /\
+      b = (asel a0 h1 = asel a1 h1))
+= 
+    let init0 : Ghost.erased (Seq.lseq t (length a0)) = AT.gget (varray a0) in
+    let init1 : Ghost.erased (Seq.lseq t (length a1)) = AT.gget (varray a1) in
+    let ctr : R.ref U32.t = R.malloc 0ul in
+    let pres : R.ref bool = R.malloc true in
+    let test_pre  (x: normal (t_of (compare3_inv a0 a1 ctr pres))) : Tot prop =
+      let (((s0, s1), res), i) = x in
+      s0 == Ghost.reveal init0 /\ s1 == Ghost.reveal init1 /\ U32.v i <= length a0 /\ Seq.slice init0 0 (U32.v i) `Seq.equal` Seq.slice init1 0 (U32.v i) /\
+      (res == false ==> Ghost.reveal init0 <> Ghost.reveal init1)
+    in
+    let test_post (test: bool) (x: normal (t_of (compare3_inv a0 a1 ctr pres))) : Tot prop =
+      let (((s0, s1), res), i) = x in
+      test_pre x /\
+      (test == false <==> (U32.v i == length a0 \/ res == false))
+    in
+    Loops.while3'
+        (compare3_inv a0 a1 ctr pres)
+        test_pre
+        test_post
+        (fun _ ->
+          let res = R.read pres in
+          let i = R.read ctr in
+          AT.return (i `U32.lt` l && res)
+        )
+        (fun _ ->
+          let i = R.read ctr in          
+          let x0 = index a0 i in
+          let x1 = index a1 i in
+          let res = x0 = x1 in
+          R.write pres res
+        );
+    let res = R.read pres in
+    R.free pres;
+    R.free ctr;
+    Seq.slice_length (Ghost.reveal init0);
+    Seq.slice_length (Ghost.reveal init1);
+    assert (res == true ==> Ghost.reveal init0 == Ghost.reveal init1);
+    AT.return res
+
+#pop-options
+
+let compare = compare3

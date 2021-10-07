@@ -77,3 +77,34 @@ val while3
     (fun _ -> test_vpost false)
     (requires (fun h -> test_pre (h test_vpre)))
     (ensures (fun _ _ h' -> test_post false (h' (test_vpost false))))
+
+let while3'
+  (inv: vprop)
+  (test_pre: t_of inv -> prop)
+  (test_post: (b: bool) -> t_of inv -> Tot prop)
+  (test: unit ->
+    Steel bool
+    inv
+    (fun _ -> inv)
+    (requires (fun h -> test_pre (h inv)))
+    (ensures (fun _ x h' -> test_post x (h' inv)))
+  )
+  (body: unit -> Steel unit
+    inv
+    (fun _ -> inv)
+    (requires (fun h -> test_post true (h inv)))
+    (ensures (fun _ _ h' -> test_pre (h' inv)))
+  )
+: Steel unit
+    inv
+    (fun _ -> inv)
+    (requires (fun h -> test_pre (h inv)))
+    (ensures (fun _ _ h' -> test_post false (h' inv)))
+=
+  while3
+    inv
+    test_pre
+    (fun _ -> inv)
+    test_post
+    test
+    body
