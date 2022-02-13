@@ -186,3 +186,46 @@ val vptrp_elim
 : STGhostT unit inames
     (vptrp r p `vrefine` C.equals v)
     (fun _ -> pts_to r p v)
+
+[@@ __steel_reduce__]
+let vptr r = vptrp r full_perm
+
+let vread (#a:Type)
+         (#p:perm)
+         (#v:erased a)
+         (r:ref a)
+  : ST a
+      (vptrp r p `vrefine` C.equals (Ghost.reveal v))
+      (fun x -> vptrp r p `vrefine` C.equals (Ghost.reveal v))
+      (requires True)
+      (ensures fun x -> x == Ghost.reveal v)
+= vptrp_elim r _ _;
+  let res = read r in
+  vptrp_intro r _ _;
+  return res
+
+let vwrite (#a:Type0)
+          (#v:erased a)
+          (r:ref a)
+          (x:a)
+  : STT unit
+      (vptr r `vrefine` C.equals (Ghost.reveal v))
+      (fun _ -> vptr r `vrefine` C.equals (Ghost.reveal (Ghost.hide x)))
+=
+  vptrp_elim r _ _;
+  write r x;
+  vptrp_intro r _ _
+
+let vptrp_not_null (#a:Type)
+                    (#opened:inames)
+                    (#p:perm)
+                    (#v:a)
+                    (r:ref a)
+  : STGhost unit opened
+      (vptrp r p `vrefine` C.equals (Ghost.reveal v))
+      (fun _ -> vptrp r p `vrefine` C.equals (Ghost.reveal v))
+      (requires True)
+      (ensures fun _ -> r =!= null)
+= vptrp_elim r _ _;
+  pts_to_not_null r;
+  vptrp_intro r _ _

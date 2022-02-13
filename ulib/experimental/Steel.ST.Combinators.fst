@@ -48,29 +48,70 @@ let vrefine_vrefine_equals_elim'
   (#inames: _)
   (s: vprop)
   (p: t_of s -> Tot prop)
-  (x: t_of s)
-: SA.SteelGhost unit
+  (x: t_of (vrefine s p))
+: SA.SteelGhostT unit
     inames
     (s `vrefine` p `vrefine` equals x)
-    (fun _ -> s `vrefine` equals x)
-    (fun _ -> True)
-    (fun _ _ _ -> p x)
+    (fun _ -> s `vrefine` equals #(t_of s) (elim_t_of_vrefine s p x))
 =
   SA.elim_vrefine (s `vrefine` p) (equals x);
   SA.elim_vrefine s p;
-  SA.intro_vrefine s (equals x)
+  SA.intro_vrefine s (equals (elim_t_of_vrefine s p x))
+
+let vunit_intro'
+  (#inames: _)
+  (s: vprop)
+  (t: Type { t_of s == t })
+  (x: t)
+: SA.SteelGhostT unit inames
+    (s `vrefine` equals #(t_of s) x)
+    (fun _ -> vunit s t `vrefine` equals #t x)
+=
+  SA.elim_vrefine s (equals #(t_of s) x);
+  SA.change_slprop
+    s
+    (vunit s t)
+    x
+    x
+    (fun m -> ());
+  SA.intro_vrefine (vunit s t) (equals #t x)
+
+let vunit_intro
+  s t x
+=
+  C.coerce_ghost (fun _ -> vunit_intro' s t x)
+
+let vunit_elim'
+  (#inames: _)
+  (s: vprop)
+  (t: Type { t_of s == t })
+  (x: t)
+: SA.SteelGhostT unit inames
+    (vunit s t `vrefine` equals #t x)
+    (fun _ -> s `vrefine` equals #(t_of s) x)
+=
+  SA.elim_vrefine (vunit s t) (equals #t x);
+  SA.change_slprop
+    (vunit s t)
+    s
+    x
+    x
+    (fun m -> ());
+  SA.intro_vrefine s (equals #(t_of s) x)
+
+let vunit_elim
+  s t x
+= C.coerce_ghost (fun _ -> vunit_elim' s t x)
 
 let vrefine_vrefine_equals_elim
   (#inames: _)
   (s: vprop)
   (p: t_of s -> Tot prop)
-  (x: t_of s)
-: STGhost unit
+  (x: t_of (vrefine s p))
+: STGhostT unit
     inames
     (s `vrefine` p `vrefine` equals x)
-    (fun _ -> s `vrefine` equals x)
-    True
-    (fun _ -> p x)
+    (fun _ -> s `vrefine` equals #(t_of s) (elim_t_of_vrefine s p x))
 = C.coerce_ghost (fun _ -> vrefine_vrefine_equals_elim' s p x)
 
 let vrefine_vrefine_equals_intro'
@@ -78,28 +119,24 @@ let vrefine_vrefine_equals_intro'
   (s: vprop)
   (p: t_of s -> Tot prop)
   (x: t_of s)
-: SA.SteelGhost unit
+: SA.SteelGhost (Ghost.erased (t_of (s `vrefine` p)))
     inames
     (s `vrefine` equals x)
-    (fun _ -> s `vrefine` p `vrefine` equals x)
+    (fun res -> s `vrefine` p `vrefine` equals (Ghost.reveal res <: t_of (s `vrefine` p)))
     (fun _ -> p x)
-    (fun _ _ _ -> True)
+    (fun _ res _ -> ((Ghost.reveal res <: normal (t_of (s `vrefine` p))) <: normal (t_of s)) == x)
 =
   SA.elim_vrefine s (equals x);
   SA.intro_vrefine s p;
-  SA.intro_vrefine (s `vrefine` p) (equals x)
+  let res : Ghost.erased (t_of (s `vrefine` p)) = (x <: normal (t_of (s `vrefine` p))) in
+  SA.intro_vrefine (s `vrefine` p) (equals (Ghost.reveal res <: t_of (s `vrefine` p)));
+  res
 
 let vrefine_vrefine_equals_intro
   (#inames: _)
   (s: vprop)
   (p: t_of s -> Tot prop)
   (x: t_of s)
-: STGhost unit
-    inames
-    (s `vrefine` equals x)
-    (fun _ -> s `vrefine` p `vrefine` equals x)
-    (p x)
-    (fun _ -> True)
 = C.coerce_ghost (fun _ -> vrefine_vrefine_equals_intro' s p x)
 
 let vrefine_equals_star_intro'
@@ -241,15 +278,6 @@ let vdep_intro
   (tag: t_of vtag)
   (vpl0: vprop)
   (pl: t_of vpl0)
-: STGhost (Ghost.erased (normal (t_of (vtag `vdep` vpl)))) inames
-    ((vtag `vrefine` equals tag) `star` (vpl0 `vrefine` equals pl))
-    (fun res -> (vtag `vdep` vpl) `vrefine` equals (Ghost.reveal res))
-    (vpl0 == vpl tag)
-    (fun res ->
-      vpl0 == vpl tag /\
-      dfst (Ghost.reveal res) == tag /\
-      dsnd (Ghost.reveal res) == pl
-    )
 = C.coerce_ghost (fun _ -> vdep_intro' vtag vpl tag vpl0 pl)
 
 let vdep_elim'
