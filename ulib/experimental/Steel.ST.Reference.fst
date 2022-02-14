@@ -136,12 +136,21 @@ let ptrp_sel r p = R.ptrp_sel r p
 
 module SA = Steel.Effect.Atomic
 
-let vptrp_intro'
+let vptrp_select
+  (#a: Type)
+  (r: ref a)
+  (p: perm)
+  (v: a)
+  (v' : t_of (vptrp r p))
+: Tot prop
+= v' == v
+
+let vptrp_intro0'
   (#inames: _)
   (#a: Type) (r: ref a) (p: perm) (v: a)
 : SA.SteelGhostT unit inames
     (pts_to r p v)
-    (fun _ -> vptrp r p `vrefine` C.equals v)
+    (fun _ -> vptrp r p `C.vrefine0` vptrp_select r p v)
 =
   R.intro_vptr r p v;
   SA.change_slprop
@@ -150,19 +159,29 @@ let vptrp_intro'
     v
     v
     (fun _ -> ());
-  SA.intro_vrefine (vptrp r p) (C.equals v)
+  SA.intro_vrefine (vptrp r p) (vptrp_select r p v);
+  assert_norm (vptrp r p `C.vrefine` vptrp_select r p v == vptrp r p `C.vrefine0` vptrp_select r p v); // WHY WHY WHY?
+  SA.change_equal_slprop
+    _
+    (vptrp r p `C.vrefine0` vptrp_select r p v)
 
 let vptrp_intro r p v =
-  coerce_ghost (fun _ -> vptrp_intro' r p v)
+  coerce_ghost (fun _ -> vptrp_intro0' r p v);
+  let _ = C.vrefine_to_vselect (vptrp r p) (vptrp_select r p v) in
+  ()
 
 let vptrp_elim'
   (#inames: _)
-  (#a: Type) (r: ref a) (p: perm) (v: a)
+  (#a: Type) (r: ref a) (p: perm) (v: Ghost.erased a)
 : SA.SteelGhostT unit inames
-    (vptrp r p `vrefine` C.equals v)
+    (vptrp r p `C.vrefine0` vptrp_select r p v)
     (fun _ -> pts_to r p v)
 =
-  SA.elim_vrefine (vptrp r p) (C.equals v);
+  assert_norm (vptrp r p `C.vrefine` vptrp_select r p v == vptrp r p `C.vrefine0` vptrp_select r p v); // WHY WHY WHY?
+  SA.change_equal_slprop
+    (vptrp r p `C.vrefine0` vptrp_select r p v)
+    (vptrp r p `C.vrefine` vptrp_select r p v);
+  SA.elim_vrefine (vptrp r p) (vptrp_select r p v);
   SA.change_slprop
     (vptrp r p)
     (R.vptrp r p)
@@ -177,4 +196,5 @@ let vptrp_elim'
     (fun _ -> ())
 
 let vptrp_elim r p v =
+  C.vselect_to_vrefine (vptrp r p) (vptrp_select r p v) _ ();
   coerce_ghost (fun _ -> vptrp_elim' r p v)

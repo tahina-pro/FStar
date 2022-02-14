@@ -1,6 +1,6 @@
 module Selectors.LList3
 
-open Steel.ST.Combinators
+module C = Steel.ST.Combinators
 open Steel.ST.Reference
 open Steel.ST.Effect
 
@@ -38,24 +38,25 @@ val is_null (#a:Type) (ptr:t a) : (b:bool{b <==> ptr == null_llist})
 val llist0 (#a:Type0) (r:t a) : Pure vprop (requires True) (ensures (fun y -> t_of y == list a))
 
 [@@__steel_reduce__]
-let llist (#a:Type0) (r:t a) : Tot vprop = vunit (llist0 r) (list a)
+let llist (#a:Type0) (r:t a) : Tot vprop = C.vunit (llist0 r) (list a)
 
 (** Stateful lemmas to fold and unfold the llist predicate **)
 
-val intro_llist_nil (a:Type0)
-  : STT unit emp (fun _ -> llist (null_llist #a) `vrefine` equals (Ghost.reveal []))
+let equals = unit
 
+val intro_llist_nil (a:Type0)
+  : STT unit emp (fun _ -> llist (null_llist #a) `C.vselect` [])
 
 val is_nil (#a:Type0) (#l: Ghost.erased (list a)) (ptr:t a)
-  : ST bool (llist ptr `vrefine` equals (Ghost.reveal l)) (fun _ -> llist ptr `vrefine` equals (Ghost.reveal l))
+  : ST bool (llist ptr `C.vselect` l) (fun _ -> llist ptr `C.vselect` l)
           (requires True)
           (ensures fun res ->
             (res == true <==> ptr == null_llist #a) /\
             res == Nil? l)
 
 val intro_llist_cons (#a:Type0) (#hd: Ghost.erased (cell a)) (#tl: Ghost.erased (list a)) (ptr1 ptr2:t a)
-  : ST unit ((vptr ptr1 `vrefine` equals (Ghost.reveal hd)) `star` (llist ptr2 `vrefine` equals (Ghost.reveal tl)))
-            (fun _ -> llist ptr1 `vrefine` equals (Ghost.reveal (data hd :: tl)))
+  : ST unit ((vptr ptr1 `C.vselect` hd) `star` (llist ptr2 `C.vselect` tl))
+            (fun _ -> llist ptr1 `C.vselect` (data hd :: tl))
                   (requires (next hd == ptr2))
                   (ensures fun _ -> True)
 
@@ -76,7 +77,7 @@ module C = Steel.ST.Combinators
 
 val tail (#a:Type0) (#l: Ghost.erased (list a)) (ptr:t a)
   : ST (t a)
-       (llist ptr `vrefine` equals (Ghost.reveal l))
+       (llist ptr `C.vselect` l)
        (fun (n: t a) -> (vptr ptr `star` llist n) `C.vrefine` tail_postcond l ptr n)
        (requires ptr =!= null_llist)
        (ensures fun _ -> True)

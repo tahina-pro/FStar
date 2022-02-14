@@ -178,13 +178,13 @@ val vptrp_intro
   (#a: Type) (r: ref a) (p: perm) (v: a)
 : STGhostT unit inames
     (pts_to r p v)
-    (fun _ -> vptrp r p `vrefine` C.equals v)
+    (fun _ -> vptrp r p `C.vselect` v)
 
 val vptrp_elim
   (#inames: _)
-  (#a: Type) (r: ref a) (p: perm) (v: a)
+  (#a: Type) (r: ref a) (p: perm) (v: Ghost.erased a)
 : STGhostT unit inames
-    (vptrp r p `vrefine` C.equals v)
+    (vptrp r p `C.vselect` v)
     (fun _ -> pts_to r p v)
 
 [@@ __steel_reduce__]
@@ -195,8 +195,8 @@ let vread (#a:Type)
          (#v:erased a)
          (r:ref a)
   : ST a
-      (vptrp r p `vrefine` C.equals (Ghost.reveal v))
-      (fun x -> vptrp r p `vrefine` C.equals (Ghost.reveal v))
+      (vptrp r p `C.vselect` v)
+      (fun x -> vptrp r p `C.vselect` v)
       (requires True)
       (ensures fun x -> x == Ghost.reveal v)
 = vptrp_elim r _ _;
@@ -209,8 +209,8 @@ let vwrite (#a:Type0)
           (r:ref a)
           (x:a)
   : STT unit
-      (vptr r `vrefine` C.equals (Ghost.reveal v))
-      (fun _ -> vptr r `vrefine` C.equals (Ghost.reveal (Ghost.hide x)))
+      (vptr r `C.vselect` v)
+      (fun _ -> vptr r `C.vselect` x)
 =
   vptrp_elim r _ _;
   write r x;
@@ -222,8 +222,8 @@ let vptrp_not_null (#a:Type)
                     (#v:a)
                     (r:ref a)
   : STGhost unit opened
-      (vptrp r p `vrefine` C.equals (Ghost.reveal v))
-      (fun _ -> vptrp r p `vrefine` C.equals (Ghost.reveal v))
+      (vptrp r p `C.vselect` v)
+      (fun _ -> vptrp r p `C.vselect` v)
       (requires True)
       (ensures fun _ -> r =!= null)
 = vptrp_elim r _ _;
