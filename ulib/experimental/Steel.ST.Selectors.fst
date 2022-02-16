@@ -124,3 +124,33 @@ let g (v1 v2 v3: vprop) (x: t_of (v1 `star` v2 `star` v3)) =
 
 let h (v1 v2 v3: vprop) (x: t_of (v1 `star` v2 `star` v3)) =
   select (v1 `star` v3) x
+
+(* What about dependencies? *)
+
+noeq
+type het : Type u#(a + 1) =
+| Het: (ty: Type u#a) -> (elt: ty) -> het
+
+let het_empty = Het unit ()
+
+let het_coll = (nat -> Tot het)
+
+let het_coll_nil : het_coll = fun _ -> het_empty
+
+let het_coll_cons (h: het) (c: het_coll) : Tot het_coll =
+  fun x -> if x = 0 then h else c (x - 1)
+
+let nselector (v: vprop) = (x: t_of v) -> het_coll
+
+let nselector_elem (v: vprop) : nselector v = (fun x -> het_coll_cons (Het (t_of v) x) het_coll_nil)
+
+module C = Steel.ST.Combinators
+
+let nselector_vdep (vtag: vprop) (vpl: (t_of vtag -> Tot vprop)) (spl: ((x: t_of vtag) -> nselector (vpl x))) : Tot (nselector (vtag `vdep` vpl)) =
+  fun x -> het_coll_cons (Het (t_of vtag) (C.vdep_dfst vtag vpl x)) (spl (C.vdep_dfst vtag vpl x) (C.vdep_dsnd vtag vpl x))
+
+let nselector_star (v1 v2: vprop) (s: nselector v2) : Tot (nselector (v1 `star` v2)) =
+  fun x -> het_coll_cons (Het (t_of v1) (fst x)) (s (snd x))
+
+let nselect (#v: vprop) (s: nselector v) (x: t_of v) (n: nat) : Tot het =
+  s x n
