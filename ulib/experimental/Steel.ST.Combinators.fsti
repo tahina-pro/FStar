@@ -404,3 +404,17 @@ val vselect_injective
     interp (hp_of (v `vselect` x2)) m
   ))
   (ensures (x1 == x2))
+
+(* FIXME: what about the vdep selector return value? *)
+
+let vdep_to_exists
+  (#inames: _)
+  (vtag: vprop)
+  (vpl: (t_of vtag -> Tot vprop))
+: STGhostT unit inames
+    (vtag `vdep` vpl)
+    (fun _ -> exists_ (fun (x: t_of vtag) -> (vtag `vselect` Ghost.hide x) `star` vpl x))
+= let _ = vselect_intro (vtag `vdep` vpl) in
+  let x = vdep_elim2 _ _ _ in
+  vrefine_drop _ _;
+  intro_exists_erased x (fun (x: t_of vtag) -> (vtag `vselect` Ghost.hide x) `star` vpl x)
