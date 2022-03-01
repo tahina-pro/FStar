@@ -18,6 +18,8 @@ kremlin_ref eol=lf
 .ignore eol=lf
 /src/tools/* eol=lf
 /src/tests/interactive/* eol=lf
+cygwin-packages text eol=lf
+opam-packages text eol=lf
 
 # Do not shows diff nor try to merge for the OCaml snapshot and hint
 # files. This just takes the latest one when there's a conflict, and

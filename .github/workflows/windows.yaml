@@ -1,0 +1,13 @@
+name: Build and test FStar
+
+on: push
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - name: Check out repo        
+        uses: actions/checkout@v2
+      - name: Build dependencies, build and test FStar binary package
+        shell: pwsh
+        run: |
+          .\.scripts\windows\build-fstar.ps1
