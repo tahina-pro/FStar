@@ -1,0 +1,10 @@
+name: Build and test FStar Binaries on Linux
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout FStar
+      uses: actions/checkout@v2
+    - name: Build and test image
+      run: docker build -f .docker/package.Dockerfile .
