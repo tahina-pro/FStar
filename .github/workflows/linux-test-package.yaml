@@ -7,4 +7,4 @@ jobs:
     - name: Checkout FStar
       uses: actions/checkout@v2
     - name: Build and test image
-      run: docker build -f .docker/package.Dockerfile .
+      run: docker build -f .docker/package.Dockerfile --build-arg opamthreads=4 .
