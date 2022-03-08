@@ -156,6 +156,14 @@ let hmem (p:vprop) = hmem (hp_of p)
 
 val value_is_valid (v: vprop) (x: t_of v) : Tot prop
 
+val value_is_valid_complete
+  (v: vprop)
+  (h: mem)
+: Lemma
+  (requires (interp (hp_of v) h))
+  (ensures (value_is_valid v (sel_of v h)))
+//  [SMTPat (value_is_valid v (sel_of v h))] // FIXME: WHY WHY WHY does this not trigger?
+
 let valid_value (v: vprop) : Tot Type0 =
   (x: t_of v { value_is_valid v x })
 
@@ -255,6 +263,20 @@ val vselect_pair (#p p1 p2: vprop) (x: valid_value p) : Lemma
     (vselect #p x (p1 `star` p2) <: t_of (p1 `star` p2)) == (vselect #p x p1, vselect #p x p2)
   ))
   [SMTPat (vselect #p x (p1 `star` p2))]
+
+val vselect_correct
+  (v v' : vprop)
+  (h: mem)
+: Lemma
+  (requires (
+    interp (hp_of v) h /\
+    v `can_be_split` v'
+  ))
+  (ensures (
+    interp (hp_of v') h /\
+    value_is_valid v (sel_of v h) /\
+    sel_of v' h == vselect (sel_of v h) v'
+  ))
 
 unfold
 let vselect_norm

@@ -25,6 +25,8 @@ let h_exists #a f = VUnit ({hp = Mem.h_exists (fun x -> hp_of (f x)); t = unit; 
 let value_is_valid v x =
   exists (h: hmem v) . sel_of v h == x
 
+let value_is_valid_complete v h = ()
+
 let intro_valid_value (v: vprop) (x: t_of v) (h: Ghost.erased (hmem v)) : Pure (valid_value v)
   (requires (sel_of v h == x))
   (ensures (fun y -> (y <: t_of v) == x))
@@ -234,6 +236,8 @@ let vselect_fst _ = ()
 let vselect_snd _ = ()
 let vselect_compose _ _ _ = ()
 let vselect_pair _ _ _ = ()
+
+let vselect_correct _ _ _ = ()
 
 let emp':vprop' =
   { hp = emp;
