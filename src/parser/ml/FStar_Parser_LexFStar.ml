@@ -78,6 +78,7 @@ let () =
   Hashtbl.add keywords "logic"         LOGIC       ;
   Hashtbl.add keywords "match"         MATCH       ;
   Hashtbl.add keywords "returns"       RETURNS     ;
+  Hashtbl.add keywords "as"            AS          ;
   Hashtbl.add keywords "module"        MODULE      ;
   Hashtbl.add keywords "new"           NEW         ;
   Hashtbl.add keywords "new_effect"    NEW_EFFECT  ;
@@ -89,6 +90,7 @@ let () =
   Hashtbl.add keywords "open"          OPEN        ;
   Hashtbl.add keywords "opaque"        OPAQUE      ;
   Hashtbl.add keywords "private"       PRIVATE     ;
+  Hashtbl.add keywords "quote"         QUOTE       ;
   Hashtbl.add keywords "range_of"      RANGE_OF    ;
   Hashtbl.add keywords "rec"           REC         ;
   Hashtbl.add keywords "reifiable"     REIFIABLE   ;
@@ -453,7 +455,6 @@ match%sedlex lexbuf with
  | "`%" -> BACKTICK_PERC
  | "`#" -> BACKTICK_HASH
  | "`@" -> BACKTICK_AT
- | "quote" -> QUOTE
  | "#light" -> FStar_Options.add_light_off_file (L.source_file lexbuf); PRAGMALIGHT
  | "#set-options" -> PRAGMA_SET_OPTIONS
  | "#reset-options" -> PRAGMA_RESET_OPTIONS
