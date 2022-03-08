@@ -172,6 +172,10 @@ val can_be_split (p q:pre_t) : Type0
 
 /// Exposing the implementation of `can_be_split` when needed for proof purposes
 /// A targeted version
+val can_be_split_slimp (r r' : vprop)
+  : Lemma (requires (can_be_split r r'))
+          (ensures (hp_of r `slimp` hp_of r'))
+
 val can_be_split_interp (r r':vprop) (h:hmem r)
   : Lemma (requires can_be_split r r')
           (ensures interp (hp_of r') h)

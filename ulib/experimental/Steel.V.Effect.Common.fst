@@ -175,6 +175,8 @@ let sel_star
 let can_be_split (p q:vprop) : prop =
   exists (s: value_selector p q) . True
 
+let can_be_split_slimp r r' = ()
+
 let can_be_split_interp r r' h = ()
 
 let can_be_split_trans v1 v2 v3 =
