@@ -466,7 +466,7 @@ val get (#p:vprop) (#opened:inames) (_:unit) : SteelGhostF (erased (valid_value 
 #set-options "--query_stats --error_contexts true --print_implicits"
 
 /// Returning the current value of the selector of vprop [p], as long as [p] is in the context
-let gget (#opened:inames) (p: vprop) : SteelGhost (erased (valid_value p))
+let gget (#opened:inames) (p: vprop) : SteelGhost (erased (t_of p))
   opened
   p (fun _ -> p)
   (requires (fun _ -> True))
@@ -477,7 +477,7 @@ let gget (#opened:inames) (p: vprop) : SteelGhost (erased (valid_value p))
   ))
 =
   let x = get #p () in
-  x
+  Ghost.hide (Ghost.reveal x)
 
 (* Different versions of vprop rewritings, with a lemma argument which can be discharged by SMT *)
 
@@ -535,13 +535,15 @@ val extract_info (#opened:inames) (p:vprop) (vp:erased (normal (t_of p))) (fact:
       (fun h -> reveal vp == h)
       (fun h0 _ h1 -> h0 == h1 /\ fact)
 
-val extract_info_raw (#opened:inames) (p:vprop) (fact:prop)
+let extract_info_raw (#opened:inames) (p:vprop) (fact:prop)
   (l:(m:mem) -> Lemma
     (requires interp (hp_of p) m)
     (ensures fact)
   ) : SteelGhost unit opened p (fun _ -> p)
       (fun h -> True)
       (fun h0 _ h1 -> h0 == h1 /\ fact)
+= let g = gget p in
+  extract_info p g fact l
 
 /// A noop operator, occasionally useful for forcing framing of a subsequent computation
 val noop (#opened:inames) (_:unit)
