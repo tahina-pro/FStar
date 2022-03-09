@@ -205,12 +205,18 @@ val can_be_split_trans (p q r:vprop)
 val can_be_split_star_l (p q:vprop)
 : Lemma
   (ensures (p `star` q) `can_be_split` p)
-  [SMTPat (p `star` q)]
+  [SMTPatOr [
+    [SMTPat (p `star` q)];
+    [SMTPat (p `VStar` q)];
+  ]]
 
 val can_be_split_star_r (p q:vprop)
 : Lemma
   (ensures (p `star` q) `can_be_split` q)
-  [SMTPat (p `star` q)]
+  [SMTPatOr [
+    [SMTPat (p `star` q)];
+    [SMTPat (p `VStar` q)];
+  ]]
 
 val can_be_split_refl (p:vprop)
 : Lemma (p `can_be_split` p)
@@ -243,11 +249,17 @@ val vselect_id (#p: vprop) (x: valid_value p) : Lemma
 
 val vselect_fst (#p1 #p2: vprop) (x: valid_value (p1 `star` p2)) : Lemma
   (vselect #(p1 `star` p2) x p1 == fst (x <: t_of (p1 `star` p2)))
-  [SMTPat (vselect #(p1 `star` p2) x p1)]
+  [SMTPatOr [
+    [SMTPat (vselect #(p1 `star` p2) x p1)];
+    [SMTPat (vselect #(p1 `VStar` p2) x p1)];
+  ]]
 
 val vselect_snd (#p1 #p2: vprop) (x: valid_value (p1 `star` p2)) : Lemma
   (vselect #(p1 `star` p2) x p2 == snd (x <: t_of (p1 `star` p2)))
-  [SMTPat (vselect #(p1 `star` p2) x p2)]
+  [SMTPatOr [
+    [SMTPat (vselect #(p1 `star` p2) x p2)];
+    [SMTPat (vselect #(p1 `VStar` p2) x p2)];
+  ]]
 
 val vselect_compose (#p1 p2 p3: vprop) (x: valid_value p1) : Lemma
   (requires (
@@ -266,7 +278,10 @@ val vselect_pair (#p p1 p2: vprop) (x: valid_value p) : Lemma
   (ensures (
     (vselect #p x (p1 `star` p2) <: t_of (p1 `star` p2)) == (vselect #p x p1, vselect #p x p2)
   ))
-  [SMTPat (vselect #p x (p1 `star` p2))]
+  [SMTPatOr [
+    [SMTPat (vselect #p x (p1 `star` p2))];
+    [SMTPat (vselect #p x (p1 `VStar` p2))];
+  ]]
 
 val vselect_correct
   (v v' : vprop)
