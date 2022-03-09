@@ -63,10 +63,10 @@ let bind_req (#a:Type)
   (#pre_f:pre_t) (#post_f:post_t a)
   (req_f:req_t pre_f) (ens_f:ens_t pre_f a post_f)
   (#pre_g:a -> pre_t)
-  (#pr:a -> prop)
+  (pr:a -> prop)
   (req_g:(x:a -> req_t (pre_g x)))
   (frame_f:vprop) (frame_g:a -> vprop)
-  (_:squash (can_be_split_forall_dep pr (fun x -> post_f x `star` frame_f) (fun x -> pre_g x `star` frame_g x)))
+//  (_:squash (can_be_split_forall_dep pr (fun x -> post_f x `star` frame_f) (fun x -> pre_g x `star` frame_g x)))
 : req_t (pre_f `star` frame_f)
 = fun m0 ->
   req_f (vselect m0 pre_f) /\
@@ -74,7 +74,7 @@ let bind_req (#a:Type)
     (ens_f (vselect m0 pre_f) x (vselect h1 (post_f x)) /\
       vselect m0 frame_f == vselect h1 frame_f)
     ==> (pr x /\
-      req_g x (vselect h1 (pre_g x))))
+      (((post_f x `star` frame_f) `can_be_split` (pre_g x `star` frame_g x)) ==> req_g x (vselect h1 (pre_g x)))))
 
 /// Logical postcondition for the composition (bind) of two Steel computations:
 /// The precondition of the first computation was satisfied in the initial state, and there
@@ -90,18 +90,20 @@ let bind_ens (#a:Type) (#b:Type)
   (#pre_f:pre_t) (#post_f:post_t a)
   (req_f:req_t pre_f) (ens_f:ens_t pre_f a post_f)
   (#pre_g:a -> pre_t) (#post_g:a -> post_t b)
-  (#pr:a -> prop)
+  (pr:a -> prop)
   (ens_g:(x:a -> ens_t (pre_g x) b (post_g x)))
   (frame_f:vprop) (frame_g:a -> vprop)
   (post:post_t b)
-  (_:squash (can_be_split_forall_dep pr (fun x -> post_f x `star` frame_f) (fun x -> pre_g x `star` frame_g x)))
-  (_:squash (can_be_split_post (fun x y -> post_g x y `star` frame_g x) post))
+//  (_:squash (can_be_split_forall_dep pr (fun x -> post_f x `star` frame_f) (fun x -> pre_g x `star` frame_g x)))
+//  (_:squash (can_be_split_post (fun x y -> post_g x y `star` frame_g x) post))
 : ens_t (pre_f `star` frame_f) b post
 = fun m0 y (m2: valid_value (post y)) ->
   req_f (vselect m0 pre_f) /\
   (exists (x:a) (h1:valid_value (post_f x `star` frame_f)).
     pr x /\
     vselect m0 frame_f == vselect h1 frame_f /\
+    (post_f x `star` frame_f) `can_be_split` (pre_g x `star` frame_g x) /\
+    post y `can_be_split` (post_g x y `star` frame_g x) /\
     vselect h1 (frame_g x) == vselect m2 (frame_g x) /\
     ens_f (vselect m0 pre_f) x (vselect h1 (post_f x)) /\
     ens_g x (vselect h1 (pre_g x)) y (vselect m2 (post_g x y)))
@@ -132,25 +134,27 @@ val bind (a:Type) (b:Type)
     true
     (pre_f `star` frame_f)
     post
-    (bind_req req_f ens_f req_g frame_f frame_g p1)
-    (bind_ens req_f ens_f ens_g frame_f frame_g post p1 p2)
+    (bind_req req_f ens_f pr req_g frame_f frame_g)
+    (bind_ens req_f ens_f pr ens_g frame_f frame_g post)
 
 /// Logical precondition for subtyping relation for Steel computation.
 unfold
 let subcomp_pre (#a:Type)
   (#pre_f:pre_t) (#post_f:post_t a) (req_f:req_t pre_f) (ens_f:ens_t pre_f a post_f)
   (#pre_g:pre_t) (#post_g:post_t a) (req_g:req_t pre_g) (ens_g:ens_t pre_g a post_g)
-  (#frame:vprop)
-  (_:squash (can_be_split pre_g (pre_f `star` frame)))
-  (_:squash (equiv_forall post_g (fun x -> post_f x `star` frame)))
+  (frame:vprop)
+//  (_:squash (can_be_split pre_g (pre_f `star` frame)))
+//  (_:squash (equiv_forall post_g (fun x -> post_f x `star` frame)))
   : pure_pre
 // The call to with_tactic allows us to reduce VCs in a controlled way, once all
 // uvars have been resolved.
 // To ensure an SMT-friendly encoding of the VC, it needs to be encapsulated in a squash call
 = T.rewrite_with_tactic vc_norm (squash (
-  (forall (h0:valid_value pre_g). req_g h0 ==> req_f (vselect h0 pre_f)) /\
+  (forall (h0:valid_value pre_g). (req_g h0 /\ pre_g `can_be_split` (pre_f `star` frame)) ==> req_f (vselect h0 pre_f)) /\
   (forall (h0:valid_value pre_g) (x:a) (h1:valid_value (post_g x)). (
      (req_g h0 /\
+      pre_g `can_be_split` (pre_f `star` frame) /\
+      post_g x `can_be_split` (post_f x `star` frame) /\
       ens_f (vselect h0 pre_f) x (vselect h1 (post_f x)) /\
       vselect h0 frame == vselect h1 frame)
         ==> ens_g h0 x h1
@@ -174,34 +178,34 @@ val subcomp (a:Type)
   (#[@@@ framing_implicit] p2:squash (equiv_forall post_g (fun x -> post_f x `star` frame)))
   (f:repr a framed_f pre_f post_f req_f ens_f)
 : Pure (repr a framed_g pre_g post_g req_g ens_g)
-  (requires subcomp_pre req_f ens_f req_g ens_g p1 p2)
+  (requires subcomp_pre req_f ens_f req_g ens_g frame)
   (ensures fun _ -> True)
 
 /// Logical precondition for the if_then_else combinator
 unfold
 let if_then_else_req
-  (#pre_f:pre_t) (#pre_g:pre_t) (#frame_f #frame_g:vprop)
-  (s_pre: squash (can_be_split (pre_f `star` frame_f) (pre_g `star` frame_g)))
+  (#pre_f:pre_t) (#pre_g:pre_t) (frame_f frame_g:vprop)
+//  (s_pre: squash (can_be_split (pre_f `star` frame_f) (pre_g `star` frame_g)))
   (req_then:req_t pre_f) (req_else:req_t pre_g)
   (p:Type0)
 : req_t (pre_f `star` frame_f)
 = fun h ->
     (p ==> req_then (vselect h pre_f)) /\
-    ((~ p) ==> req_else (vselect h pre_g))
+    (((~ p) /\ (pre_f `star` frame_f) `can_be_split` (pre_g `star` frame_g)) ==> req_else (vselect h pre_g))
 
 /// Logical postcondition for the if_then_else combinator
 unfold
 let if_then_else_ens (#a:Type)
   (#pre_f:pre_t) (#pre_g:pre_t) (#post_f:post_t a) (#post_g:post_t a)
-  (#frame_f #frame_g:vprop)
-  (s1: squash (can_be_split (pre_f `star` frame_f) (pre_g `star` frame_g)))
-  (s2: squash (equiv_forall (fun x -> post_f x `star` frame_f) (fun x -> post_g x `star` frame_g)))
+  (frame_f frame_g:vprop)
+//  (s1: squash (can_be_split (pre_f `star` frame_f) (pre_g `star` frame_g)))
+//  (s2: squash (equiv_forall (fun x -> post_f x `star` frame_f) (fun x -> post_g x `star` frame_g)))
   (ens_then:ens_t pre_f a post_f) (ens_else:ens_t pre_g a post_g)
   (p:Type0)
 : ens_t (pre_f `star` frame_f) a (fun x -> post_f x `star` frame_f)
 = fun h0 x h1 ->
     (p ==> ens_then (vselect h0 pre_f) x (vselect h1 (post_f x))) /\
-    ((~ p) ==> ens_else (vselect h0 pre_g) x (vselect h1 (post_g x)))
+    ((~ p) ==> (pre_f `star` frame_f) `can_be_split` (pre_g `star` frame_g) /\ (post_f x `star` frame_f) `can_be_split` (post_g x `star` frame_g) /\ ens_else (vselect h0 pre_g) x (vselect h1 (post_g x)))
 
 /// If_then_else combinator for Steel computations.
 /// The soundness of this combinator is automatically proven with respect to the subcomp
@@ -224,8 +228,8 @@ let if_then_else (a:Type)
   (p:bool)
 : Type
 = repr a true (pre_f `star` frame_f) (fun x -> post_f x `star` frame_f)
-    (if_then_else_req s_pre req_then req_else p)
-    (if_then_else_ens s_pre s_post ens_then ens_else p)
+    (if_then_else_req frame_f frame_g req_then req_else p)
+    (if_then_else_ens frame_f frame_g ens_then ens_else p)
 
 /// Assembling the combinators defined above into an actual effect
 [@@ite_soundness_by ite_attr]

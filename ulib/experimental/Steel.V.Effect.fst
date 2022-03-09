@@ -168,7 +168,7 @@ let bind_ens_intro (#a:Type) (#b:Type)
     ens_g x (vselect h1 (pre_g x)) y (vselect m2 (post_g x y))
   ))
   (ensures (
-    bind_ens req_f ens_f ens_g frame_f frame_g post p1 p2 m0 y m2
+    bind_ens req_f ens_f pr ens_g frame_f frame_g post m0 y m2
   ))
 = ()
 
@@ -204,7 +204,7 @@ let bind a b #framed_f #framed_g #pre_f #post_f #req_f #ens_f #pre_g #post_g #re
     let y = frame00 (g x) (frame_g x) frame in
     let m2 = nmst_get () in
     let prf () : Lemma (
-      ens_to_act_ens1 (bind_ens req_f ens_f ens_g frame_f frame_g post p1 p2) (core_mem m0) y (core_mem m2)
+      ens_to_act_ens1 (bind_ens req_f ens_f pr ens_g frame_f frame_g post) (core_mem m0) y (core_mem m2)
     ) =
       value_is_valid_complete (post_g x y `star` frame_g x) (core_mem m2);
       let v2' = Ghost.hide (sel_of (post_g x y `star` frame_g x) (core_mem m2)) in
@@ -220,7 +220,7 @@ let bind a b #framed_f #framed_g #pre_f #post_f #req_f #ens_f #pre_g #post_g #re
       bind_ens_intro req_f ens_f ens_g frame_f frame_g post p1 p2 v0 y v2 x v1
     in
     prf ();
-    ens_to_act_ens1_correct (bind_ens req_f ens_f ens_g frame_f frame_g post p1 p2) (core_mem m0) y (core_mem m2);
+    ens_to_act_ens1_correct (bind_ens req_f ens_f pr ens_g frame_f frame_g post) (core_mem m0) y (core_mem m2);
     can_be_split_slimp
       (post_g x y `star` frame_g x)
       (post y);
