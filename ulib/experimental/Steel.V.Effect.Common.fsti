@@ -303,6 +303,165 @@ let vselect_norm
 : GTot (normal (t_of p2))
 = vselect x p2
 
+let vsel_t
+  (p q: vprop)
+: Tot Type0
+= (x: t_of p) -> Ghost (t_of q)
+    (requires (
+      value_is_valid p x))
+    (ensures (fun y ->
+      p `can_be_split` q ==>
+      y == vselect x q
+    ))
+
+let vsel_t_strong
+  (p q: vprop)
+: Tot Type0
+= (f: vsel_t p q { p `can_be_split` q })
+
+[@@__steel_reduce__]
+let vsel_id
+  (p: vprop)
+: Tot (vsel_t_strong p p)
+=
+  can_be_split_refl p;
+  (fun x -> x) <: vsel_t p p
+
+[@@__steel_reduce__]
+let vsel_fst
+  (p q: vprop)
+: Tot (vsel_t_strong (p `star` q) p)
+=
+  can_be_split_star_l p q;
+  (fun x -> fst x) <: vsel_t (p `star` q) p
+
+[@@__steel_reduce__]
+let vsel_snd
+  (p q: vprop)
+: Tot (vsel_t_strong (p `star` q) q)
+=
+  can_be_split_star_r p q;
+  (fun x -> snd x) <: vsel_t (p `star` q) q
+
+[@@__steel_reduce__]
+let vsel_pair
+  (#p #q1 #q2: vprop)
+  (v1: vsel_t p q1)
+  (v2: vsel_t p q2)
+: Tot (vsel_t p (q1 `star` q2))
+= (fun x -> (v1 x, v2 x))
+
+[@@__steel_reduce__]
+let vsel_compose
+  (#v1 #v2 #v3: vprop)
+  (s12: vsel_t_strong v1 v2)
+  (s23: vsel_t_strong v2 v3)
+: Tot (vsel_t_strong v1 v3)
+=
+  can_be_split_trans v1 v2 v3;
+  (fun x -> s23 (s12 x)) <: vsel_t v1 v3
+
+[@@__steel_reduce__]
+let vsel_weaken
+  (#from #to: vprop)
+  (s: vsel_t_strong from to)
+: Tot (vsel_t from to)
+= s
+
+module T = FStar.Tactics
+
+let create_vsel_fail
+  (from to: T.term)
+: T.Tac T.term
+=
+  let s1 = T.term_to_string from in
+  let s2 = T.term_to_string to in
+  T.fail ("Cannot find selector from " ^ s1 ^ " to " ^ s2)
+
+let rec create_vsel_strong
+  (from to: T.term)
+: T.Tac T.term
+= if T.term_eq from to
+  then (T.mk_app (`vsel_id) [from, T.Q_Explicit])
+  else
+      begin match T.collect_app from with
+      | (tstar, [t1, T.Q_Explicit; t2, T.Q_Explicit]) ->
+        if T.term_eq tstar (`star) || T.term_eq tstar (`VStar)
+        then T.try_with
+          (fun _ ->
+            let s = create_vsel_strong t1 to in
+            T.mk_app (`vsel_compose) [
+              T.mk_app (`vsel_fst) [t1, T.Q_Explicit; t2, T.Q_Explicit], T.Q_Explicit;
+              s, T.Q_Explicit
+            ]
+          )
+          (fun _ ->
+            let s = create_vsel_strong t2 to in
+            T.mk_app (`vsel_compose) [
+              T.mk_app (`vsel_snd) [t1, T.Q_Explicit; t2, T.Q_Explicit], T.Q_Explicit;
+              s, T.Q_Explicit
+            ]
+          )
+        else
+          create_vsel_fail from to
+      | _ ->
+        create_vsel_fail from to
+      end
+
+let rec create_vsel
+  (from to: T.term)
+: T.Tac T.term
+= if T.term_eq from to
+  then
+    let soln = T.mk_app (`vsel_id) [from, T.Q_Explicit] in
+    T.mk_app (`vsel_weaken) [soln, T.Q_Explicit]
+  else
+    let app =
+      match T.collect_app to with
+      | (tstar, [t1, T.Q_Explicit; t2, T.Q_Explicit]) ->
+        if T.term_eq tstar (`star) || T.term_eq tstar (`VStar)
+        then Some (t1, t2)
+        else None
+      | _ -> None
+    in
+    match app with
+    | Some (t1, t2) ->
+      let s1 = create_vsel from t1 in
+      let s2 = create_vsel from t2 in
+      (T.mk_app (`vsel_pair) [s1, T.Q_Explicit; s2, T.Q_Explicit])
+    | _ ->
+      let soln = create_vsel_strong from to in
+      T.mk_app (`vsel_weaken) [soln, T.Q_Explicit]
+
+let resolve_vsel
+  ()
+: T.Tac unit
+= let tg = T.cur_goal () in
+  let s = T.term_to_string tg in
+  let msg = FStar.Printf.sprintf "Not a selector goal: %s" s in
+  match T.collect_app tg with
+  | (f, [from, T.Q_Explicit; to, T.Q_Explicit]) ->
+    if T.term_eq f (`vsel_t)
+    then
+      let sel = create_vsel from to in
+      T.exact sel
+    else T.fail msg
+  | _ ->
+    T.fail msg
+
+[@@__steel_reduce__]
+let vsel
+  (#from: vprop)
+  (to: vprop)
+  (#[resolve_vsel ()] sel: vsel_t from to)
+  (x: valid_value from)
+: Ghost (t_of to)
+    (requires True)
+    (ensures (fun y ->
+      from `can_be_split` to ==> y == vselect x to
+    ))
+= sel x
+
 (* Logical pre and postconditions can only access the restricted view of the heap *)
 
 type req_t (pre:pre_t) = valid_value pre -> Type0

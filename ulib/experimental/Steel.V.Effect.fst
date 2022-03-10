@@ -123,6 +123,7 @@ val frame00 (#a:Type)
     (fun h0 r h1 -> req (vselect h0 pre) /\ ens (vselect h0 pre) r (vselect h1 (post r)) /\
      vselect h0 frame == vselect h1 frame)
 
+#push-options "--z3rlimit 32"
 #restart-solver
 let frame00 #a #framed #pre #post #req #ens f frame =
   fun frame' ->
@@ -140,6 +141,8 @@ let frame00 #a #framed #pre #post #req #ens f frame =
       vselect_correct (post x `star` frame) frame m1;
 
       x
+
+#pop-options
 
 #pop-options
 
@@ -299,6 +302,7 @@ let bind_div_steel (a:Type) (b:Type)
 polymonadic_bind (DIV, SteelBase) |> SteelBase = bind_div_steel
 #pop-options
 
+#push-options "--z3rlimit 32"
 let par0 (#aL:Type u#a) (#preL:vprop) (#postL:aL -> vprop)
          (f:repr aL false preL postL (fun _ -> True) (fun _ _ _ -> True))
          (#aR:Type u#a) (#preR:vprop) (#postR:aR -> vprop)
@@ -307,6 +311,7 @@ let par0 (#aL:Type u#a) (#preL:vprop) (#postL:aL -> vprop)
     (preL `star` preR)
     (fun y -> postL (fst y) `star` postR (snd y))
   = Steel?.reflect (fun frame -> Sem.run #state #_ #_ #_ #_ #_ frame (Sem.Par (Sem.Act f) (Sem.Act g)))
+#pop-options
 
 (*
  * AR: Steel is not marked reifiable since we intend to run Steel programs natively
