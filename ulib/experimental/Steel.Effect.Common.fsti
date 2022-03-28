@@ -1856,6 +1856,39 @@ let rec slterm_nbr_uvars (t:term) : Tac int =
   | Tv_Abs _ t -> slterm_nbr_uvars t
   | _ -> 0
 
+val exists_hack (#a:Type) (p:a -> vprop) : vprop
+
+val cbs_equiv (a:Type) (x:a) (lhs:vprop) (p: a -> vprop) (q r:vprop)
+  : Lemma
+    (requires (lhs `can_be_split` (p x `star` q `star` r)))
+    (ensures (lhs `can_be_split` (exists_hack (fun x -> p x) `star` q `star` r)))
+
+let rec dismiss_non_cbs_goals (keep:list goal) (goals:list goal)
+  : Tac unit
+  = match goals with
+    | [] -> set_goals (List.Tot.rev keep)
+    | hd :: tl ->
+     let f = term_as_formula' (goal_type hd) in
+     match f with
+     | App  _ t ->
+       let cbs, _ = collect_app t in
+       if term_eq cbs (`can_be_split)
+       then dismiss_non_cbs_goals (hd::keep) tl
+       else dismiss_non_cbs_goals keep tl
+
+     | _ ->
+       dismiss_non_cbs_goals keep tl
+
+let try_open_existentials (args:list argv) : Tac bool
+  = try
+     focus (fun _ ->
+       mapply (`cbs_equiv) ;
+       let gs = goals () in
+       dismiss_non_cbs_goals [] gs;
+       true)
+    with
+    | _ -> false
+
 (* Solving the can_be_split* constraints, if they are ready to be scheduled
    A constraint is deemed ready to be scheduled if it contains only one vprop unification variable
    If so, constraints are stripped to their underlying  definition based on vprop equivalence,
@@ -1865,15 +1898,16 @@ let rec slterm_nbr_uvars (t:term) : Tac int =
 *)
 
 /// Solves a `can_be_split` constraint
-let solve_can_be_split (args:list argv) : Tac bool =
+let rec solve_can_be_split (args:list argv) : Tac bool =
   match args with
   | [(t1, _); (t2, _)] ->
       let lnbr = slterm_nbr_uvars t1 in
       let rnbr = slterm_nbr_uvars t2 in
       if lnbr + rnbr <= 1 then (
         let open FStar.Algebra.CommMonoid.Equiv in
-        focus (fun _ -> apply_lemma (`equiv_can_be_split);
-                     dismiss_slprops();
+        try
+          focus (fun _ -> apply_lemma (`equiv_can_be_split);
+                       dismiss_slprops();
                      // If we have exactly the same term on both side,
                      // equiv_sl_implies would solve the goal immediately
                      or_else (fun _ -> apply_lemma (`equiv_refl))
@@ -1889,9 +1923,15 @@ let solve_can_be_split (args:list argv) : Tac bool =
                             delta_attr [`%__reduce__];
                             primops; iota; zeta];
                        canon' false (`true_p) (`true_p)));
-        true
+           true
+        with
+        | _ ->
+          dump "About to open existential";
+          let opened_some = try_open_existentials args in
+          dump "After trying to open existential";
+          if opened_some then solve_can_be_split args
+          else false
       ) else false
-
   | _ -> false // Ill-formed can_be_split, should not happen
 
 /// Solves a can_be_split_dep constraint
@@ -1963,15 +2003,65 @@ let solve_can_be_split_forall (args:list argv) : Tac bool =
 
   | _ -> fail "Ill-formed can_be_split_forall, should not happen"
 
+
+val cbs_forall_dep_equiv_1 (a:Type) (b:Type)
+                           (x:a) (cond:b -> prop)
+                           (lhs:b -> vprop)
+                           (p: b -> a -> vprop)
+                           (q: b -> vprop)
+  : Lemma
+    (requires (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p y x `star` q y)))
+    (ensures (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x) `star` q y)))
+
+val cbs_forall_dep_equiv (a:Type) (b:Type)
+                          (x:a) (cond:b -> prop)
+                          (lhs:b -> vprop)
+                          (p: a -> vprop)
+                          (q r: b -> vprop)
+  : Lemma
+    (requires (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p x `star` q y `star` r y)))
+    (ensures (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p x) `star` q y `star` r y)))
+
+let rec dismiss_non_cbs_forall_dep_goals (keep:list goal) (goals:list goal)
+  : Tac unit
+  = match goals with
+    | [] -> set_goals (List.Tot.rev keep)
+    | hd :: tl ->
+     let f = term_as_formula' (goal_type hd) in
+     match f with
+     | App  _ t ->
+       let cbs, _ = collect_app t in
+       if term_eq cbs (`can_be_split_forall_dep)
+       then dismiss_non_cbs_forall_dep_goals (hd::keep) tl
+       else dismiss_non_cbs_forall_dep_goals keep tl
+
+     | _ ->
+       dismiss_non_cbs_forall_dep_goals keep tl
+
+let try_open_existentials_forall_dep (args:list argv) : Tac bool
+  = try
+     dump "Trying to apply open_existentials_forall_dep";
+     focus (fun _ ->
+       or_else
+         (fun () -> mapply (`cbs_forall_dep_equiv))
+         (fun () -> mapply (`cbs_forall_dep_equiv_1));
+       let gs = goals () in
+       dismiss_non_cbs_forall_dep_goals [] gs;
+       true)
+    with
+    | _ -> false
+
+
 /// Solves a can_be_split_forall_dep constraint
-let solve_can_be_split_forall_dep (args:list argv) : Tac bool =
+let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
   match args with
   | [_; (pr, _); (t1, _); (t2, _)] ->
       let lnbr = slterm_nbr_uvars t1 in
       let rnbr = slterm_nbr_uvars t2 in
       if lnbr + rnbr <= 1 then (
         let open FStar.Algebra.CommMonoid.Equiv in
-        focus (fun _ ->
+        try
+         focus (fun _ ->
           let x = forall_intro () in
           let pr = mk_app pr [(binder_to_term x, Q_Explicit)] in
           let p_bind = implies_intro () in
@@ -1996,8 +2086,13 @@ let solve_can_be_split_forall_dep (args:list argv) : Tac bool =
                    primops; iota; zeta];
               canon' true pr p_bind));
 
-        true
-
+         true
+       with
+       | _ ->
+         let opened = try_open_existentials_forall_dep args in
+         if opened
+         then solve_can_be_split_forall_dep args
+         else false
       ) else false
 
   | _ -> fail "Ill-formed can_be_split_forall_dep, should not happen"
@@ -2338,6 +2433,8 @@ let init_resolve_tac () : Tac unit =
   // See test7 in FramingTestSuite for more explanations of what is failing
   // Once unification has been done, we can then safely normalize and remove all return_pre
   norm_return_pre (goals());
+
+  dump "About to enter resolve_tac";
 
   // Finally running the core of the tactic, scheduling and solving goals
   resolve_tac ();
