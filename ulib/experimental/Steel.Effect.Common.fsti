@@ -185,6 +185,12 @@ val can_be_split_trans (p q r:vprop)
   (requires p `can_be_split` q /\ q `can_be_split` r)
   (ensures p `can_be_split` r)
 
+let can_be_split_trans_rev (p q r:vprop)
+: Lemma
+  (requires q `can_be_split` r /\ p `can_be_split` q)
+  (ensures p `can_be_split` r)
+= can_be_split_trans p q r
+
 val can_be_split_star_l (p q:vprop)
 : Lemma
   (ensures (p `star` q) `can_be_split` p)
@@ -199,6 +205,47 @@ val can_be_split_refl (p:vprop)
 : Lemma (p `can_be_split` p)
 [SMTPat (p `can_be_split` p)]
 
+val can_be_split_congr_l
+  (p q r: vprop)
+: Lemma
+  (requires (p `can_be_split` q))
+  (ensures ((p `star` r) `can_be_split` (q `star` r)))
+
+val can_be_split_congr_r
+  (p q r: vprop)
+: Lemma
+  (requires (p `can_be_split` q))
+  (ensures ((r `star` p) `can_be_split` (r `star` q)))
+
+let can_be_split_forall_dep_trans_rev
+  (#a: Type)
+  (cond: a -> prop)
+  (p q r: post_t a)
+: Lemma
+  (requires (can_be_split_forall_dep cond q r /\ can_be_split_forall_dep cond p q))
+  (ensures (can_be_split_forall_dep cond p r))
+=
+  Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_trans x y) z)
+
+let can_be_split_forall_dep_congr_l
+  (#a: Type)
+  (cond: a -> prop)
+  (p q r: post_t a)
+: Lemma
+  (requires (can_be_split_forall_dep cond p q))
+  (ensures (can_be_split_forall_dep cond (fun x -> p x `star` r x) (fun x -> q x `star` r x)))
+=
+  Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_congr_l x y) z)
+
+let can_be_split_forall_dep_congr_r
+  (#a: Type)
+  (cond: a -> prop)
+  (p q r: post_t a)
+: Lemma
+  (requires (can_be_split_forall_dep cond p q))
+  (ensures (can_be_split_forall_dep cond (fun x -> r x `star` p x) (fun x -> r x `star` q x)))
+=
+  Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_congr_r x y) z)
 
 /// To simplify the implementation of the framing tactic, dependent equivalence
 /// is defined as a double dependent implication
@@ -1856,14 +1903,18 @@ let rec slterm_nbr_uvars (t:term) : Tac int =
   | Tv_Abs _ t -> slterm_nbr_uvars t
   | _ -> 0
 
+val solve_can_be_split_for (#a: Type u#b) : a -> Tot unit
+
+val solve_can_be_split_lookup : unit // FIXME: src/reflection/FStar.Reflection.Basic.lookup_attr only supports fvar attributes, so we cannot directly look up for (solve_can_be_split_for blabla), we need a nullary attribute to use with lookup_attr
+
 val exists_hack (#a:Type) (p:a -> vprop) : vprop
 
-val cbs_equiv (a:Type) (x:a) (lhs:vprop) (p: a -> vprop) (q r:vprop)
+[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_hack)]
+val cbs_equiv_core (a:Type) (x:a) (p: a -> vprop)
   : Lemma
-    (requires (lhs `can_be_split` (p x `star` q `star` r)))
-    (ensures (lhs `can_be_split` (exists_hack (fun x -> p x) `star` q `star` r)))
+    (ensures (p x `can_be_split` (exists_hack (fun x -> p x))))
 
-let rec dismiss_non_cbs_goals (keep:list goal) (goals:list goal)
+let rec dismiss_non_head_goals' (head: term) (keep:list goal) (goals:list goal)
   : Tac unit
   = match goals with
     | [] -> set_goals (List.Tot.rev keep)
@@ -1872,19 +1923,74 @@ let rec dismiss_non_cbs_goals (keep:list goal) (goals:list goal)
      match f with
      | App  _ t ->
        let cbs, _ = collect_app t in
-       if term_eq cbs (`can_be_split)
-       then dismiss_non_cbs_goals (hd::keep) tl
-       else dismiss_non_cbs_goals keep tl
+       if term_eq cbs head
+       then dismiss_non_head_goals' head (hd::keep) tl
+       else dismiss_non_head_goals' head keep tl
 
      | _ ->
-       dismiss_non_cbs_goals keep tl
+       dismiss_non_head_goals' head keep tl
+
+let dismiss_non_head_goals (head: term) =
+  let g = goals () in
+  dismiss_non_head_goals' head [] g
+
+let rec term_mem (te: term) (l: list term) : Tot bool =
+  match l with
+  | [] -> false
+  | t' :: q ->
+    if te `term_eq` t' then true else term_mem te q
+
+let rec lookup_by_term_attr' (attr: term) (e: env) (found: list fv) (l: list fv) : Tot (list fv)
+  (decreases l)
+=
+  match l with
+  | [] -> List.Tot.rev found
+  | f :: q ->
+    let n = inspect_fv f in
+    begin match lookup_typ e n with
+    | None -> lookup_by_term_attr' attr e found q
+    | Some se ->
+      let found' =
+        if attr `term_mem` sigelt_attrs se
+        then f :: found
+        else found
+      in
+      lookup_by_term_attr' attr e found' q
+    end
+
+let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
+  let e = cur_env () in
+  let candidates = lookup_attr label_attr e in
+  lookup_by_term_attr' attr e [] candidates
+
+let mapply_by_attr (label_attr: term) (attr: term) : Tac unit =
+  let candidates = lookup_by_term_attr label_attr attr in
+  first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates)
+
+let cbs_equiv (a:Type) (x:a) (lhs:vprop) (p: a -> vprop) (q r:vprop)
+  (h: squash (lhs `can_be_split` (p x `star` q `star` r)))
+: Tot (squash (lhs `can_be_split` (exists_hack (fun x -> p x) `star` q `star` r)))
+=
+  _ by begin
+    mapply (`can_be_split_trans_rev);
+    dismiss (); // vprop
+    split ();
+    focus (fun _ ->
+      apply_lemma (`can_be_split_congr_l);
+      dismiss (); // vprop
+      apply_lemma (`can_be_split_congr_l);
+      dismiss (); // vprop
+      mapply_by_attr (`solve_can_be_split_lookup) (`solve_can_be_split_for exists_hack);
+      dismiss_non_head_goals (`can_be_split)
+    );
+    exact (quote h)
+  end
 
 let try_open_existentials (args:list argv) : Tac bool
   = try
      focus (fun _ ->
        mapply (`cbs_equiv) ;
-       let gs = goals () in
-       dismiss_non_cbs_goals [] gs;
+       dismiss_non_head_goals (`can_be_split);
        true)
     with
     | _ -> false
@@ -2003,40 +2109,61 @@ let solve_can_be_split_forall (args:list argv) : Tac bool =
 
   | _ -> fail "Ill-formed can_be_split_forall, should not happen"
 
+val solve_can_be_split_forall_dep_for (#a: Type u#b) : a -> Tot unit
 
-val cbs_forall_dep_equiv_1 (a:Type) (b:Type)
+val solve_can_be_split_forall_dep_lookup : unit // FIXME: same as solve_can_be_split_for above
+
+[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_hack)]
+val cbs_forall_dep_equiv_core (a:Type) (b:Type)
+                           (x:a) (cond:b -> prop)
+                           (p: b -> a -> vprop)
+  : Lemma
+    (ensures (fun (y:b) -> p y x) `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x)))
+
+let cbs_forall_dep_equiv_1 (a:Type) (b:Type)
                            (x:a) (cond:b -> prop)
                            (lhs:b -> vprop)
                            (p: b -> a -> vprop)
                            (q: b -> vprop)
-  : Lemma
-    (requires (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p y x `star` q y)))
-    (ensures (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x) `star` q y)))
+    (h: squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p y x `star` q y)))
+: Tot (squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x) `star` q y)))
+=
+  _ by begin
+    mapply (`can_be_split_forall_dep_trans_rev);
+    dismiss (); // post_t b
+    split ();
+    focus (fun _ ->
+      apply_lemma (`can_be_split_forall_dep_congr_l);
+      dismiss (); // post_t b
+      mapply_by_attr (`solve_can_be_split_forall_dep_lookup) (`solve_can_be_split_forall_dep_for exists_hack);
+      dismiss_non_head_goals (`can_be_split_forall_dep)
+    );
+    exact (quote h)
+  end
 
-val cbs_forall_dep_equiv (a:Type) (b:Type)
+let cbs_forall_dep_equiv (a:Type) (b:Type)
                           (x:a) (cond:b -> prop)
                           (lhs:b -> vprop)
                           (p: a -> vprop)
                           (q r: b -> vprop)
-  : Lemma
-    (requires (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p x `star` q y `star` r y)))
-    (ensures (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p x) `star` q y `star` r y)))
-
-let rec dismiss_non_cbs_forall_dep_goals (keep:list goal) (goals:list goal)
-  : Tac unit
-  = match goals with
-    | [] -> set_goals (List.Tot.rev keep)
-    | hd :: tl ->
-     let f = term_as_formula' (goal_type hd) in
-     match f with
-     | App  _ t ->
-       let cbs, _ = collect_app t in
-       if term_eq cbs (`can_be_split_forall_dep)
-       then dismiss_non_cbs_forall_dep_goals (hd::keep) tl
-       else dismiss_non_cbs_forall_dep_goals keep tl
-
-     | _ ->
-       dismiss_non_cbs_forall_dep_goals keep tl
+    (h: squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p x `star` q y `star` r y)))
+: Tot
+    (squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p x) `star` q y `star` r y)))
+=
+  _ by begin
+    mapply (`can_be_split_forall_dep_trans_rev);
+    dismiss (); // post_t b
+    split ();
+    focus (fun _ ->
+      apply_lemma (`can_be_split_forall_dep_congr_l);
+      dismiss (); // post_t b
+      apply_lemma (`can_be_split_forall_dep_congr_l);
+      dismiss (); // post_t b
+      mapply_by_attr (`solve_can_be_split_forall_dep_lookup) (`solve_can_be_split_forall_dep_for exists_hack);
+      dismiss_non_head_goals (`can_be_split_forall_dep)
+    );
+    exact (quote h)
+  end
 
 let try_open_existentials_forall_dep (args:list argv) : Tac bool
   = try
@@ -2045,8 +2172,7 @@ let try_open_existentials_forall_dep (args:list argv) : Tac bool
        or_else
          (fun () -> mapply (`cbs_forall_dep_equiv))
          (fun () -> mapply (`cbs_forall_dep_equiv_1));
-       let gs = goals () in
-       dismiss_non_cbs_forall_dep_goals [] gs;
+       dismiss_non_head_goals (`can_be_split_forall_dep);
        true)
     with
     | _ -> false
