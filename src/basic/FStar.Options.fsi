@@ -100,7 +100,6 @@ val settable                    : string -> bool
 
 val abort_counter : ref<int>
 
-val __temp_no_proj              : string  -> bool
 val __temp_fast_implicits       : unit    -> bool
 val admit_smt_queries           : unit    -> bool
 val set_admit_smt_queries       : bool    -> unit
@@ -110,7 +109,7 @@ val cache_off                   : unit    -> bool
 val print_cache_version         : unit    -> bool
 val cmi                         : unit    -> bool
 type codegen_t =
-    | OCaml | FSharp | Kremlin | Plugin
+    | OCaml | FSharp | Krml | Plugin
 val codegen                     : unit    -> option<codegen_t>
 val parse_codegen               : string  -> option<codegen_t>
 val codegen_libs                : unit    -> list<list<string>>
@@ -123,7 +122,6 @@ val dep                         : unit    -> option<string>
 val detail_errors               : unit    -> bool
 val detail_hint_replay          : unit    -> bool
 val display_usage               : unit    -> unit
-val dont_gen_projectors         : string  -> bool
 val dump_module                 : string  -> bool
 val eager_subtyping             : unit    -> bool
 val error_contexts              : unit    -> bool

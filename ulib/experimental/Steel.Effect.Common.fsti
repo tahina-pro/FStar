@@ -636,11 +636,11 @@ let rec visit_tm (ff : term -> Tac unit) (t : term) : Tac unit =
       visit_tm ff sc;
       iter (visit_br ff) brs
 
-  | Tv_AscribedT e t topt ->
+  | Tv_AscribedT e t topt _ ->
       visit_tm ff e;
       visit_tm ff t
 
-  | Tv_AscribedC e c topt ->
+  | Tv_AscribedC e c topt _ ->
       visit_tm ff e
 
   ); ff t
@@ -2350,7 +2350,7 @@ let init_resolve_tac () : Tac unit =
 
 (* AF: There probably is a simpler way to get from p to squash p in a tactic, so that we can use apply_lemma *)
 let squash_and p (x:squash (p /\ True)) : (p /\ True) =
-  let x : squash (p `c_and` True) = FStar.Squash.join_squash x in
+  let x : squash (p `Prims.pair` True) = FStar.Squash.join_squash x in
   x
 
 /// Calling into the framing tactic to ensure that the vprop whose selector we are trying to access is in the context

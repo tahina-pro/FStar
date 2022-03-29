@@ -2,33 +2,6 @@
   "\u0013\u0000–Ÿ»\u0018åîŒØ\u0013x\u0007ê0Q",
   [
     [
-      "SelectorLogic.__proj__Mkvprop__item__t",
-      1,
-      2,
-      1,
-      [
-        "@query", "proj_equation_SelectorLogic.Mkvprop_hp",
-        "projection_inverse_SelectorLogic.Mkvprop_hp"
-      ],
-      0,
-      "5d3fd0f9c81673461ed88a9672577ea6"
-    ],
-    [
-      "SelectorLogic.__proj__Mkvprop__item__sel",
-      1,
-      2,
-      1,
-      [
-        "@query", "proj_equation_SelectorLogic.Mkvprop_hp",
-        "proj_equation_SelectorLogic.Mkvprop_t",
-        "projection_inverse_SelectorLogic.Mkvprop_hp",
-        "projection_inverse_SelectorLogic.Mkvprop_t",
-        "token_correspondence_SelectorLogic.__proj__Mkvprop__item__t"
-      ],
-      0,
-      "a52c01a300286be7babb4a052131c84c"
-    ],
-    [
       "SelectorLogic.star",
       1,
       2,
@@ -42,7 +15,7 @@
         "typing_SelectorLogic.__proj__Mkvprop__item__hp"
       ],
       0,
-      "aaf37f85abce9c286b7a1710fdff28cd"
+      "e6bbc53151940121fd113475b4ad375f"
     ],
     [
       "SelectorLogic.wand",
@@ -67,7 +40,7 @@
         "typing_SelectorLogic.__proj__Mkvprop__item__hp"
       ],
       0,
-      "e350a9604bd3996784001716d4d9e6da"
+      "23b89b4a09765c107b109f90a5bb8936"
     ],
     [
       "SelectorLogic.star_split",
@@ -76,7 +49,7 @@
       1,
       [ "@query" ],
       0,
-      "21d9db7a1243c8cc2a0f4a677d6f684f"
+      "b01d02df65c3eb88d93c8e58f1dd8ac0"
     ],
     [
       "SelectorLogic.star_split",
@@ -101,7 +74,7 @@
         "refinement_interpretation_Tm_refine_5a121517d5876c554c3e043a63a98441"
       ],
       0,
-      "fe2ff4ed8cbb46c09353909eacf9d5f8"
+      "e57306a486ef33d194f1249da6339cb2"
     ],
     [
       "SelectorLogic.modus_ponens_interp",
@@ -127,7 +100,7 @@
         "typing_SelectorLogic.__proj__Mkvprop__item__hp"
       ],
       0,
-      "6c64f3ac384bfc6a30293d8b3b57c56f"
+      "9c1cdb374c7a5f3c15351b325d5a57fc"
     ],
     [
       "SelectorLogic.modus_ponens_derive_sel",
@@ -136,7 +109,7 @@
       1,
       [ "@query" ],
       0,
-      "f17134a6746f8dbfbbf2264618337ae4"
+      "1d7154e38f627c643bc4d0b01d836412"
     ],
     [
       "SelectorLogic.modus_ponens_derive_sel",
@@ -169,7 +142,7 @@
         "typing_SelectorLogic.__proj__Mkvprop__item__hp"
       ],
       0,
-      "c5da73acf39feb85392ed1ec46cb7d18"
+      "cad27ade453b4243ef047b8e0e44f462"
     ]
   ]
 ]

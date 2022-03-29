@@ -23,12 +23,14 @@ module A = Steel.ST.Array
 
 open Steel.FractionalPermission
 open Steel.ST.Effect
+open Steel.ST.Util
 
 /// Some utilities for steel arrays
 
 
 /// Create an array whose elements are specified by the input function
 
+inline_for_extraction
 val array_literal
   (#a:Type0)
   (n:U32.t)
@@ -43,6 +45,7 @@ val array_literal
 
 /// Check if all the elements of an array satisfy a predicate
 
+inline_for_extraction
 val for_all
   (#a:Type0)
   (#perm:perm)
@@ -55,4 +58,56 @@ val for_all
        (fun _ -> A.pts_to arr perm s)
        (requires A.length arr == U32.v n)
        (ensures fun b -> b <==> (forall (i:nat). i < Seq.length s ==>
-                                      p (Seq.index s i)))
+                                    p (Seq.index s i)))
+
+
+/// for_all2, for predicates over elements of two arrays
+
+inline_for_extraction
+val for_all2
+  (#a #b:Type0)
+  (#p0 #p1:perm)
+  (#s0:G.erased (Seq.seq a))
+  (#s1:G.erased (Seq.seq b))
+  (n:U32.t)
+  (a0:A.array a)
+  (a1:A.array b)
+  (p:a -> b -> bool)
+  : ST bool
+       (A.pts_to a0 p0 s0
+          `star`
+        A.pts_to a1 p1 s1)
+       (fun _ ->
+        A.pts_to a0 p0 s0
+          `star`
+        A.pts_to a1 p1 s1)
+       (requires
+         A.length a0 == U32.v n /\
+         A.length a0 == A.length a1)
+       (ensures fun b -> b <==> (forall (i:nat). (i < Seq.length s0 /\ i < Seq.length s1) ==>
+                                    p (Seq.index s0 i) (Seq.index s1 i)))
+
+
+/// An array compare function that uses for_all2
+///   to loop over the two arrays and compre their elements
+
+let compare (#a:eqtype) (#p0 #p1:perm)
+  (a0 a1:A.array a)
+  (#s0 #s1:G.erased (Seq.seq a))
+  (n:U32.t{U32.v n == A.length a0 /\ A.length a0 == A.length a1})
+  : ST bool
+       (A.pts_to a0 p0 s0
+          `star`
+        A.pts_to a1 p1 s1)
+
+       (fun _ ->
+        A.pts_to a0 p0 s0
+          `star`
+        A.pts_to a1 p1 s1)
+       (requires True)
+       (ensures fun b -> b <==> s0 == s1)
+  = let b = for_all2 n a0 a1 (fun x y -> x = y) in
+    A.pts_to_length a0 s0;
+    A.pts_to_length a1 s1;
+    assert (b <==> Seq.equal s0 s1);
+    return b

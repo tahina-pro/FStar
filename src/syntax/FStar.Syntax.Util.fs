@@ -16,11 +16,11 @@
 #light "off"
 // (c) Microsoft Corporation. All rights reserved
 module FStar.Syntax.Util
+open Prims
 open FStar.Pervasives
 open FStar.Compiler.Effect
 open FStar.Compiler.List
 
-open Prims
 open FStar
 open FStar.Compiler
 open FStar.Compiler.Util
@@ -629,7 +629,7 @@ let rec eq_tm (t1:term) (t2:term) : eq_result =
         eq_and (eq_tm h1 h2) (fun () -> eq_args args1 args2)
       end
 
-    | Tm_match (t1, None, bs1, _), Tm_match (t2, None, bs2, _) ->  //AR: note: no return annotations
+    | Tm_match (t1, _, bs1, _), Tm_match (t2, _, bs2, _) ->  //AR: note: no return annotations
         if List.length bs1 = List.length bs2
         then List.fold_right (fun (b1, b2) a -> eq_and a (fun () -> branch_matches b1 b2))
                              (List.zip bs1 bs2)
@@ -1496,7 +1496,7 @@ let destruct_sq_base_table =
          (PC.c_or_lid, PC.or_lid);
          (PC.c_eq2_lid, PC.c_eq2_lid)]);
     (3, [(PC.c_eq2_lid, PC.c_eq2_lid)]);
-    (0, [(PC.c_true_lid, PC.true_lid); (PC.c_false_lid, PC.false_lid)])
+    (0, [(PC.c_true_lid, PC.true_lid); (PC.empty_type_lid, PC.false_lid)])
   ]
 
 let destruct_typ_as_formula f : option<connective> =
@@ -2028,7 +2028,10 @@ let rec unbound_variables tm :  list<bv> =
         unbound_variables t
         @ (match asc_opt with
            | None -> []
-           | Some asc -> unbound_variables_ascription asc)
+           | Some (b, asc) ->
+             let bs, asc = Subst.open_ascription [b] asc in
+             List.collect (fun b -> unbound_variables b.binder_bv.sort) bs
+             @ unbound_variables_ascription asc)
         @ (pats |> List.collect (fun br ->
                  let p, wopt, t = Subst.open_branch br in
                  unbound_variables t
@@ -2071,10 +2074,11 @@ let rec unbound_variables tm :  list<bv> =
            | Meta_named _ -> [])
 
 and unbound_variables_ascription asc =
-  (match fst asc with
+  let asc, topt, _ = asc in
+  (match asc with
    | Inl t2 -> unbound_variables t2
    | Inr c2 -> unbound_variables_comp c2) @
-  (match snd asc with
+  (match topt with
    | None -> []
    | Some tac -> unbound_variables tac)
 

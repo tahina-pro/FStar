@@ -16,7 +16,7 @@
 (* -------------------------------------------------------------------- *)
 #light "off"
 
-module FStar.Extraction.Kremlin
+module FStar.Extraction.Krml
 open FStar.Compiler.Effect
 open FStar.Compiler.List
 open FStar
@@ -342,18 +342,7 @@ let list_elements e2 =
   in
   list_elements [] e2
 
-let rec translate_module (m : mlpath * option<(mlsig * mlmodule)> * mllib) : file =
-  let (module_name, modul, _) = m in
-  let module_name = fst module_name @ [ snd module_name ] in
-  let program = match modul with
-    | Some (_signature, decls) ->
-        List.collect (translate_decl (empty module_name)) decls
-    | _ ->
-        failwith "Unexpected standalone interface or nested modules"
-  in
-  (String.concat "_" module_name), program
-
-and translate_flags flags =
+let translate_flags flags =
   List.choose (function
     | Syntax.Private -> Some Private
     | Syntax.NoExtract -> Some WipeBody
@@ -372,188 +361,14 @@ and translate_flags flags =
     | _ -> None // is this all of them?
   ) flags
 
-and translate_cc flags =
+let translate_cc flags =
   match List.choose (function | Syntax.CCConv s -> Some s | _ -> None) flags with
   | [ "stdcall" ] -> Some StdCall
   | [ "fastcall" ] -> Some FastCall
   | [ "cdecl" ] -> Some CDecl
   | _ -> None
 
-and translate_decl env d: list<decl> =
-  match d with
-  | MLM_Let (flavor, lbs) ->
-      // We don't care about mutual recursion, since every C file will include
-      // its own header with the forward declarations.
-      List.choose (translate_let env flavor) lbs
-
-  | MLM_Loc _ ->
-      // JP: TODO: use this to reconstruct location information
-      []
-
-  | MLM_Ty tys ->
-      // We don't care about mutual recursion, since KreMLin will insert forward
-      // declarations exactly as needed, as part of its monomorphization phase
-      List.choose (translate_type_decl env) tys
-
-  | MLM_Top _ ->
-      failwith "todo: translate_decl [MLM_Top]"
-
-  | MLM_Exn (m, _) ->
-      BU.print1_warning "Not extracting exception %s to KreMLin (exceptions unsupported)\n" m;
-      []
-
-and translate_let env flavor lb: option<decl> =
-  match lb with
-  | {
-      mllb_name = name;
-      mllb_tysc = Some (tvars, t0);
-      mllb_def = e;
-      mllb_meta = meta
-    } when BU.for_some (function Syntax.Assumed -> true | _ -> false) meta ->
-      let name = env.module_name, name in
-      let arg_names = match e.expr with
-        | MLE_Fun (args, _) -> List.map fst args
-        | _ -> []
-      in
-      if List.length tvars = 0 then
-        Some (DExternal (translate_cc meta, translate_flags meta, name, translate_type env t0, arg_names))
-      else begin
-        BU.print1_warning "Not extracting %s to KreMLin (polymorphic assumes are not supported)\n" (Syntax.string_of_mlpath name);
-        None
-      end
-
-  | {
-      mllb_name = name;
-      mllb_tysc = Some (tvars, t0);
-      mllb_def = { expr = MLE_Fun (args, body) };
-      mllb_meta = meta
-    } ->
-      if List.mem Syntax.NoExtract meta then
-        None
-      else
-        // Case 1: a possibly-polymorphic function.
-        let env = if flavor = Rec then extend env name else env in
-        let env = List.fold_left (fun env name -> extend_t env name) env tvars in
-        let rec find_return_type eff i = function
-          | MLTY_Fun (_, eff, t) when i > 0 ->
-              find_return_type eff (i - 1) t
-          | t ->
-              i, eff, t
-        in
-        let name = env.module_name, name in
-        let i, eff, t = find_return_type E_PURE (List.length args) t0 in
-        if i > 0 then begin
-          let msg = "function type annotation has less arrows than the \
-            number of arguments; please mark the return type abbreviation as \
-            inline_for_extraction" in
-          BU.print2_warning "Not extracting %s to KreMLin (%s)\n" (Syntax.string_of_mlpath name) msg
-        end;
-        let t = translate_type env t in
-        let binders = translate_binders env args in
-        let env = add_binders env args in
-        let cc = translate_cc meta in
-        let meta = match eff, t with
-          | E_ERASABLE, _
-          | E_PURE, TUnit -> MustDisappear :: translate_flags meta
-          | _ -> translate_flags meta
-        in
-        begin try
-          let body = translate_expr env body in
-          Some (DFunction (cc, meta, List.length tvars, t, name, binders, body))
-        with e ->
-          // JP: TODO: figure out what are the remaining things we don't extract
-          let msg = BU.print_exn e in
-          Errors. log_issue Range.dummyRange
-          (Errors.Warning_FunctionNotExtacted, (BU.format2 "Error while extracting %s to KreMLin (%s)\n" (Syntax.string_of_mlpath name) msg));
-          let msg = "This function was not extracted:\n" ^ msg in
-          Some (DFunction (cc, meta, List.length tvars, t, name, binders, EAbortS msg))
-        end
-
-  | {
-      mllb_name = name;
-      mllb_tysc = Some (tvars, t);
-      mllb_def = expr;
-      mllb_meta = meta
-    } ->
-      if List.mem Syntax.NoExtract meta then
-        None
-      else
-        // Case 2: this is a global
-        let meta = translate_flags meta in
-        let env = List.fold_left (fun env name -> extend_t env name) env tvars in
-        let t = translate_type env t in
-        let name = env.module_name, name in
-        begin try
-          let expr = translate_expr env expr in
-          Some (DGlobal (meta, name, List.length tvars, t, expr))
-        with e ->
-          Errors. log_issue Range.dummyRange (Errors.Warning_DefinitionNotTranslated, (BU.format2 "Error extracting %s to KreMLin (%s)\n" (Syntax.string_of_mlpath name) (BU.print_exn e)));
-          Some (DGlobal (meta, name, List.length tvars, t, EAny))
-        end
-
-  | { mllb_name = name; mllb_tysc = ts } ->
-      // TODO JP: figure out what exactly we're hitting here...?
-      Errors. log_issue Range.dummyRange (Errors.Warning_DefinitionNotTranslated, (BU.format1 "Not extracting %s to KreMLin\n" name));
-      begin match ts with
-      | Some (idents, t) ->
-          BU.print2 "Type scheme is: forall %s. %s\n"
-            (String.concat ", " idents)
-            (ML.Code.string_of_mlty ([], "") t)
-      | None ->
-          ()
-      end;
-      None
-
-
-and translate_type_decl env ty: option<decl> =
-  if List.mem Syntax.NoExtract ty.tydecl_meta then
-    None
-  else
-    match ty with
-    | {tydecl_assumed=assumed;
-       tydecl_name=name;
-       tydecl_parameters=args;
-       tydecl_meta=flags;
-       tydecl_defn= Some (MLTD_Abbrev t)} ->
-        let name = env.module_name, name in
-        let env = List.fold_left (fun env name -> extend_t env name) env args in
-        if assumed && List.mem Syntax.CAbstract flags then
-          Some (DTypeAbstractStruct name)
-        else if assumed then
-          let name = string_of_mlpath name in
-          BU.print1_warning "Not extracting type definition %s to KreMLin (assumed type)\n" name;
-          // JP: TODO: shall we be smarter here?
-          None
-        else
-          Some (DTypeAlias (name, translate_flags flags, List.length args, translate_type env t))
-
-    | {tydecl_name=name;
-       tydecl_parameters=args;
-       tydecl_meta=flags;
-       tydecl_defn=Some (MLTD_Record fields)} ->
-        let name = env.module_name, name in
-        let env = List.fold_left (fun env name -> extend_t env name) env args in
-        Some (DTypeFlat (name, translate_flags flags, List.length args, List.map (fun (f, t) ->
-          f, (translate_type env t, false)) fields))
-
-    | {tydecl_name=name;
-       tydecl_parameters=args;
-       tydecl_meta=flags;
-       tydecl_defn=Some (MLTD_DType branches)} ->
-        let name = env.module_name, name in
-        let flags = translate_flags flags in
-        let env = List.fold_left extend_t env args in
-        Some (DTypeVariant (name, flags, List.length args, List.map (fun (cons, ts) ->
-          cons, List.map (fun (name, t) ->
-            name, (translate_type env t, false)
-          ) ts
-        ) branches))
-    | {tydecl_name=name} ->
-        // JP: TODO: figure out why and how this happens
-        Errors. log_issue Range.dummyRange (Errors.Warning_DefinitionNotTranslated, (BU.format1 "Error extracting type definition %s to KreMLin\n" name));
-        None
-
-and translate_type env t: typ =
+let rec translate_type env t: typ =
   match t with
   | MLTY_Tuple []
   | MLTY_Top ->
@@ -620,7 +435,9 @@ and translate_type env t: typ =
     Syntax.string_of_mlpath p = "FStar.HyperStack.ST.mmstackref" ||
     Syntax.string_of_mlpath p = "FStar.HyperStack.ST.mmref" ||
     Syntax.string_of_mlpath p = "Steel.Reference.ref" ||
-    Syntax.string_of_mlpath p = "Steel.Array.array"
+    Syntax.string_of_mlpath p = "Steel.Array.array" ||
+    Syntax.string_of_mlpath p = "Steel.ST.Reference.ref" ||
+    Syntax.string_of_mlpath p = "Steel.ST.Array.array"
     ->
       TBuf (translate_type env arg)
 
@@ -694,7 +511,7 @@ and translate_expr env e: expr =
       EMatch (translate_expr env expr, translate_branches env branches)
 
   // We recognize certain distinguished names from [FStar.HST] and other
-  // modules, and translate them into built-in Kremlin constructs
+  // modules, and translate them into built-in Karamel constructs
   | MLE_App({expr=MLE_TApp ({ expr = MLE_Name p }, [t])}, [arg])
     when string_of_mlpath p = "FStar.Dyn.undyn" ->
       ECast (translate_expr env arg, translate_type env t)
@@ -732,9 +549,17 @@ and translate_expr env e: expr =
       || string_of_mlpath p = "Steel.Array.index" ->
       EBufRead (translate_expr env e1, translate_expr env e2)
 
+  | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ _perm; e1; _seq; e2 ])
+    when string_of_mlpath p = "Steel.ST.Array.read" ->
+      EBufRead (translate_expr env e1, translate_expr env e2)
+
   | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ e ])
     when string_of_mlpath p = "FStar.HyperStack.ST.op_Bang"
        || string_of_mlpath p = "Steel.Reference.read" ->
+      EBufRead (translate_expr env e, EConstant (UInt32, "0"))
+
+  | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ _perm; _v; e ])
+    when string_of_mlpath p = "Steel.ST.Reference.read" ->
       EBufRead (translate_expr env e, EConstant (UInt32, "0"))
 
   (* All the distinguished combinators that correspond to allocation, either on
@@ -801,7 +626,8 @@ and translate_expr env e: expr =
       EBufCreate (ManuallyManaged, translate_expr env init, EConstant (UInt32, "1"))
 
   | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) } , [ init ])
-    when (string_of_mlpath p = "Steel.Reference.malloc") ->
+    when (string_of_mlpath p = "Steel.Reference.malloc" ||
+          string_of_mlpath p = "Steel.ST.Reference.alloc") ->
       EBufCreate (ManuallyManaged, translate_expr env init, EConstant (UInt32, "1"))
 
   | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ _e0; e1; e2 ])
@@ -812,7 +638,8 @@ and translate_expr env e: expr =
       EBufCreate (ManuallyManaged, translate_expr env e1, translate_expr env e2)
 
   | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ e0; e1 ])
-    when string_of_mlpath p = "Steel.Array.malloc" ->
+    when string_of_mlpath p = "Steel.Array.malloc" ||
+         string_of_mlpath p = "Steel.ST.Array.alloc" ->
       EBufCreate (ManuallyManaged, translate_expr env e0, translate_expr env e1)
 
 
@@ -822,13 +649,19 @@ and translate_expr env e: expr =
 
   (* Only manually-managed references and buffers can be freed. *)
   | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ e2 ]) when
-      (string_of_mlpath p = "FStar.HyperStack.ST.rfree" || string_of_mlpath p = "Steel.Reference.free") ->
+      (string_of_mlpath p = "FStar.HyperStack.ST.rfree" ||
+       string_of_mlpath p = "Steel.Reference.free") ->
+      EBufFree (translate_expr env e2)
+
+  | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ _v; e2 ]) when
+       string_of_mlpath p = "Steel.ST.Reference.free" ->
       EBufFree (translate_expr env e2)
 
   | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ e2 ])
     when (string_of_mlpath p = "FStar.Buffer.rfree" ||
           string_of_mlpath p = "LowStar.Monotonic.Buffer.free" ||
-          string_of_mlpath p = "Steel.Array.free") ->
+          string_of_mlpath p = "Steel.Array.free" ||
+          string_of_mlpath p = "Steel.ST.Array.free") ->
       EBufFree (translate_expr env e2)
 
   (* Generic buffer operations. *)
@@ -855,10 +688,20 @@ and translate_expr env e: expr =
     || string_of_mlpath p = "LowStar.UninitializedBuffer.uupd"
     || string_of_mlpath p = "Steel.Array.upd" ->
       EBufWrite (translate_expr env e1, translate_expr env e2, translate_expr env e3)
+
+  | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ e1; _s; e2; e3 ])
+    when string_of_mlpath p = "Steel.ST.Array.write" ->
+      EBufWrite (translate_expr env e1, translate_expr env e2, translate_expr env e3)
+
   | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ e1; e2 ])
     when string_of_mlpath p = "FStar.HyperStack.ST.op_Colon_Equals"
       || string_of_mlpath p = "Steel.Reference.write" ->
       EBufWrite (translate_expr env e1, EConstant (UInt32, "0"), translate_expr env e2)
+
+  | MLE_App ({ expr = MLE_TApp({ expr = MLE_Name p }, _) }, [ _v; e1; e2 ])
+    when string_of_mlpath p = "Steel.ST.Reference.write" ->
+      EBufWrite (translate_expr env e1, EConstant (UInt32, "0"), translate_expr env e2)
+
   | MLE_App ({ expr = MLE_Name p }, [ _ ]) when (string_of_mlpath p = "FStar.HyperStack.ST.push_frame") ->
       EPushFrame
   | MLE_App ({ expr = MLE_Name p }, [ _ ]) when (string_of_mlpath p = "FStar.HyperStack.ST.pop_frame") ->
@@ -873,7 +716,7 @@ and translate_expr env e: expr =
     when (let s = string_of_mlpath p in (s = "FStar.Buffer.fill" || s = "LowStar.Monotonic.Buffer.fill" )) ->
       EBufFill (translate_expr env e1, translate_expr env e2, translate_expr env e3)
   | MLE_App ({ expr = MLE_Name p }, [ _ ]) when string_of_mlpath p = "FStar.HyperStack.ST.get" ->
-      // We need to reveal to Kremlin that FStar.HST.get is equivalent to
+      // We need to reveal to Karamel that FStar.HST.get is equivalent to
       // (void*)0 so that it can get rid of ghost calls to HST.get at the
       // beginning of functions, which is needed to enforce the push/pop
       // structure.
@@ -1002,8 +845,24 @@ and translate_expr env e: expr =
         EApp (EQualified ([ "FStar"; "Int"; "Cast" ], c), [ translate_expr env arg ])
 
   | MLE_App ({expr=MLE_TApp ({expr=MLE_Name p}, _)}, [_; _; e])
-    when string_of_mlpath p = "Steel.Effect.Atomic.return" ->
+    when string_of_mlpath p = "Steel.Effect.Atomic.return" ||
+         string_of_mlpath p = "Steel.ST.Util.return" ->
     translate_expr env e
+
+  | MLE_App ({expr=MLE_TApp ({expr=MLE_Name p}, _)}, [_fp; _fp'; _opened; _p; _i; {expr=MLE_Fun (_, body)}])
+    when string_of_mlpath p = "Steel.ST.Util.with_invariant" ->
+    translate_expr env body
+
+  | MLE_App ({expr=MLE_TApp ({expr=MLE_Name p}, _)}, [_fp; _fp'; _opened; _p; _i; e])
+    when string_of_mlpath p = "Steel.ST.Util.with_invariant" ->
+    Errors.raise_error
+      (Errors.Fatal_ExtractionUnsupported,
+       BU.format2
+         "Extraction of with_invariant requires its argument to be a function literal \
+         at extraction time, try marking its argument inline_for_extraction (%s, %s)"
+         (string_of_int (fst e.loc))
+         (snd e.loc))
+      Range.dummyRange
 
   | MLE_App (head, args) ->
       EApp (translate_expr env head, List.map (translate_expr env) args)
@@ -1153,6 +1012,190 @@ and translate_constant c: expr =
 
 and mk_op_app env w op args =
   EApp (EOp (op, w), List.map (translate_expr env) args)
+
+let translate_type_decl env ty: option<decl> =
+  if List.mem Syntax.NoExtract ty.tydecl_meta then
+    None
+  else
+    match ty with
+    | {tydecl_assumed=assumed;
+       tydecl_name=name;
+       tydecl_parameters=args;
+       tydecl_meta=flags;
+       tydecl_defn= Some (MLTD_Abbrev t)} ->
+        let name = env.module_name, name in
+        let env = List.fold_left (fun env name -> extend_t env name) env args in
+        if assumed && List.mem Syntax.CAbstract flags then
+          Some (DTypeAbstractStruct name)
+        else if assumed then
+          let name = string_of_mlpath name in
+          BU.print1_warning "Not extracting type definition %s to KaRaMeL (assumed type)\n" name;
+          // JP: TODO: shall we be smarter here?
+          None
+        else
+          Some (DTypeAlias (name, translate_flags flags, List.length args, translate_type env t))
+
+    | {tydecl_name=name;
+       tydecl_parameters=args;
+       tydecl_meta=flags;
+       tydecl_defn=Some (MLTD_Record fields)} ->
+        let name = env.module_name, name in
+        let env = List.fold_left (fun env name -> extend_t env name) env args in
+        Some (DTypeFlat (name, translate_flags flags, List.length args, List.map (fun (f, t) ->
+          f, (translate_type env t, false)) fields))
+
+    | {tydecl_name=name;
+       tydecl_parameters=args;
+       tydecl_meta=flags;
+       tydecl_defn=Some (MLTD_DType branches)} ->
+        let name = env.module_name, name in
+        let flags = translate_flags flags in
+        let env = List.fold_left extend_t env args in
+        Some (DTypeVariant (name, flags, List.length args, List.map (fun (cons, ts) ->
+          cons, List.map (fun (name, t) ->
+            name, (translate_type env t, false)
+          ) ts
+        ) branches))
+    | {tydecl_name=name} ->
+        // JP: TODO: figure out why and how this happens
+        Errors. log_issue Range.dummyRange (Errors.Warning_DefinitionNotTranslated, (BU.format1 "Error extracting type definition %s to KaRaMeL\n" name));
+        None
+
+let translate_let env flavor lb: option<decl> =
+  match lb with
+  | {
+      mllb_name = name;
+      mllb_tysc = Some (tvars, t0);
+      mllb_def = e;
+      mllb_meta = meta
+    } when BU.for_some (function Syntax.Assumed -> true | _ -> false) meta ->
+      let name = env.module_name, name in
+      let arg_names = match e.expr with
+        | MLE_Fun (args, _) -> List.map fst args
+        | _ -> []
+      in
+      if List.length tvars = 0 then
+        Some (DExternal (translate_cc meta, translate_flags meta, name, translate_type env t0, arg_names))
+      else begin
+        BU.print1_warning "Not extracting %s to KaRaMeL (polymorphic assumes are not supported)\n" (Syntax.string_of_mlpath name);
+        None
+      end
+
+  | {
+      mllb_name = name;
+      mllb_tysc = Some (tvars, t0);
+      mllb_def = { expr = MLE_Fun (args, body) };
+      mllb_meta = meta
+    } ->
+      if List.mem Syntax.NoExtract meta then
+        None
+      else
+        // Case 1: a possibly-polymorphic function.
+        let env = if flavor = Rec then extend env name else env in
+        let env = List.fold_left (fun env name -> extend_t env name) env tvars in
+        let rec find_return_type eff i = function
+          | MLTY_Fun (_, eff, t) when i > 0 ->
+              find_return_type eff (i - 1) t
+          | t ->
+              i, eff, t
+        in
+        let name = env.module_name, name in
+        let i, eff, t = find_return_type E_PURE (List.length args) t0 in
+        if i > 0 then begin
+          let msg = "function type annotation has less arrows than the \
+            number of arguments; please mark the return type abbreviation as \
+            inline_for_extraction" in
+          BU.print2_warning "Not extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) msg
+        end;
+        let t = translate_type env t in
+        let binders = translate_binders env args in
+        let env = add_binders env args in
+        let cc = translate_cc meta in
+        let meta = match eff, t with
+          | E_ERASABLE, _
+          | E_PURE, TUnit -> MustDisappear :: translate_flags meta
+          | _ -> translate_flags meta
+        in
+        begin try
+          let body = translate_expr env body in
+          Some (DFunction (cc, meta, List.length tvars, t, name, binders, body))
+        with e ->
+          // JP: TODO: figure out what are the remaining things we don't extract
+          let msg = BU.print_exn e in
+          Errors. log_issue Range.dummyRange
+          (Errors.Warning_FunctionNotExtacted, (BU.format2 "Error while extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) msg));
+          let msg = "This function was not extracted:\n" ^ msg in
+          Some (DFunction (cc, meta, List.length tvars, t, name, binders, EAbortS msg))
+        end
+
+  | {
+      mllb_name = name;
+      mllb_tysc = Some (tvars, t);
+      mllb_def = expr;
+      mllb_meta = meta
+    } ->
+      if List.mem Syntax.NoExtract meta then
+        None
+      else
+        // Case 2: this is a global
+        let meta = translate_flags meta in
+        let env = List.fold_left (fun env name -> extend_t env name) env tvars in
+        let t = translate_type env t in
+        let name = env.module_name, name in
+        begin try
+          let expr = translate_expr env expr in
+          Some (DGlobal (meta, name, List.length tvars, t, expr))
+        with e ->
+          Errors. log_issue Range.dummyRange (Errors.Warning_DefinitionNotTranslated, (BU.format2 "Error extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) (BU.print_exn e)));
+          Some (DGlobal (meta, name, List.length tvars, t, EAny))
+        end
+
+  | { mllb_name = name; mllb_tysc = ts } ->
+      // TODO JP: figure out what exactly we're hitting here...?
+      Errors. log_issue Range.dummyRange (Errors.Warning_DefinitionNotTranslated, (BU.format1 "Not extracting %s to KaRaMeL\n" name));
+      begin match ts with
+      | Some (idents, t) ->
+          BU.print2 "Type scheme is: forall %s. %s\n"
+            (String.concat ", " idents)
+            (ML.Code.string_of_mlty ([], "") t)
+      | None ->
+          ()
+      end;
+      None
+
+let translate_decl env d: list<decl> =
+  match d with
+  | MLM_Let (flavor, lbs) ->
+      // We don't care about mutual recursion, since every C file will include
+      // its own header with the forward declarations.
+      List.choose (translate_let env flavor) lbs
+
+  | MLM_Loc _ ->
+      // JP: TODO: use this to reconstruct location information
+      []
+
+  | MLM_Ty tys ->
+      // We don't care about mutual recursion, since KaRaMeL will insert forward
+      // declarations exactly as needed, as part of its monomorphization phase
+      List.choose (translate_type_decl env) tys
+
+  | MLM_Top _ ->
+      failwith "todo: translate_decl [MLM_Top]"
+
+  | MLM_Exn (m, _) ->
+      BU.print1_warning "Not extracting exception %s to KaRaMeL (exceptions unsupported)\n" m;
+      []
+
+let translate_module (m : mlpath * option<(mlsig * mlmodule)> * mllib) : file =
+  let (module_name, modul, _) = m in
+  let module_name = fst module_name @ [ snd module_name ] in
+  let program = match modul with
+    | Some (_signature, decls) ->
+        List.collect (translate_decl (empty module_name)) decls
+    | _ ->
+        failwith "Unexpected standalone interface or nested modules"
+  in
+  (String.concat "_" module_name), program
 
 let translate (MLLib modules): list<file> =
   List.filter_map (fun m ->

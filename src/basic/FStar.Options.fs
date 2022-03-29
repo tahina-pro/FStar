@@ -160,7 +160,6 @@ let add_light_off_file (filename:string) = light_off_files := filename :: !light
 
 let defaults =
      [
-      ("__temp_no_proj"               , List []);
       ("__temp_fast_implicits"        , Bool false);
       ("abort_on"                     , Int 0);
       ("admit_smt_queries"            , Bool false);
@@ -448,7 +447,6 @@ let get_no_tactics              ()      = lookup_opt "no_tactics"               
 let get_using_facts_from        ()      = lookup_opt "using_facts_from"         (as_option (as_list as_string))
 let get_vcgen_optimize_bind_as_seq  ()  = lookup_opt "vcgen.optimize_bind_as_seq" (as_option as_string)
 let get_verify_module           ()      = lookup_opt "verify_module"            (as_list as_string)
-let get___temp_no_proj          ()      = lookup_opt "__temp_no_proj"           (as_list as_string)
 let get_version                 ()      = lookup_opt "version"                  as_bool
 let get_warn_default_effects    ()      = lookup_opt "warn_default_effects"     as_bool
 let get_z3cliopt                ()      = lookup_opt "z3cliopt"                 (as_list as_string)
@@ -577,7 +575,7 @@ exception InvalidArgument of string // option name
 
 For example, to parse the value "OCaml" for the option "--codegen", this
 function is called as ``parse_opt_val "codegen" (EnumStr ["OCaml"; "FSharp";
-"Kremlin"]) "OCaml"`` and returns ``String "OCaml"``.
+"krml"]) "OCaml"`` and returns ``String "OCaml"``.
 
 `opt_name` is only used in error messages. **)
 let rec parse_opt_val (opt_name: string) (typ: opt_type) (str_val: string) : option_val =
@@ -719,7 +717,7 @@ let rec specs_with_types warn_unsafe : list<(char * string * opt_type * string)>
 
       ( noshort,
         "codegen",
-        EnumStr ["OCaml"; "FSharp"; "Kremlin"; "Plugin"],
+        EnumStr ["OCaml"; "FSharp"; "krml"; "Plugin"],
         "Generate code for further compilation to executable code, or build a compiler plugin");
 
       ( noshort,
@@ -784,11 +782,11 @@ let rec specs_with_types warn_unsafe : list<(char * string * opt_type * string)>
          "extract",
          Accumulated (SimpleStr "One or more semicolon separated occurrences of '[TargetName:]ModuleSelector'"),
         "\n\t\tExtract only those modules whose names or namespaces match the provided options.\n\t\t\t\
-         'TargetName' ranges over {OCaml, Kremlin, FSharp, Plugin}.\n\t\t\t\
+         'TargetName' ranges over {OCaml, krml, FSharp, Plugin}.\n\t\t\t\
          A 'ModuleSelector' is a space or comma-separated list of '[+|-]( * | namespace | module)'.\n\t\t\t\
-         For example --extract 'OCaml:A -A.B' --extract 'Kremlin:A -A.C' --extract '*' means\n\t\t\t\t\
+         For example --extract 'OCaml:A -A.B' --extract 'krml:A -A.C' --extract '*' means\n\t\t\t\t\
          for OCaml, extract everything in the A namespace only except A.B;\n\t\t\t\t\
-         for Kremlin, extract everything in the A namespace only except A.C;\n\t\t\t\t\
+         for krml, extract everything in the A namespace only except A.C;\n\t\t\t\t\
          for everything else, extract everything.\n\t\t\t\
          Note, the '+' is optional: --extract '+A' and --extract 'A' mean the same thing.\n\t\t\t\
          Note also that '--extract A' applies both to a module named 'A' and to any module in the 'A' namespace\n\t\t\
@@ -1257,11 +1255,6 @@ let rec specs_with_types warn_unsafe : list<(char * string * opt_type * string)>
            but at the cost of VC bloat, which may often be redundant.");
 
        ( noshort,
-        "__temp_no_proj",
-        Accumulated (SimpleStr "module_name"),
-        "Don't generate projectors for this module");
-
-       ( noshort,
         "__temp_fast_implicits",
         Const (Bool true),
         "Don't use this option yet");
@@ -1438,7 +1431,6 @@ let settable = function
     | "tactic_trace_d"
     | "tcnorm"
     | "__temp_fast_implicits"
-    | "__temp_no_proj"
     | "timing"
     | "trace_error"
     | "ugly"
@@ -1553,8 +1545,6 @@ let should_verify_file fn =
     should_verify (module_name_of_file_name fn)
 
 let module_name_eq m1 m2 = String.lowercase m1 = String.lowercase m2
-
-let dont_gen_projectors m = get___temp_no_proj() |> List.existsb (module_name_eq m)
 
 let should_print_message m =
     if should_verify m
@@ -1686,7 +1676,6 @@ let parse_settings ns : list<(list<string> * bool)> =
              |> List.map parse_one_setting) s)
              |> List.rev
 
-let __temp_no_proj               s  = get___temp_no_proj() |> List.contains s
 let __temp_fast_implicits        () = lookup_opt "__temp_fast_implicits" as_bool
 let admit_smt_queries            () = get_admit_smt_queries           ()
 let admit_except                 () = get_admit_except                ()
@@ -1694,13 +1683,13 @@ let cache_checked_modules        () = get_cache_checked_modules       ()
 let cache_off                    () = get_cache_off                   ()
 let print_cache_version          () = get_print_cache_version         ()
 let cmi                          () = get_cmi                         ()
-type codegen_t = | OCaml | FSharp | Kremlin | Plugin
+type codegen_t = | OCaml | FSharp | Krml | Plugin
 
 let parse_codegen =
   function
   | "OCaml" -> Some OCaml
   | "FSharp" -> Some FSharp
-  | "Kremlin" -> Some Kremlin
+  | "krml" -> Some Krml
   | "Plugin" -> Some Plugin
   | _ -> None
 
@@ -1708,7 +1697,7 @@ let print_codegen =
   function
   | OCaml -> "OCaml"
   | FSharp -> "FSharp"
-  | Kremlin -> "Kremlin"
+  | Krml -> "krml"
   | Plugin -> "Plugin"
 
 let codegen                      () =
@@ -1932,7 +1921,7 @@ let extract_settings
         | Some x -> [tgt,x]
       in
       {
-        target_specific_settings = List.collect merge_target [OCaml;FSharp;Kremlin;Plugin];
+        target_specific_settings = List.collect merge_target [OCaml;FSharp;Krml;Plugin];
         default_settings = merge_setting p0.default_settings p1.default_settings
       }
     in
