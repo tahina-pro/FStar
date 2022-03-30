@@ -124,6 +124,23 @@ open Steel.Effect.Common
 open Steel.ST.Util
 
 assume
+val exists_hack (#a:Type) (p:a -> vprop) : vprop
+
+[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_hack)]
+assume
+val cbs_equiv_core (a:Type) (x:a) (p: a -> vprop)
+  : Lemma
+    (ensures (p x `can_be_split` (exists_hack (fun x -> p x))))
+
+[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_hack)]
+assume
+val cbs_forall_dep_equiv_core (a:Type) (b:Type)
+                           (x:a) (cond:b -> prop)
+                           (p: b -> a -> vprop)
+  : Lemma
+    (ensures (fun (y:b) -> p y x) `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x)))
+
+assume
 val ptr : Type0
 
 assume
@@ -184,7 +201,6 @@ let free_correlate_alt (p q:ptr)
 assume
 val alloc (n:nat) : STT ptr emp (fun p -> pts_to p n)
 
-
 let construct () : STT ptr emp (fun p -> exists_hack (fun v -> pts_to p v)) =
   let p = alloc 17 in
   p
@@ -202,6 +218,7 @@ let construct_rev () : STT ptr emp (fun p -> exists_hack (fun v -> pts_to_rev v 
   p
 
 open Steel.ST.Reference
+assume
 val increment (#p:_) (#v:_) (x:ref int)
   : STT unit (pts_to x p v)
              (fun _ -> pts_to x p (v + 1))

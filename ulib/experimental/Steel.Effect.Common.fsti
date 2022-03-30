@@ -1907,12 +1907,13 @@ val solve_can_be_split_for (#a: Type u#b) : a -> Tot unit
 
 val solve_can_be_split_lookup : unit // FIXME: src/reflection/FStar.Reflection.Basic.lookup_attr only supports fvar attributes, so we cannot directly look up for (solve_can_be_split_for blabla), we need a nullary attribute to use with lookup_attr
 
-val exists_hack (#a:Type) (p:a -> vprop) : vprop
+let rec dismiss_all_but_last' (l: list goal) : Tac unit =
+  match l with 
+  | [] | [_] -> set_goals l
+  | _ :: q -> dismiss_all_but_last' q
 
-[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_hack)]
-val cbs_equiv_core (a:Type) (x:a) (p: a -> vprop)
-  : Lemma
-    (ensures (p x `can_be_split` (exists_hack (fun x -> p x))))
+let dismiss_all_but_last () : Tac unit =
+  dismiss_all_but_last' (goals ())
 
 let rec dismiss_non_head_goals' (head: term) (keep:list goal) (goals:list goal)
   : Tac unit
@@ -1963,11 +1964,20 @@ let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
   let candidates = lookup_attr label_attr e in
   lookup_by_term_attr' attr e [] candidates
 
+let dump_and_fail
+  (s: string)
+: Tac unit
+= print s;
+  dump s;
+  fail s
+
 let mapply_by_attr (label_attr: term) (attr: term) : Tac unit =
   let candidates = lookup_by_term_attr label_attr attr in
-  first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates)
+  print ("Candidates found for " ^ term_to_string attr ^ ": [" ^ String.concat ";" (List.Tot.map (fun fv -> String.concat "." (inspect_fv fv)) candidates) ^ "]");
+  first (List.Tot.map (fun candidate _ -> (fun _ -> mapply (Tv_FVar candidate)) `or_else` (fun _ -> dump_and_fail ("mapply_by_attr: cannot apply " ^ term_to_string (Tv_FVar candidate))) <: Tac unit) candidates)
 
-let rec extract_cbs_contexts
+let rec extract_contexts
+  (lemma_left lemma_right label_attr attr goal_head: term)
   (opened: (unit -> Tac unit) -> Tac unit)
   (t: term)
 : Tac (list (unit -> Tac unit))
@@ -1979,49 +1989,38 @@ let rec extract_cbs_contexts
     | (t_left, Q_Explicit) :: (t_right, Q_Explicit) :: [] ->
       let opened_left (k: unit -> Tac unit) : Tac unit =
         opened (fun _ ->
-          apply_lemma (`can_be_split_congr_l);
-          dismiss (); // vprop
+          (fun _ -> apply_lemma lemma_left) `or_else` (fun _ -> dump_and_fail "extract_contexts: apply_lemma lemma_left failed");
+          dismiss_all_but_last ();
           k ()
         )
       in
-      let res_left = extract_cbs_contexts opened_left t_left in
+      let res_left = extract_contexts lemma_left lemma_right label_attr attr goal_head opened_left t_left in
       let opened_right (k: unit -> Tac unit) : Tac unit =
         opened (fun _ ->
-          apply_lemma (`can_be_split_congr_r);
-          dismiss (); // vprop
+          (fun _ -> apply_lemma lemma_right) `or_else` (fun _ -> dump_and_fail "extract_contexts: apply_lemma lemma_right failed");
+          dismiss_all_but_last ();
           k ()
         )
       in
-      let res_right = extract_cbs_contexts opened_right t_right in
+      let res_right = extract_contexts lemma_left lemma_right label_attr attr goal_head opened_right t_right in
       res_left `List.Tot.append` res_right
     | _ -> []
   else
     // TODO: optimize and skip if lookup fails
+    let _ = print ("Need to find a candidate for: " ^ term_to_string hd) in
     [(fun _ ->
       opened (fun _ ->
-        mapply_by_attr (`solve_can_be_split_lookup) (mk_app (`solve_can_be_split_for) [hd, Q_Explicit]);
-        dismiss_non_head_goals (`can_be_split)
+        mapply_by_attr label_attr (mk_app attr [hd, Q_Explicit]);
+        dismiss_non_head_goals goal_head
       )
     )]
 
-
-let cbs_equiv (a:Type) (x:a) (lhs:vprop) (p: a -> vprop) (q r:vprop)
-  (h: squash (lhs `can_be_split` (p x `star` q `star` r)))
-: Tot (squash (lhs `can_be_split` (exists_hack (fun x -> p x) `star` q `star` r)))
-=
-  _ by (
-    first
-      (extract_cbs_contexts
-        (fun k ->
-          mapply (`can_be_split_trans_rev);
-          dismiss (); // vprop
-          split ();
-          focus k;
-          exact (quote h)
-        )
-        (quote (exists_hack (fun x -> p x) `star` q `star` r))
-      )
-  )
+let extract_cbs_contexts = extract_contexts
+  (`can_be_split_congr_l)
+  (`can_be_split_congr_r)
+  (`solve_can_be_split_lookup)
+  (`solve_can_be_split_for)
+  (`can_be_split)
 
 let try_open_existentials () : Tac bool
   =
@@ -2039,7 +2038,7 @@ let try_open_existentials () : Tac bool
                (extract_cbs_contexts
                  (fun k ->
                    mapply (`can_be_split_trans_rev);
-                   dismiss (); // vprop
+                   dismiss_all_but_last ();
                    split ();
                    focus k
                  )
@@ -2094,7 +2093,7 @@ let rec solve_can_be_split (args:list argv) : Tac bool =
           dump "About to open existential";
           let opened_some = try_open_existentials () in
           dump "After trying to open existential";
-          if opened_some then solve_can_be_split args // no further vprop uvar has been introduced anyway
+          if opened_some then solve_can_be_split args // we only need args for their number of uvars, which has not changed
           else false
       ) else false
   | _ -> false // Ill-formed can_be_split, should not happen
@@ -2172,70 +2171,75 @@ val solve_can_be_split_forall_dep_for (#a: Type u#b) : a -> Tot unit
 
 val solve_can_be_split_forall_dep_lookup : unit // FIXME: same as solve_can_be_split_for above
 
-[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_hack)]
-val cbs_forall_dep_equiv_core (a:Type) (b:Type)
-                           (x:a) (cond:b -> prop)
-                           (p: b -> a -> vprop)
-  : Lemma
-    (ensures (fun (y:b) -> p y x) `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x)))
-
-let cbs_forall_dep_equiv_1 (a:Type) (b:Type)
-                           (x:a) (cond:b -> prop)
-                           (lhs:b -> vprop)
-                           (p: b -> a -> vprop)
-                           (q: b -> vprop)
-    (h: squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p y x `star` q y)))
-: Tot (squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x) `star` q y)))
+let extract_cbs_forall_dep_contexts
+  (opened: (unit -> Tac unit) -> Tac unit)
+  (t: term)
+: Tac (list (unit -> Tac unit))
 =
-  _ by begin
-    mapply (`can_be_split_forall_dep_trans_rev);
-    dismiss (); // post_t b
-    split ();
-    focus (fun _ ->
-      apply_lemma (`can_be_split_forall_dep_congr_l);
-      dismiss (); // post_t b
-      mapply_by_attr (`solve_can_be_split_forall_dep_lookup) (`solve_can_be_split_forall_dep_for exists_hack);
-      dismiss_non_head_goals (`can_be_split_forall_dep)
-    );
-    exact (quote h)
-  end
+  print ("About to run extract_contexts on term: " ^ term_to_string t);
+  extract_contexts
+    (`can_be_split_forall_dep_congr_l)
+    (`can_be_split_forall_dep_congr_r)
+    (`solve_can_be_split_forall_dep_lookup)
+    (`solve_can_be_split_forall_dep_for)
+    (`can_be_split_forall_dep)
+    opened
+    t
 
-let cbs_forall_dep_equiv (a:Type) (b:Type)
-                          (x:a) (cond:b -> prop)
-                          (lhs:b -> vprop)
-                          (p: a -> vprop)
-                          (q r: b -> vprop)
-    (h: squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> p x `star` q y `star` r y)))
-: Tot
-    (squash (lhs `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p x) `star` q y `star` r y)))
+let try_open_existentials_forall_dep () : Tac bool
 =
-  _ by begin
-    mapply (`can_be_split_forall_dep_trans_rev);
-    dismiss (); // post_t b
-    split ();
-    focus (fun _ ->
-      apply_lemma (`can_be_split_forall_dep_congr_l);
-      dismiss (); // post_t b
-      apply_lemma (`can_be_split_forall_dep_congr_l);
-      dismiss (); // post_t b
-      mapply_by_attr (`solve_can_be_split_forall_dep_lookup) (`solve_can_be_split_forall_dep_for exists_hack);
-      dismiss_non_head_goals (`can_be_split_forall_dep)
-    );
-    exact (quote h)
-  end
-
-let try_open_existentials_forall_dep (args:list argv) : Tac bool
-  = try
-     dump "Trying to apply open_existentials_forall_dep";
      focus (fun _ ->
-       or_else
-         (fun () -> mapply (`cbs_forall_dep_equiv))
-         (fun () -> mapply (`cbs_forall_dep_equiv_1));
-       dismiss_non_head_goals (`can_be_split_forall_dep);
-       true)
-    with
-    | _ -> false
-
+                 norm
+                       [delta_only [
+                         `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit;
+                         `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__mult;
+                         `%rm;
+                       ];
+                       iota];
+                     dump "In try_open_existentials_forall_dep";
+       let t0 = cur_goal () in
+       print ("In try_open_existentials_forall_dep on goal: " ^ term_to_string t0);
+       match collect_app t0 with
+       | _ (* squash/auto_squash *) , (t1, Q_Explicit) :: [] ->
+         let hd, tl = collect_app t1 in
+         if hd `term_eq` (`can_be_split_forall_dep)
+         then
+           match tl with
+           | _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: []
+           | (_, Q_Implicit) (* #a *) :: _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
+             begin match inspect rhs with
+             | Tv_Abs _ body ->
+               begin try
+                 dump "About to call extract_cbs_forall_dep_contexts";
+                 first
+                 (extract_cbs_forall_dep_contexts
+                   (fun k ->
+                     (fun _ -> mapply (`can_be_split_forall_dep_trans_rev)) `or_else` (fun _ -> dump_and_fail "Cannot apply can_be_split_forall_dep_trans_rev");
+                     dump "Body after can_be_split_forall_dep_trans_rev";
+                     dismiss_all_but_last (); // vprop
+                     split ();
+                     dump "forall_dep_contexts";
+                     focus k
+                   )
+                   body
+                 );
+                 true
+                 with _ ->
+                  print "No working candidates in try_open_existentials_forall_dep";
+                  false
+               end
+             | _ ->
+               print "No match on abstraction rhs in try_open_existentials_forall_dep";
+               false
+             end
+           | _ ->
+             print "No match on arguments to can_be_split_forall_dep in try_open_existentials_forall_dep";
+             false
+         else
+           let _ = print "No match on can_be_split_forall_dep in try_open_existentials_forall_dep" in
+           false
+       | _ -> false
+     )
 
 /// Solves a can_be_split_forall_dep constraint
 let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
@@ -2274,9 +2278,9 @@ let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
          true
        with
        | _ ->
-         let opened = try_open_existentials_forall_dep args in
+         let opened = try_open_existentials_forall_dep () in
          if opened
-         then solve_can_be_split_forall_dep args
+         then solve_can_be_split_forall_dep args // we only need args for their number of uvars, which has not changed
          else false
       ) else false
 
