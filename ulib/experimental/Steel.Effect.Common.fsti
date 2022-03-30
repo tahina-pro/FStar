@@ -1964,10 +1964,6 @@ let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
   let candidates = lookup_attr label_attr e in
   lookup_by_term_attr' attr e [] candidates
 
-let mapply_by_attr (label_attr: term) (attr: term) : Tac unit =
-  let candidates = lookup_by_term_attr label_attr attr in
-  first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates)
-
 let rec extract_contexts
   (lemma_left lemma_right label_attr attr goal_head: term)
   (opened: (unit -> Tac unit) -> Tac unit)
@@ -1998,13 +1994,16 @@ let rec extract_contexts
       res_left `List.Tot.append` res_right
     | _ -> []
   else
-    // TODO: optimize and skip if lookup fails
-    [(fun _ ->
-      opened (fun _ ->
-        mapply_by_attr label_attr (mk_app attr [hd, Q_Explicit]);
-        dismiss_non_head_goals goal_head
-      )
-    )]
+    let candidates = lookup_by_term_attr label_attr (mk_app attr [hd, Q_Explicit]) in
+    if Nil? candidates
+    then []
+    else
+      [(fun _ ->
+        opened (fun _ ->
+          first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates);
+          dismiss_non_head_goals goal_head
+        )
+      )]
 
 let extract_cbs_contexts = extract_contexts
   (`can_be_split_congr_l)
