@@ -1966,44 +1966,49 @@ let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
 
 let rec extract_contexts
   (lemma_left lemma_right label_attr attr goal_head: term)
-  (opened: (unit -> Tac unit) -> Tac unit)
   (t: term)
-: Tac (list (unit -> Tac unit))
+: Tac (option (unit -> Tac unit))
 =
   let hd, tl = collect_app t in
   if hd `term_eq` (`star) || hd `term_eq` (`VStar)
   then
     match tl with
     | (t_left, Q_Explicit) :: (t_right, Q_Explicit) :: [] ->
-      let opened_left (k: unit -> Tac unit) : Tac unit =
-        opened (fun _ ->
-          apply_lemma lemma_left;
-          dismiss_all_but_last ();
-          k ()
-        )
+      let extract_right () : Tac (option (unit -> Tac unit)) =
+        match extract_contexts lemma_left lemma_right label_attr attr goal_head t_right with
+        | None -> None
+        | Some f ->
+          Some (fun _ ->
+            apply_lemma lemma_right;
+            dismiss_all_but_last ();
+            f ()
+          )
       in
-      let res_left = extract_contexts lemma_left lemma_right label_attr attr goal_head opened_left t_left in
-      let opened_right (k: unit -> Tac unit) : Tac unit =
-        opened (fun _ ->
-          apply_lemma lemma_right;
-          dismiss_all_but_last ();
-          k ()
+      begin match extract_contexts lemma_left lemma_right label_attr attr goal_head t_left with
+      | None -> extract_right ()
+      | Some f ->
+        Some (fun _ ->
+          try
+            apply_lemma lemma_left;
+            dismiss_all_but_last ();
+            f ()
+          with _ ->
+            begin match extract_right () with
+            | None -> fail "no context on the right either"
+            | Some g -> g ()
+            end
         )
-      in
-      let res_right = extract_contexts lemma_left lemma_right label_attr attr goal_head opened_right t_right in
-      res_left `List.Tot.append` res_right
-    | _ -> []
+      end
+    | _ -> None
   else
     let candidates = lookup_by_term_attr label_attr (mk_app attr [hd, Q_Explicit]) in
     if Nil? candidates
-    then []
+    then None
     else
-      [(fun _ ->
-        opened (fun _ ->
-          first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates);
-          dismiss_non_head_goals goal_head
-        )
-      )]
+      Some (fun _ ->
+        first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates);
+        dismiss_non_head_goals goal_head
+      )
 
 let extract_cbs_contexts = extract_contexts
   (`can_be_split_congr_l)
@@ -2023,20 +2028,19 @@ let try_open_existentials () : Tac bool
          then
            match tl with
            | _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
-           begin try
-             first
-               (extract_cbs_contexts
-                 (fun k ->
-                   mapply (`can_be_split_trans_rev);
-                   dismiss_all_but_last ();
-                   split ();
-                   focus k
-                 )
-                 rhs
-               );
-             true
-           with _ -> false
-           end
+             begin match extract_cbs_contexts rhs with
+             | None -> false
+             | Some f ->
+               begin try
+                 mapply (`can_be_split_trans_rev);
+                 dismiss_all_but_last ();
+                 split ();
+                 focus f;
+                 true
+               with
+               | _ -> false
+               end
+             end
            | _ -> false
          else
            false
@@ -2160,9 +2164,6 @@ val solve_can_be_split_forall_dep_for (#a: Type u#b) : a -> Tot unit
 val solve_can_be_split_forall_dep_lookup : unit // FIXME: same as solve_can_be_split_for above
 
 let extract_cbs_forall_dep_contexts
-  (opened: (unit -> Tac unit) -> Tac unit)
-  (t: term)
-: Tac (list (unit -> Tac unit))
 =
   extract_contexts
     (`can_be_split_forall_dep_congr_l)
@@ -2170,8 +2171,6 @@ let extract_cbs_forall_dep_contexts
     (`solve_can_be_split_forall_dep_lookup)
     (`solve_can_be_split_forall_dep_for)
     (`can_be_split_forall_dep)
-    opened
-    t
 
 let open_existentials_forall_dep () : Tac unit
 =
@@ -2194,16 +2193,14 @@ let open_existentials_forall_dep () : Tac unit
       | (_, Q_Implicit) (* #a *) :: _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
         begin match inspect rhs with
         | Tv_Abs _ body ->
-          first
-            (extract_cbs_forall_dep_contexts
-              (fun k ->
-                mapply (`can_be_split_forall_dep_trans_rev);
-                dismiss_all_but_last ();
-                split ();
-                focus k
-              )
-              body
-            )
+          begin match extract_cbs_forall_dep_contexts body with
+          | None -> fail "open_existentials_forall_dep: no candidate"
+          | Some f ->
+            mapply (`can_be_split_forall_dep_trans_rev);
+            dismiss_all_but_last ();
+            split ();
+            focus f
+          end
         | _ -> fail "open_existentials_forall_dep : not an abstraction"
         end
       | _ -> fail "open_existentials_forall_dep : wrong number of arguments to can_be_split_forall_dep"
