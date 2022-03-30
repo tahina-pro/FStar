@@ -1964,17 +1964,9 @@ let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
   let candidates = lookup_attr label_attr e in
   lookup_by_term_attr' attr e [] candidates
 
-let dump_and_fail
-  (s: string)
-: Tac unit
-= print s;
-  dump s;
-  fail s
-
 let mapply_by_attr (label_attr: term) (attr: term) : Tac unit =
   let candidates = lookup_by_term_attr label_attr attr in
-  print ("Candidates found for " ^ term_to_string attr ^ ": [" ^ String.concat ";" (List.Tot.map (fun fv -> String.concat "." (inspect_fv fv)) candidates) ^ "]");
-  first (List.Tot.map (fun candidate _ -> (fun _ -> mapply (Tv_FVar candidate)) `or_else` (fun _ -> dump_and_fail ("mapply_by_attr: cannot apply " ^ term_to_string (Tv_FVar candidate))) <: Tac unit) candidates)
+  first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates)
 
 let rec extract_contexts
   (lemma_left lemma_right label_attr attr goal_head: term)
@@ -1989,7 +1981,7 @@ let rec extract_contexts
     | (t_left, Q_Explicit) :: (t_right, Q_Explicit) :: [] ->
       let opened_left (k: unit -> Tac unit) : Tac unit =
         opened (fun _ ->
-          (fun _ -> apply_lemma lemma_left) `or_else` (fun _ -> dump_and_fail "extract_contexts: apply_lemma lemma_left failed");
+          apply_lemma lemma_left;
           dismiss_all_but_last ();
           k ()
         )
@@ -1997,7 +1989,7 @@ let rec extract_contexts
       let res_left = extract_contexts lemma_left lemma_right label_attr attr goal_head opened_left t_left in
       let opened_right (k: unit -> Tac unit) : Tac unit =
         opened (fun _ ->
-          (fun _ -> apply_lemma lemma_right) `or_else` (fun _ -> dump_and_fail "extract_contexts: apply_lemma lemma_right failed");
+          apply_lemma lemma_right;
           dismiss_all_but_last ();
           k ()
         )
@@ -2007,7 +1999,6 @@ let rec extract_contexts
     | _ -> []
   else
     // TODO: optimize and skip if lookup fails
-    let _ = print ("Need to find a candidate for: " ^ term_to_string hd) in
     [(fun _ ->
       opened (fun _ ->
         mapply_by_attr label_attr (mk_app attr [hd, Q_Explicit]);
@@ -2090,9 +2081,7 @@ let rec solve_can_be_split (args:list argv) : Tac bool =
            true
         with
         | _ ->
-          dump "About to open existential";
           let opened_some = try_open_existentials () in
-          dump "After trying to open existential";
           if opened_some then solve_can_be_split args // we only need args for their number of uvars, which has not changed
           else false
       ) else false
@@ -2176,7 +2165,6 @@ let extract_cbs_forall_dep_contexts
   (t: term)
 : Tac (list (unit -> Tac unit))
 =
-  print ("About to run extract_contexts on term: " ^ term_to_string t);
   extract_contexts
     (`can_be_split_forall_dep_congr_l)
     (`can_be_split_forall_dep_congr_r)
@@ -2186,60 +2174,53 @@ let extract_cbs_forall_dep_contexts
     opened
     t
 
+let open_existentials_forall_dep () : Tac unit
+=
+  norm [
+    delta_only [
+    `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit;
+    `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__mult;
+    `%rm;
+    ];
+    iota;
+  ];
+  let t0 = cur_goal () in
+  match collect_app t0 with
+  | _ (* squash/auto_squash *) , (t1, Q_Explicit) :: [] ->
+    let hd, tl = collect_app t1 in
+    if hd `term_eq` (`can_be_split_forall_dep)
+    then
+      match tl with
+      | _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: []
+      | (_, Q_Implicit) (* #a *) :: _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
+        begin match inspect rhs with
+        | Tv_Abs _ body ->
+          first
+            (extract_cbs_forall_dep_contexts
+              (fun k ->
+                mapply (`can_be_split_forall_dep_trans_rev);
+                dismiss_all_but_last ();
+                split ();
+                focus k
+              )
+              body
+            )
+        | _ -> fail "open_existentials_forall_dep : not an abstraction"
+        end
+      | _ -> fail "open_existentials_forall_dep : wrong number of arguments to can_be_split_forall_dep"
+    else
+      fail "open_existentials_forall_dep : not a can_be_split_forall_dep goal"
+  | _ ->
+    fail "open_existentials_forall_dep : not a squash/auto_squash goal"
+
 let try_open_existentials_forall_dep () : Tac bool
 =
-     focus (fun _ ->
-                 norm
-                       [delta_only [
-                         `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit;
-                         `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__mult;
-                         `%rm;
-                       ];
-                       iota];
-                     dump "In try_open_existentials_forall_dep";
-       let t0 = cur_goal () in
-       print ("In try_open_existentials_forall_dep on goal: " ^ term_to_string t0);
-       match collect_app t0 with
-       | _ (* squash/auto_squash *) , (t1, Q_Explicit) :: [] ->
-         let hd, tl = collect_app t1 in
-         if hd `term_eq` (`can_be_split_forall_dep)
-         then
-           match tl with
-           | _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: []
-           | (_, Q_Implicit) (* #a *) :: _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
-             begin match inspect rhs with
-             | Tv_Abs _ body ->
-               begin try
-                 dump "About to call extract_cbs_forall_dep_contexts";
-                 first
-                 (extract_cbs_forall_dep_contexts
-                   (fun k ->
-                     (fun _ -> mapply (`can_be_split_forall_dep_trans_rev)) `or_else` (fun _ -> dump_and_fail "Cannot apply can_be_split_forall_dep_trans_rev");
-                     dump "Body after can_be_split_forall_dep_trans_rev";
-                     dismiss_all_but_last (); // vprop
-                     split ();
-                     dump "forall_dep_contexts";
-                     focus k
-                   )
-                   body
-                 );
-                 true
-                 with _ ->
-                  print "No working candidates in try_open_existentials_forall_dep";
-                  false
-               end
-             | _ ->
-               print "No match on abstraction rhs in try_open_existentials_forall_dep";
-               false
-             end
-           | _ ->
-             print "No match on arguments to can_be_split_forall_dep in try_open_existentials_forall_dep";
-             false
-         else
-           let _ = print "No match on can_be_split_forall_dep in try_open_existentials_forall_dep" in
-           false
-       | _ -> false
-     )
+  focus (fun _ ->
+    try
+      open_existentials_forall_dep ();
+      true
+    with _ -> false
+  )
 
 /// Solves a can_be_split_forall_dep constraint
 let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
@@ -2622,8 +2603,6 @@ let init_resolve_tac () : Tac unit =
   // See test7 in FramingTestSuite for more explanations of what is failing
   // Once unification has been done, we can then safely normalize and remove all return_pre
   norm_return_pre (goals());
-
-  dump "About to enter resolve_tac";
 
   // Finally running the core of the tactic, scheduling and solving goals
   resolve_tac ();
