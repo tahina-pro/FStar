@@ -1967,33 +1967,92 @@ let mapply_by_attr (label_attr: term) (attr: term) : Tac unit =
   let candidates = lookup_by_term_attr label_attr attr in
   first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates)
 
+let rec extract_cbs_contexts
+  (opened: (unit -> Tac unit) -> Tac unit)
+  (t: term)
+: Tac (list (unit -> Tac unit))
+=
+  let hd, tl = collect_app t in
+  if hd `term_eq` (`star) || hd `term_eq` (`VStar)
+  then
+    match tl with
+    | (t_left, Q_Explicit) :: (t_right, Q_Explicit) :: [] ->
+      let opened_left (k: unit -> Tac unit) : Tac unit =
+        opened (fun _ ->
+          apply_lemma (`can_be_split_congr_l);
+          dismiss (); // vprop
+          k ()
+        )
+      in
+      let res_left = extract_cbs_contexts opened_left t_left in
+      let opened_right (k: unit -> Tac unit) : Tac unit =
+        opened (fun _ ->
+          apply_lemma (`can_be_split_congr_r);
+          dismiss (); // vprop
+          k ()
+        )
+      in
+      let res_right = extract_cbs_contexts opened_right t_right in
+      res_left `List.Tot.append` res_right
+    | _ -> []
+  else
+    // TODO: optimize and skip if lookup fails
+    [(fun _ ->
+      opened (fun _ ->
+        mapply_by_attr (`solve_can_be_split_lookup) (mk_app (`solve_can_be_split_for) [hd, Q_Explicit]);
+        dismiss_non_head_goals (`can_be_split)
+      )
+    )]
+
+
 let cbs_equiv (a:Type) (x:a) (lhs:vprop) (p: a -> vprop) (q r:vprop)
   (h: squash (lhs `can_be_split` (p x `star` q `star` r)))
 : Tot (squash (lhs `can_be_split` (exists_hack (fun x -> p x) `star` q `star` r)))
 =
-  _ by begin
-    mapply (`can_be_split_trans_rev);
-    dismiss (); // vprop
-    split ();
-    focus (fun _ ->
-      apply_lemma (`can_be_split_congr_l);
-      dismiss (); // vprop
-      apply_lemma (`can_be_split_congr_l);
-      dismiss (); // vprop
-      mapply_by_attr (`solve_can_be_split_lookup) (`solve_can_be_split_for exists_hack);
-      dismiss_non_head_goals (`can_be_split)
-    );
-    exact (quote h)
-  end
+  _ by (
+    first
+      (extract_cbs_contexts
+        (fun k ->
+          mapply (`can_be_split_trans_rev);
+          dismiss (); // vprop
+          split ();
+          focus k;
+          exact (quote h)
+        )
+        (quote (exists_hack (fun x -> p x) `star` q `star` r))
+      )
+  )
 
-let try_open_existentials (args:list argv) : Tac bool
-  = try
+let try_open_existentials () : Tac bool
+  =
      focus (fun _ ->
-       mapply (`cbs_equiv) ;
-       dismiss_non_head_goals (`can_be_split);
-       true)
-    with
-    | _ -> false
+       let t0 = cur_goal () in
+       match collect_app t0 with
+       | _ (* squash/auto_squash *) , (t1, Q_Explicit) :: [] ->
+         let hd, tl = collect_app t1 in
+         if hd `term_eq` (`can_be_split)
+         then
+           match tl with
+           | _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
+           begin try
+             first
+               (extract_cbs_contexts
+                 (fun k ->
+                   mapply (`can_be_split_trans_rev);
+                   dismiss (); // vprop
+                   split ();
+                   focus k
+                 )
+                 rhs
+               );
+             true
+           with _ -> false
+           end
+           | _ -> false
+         else
+           false
+       | _ -> false
+     )
 
 (* Solving the can_be_split* constraints, if they are ready to be scheduled
    A constraint is deemed ready to be scheduled if it contains only one vprop unification variable
@@ -2033,9 +2092,9 @@ let rec solve_can_be_split (args:list argv) : Tac bool =
         with
         | _ ->
           dump "About to open existential";
-          let opened_some = try_open_existentials args in
+          let opened_some = try_open_existentials () in
           dump "After trying to open existential";
-          if opened_some then solve_can_be_split args
+          if opened_some then solve_can_be_split args // no further vprop uvar has been introduced anyway
           else false
       ) else false
   | _ -> false // Ill-formed can_be_split, should not happen

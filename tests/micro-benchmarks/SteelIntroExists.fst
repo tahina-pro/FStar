@@ -145,11 +145,12 @@ val free (p:ptr) : STT unit (exists_hack (fun v -> pts_to p v)) (fun _ -> emp)
 // //  = let _ = intro_exists_f 17 _  in
 // //    free p
 // //#push-options "--tactic_trace_d 1"
-// let free_one (p q r:ptr)
-//   : STT unit
-//     (pts_to p 17 `star` pts_to q 18 `star` pts_to r 19)
-//     (fun _ -> pts_to p 17 `star` pts_to r 19)
-//  = let _ = free q in ()
+
+let free_one (p q r:ptr)
+  : STT unit
+    (pts_to p 17 `star` pts_to q 18 `star` pts_to r 19)
+    (fun _ -> pts_to p 17 `star` pts_to r 19)
+ = let _ = free q in ()
 
 assume
 val free2 (p q:ptr) : STT unit (exists_hack (fun v -> pts_to p v) `star`
@@ -163,22 +164,22 @@ let free_two (p q r:ptr)
     (fun _ -> pts_to r 19)
  = free p; free q; ()
 
-// assume
-// val correlate (p q:ptr) : STT unit (exists_hack (fun v -> pts_to p v `star` pts_to q v))
-//                                    (fun _ -> emp)
+assume
+val correlate (p q:ptr) : STT unit (exists_hack (fun v -> pts_to p v `star` pts_to q v))
+                                   (fun _ -> emp)
 
-// let free_correlate (p q:ptr)
-//   : STT unit
-//     (pts_to q 17 `star` pts_to p 17)
-//     (fun _ -> emp)
-//  = correlate p q; ()
+let free_correlate (p q:ptr)
+  : STT unit
+    (pts_to q 17 `star` pts_to p 17)
+    (fun _ -> emp)
+ = correlate p q; ()
 
 
-// let free_correlate_alt (p q:ptr)
-//   : STT unit
-//     (pts_to p 17 `star` pts_to q 17)
-//     (fun _ -> emp)
-//  = correlate p q; ()
+let free_correlate_alt (p q:ptr)
+  : STT unit
+    (pts_to p 17 `star` pts_to q 17)
+    (fun _ -> emp)
+ = correlate p q; ()
 
 assume
 val alloc (n:nat) : STT ptr emp (fun p -> pts_to p n)
