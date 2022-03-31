@@ -231,6 +231,17 @@ let test_exists_intro_pure
   write p 18;
   ()
 
+let test_exists_intro_pure'
+  (p: ptr)
+  (i:nat)
+: STT unit (exists_ (fun n -> pts_to p n)) (fun _ -> exists_ (fun n -> pts_to p n `star` pure (n == 18)))
+= if i = 18
+  then
+    let h : squash (i == 18) = () in
+    let _ = write p i in
+    ()
+  else let _ = write p 18 in ()
+
 let test_intro_pure
   (x: int)
   (sq: squash (x == 18))
@@ -238,6 +249,32 @@ let test_intro_pure
 = 
   let _ = () in
   return ()
+
+let ifthenelse
+  (#p: vprop)
+  (#t: Type)
+  (#q: t -> vprop)
+  (cond: bool)
+  (iftrue: squash (cond == true) -> STT t p q)
+  (iffalse: squash (cond == false) -> STT t p q)
+: STT t p q
+= if cond
+  then iftrue ()
+  else iffalse ()
+
+let test_exists_intro_pure''
+  (p: ptr)
+  (i:nat)
+: STT unit (exists_ (fun n -> pts_to p n)) (fun _ -> exists_ (fun n -> pts_to p n `star` pure (n == 18)))
+= ifthenelse (i = 18)
+  (fun _ ->
+    write p i;
+    ()
+  )
+  (fun _ ->
+    write p 18;
+    ()
+  )
 
 let test_intro_pure'
   (x: int)
