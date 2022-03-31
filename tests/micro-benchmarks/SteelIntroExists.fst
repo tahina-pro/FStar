@@ -123,22 +123,11 @@ module SteelIntroExists
 open Steel.Effect.Common
 open Steel.ST.Util
 
-assume
-val exists_hack (#a:Type) (p:a -> vprop) : vprop
+[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_)]
+let _intro_can_be_split_exists = intro_can_be_split_exists
 
-[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_hack)]
-assume
-val cbs_equiv_core (a:Type) (x:a) (p: a -> vprop)
-  : Lemma
-    (ensures (p x `can_be_split` (exists_hack (fun x -> p x))))
-
-[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_hack)]
-assume
-val cbs_forall_dep_equiv_core (a:Type) (b:Type)
-                           (x:a) (cond:b -> prop)
-                           (p: b -> a -> vprop)
-  : Lemma
-    (ensures (fun (y:b) -> p y x) `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_hack (fun x -> p y x)))
+[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_)]
+let _intro_can_be_split_forall_dep_exists = intro_can_be_split_forall_dep_exists
 
 assume
 val ptr : Type0
@@ -147,11 +136,11 @@ assume
 val pts_to (p:ptr) (v:nat) : vprop
 
 assume
-val free (p:ptr) : STT unit (exists_hack (fun v -> pts_to p v)) (fun _ -> emp)
+val free (p:ptr) : STT unit (exists_ (fun v -> pts_to p v)) (fun _ -> emp)
 
 // assume
 // val intro_exists_f (#a:Type) (#opened_invariants:_) (x:a) (p:a -> vprop)
-//   : STGhostF unit opened_invariants (p x) (fun _ -> exists_hack (fun v -> p v)) (True) (fun _ -> True)
+//   : STGhostF unit opened_invariants (p x) (fun _ -> exists_ (fun v -> p v)) (True) (fun _ -> True)
 
 
 // // [@@expect_failure] //we incorrectly pick a too-specific solution failing to generalize over the witness
@@ -170,8 +159,8 @@ let free_one (p q r:ptr)
  = let _ = free q in ()
 
 assume
-val free2 (p q:ptr) : STT unit (exists_hack (fun v -> pts_to p v) `star`
-                                exists_hack (fun v -> pts_to q v))
+val free2 (p q:ptr) : STT unit (exists_ (fun v -> pts_to p v) `star`
+                                exists_ (fun v -> pts_to q v))
                                (fun _ -> emp)
 
 
@@ -182,7 +171,7 @@ let free_two (p q r:ptr)
  = free p; free q; ()
 
 assume
-val correlate (p q:ptr) : STT unit (exists_hack (fun v -> pts_to p v `star` pts_to q v))
+val correlate (p q:ptr) : STT unit (exists_ (fun v -> pts_to p v `star` pts_to q v))
                                    (fun _ -> emp)
 
 let free_correlate (p q:ptr)
@@ -201,7 +190,7 @@ let free_correlate_alt (p q:ptr)
 assume
 val alloc (n:nat) : STT ptr emp (fun p -> pts_to p n)
 
-let construct () : STT ptr emp (fun p -> exists_hack (fun v -> pts_to p v)) =
+let construct () : STT ptr emp (fun p -> exists_ (fun v -> pts_to p v)) =
   let p = alloc 17 in
   p
 
@@ -213,7 +202,7 @@ assume
 val alloc_rev (n:nat) : STT ptr emp (fun p -> pts_to_rev n p)
 
 
-let construct_rev () : STT ptr emp (fun p -> exists_hack (fun v -> pts_to_rev v p)) =
+let construct_rev () : STT ptr emp (fun p -> exists_ (fun v -> pts_to_rev v p)) =
   let p = alloc_rev 17 in
   p
 

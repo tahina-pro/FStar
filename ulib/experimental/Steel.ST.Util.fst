@@ -64,6 +64,26 @@ let exists_ (#a:Type u#a) (p:a -> vprop)
   : vprop
   = SEA.h_exists p
 
+let intro_can_be_split_exists
+  a x p
+=
+  SEA.reveal_can_be_split ();
+  Classical.forall_intro (Steel.Memory.intro_h_exists x (SEA.h_exists_sl' (fun x -> p x)))
+
+// TODO: generate this via a generic tactic,
+// since can_be_split_forall_dep is transparently defined on top of can_be_split
+let intro_can_be_split_forall_dep_exists
+  a b x cond p
+=
+  let prf
+    (y: b)
+  : Lemma
+    (cond y ==> p y x `can_be_split` exists_ (fun x -> p y x))
+  =
+    intro_can_be_split_exists a x (p y)
+  in
+  Classical.forall_intro prf
+
 /// Introducing an existential if the predicate [p] currently holds for value [x]
 let intro_exists #a #o x p
   = coerce_ghost (fun _ -> SEA.intro_exists x p)
