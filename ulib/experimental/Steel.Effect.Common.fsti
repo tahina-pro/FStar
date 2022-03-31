@@ -1963,6 +1963,16 @@ let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
   let candidates = lookup_attr label_attr e in
   lookup_by_term_attr' attr e [] candidates
 
+let rec bring_last_goal_on_top' (others: list goal) (goals: list goal) : Tac unit =
+  match goals with
+  | [] -> set_goals (List.Tot.rev others)
+  | last :: [] -> set_goals (last :: List.Tot.rev others)
+  | a :: q -> bring_last_goal_on_top' (a :: others) q
+
+let bring_last_goal_on_top () =
+  let g = goals () in
+  bring_last_goal_on_top' [] g
+
 let rec extract_contexts
   (lemma_left lemma_right label_attr attr: term)
   (t: term)
@@ -2034,6 +2044,7 @@ let try_open_existentials () : Tac bool
                  dismiss_all_but_last ();
                  split ();
                  focus f;
+                 bring_last_goal_on_top (); // so that any preconditions for the selected lemma are scheduled for later
                  true
                with
                | _ -> false
@@ -2196,7 +2207,8 @@ let open_existentials_forall_dep () : Tac unit
             mapply (`can_be_split_forall_dep_trans_rev);
             dismiss_all_but_last ();
             split ();
-            focus f
+            focus f;
+            bring_last_goal_on_top ()
           end
         | _ -> fail "open_existentials_forall_dep : not an abstraction"
         end

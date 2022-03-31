@@ -194,6 +194,8 @@ let construct () : STT ptr emp (fun p -> exists_ (fun v -> pts_to p v)) =
   let p = alloc 17 in
   p
 
+assume
+val write (p: ptr) (n: nat) : STT unit (exists_ (fun n' -> pts_to p n')) (fun _ -> pts_to p n)
 
 assume
 val pts_to_rev (n:nat) (p:ptr) : vprop
@@ -206,8 +208,32 @@ let construct_rev () : STT ptr emp (fun p -> exists_ (fun v -> pts_to_rev v p)) 
   let p = alloc_rev 17 in
   p
 
-open Steel.ST.Reference
+[@@solve_can_be_split_lookup; (solve_can_be_split_for pure)]
 assume
-val increment (#p:_) (#v:_) (x:ref int)
-  : STT unit (pts_to x p v)
-             (fun _ -> pts_to x p (v + 1))
+val intro_can_be_split_pure
+  (p: prop)
+  (sq: squash p)
+: Tot (squash (emp `can_be_split` pure p))
+
+[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
+let intro_can_be_split_forall_dep_pure
+  (p: prop)
+  (sq: squash p)
+  (a: Type)
+  (cond: a -> Tot prop)
+: Tot (squash (can_be_split_forall_dep cond (fun _ -> emp) (fun _ -> pure p)))
+= intro_can_be_split_pure p sq
+
+let test_intro_pure
+  (x: int)
+: ST unit emp (fun _ -> pure (x == 18)) (requires (x == 18)) (ensures (fun _ -> True))
+= 
+  let _ = () in
+  return ()
+
+let test_exists_intro_pure
+  (p: ptr)
+: STT unit (exists_ (fun n -> pts_to p n)) (fun _ -> exists_ (fun n -> pts_to p n `star` pure (n == 18)))
+=
+  write p 18;
+  ()
