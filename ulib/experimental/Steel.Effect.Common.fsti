@@ -1915,25 +1915,24 @@ let rec dismiss_all_but_last' (l: list goal) : Tac unit =
 let dismiss_all_but_last () : Tac unit =
   dismiss_all_but_last' (goals ())
 
-let rec dismiss_non_head_goals' (head: term) (keep:list goal) (goals:list goal)
+let rec dismiss_non_squash_goals' (keep:list goal) (goals:list goal)
   : Tac unit
   = match goals with
     | [] -> set_goals (List.Tot.rev keep)
     | hd :: tl ->
      let f = term_as_formula' (goal_type hd) in
      match f with
-     | App  _ t ->
-       let cbs, _ = collect_app t in
-       if term_eq cbs head
-       then dismiss_non_head_goals' head (hd::keep) tl
-       else dismiss_non_head_goals' head keep tl
+     | App hs _ ->
+       if hs `term_eq` (`squash) || hs `term_eq` (`auto_squash)
+       then dismiss_non_squash_goals' (hd::keep) tl
+       else dismiss_non_squash_goals' keep tl
 
      | _ ->
-       dismiss_non_head_goals' head keep tl
+       dismiss_non_squash_goals' keep tl
 
-let dismiss_non_head_goals (head: term) =
+let dismiss_non_squash_goals () =
   let g = goals () in
-  dismiss_non_head_goals' head [] g
+  dismiss_non_squash_goals' [] g
 
 let rec term_mem (te: term) (l: list term) : Tot bool =
   match l with
@@ -1965,7 +1964,7 @@ let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
   lookup_by_term_attr' attr e [] candidates
 
 let rec extract_contexts
-  (lemma_left lemma_right label_attr attr goal_head: term)
+  (lemma_left lemma_right label_attr attr: term)
   (t: term)
 : Tac (option (unit -> Tac unit))
 =
@@ -1975,7 +1974,7 @@ let rec extract_contexts
     match tl with
     | (t_left, Q_Explicit) :: (t_right, Q_Explicit) :: [] ->
       let extract_right () : Tac (option (unit -> Tac unit)) =
-        match extract_contexts lemma_left lemma_right label_attr attr goal_head t_right with
+        match extract_contexts lemma_left lemma_right label_attr attr t_right with
         | None -> None
         | Some f ->
           Some (fun _ ->
@@ -1984,7 +1983,7 @@ let rec extract_contexts
             f ()
           )
       in
-      begin match extract_contexts lemma_left lemma_right label_attr attr goal_head t_left with
+      begin match extract_contexts lemma_left lemma_right label_attr attr t_left with
       | None -> extract_right ()
       | Some f ->
         Some (fun _ ->
@@ -2007,7 +2006,7 @@ let rec extract_contexts
     else
       Some (fun _ ->
         first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates);
-        dismiss_non_head_goals goal_head
+        dismiss_non_squash_goals ()
       )
 
 let extract_cbs_contexts = extract_contexts
@@ -2015,7 +2014,6 @@ let extract_cbs_contexts = extract_contexts
   (`can_be_split_congr_r)
   (`solve_can_be_split_lookup)
   (`solve_can_be_split_for)
-  (`can_be_split)
 
 let try_open_existentials () : Tac bool
   =
@@ -2170,7 +2168,6 @@ let extract_cbs_forall_dep_contexts
     (`can_be_split_forall_dep_congr_r)
     (`solve_can_be_split_forall_dep_lookup)
     (`solve_can_be_split_forall_dep_for)
-    (`can_be_split_forall_dep)
 
 let open_existentials_forall_dep () : Tac unit
 =
