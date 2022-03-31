@@ -224,16 +224,25 @@ let intro_can_be_split_forall_dep_pure
 : Tot (squash (can_be_split_forall_dep cond (fun _ -> emp) (fun _ -> pure p)))
 = intro_can_be_split_pure p sq
 
-let test_intro_pure
-  (x: int)
-: ST unit emp (fun _ -> pure (x == 18)) (requires (x == 18)) (ensures (fun _ -> True))
-= 
-  let _ = () in
-  return ()
-
 let test_exists_intro_pure
   (p: ptr)
 : STT unit (exists_ (fun n -> pts_to p n)) (fun _ -> exists_ (fun n -> pts_to p n `star` pure (n == 18)))
 =
   write p 18;
   ()
+
+let test_intro_pure
+  (x: int)
+  (sq: squash (x == 18))
+: STT unit emp (fun _ -> pure (x == 18))
+= 
+  let _ = () in
+  return ()
+
+let test_intro_pure'
+  (x: int)
+: ST unit emp (fun _ -> pure (x == 18)) (requires (x == 18)) (ensures (fun _ -> True))
+= 
+  let _ = () in
+  return ()
+

@@ -2458,7 +2458,11 @@ let solve_or_delay (g:goal) : Tac bool =
       else if term_eq hd (`equiv) then solve_equiv args
       else if term_eq hd (`can_be_split_dep) then solve_can_be_split_dep args
       else if term_eq hd (`can_be_split_forall_dep) then solve_can_be_split_forall_dep args
-      else false
+      else
+        (* this is a logical goal, solve it only if it has no uvars *)
+        if List.Tot.length (FStar.Reflection.Builtins.free_uvars t) = 0
+        then (dump "About to be sent to SMT"; smt (); true)
+        else false
   | Comp (Eq _) l r ->
     let lnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars l) in
     let rnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars r) in
