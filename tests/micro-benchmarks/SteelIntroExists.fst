@@ -271,3 +271,10 @@ let test_intro_pure'
 = 
   let _ = noop () in
   return ()
+
+assume
+val pred ([@@@smt_fallback] _ : nat) : vprop
+
+let test (x y:nat) : ST unit (pred x) (fun _ -> pred 17 `star` pure ((x > y)==true)) (requires x == 17 /\ x > y) (ensures fun _ -> True) =
+ let _ = noop () in 
+ return ()

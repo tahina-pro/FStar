@@ -1678,6 +1678,34 @@ let rec unify_pr_with_true (pr: term) : Tac unit =
       then ()
       else fail "unify_pr_with_true: some uvars are still there"
 
+let elim_and_l_squash (#a #b: Type0) (#goal: Type0) (f: (a -> Tot (squash goal))) (h: (a /\ b)) : Tot (squash goal) =
+  let f' (x: squash a) : Tot (squash goal) =
+    FStar.Squash.bind_squash x f
+  in
+  let elim_impl (x: squash (a /\ b)) : Tot (squash a) = () in
+  f' (elim_impl (FStar.Squash.return_squash h))
+
+let _return_squash (#a: Type) () (x: a) : Tot (squash a) =
+  FStar.Squash.return_squash x
+
+let rec set_abduction_variable_term (pr: term) : Tac term =
+  let hd, tl = collect_app pr in
+  if hd `term_eq` (`(/\))
+  then
+    match tl with
+    | (pr_l, Q_Explicit) :: _ :: [] ->
+      let arg = set_abduction_variable_term pr_l in
+      mk_app (`elim_and_l_squash) [arg, Q_Explicit]
+    | _ -> fail "set_abduction_variable: ill-formed /\\"
+  else
+    match hd with
+    | Tv_Uvar _ _ ->
+      mk_app (`_return_squash) [`(), Q_Explicit]
+    | _ -> fail "set_abduction_variable: cannot unify"
+
+let set_abduction_variable (pr: term) : Tac unit =
+  exact (set_abduction_variable_term pr)
+
 let canon_l_r (use_smt:bool)
   (carrier_t:term)  //e.g. vprop
   (eq:term) (m:term)
@@ -1888,7 +1916,8 @@ let canon_l_r (use_smt:bool)
     );
     t_trefl true;
     close_equality_typ (cur_goal());
-    exact (`(FStar.Squash.return_squash (`#pr_bind)))
+    revert ();
+    set_abduction_variable pr
 
 /// Wrapper around the tactic above
 /// The constraint should be of the shape `squash (equiv lhs rhs)`
