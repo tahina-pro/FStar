@@ -276,6 +276,7 @@ let test_exists_intro_pure''
     ()
   )
 
+[@@expect_failure]
 let test_intro_pure'
   (x: int)
 : ST unit emp (fun _ -> pure (x == 18)) (requires (x == 18)) (ensures (fun _ -> True))
