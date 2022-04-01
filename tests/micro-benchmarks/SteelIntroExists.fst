@@ -208,21 +208,26 @@ let construct_rev () : STT ptr emp (fun p -> exists_ (fun v -> pts_to_rev v p)) 
   let p = alloc_rev 17 in
   p
 
-[@@solve_can_be_split_lookup; (solve_can_be_split_for pure)]
 assume
-val intro_can_be_split_pure
+val intro_can_be_split_pure'
+  (p: prop)
+: Lemma
+  (p ==> emp `can_be_split` pure p)
+
+[@@solve_can_be_split_lookup; (solve_can_be_split_for pure)]
+let intro_can_be_split_pure
   (p: prop)
   (sq: squash p)
 : Tot (squash (emp `can_be_split` pure p))
+= intro_can_be_split_pure' p
 
 [@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
 let intro_can_be_split_forall_dep_pure
   (p: prop)
-  (sq: squash p)
   (a: Type)
   (cond: a -> Tot prop)
-: Tot (squash (can_be_split_forall_dep cond (fun _ -> emp) (fun _ -> pure p)))
-= intro_can_be_split_pure p sq
+: Tot (squash (can_be_split_forall_dep (fun x -> cond x /\ p) (fun _ -> emp) (fun _ -> pure p)))
+= (intro_can_be_split_pure' p)
 
 let test_exists_intro_pure
   (p: ptr)
@@ -242,6 +247,16 @@ let test_exists_intro_pure'
     ()
   else let _ = write p 18 in ()
 
+let test_exists_intro_pure''
+  (p: ptr)
+  (i:nat)
+: STT unit (exists_ (fun n -> pts_to p n)) (fun _ -> exists_ (fun n -> pts_to p n `star` pure (n == 18)))
+= if i = 18
+  then
+    let _ = write p i in
+    ()
+  else let _ = write p 18 in ()
+
 let test_intro_pure
   (x: int)
   (sq: squash (x == 18))
@@ -250,37 +265,9 @@ let test_intro_pure
   let _ = () in
   return ()
 
-let ifthenelse
-  (#p: vprop)
-  (#t: Type)
-  (#q: t -> vprop)
-  (cond: bool)
-  (iftrue: squash (cond == true) -> STT t p q)
-  (iffalse: squash (cond == false) -> STT t p q)
-: STT t p q
-= if cond
-  then iftrue ()
-  else iffalse ()
-
-let test_exists_intro_pure''
-  (p: ptr)
-  (i:nat)
-: STT unit (exists_ (fun n -> pts_to p n)) (fun _ -> exists_ (fun n -> pts_to p n `star` pure (n == 18)))
-= ifthenelse (i = 18)
-  (fun _ ->
-    write p i;
-    ()
-  )
-  (fun _ ->
-    write p 18;
-    ()
-  )
-
-[@@expect_failure]
 let test_intro_pure'
   (x: int)
 : ST unit emp (fun _ -> pure (x == 18)) (requires (x == 18)) (ensures (fun _ -> True))
 = 
-  let _ = () in
+  let _ = noop () in
   return ()
-

@@ -1654,6 +1654,30 @@ let modus_ponens (#p #q:Type0) (_:squash p)
 
 let cut (p q:Type0) : Lemma (requires p /\ (p ==> q)) (ensures q) = ()
 
+let and_true (p: Type0) : Lemma (requires (p /\ True)) (ensures p) = ()
+
+let rec unify_pr_with_true (pr: term) : Tac unit =
+  let hd, tl = collect_app pr in
+  if hd `term_eq` (`(/\))
+  then
+    match tl with
+    | [pr_l, _; pr_r, _] ->
+      unify_pr_with_true pr_l;
+      unify_pr_with_true pr_r
+    | _ -> fail "unify_pr_with_true: ill-formed /\\"
+  else
+    match inspect hd with
+    | Tv_Uvar _ _ -> 
+      if unify pr (`true_p)
+      then ()
+      else begin
+        fail "unify_pr_with_true: could not unify SMT prop with True"
+      end
+    | _ ->
+      if List.Tot.length (free_uvars pr) = 0
+      then ()
+      else fail "unify_pr_with_true: some uvars are still there"
+
 let canon_l_r (use_smt:bool)
   (carrier_t:term)  //e.g. vprop
   (eq:term) (m:term)
@@ -1846,9 +1870,16 @@ let canon_l_r (use_smt:bool)
 
   match uvar_terms with
   | [] -> // Closing unneeded prop uvar
-    if unify pr (`true_p) then () else fail "could not unify SMT prop with True";
-    if emp_frame then apply_lemma (`identity_left (`#eq) (`#m))
-    else apply_lemma (`(CE.EQ?.reflexivity (`#eq)))
+    focus (fun _ ->
+      try
+        apply_lemma (`and_true);
+        split ();
+        if emp_frame then apply_lemma (`identity_left (`#eq) (`#m))
+        else apply_lemma (`(CE.EQ?.reflexivity (`#eq)));
+        unify_pr_with_true pr; // MUST be done AFTER identity_left/reflexivity, which can unify other uvars
+        trivial ()
+      with _ -> fail "Cannot unify pr with true"
+    )
   | l ->
     if emp_frame then (
       apply_lemma (`identity_left_smt (`#eq) (`#m))
@@ -2237,6 +2268,7 @@ let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
         let open FStar.Algebra.CommMonoid.Equiv in
         try
          focus (fun _ ->
+          norm [];
           let x = forall_intro () in
           let pr = mk_app pr [(binder_to_term x, Q_Explicit)] in
           let p_bind = implies_intro () in
