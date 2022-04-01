@@ -126,6 +126,16 @@ val return (#a:Type u#a)
 /// An existential quantifier for vprop
 val exists_ (#a:Type u#a) (p:a -> vprop) : vprop
 
+val intro_can_be_split_exists (a:Type) (x:a) (p: a -> vprop)
+  : Lemma
+    (ensures (p x `can_be_split` (exists_ (fun x -> p x))))
+
+val intro_can_be_split_forall_dep_exists (a:Type) (b:Type)
+                           (x:a) (cond:b -> prop)
+                           (p: b -> a -> vprop)
+  : Lemma
+    (ensures (fun (y:b) -> p y x) `(can_be_split_forall_dep cond)` (fun (y:b) -> exists_ (fun x -> p y x)))
+
 /// Introducing an existential if the predicate [p] currently holds for value [x]
 val intro_exists (#a:Type) (#opened_invariants:_) (x:a) (p:a -> vprop)
   : STGhostT unit opened_invariants (p x) (fun _ -> exists_ p)

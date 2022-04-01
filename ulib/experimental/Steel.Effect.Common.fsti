@@ -185,6 +185,12 @@ val can_be_split_trans (p q r:vprop)
   (requires p `can_be_split` q /\ q `can_be_split` r)
   (ensures p `can_be_split` r)
 
+let can_be_split_trans_rev (p q r:vprop)
+: Lemma
+  (requires q `can_be_split` r /\ p `can_be_split` q)
+  (ensures p `can_be_split` r)
+= can_be_split_trans p q r
+
 val can_be_split_star_l (p q:vprop)
 : Lemma
   (ensures (p `star` q) `can_be_split` p)
@@ -199,6 +205,47 @@ val can_be_split_refl (p:vprop)
 : Lemma (p `can_be_split` p)
 [SMTPat (p `can_be_split` p)]
 
+val can_be_split_congr_l
+  (p q r: vprop)
+: Lemma
+  (requires (p `can_be_split` q))
+  (ensures ((p `star` r) `can_be_split` (q `star` r)))
+
+val can_be_split_congr_r
+  (p q r: vprop)
+: Lemma
+  (requires (p `can_be_split` q))
+  (ensures ((r `star` p) `can_be_split` (r `star` q)))
+
+let can_be_split_forall_dep_trans_rev
+  (#a: Type)
+  (cond: a -> prop)
+  (p q r: post_t a)
+: Lemma
+  (requires (can_be_split_forall_dep cond q r /\ can_be_split_forall_dep cond p q))
+  (ensures (can_be_split_forall_dep cond p r))
+=
+  Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_trans x y) z)
+
+let can_be_split_forall_dep_congr_l
+  (#a: Type)
+  (cond: a -> prop)
+  (p q r: post_t a)
+: Lemma
+  (requires (can_be_split_forall_dep cond p q))
+  (ensures (can_be_split_forall_dep cond (fun x -> p x `star` r x) (fun x -> q x `star` r x)))
+=
+  Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_congr_l x y) z)
+
+let can_be_split_forall_dep_congr_r
+  (#a: Type)
+  (cond: a -> prop)
+  (p q r: post_t a)
+: Lemma
+  (requires (can_be_split_forall_dep cond p q))
+  (ensures (can_be_split_forall_dep cond (fun x -> r x `star` p x) (fun x -> r x `star` q x)))
+=
+  Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_congr_r x y) z)
 
 /// To simplify the implementation of the framing tactic, dependent equivalence
 /// is defined as a double dependent implication
@@ -1856,6 +1903,159 @@ let rec slterm_nbr_uvars (t:term) : Tac int =
   | Tv_Abs _ t -> slterm_nbr_uvars t
   | _ -> 0
 
+val solve_can_be_split_for (#a: Type u#b) : a -> Tot unit
+
+val solve_can_be_split_lookup : unit // FIXME: src/reflection/FStar.Reflection.Basic.lookup_attr only supports fvar attributes, so we cannot directly look up for (solve_can_be_split_for blabla), we need a nullary attribute to use with lookup_attr
+
+let rec dismiss_all_but_last' (l: list goal) : Tac unit =
+  match l with 
+  | [] | [_] -> set_goals l
+  | _ :: q -> dismiss_all_but_last' q
+
+let dismiss_all_but_last () : Tac unit =
+  dismiss_all_but_last' (goals ())
+
+let rec dismiss_non_squash_goals' (keep:list goal) (goals:list goal)
+  : Tac unit
+  = match goals with
+    | [] -> set_goals (List.Tot.rev keep)
+    | hd :: tl ->
+     let f = term_as_formula' (goal_type hd) in
+     match f with
+     | App hs _ ->
+       if hs `term_eq` (`squash) || hs `term_eq` (`auto_squash)
+       then dismiss_non_squash_goals' (hd::keep) tl
+       else dismiss_non_squash_goals' keep tl
+
+     | _ ->
+       dismiss_non_squash_goals' keep tl
+
+let dismiss_non_squash_goals () =
+  let g = goals () in
+  dismiss_non_squash_goals' [] g
+
+let rec term_mem (te: term) (l: list term) : Tot bool =
+  match l with
+  | [] -> false
+  | t' :: q ->
+    if te `term_eq` t' then true else term_mem te q
+
+let rec lookup_by_term_attr' (attr: term) (e: env) (found: list fv) (l: list fv) : Tot (list fv)
+  (decreases l)
+=
+  match l with
+  | [] -> List.Tot.rev found
+  | f :: q ->
+    let n = inspect_fv f in
+    begin match lookup_typ e n with
+    | None -> lookup_by_term_attr' attr e found q
+    | Some se ->
+      let found' =
+        if attr `term_mem` sigelt_attrs se
+        then f :: found
+        else found
+      in
+      lookup_by_term_attr' attr e found' q
+    end
+
+let lookup_by_term_attr (label_attr: term) (attr: term) : Tac (list fv) =
+  let e = cur_env () in
+  let candidates = lookup_attr label_attr e in
+  lookup_by_term_attr' attr e [] candidates
+
+let rec bring_last_goal_on_top' (others: list goal) (goals: list goal) : Tac unit =
+  match goals with
+  | [] -> set_goals (List.Tot.rev others)
+  | last :: [] -> set_goals (last :: List.Tot.rev others)
+  | a :: q -> bring_last_goal_on_top' (a :: others) q
+
+let bring_last_goal_on_top () =
+  let g = goals () in
+  bring_last_goal_on_top' [] g
+
+let rec extract_contexts
+  (lemma_left lemma_right label_attr attr: term)
+  (t: term)
+: Tac (option (unit -> Tac unit))
+=
+  let hd, tl = collect_app t in
+  if hd `term_eq` (`star) || hd `term_eq` (`VStar)
+  then
+    match tl with
+    | (t_left, Q_Explicit) :: (t_right, Q_Explicit) :: [] ->
+      let extract_right () : Tac (option (unit -> Tac unit)) =
+        match extract_contexts lemma_left lemma_right label_attr attr t_right with
+        | None -> None
+        | Some f ->
+          Some (fun _ ->
+            apply_lemma lemma_right;
+            dismiss_all_but_last ();
+            f ()
+          )
+      in
+      begin match extract_contexts lemma_left lemma_right label_attr attr t_left with
+      | None -> extract_right ()
+      | Some f ->
+        Some (fun _ ->
+          try
+            apply_lemma lemma_left;
+            dismiss_all_but_last ();
+            f ()
+          with _ ->
+            begin match extract_right () with
+            | None -> fail "no context on the right either"
+            | Some g -> g ()
+            end
+        )
+      end
+    | _ -> None
+  else
+    let candidates = lookup_by_term_attr label_attr (mk_app attr [hd, Q_Explicit]) in
+    if Nil? candidates
+    then None
+    else
+      Some (fun _ ->
+        first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates);
+        dismiss_non_squash_goals ()
+      )
+
+let extract_cbs_contexts = extract_contexts
+  (`can_be_split_congr_l)
+  (`can_be_split_congr_r)
+  (`solve_can_be_split_lookup)
+  (`solve_can_be_split_for)
+
+let try_open_existentials () : Tac bool
+  =
+     focus (fun _ ->
+       let t0 = cur_goal () in
+       match collect_app t0 with
+       | _ (* squash/auto_squash *) , (t1, Q_Explicit) :: [] ->
+         let hd, tl = collect_app t1 in
+         if hd `term_eq` (`can_be_split)
+         then
+           match tl with
+           | _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
+             begin match extract_cbs_contexts rhs with
+             | None -> false
+             | Some f ->
+               begin try
+                 mapply (`can_be_split_trans_rev);
+                 dismiss_all_but_last ();
+                 split ();
+                 focus f;
+                 bring_last_goal_on_top (); // so that any preconditions for the selected lemma are scheduled for later
+                 true
+               with
+               | _ -> false
+               end
+             end
+           | _ -> false
+         else
+           false
+       | _ -> false
+     )
+
 (* Solving the can_be_split* constraints, if they are ready to be scheduled
    A constraint is deemed ready to be scheduled if it contains only one vprop unification variable
    If so, constraints are stripped to their underlying  definition based on vprop equivalence,
@@ -1865,15 +2065,16 @@ let rec slterm_nbr_uvars (t:term) : Tac int =
 *)
 
 /// Solves a `can_be_split` constraint
-let solve_can_be_split (args:list argv) : Tac bool =
+let rec solve_can_be_split (args:list argv) : Tac bool =
   match args with
   | [(t1, _); (t2, _)] ->
       let lnbr = slterm_nbr_uvars t1 in
       let rnbr = slterm_nbr_uvars t2 in
       if lnbr + rnbr <= 1 then (
         let open FStar.Algebra.CommMonoid.Equiv in
-        focus (fun _ -> apply_lemma (`equiv_can_be_split);
-                     dismiss_slprops();
+        try
+          focus (fun _ -> apply_lemma (`equiv_can_be_split);
+                       dismiss_slprops();
                      // If we have exactly the same term on both side,
                      // equiv_sl_implies would solve the goal immediately
                      or_else (fun _ -> apply_lemma (`equiv_refl))
@@ -1889,9 +2090,13 @@ let solve_can_be_split (args:list argv) : Tac bool =
                             delta_attr [`%__reduce__];
                             primops; iota; zeta];
                        canon' false (`true_p) (`true_p)));
-        true
+           true
+        with
+        | _ ->
+          let opened_some = try_open_existentials () in
+          if opened_some then solve_can_be_split args // we only need args for their number of uvars, which has not changed
+          else false
       ) else false
-
   | _ -> false // Ill-formed can_be_split, should not happen
 
 /// Solves a can_be_split_dep constraint
@@ -1963,15 +2168,75 @@ let solve_can_be_split_forall (args:list argv) : Tac bool =
 
   | _ -> fail "Ill-formed can_be_split_forall, should not happen"
 
+val solve_can_be_split_forall_dep_for (#a: Type u#b) : a -> Tot unit
+
+val solve_can_be_split_forall_dep_lookup : unit // FIXME: same as solve_can_be_split_for above
+
+let extract_cbs_forall_dep_contexts
+=
+  extract_contexts
+    (`can_be_split_forall_dep_congr_l)
+    (`can_be_split_forall_dep_congr_r)
+    (`solve_can_be_split_forall_dep_lookup)
+    (`solve_can_be_split_forall_dep_for)
+
+let open_existentials_forall_dep () : Tac unit
+=
+  norm [
+    delta_only [
+    `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit;
+    `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__mult;
+    `%rm;
+    ];
+    iota;
+  ];
+  let t0 = cur_goal () in
+  match collect_app t0 with
+  | _ (* squash/auto_squash *) , (t1, Q_Explicit) :: [] ->
+    let hd, tl = collect_app t1 in
+    if hd `term_eq` (`can_be_split_forall_dep)
+    then
+      match tl with
+      | _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: []
+      | (_, Q_Implicit) (* #a *) :: _ (* cond *) :: _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
+        begin match inspect rhs with
+        | Tv_Abs _ body ->
+          begin match extract_cbs_forall_dep_contexts body with
+          | None -> fail "open_existentials_forall_dep: no candidate"
+          | Some f ->
+            mapply (`can_be_split_forall_dep_trans_rev);
+            dismiss_all_but_last ();
+            split ();
+            focus f;
+            bring_last_goal_on_top ()
+          end
+        | _ -> fail "open_existentials_forall_dep : not an abstraction"
+        end
+      | _ -> fail "open_existentials_forall_dep : wrong number of arguments to can_be_split_forall_dep"
+    else
+      fail "open_existentials_forall_dep : not a can_be_split_forall_dep goal"
+  | _ ->
+    fail "open_existentials_forall_dep : not a squash/auto_squash goal"
+
+let try_open_existentials_forall_dep () : Tac bool
+=
+  focus (fun _ ->
+    try
+      open_existentials_forall_dep ();
+      true
+    with _ -> false
+  )
+
 /// Solves a can_be_split_forall_dep constraint
-let solve_can_be_split_forall_dep (args:list argv) : Tac bool =
+let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
   match args with
   | [_; (pr, _); (t1, _); (t2, _)] ->
       let lnbr = slterm_nbr_uvars t1 in
       let rnbr = slterm_nbr_uvars t2 in
       if lnbr + rnbr <= 1 then (
         let open FStar.Algebra.CommMonoid.Equiv in
-        focus (fun _ ->
+        try
+         focus (fun _ ->
           let x = forall_intro () in
           let pr = mk_app pr [(binder_to_term x, Q_Explicit)] in
           let p_bind = implies_intro () in
@@ -1996,8 +2261,13 @@ let solve_can_be_split_forall_dep (args:list argv) : Tac bool =
                    primops; iota; zeta];
               canon' true pr p_bind));
 
-        true
-
+         true
+       with
+       | _ ->
+         let opened = try_open_existentials_forall_dep () in
+         if opened
+         then solve_can_be_split_forall_dep args // we only need args for their number of uvars, which has not changed
+         else false
       ) else false
 
   | _ -> fail "Ill-formed can_be_split_forall_dep, should not happen"
@@ -2188,7 +2458,11 @@ let solve_or_delay (g:goal) : Tac bool =
       else if term_eq hd (`equiv) then solve_equiv args
       else if term_eq hd (`can_be_split_dep) then solve_can_be_split_dep args
       else if term_eq hd (`can_be_split_forall_dep) then solve_can_be_split_forall_dep args
-      else false
+      else
+        (* this is a logical goal, solve it only if it has no uvars *)
+        if List.Tot.length (FStar.Reflection.Builtins.free_uvars t) = 0
+        then (dump "About to be sent to SMT"; smt (); true)
+        else false
   | Comp (Eq _) l r ->
     let lnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars l) in
     let rnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars r) in
