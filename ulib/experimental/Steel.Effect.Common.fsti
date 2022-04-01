@@ -2493,7 +2493,7 @@ let solve_or_delay (g:goal) : Tac bool =
       else
         (* this is a logical goal, solve it only if it has no uvars *)
         if List.Tot.length (FStar.Reflection.Builtins.free_uvars t) = 0
-        then (dump "About to be sent to SMT"; smt (); true)
+        then (smt (); true)
         else false
   | Comp (Eq _) l r ->
     let lnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars l) in
