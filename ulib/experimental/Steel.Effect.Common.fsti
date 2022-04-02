@@ -219,11 +219,11 @@ val can_be_split_congr_r
 
 let can_be_split_forall_dep_trans_rev
   (#a: Type)
-  (cond: a -> prop)
+  (cond1 cond2: a -> prop)
   (p q r: post_t a)
 : Lemma
-  (requires (can_be_split_forall_dep cond q r /\ can_be_split_forall_dep cond p q))
-  (ensures (can_be_split_forall_dep cond p r))
+  (requires (can_be_split_forall_dep cond2 q r /\ can_be_split_forall_dep cond1 p q))
+  (ensures (can_be_split_forall_dep (fun x -> cond1 x /\ cond2 x) p r))
 =
   Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_trans x y) z)
 
@@ -1654,6 +1654,80 @@ let modus_ponens (#p #q:Type0) (_:squash p)
 
 let cut (p q:Type0) : Lemma (requires p /\ (p ==> q)) (ensures q) = ()
 
+let and_true (p: Type0) : Lemma (requires (p /\ True)) (ensures p) = ()
+
+let rec unify_pr_with_true (pr: term) : Tac unit =
+  let hd, tl = collect_app pr in
+  if hd `term_eq` (`(/\))
+  then
+    match tl with
+    | [pr_l, _; pr_r, _] ->
+      unify_pr_with_true pr_l;
+      unify_pr_with_true pr_r
+    | _ -> fail "unify_pr_with_true: ill-formed /\\"
+  else
+    match inspect hd with
+    | Tv_Uvar _ _ -> 
+      if unify pr (`true_p)
+      then ()
+      else begin
+        fail "unify_pr_with_true: could not unify SMT prop with True"
+      end
+    | _ ->
+      if List.Tot.length (free_uvars pr) = 0
+      then ()
+      else fail "unify_pr_with_true: some uvars are still there"
+
+let elim_and_l_squash (#a #b: Type0) (#goal: Type0) (f: (a -> Tot (squash goal))) (h: (a /\ b)) : Tot (squash goal) =
+  let f' (x: squash a) : Tot (squash goal) =
+    FStar.Squash.bind_squash x f
+  in
+  let elim_impl (x: squash (a /\ b)) : Tot (squash a) = () in
+  f' (elim_impl (FStar.Squash.return_squash h))
+
+let elim_and_r_squash (#a #b: Type0) (#goal: Type0) (f: (b -> Tot (squash goal))) (h: (a /\ b)) : Tot (squash goal) =
+  let f' (x: squash b) : Tot (squash goal) =
+    FStar.Squash.bind_squash x f
+  in
+  let elim_impl (x: squash (a /\ b)) : Tot (squash b) = () in
+  f' (elim_impl (FStar.Squash.return_squash h))
+
+let _return_squash (#a: Type) () (x: a) : Tot (squash a) =
+  FStar.Squash.return_squash x
+
+let rec set_abduction_variable_term (pr: term) : Tac term =
+  let hd, tl = collect_app pr in
+  if hd `term_eq` (`(/\))
+  then
+    match tl with
+    | (pr_l, Q_Explicit) :: (pr_r, Q_Explicit) :: [] ->
+      if List.Tot.length (free_uvars pr_r) = 0
+      then
+        let arg = set_abduction_variable_term pr_l in
+        mk_app (`elim_and_l_squash) [arg, Q_Explicit]
+      else if List.Tot.length (free_uvars pr_l) = 0
+      then
+        let arg = set_abduction_variable_term pr_r in
+        mk_app (`elim_and_r_squash) [arg, Q_Explicit]
+      else
+        fail "set_abduction_variable_term: there are still uvars on both sides of l_and"
+    | _ -> fail "set_abduction_variable: ill-formed /\\"
+  else
+    match hd with
+    | Tv_Uvar _ _ ->
+      mk_app (`_return_squash) [`(), Q_Explicit]
+    | _ -> fail "set_abduction_variable: cannot unify"
+
+let set_abduction_variable () : Tac unit =
+  let g = cur_goal () in
+  match inspect g with
+  | Tv_Arrow b _ ->
+    let (bv, _) = inspect_binder b in
+    let bv = inspect_bv bv in
+    let pr = bv.bv_sort in
+    exact (set_abduction_variable_term pr)
+  | _ -> fail "Not an arrow goal"
+
 let canon_l_r (use_smt:bool)
   (carrier_t:term)  //e.g. vprop
   (eq:term) (m:term)
@@ -1846,9 +1920,16 @@ let canon_l_r (use_smt:bool)
 
   match uvar_terms with
   | [] -> // Closing unneeded prop uvar
-    if unify pr (`true_p) then () else fail "could not unify SMT prop with True";
-    if emp_frame then apply_lemma (`identity_left (`#eq) (`#m))
-    else apply_lemma (`(CE.EQ?.reflexivity (`#eq)))
+    focus (fun _ ->
+      try
+        apply_lemma (`and_true);
+        split ();
+        if emp_frame then apply_lemma (`identity_left (`#eq) (`#m))
+        else apply_lemma (`(CE.EQ?.reflexivity (`#eq)));
+        unify_pr_with_true pr; // MUST be done AFTER identity_left/reflexivity, which can unify other uvars
+        trivial ()
+      with _ -> fail "Cannot unify pr with true"
+    )
   | l ->
     if emp_frame then (
       apply_lemma (`identity_left_smt (`#eq) (`#m))
@@ -1857,7 +1938,8 @@ let canon_l_r (use_smt:bool)
     );
     t_trefl true;
     close_equality_typ (cur_goal());
-    exact (`(FStar.Squash.return_squash (`#pr_bind)))
+    revert ();
+    set_abduction_variable ()
 
 /// Wrapper around the tactic above
 /// The constraint should be of the shape `squash (equiv lhs rhs)`
@@ -2237,6 +2319,7 @@ let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
         let open FStar.Algebra.CommMonoid.Equiv in
         try
          focus (fun _ ->
+          norm [];
           let x = forall_intro () in
           let pr = mk_app pr [(binder_to_term x, Q_Explicit)] in
           let p_bind = implies_intro () in
@@ -2461,7 +2544,7 @@ let solve_or_delay (g:goal) : Tac bool =
       else
         (* this is a logical goal, solve it only if it has no uvars *)
         if List.Tot.length (FStar.Reflection.Builtins.free_uvars t) = 0
-        then (dump "About to be sent to SMT"; smt (); true)
+        then (smt (); true)
         else false
   | Comp (Eq _) l r ->
     let lnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars l) in
