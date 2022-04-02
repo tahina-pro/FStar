@@ -234,6 +234,14 @@ let test_exists_intro_pure
   write p 18;
   ()
 
+let test_exists_intro_pure2
+  (p: ptr)
+: STT unit (exists_ (fun n -> pts_to p n)) (fun _ -> exists_ (fun n -> pts_to p n `star` pure (n == 18)))
+=
+  write p 42;
+  write p 18;
+  ()
+
 let test_exists_intro_pure'
   (p: ptr)
   (i:nat)
@@ -268,6 +276,17 @@ let test_intro_pure'
 : ST unit emp (fun _ -> pure (x == 18)) (requires (x == 18)) (ensures (fun _ -> True))
 = 
   let _ = noop () in
+  return ()
+
+assume val decr_weak
+  (p: ptr)
+: STT unit (exists_ (fun x -> p `pts_to` x `star` pure (if x > 0 then True else False))) (fun _ -> exists_ (fun x -> p `pts_to` x))
+
+let test_decr_weak
+  (p: ptr)
+: STT unit (exists_ (fun x -> p `pts_to` x)) (fun _ -> exists_ (fun x -> p `pts_to` x))
+= write p 42; // good news: replacing with 0 will correctly make the error message point to the violated precondition in decr_weak
+  decr_weak p;
   return ()
 
 assume
