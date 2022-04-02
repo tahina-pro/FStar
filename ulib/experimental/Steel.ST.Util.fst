@@ -50,6 +50,24 @@ let drop #o p = coerce_ghost (fun _ -> SEA.drop p)
 let intro_pure #o p = coerce_ghost (fun _ -> SEA.intro_pure p)
 let elim_pure #o p = coerce_ghost (fun _ -> SEA.elim_pure p)
 
+let intro_can_be_split_pure'
+  (p: prop)
+: Lemma
+  (p ==> emp `can_be_split` pure p)
+= reveal_can_be_split ();
+  Classical.forall_intro (pure_interp p)
+
+let intro_can_be_split_pure
+  (p: prop)
+  (sq: squash p)
+: Tot (squash (emp `can_be_split` pure p))
+= intro_can_be_split_pure' p
+
+let intro_can_be_split_forall_dep_pure
+  (p: prop)
+: Tot (squash (can_be_split_forall_dep (fun x -> p) (fun _ -> emp) (fun _ -> pure p)))
+= (intro_can_be_split_pure' p)
+
 let return0 #a #o #p (x:a)
   : SEA.SteelAtomicBase a true o Unobservable
                         (return_pre (p x)) p

@@ -208,24 +208,11 @@ let construct_rev () : STT ptr emp (fun p -> exists_ (fun v -> pts_to_rev v p)) 
   let p = alloc_rev 17 in
   p
 
-assume
-val intro_can_be_split_pure'
-  (p: prop)
-: Lemma
-  (p ==> emp `can_be_split` pure p)
-
 [@@solve_can_be_split_lookup; (solve_can_be_split_for pure)]
-let intro_can_be_split_pure
-  (p: prop)
-  (sq: squash p)
-: Tot (squash (emp `can_be_split` pure p))
-= intro_can_be_split_pure' p
+let _intro_can_be_split_pure = intro_can_be_split_pure
 
 [@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
-let intro_can_be_split_forall_dep_pure
-  (p: prop)
-: Tot (squash (can_be_split_forall_dep (fun x -> p) (fun _ -> emp) (fun _ -> pure p)))
-= (intro_can_be_split_pure' p)
+let _intro_can_be_split_forall_dep_pure = intro_can_be_split_forall_dep_pure
 
 let test_exists_intro_pure
   (p: ptr)
