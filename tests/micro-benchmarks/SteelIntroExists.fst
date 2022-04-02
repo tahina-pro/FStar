@@ -224,9 +224,7 @@ let intro_can_be_split_pure
 [@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
 let intro_can_be_split_forall_dep_pure
   (p: prop)
-  (a: Type)
-  (cond: a -> Tot prop)
-: Tot (squash (can_be_split_forall_dep (fun x -> cond x /\ p) (fun _ -> emp) (fun _ -> pure p)))
+: Tot (squash (can_be_split_forall_dep (fun x -> p) (fun _ -> emp) (fun _ -> pure p)))
 = (intro_can_be_split_pure' p)
 
 let test_exists_intro_pure

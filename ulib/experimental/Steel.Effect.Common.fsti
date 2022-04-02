@@ -219,11 +219,11 @@ val can_be_split_congr_r
 
 let can_be_split_forall_dep_trans_rev
   (#a: Type)
-  (cond: a -> prop)
+  (cond1 cond2: a -> prop)
   (p q r: post_t a)
 : Lemma
-  (requires (can_be_split_forall_dep cond q r /\ can_be_split_forall_dep cond p q))
-  (ensures (can_be_split_forall_dep cond p r))
+  (requires (can_be_split_forall_dep cond2 q r /\ can_be_split_forall_dep cond1 p q))
+  (ensures (can_be_split_forall_dep (fun x -> cond1 x /\ cond2 x) p r))
 =
   Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_trans x y) z)
 
@@ -1685,6 +1685,13 @@ let elim_and_l_squash (#a #b: Type0) (#goal: Type0) (f: (a -> Tot (squash goal))
   let elim_impl (x: squash (a /\ b)) : Tot (squash a) = () in
   f' (elim_impl (FStar.Squash.return_squash h))
 
+let elim_and_r_squash (#a #b: Type0) (#goal: Type0) (f: (b -> Tot (squash goal))) (h: (a /\ b)) : Tot (squash goal) =
+  let f' (x: squash b) : Tot (squash goal) =
+    FStar.Squash.bind_squash x f
+  in
+  let elim_impl (x: squash (a /\ b)) : Tot (squash b) = () in
+  f' (elim_impl (FStar.Squash.return_squash h))
+
 let _return_squash (#a: Type) () (x: a) : Tot (squash a) =
   FStar.Squash.return_squash x
 
@@ -1693,9 +1700,17 @@ let rec set_abduction_variable_term (pr: term) : Tac term =
   if hd `term_eq` (`(/\))
   then
     match tl with
-    | (pr_l, Q_Explicit) :: _ :: [] ->
-      let arg = set_abduction_variable_term pr_l in
-      mk_app (`elim_and_l_squash) [arg, Q_Explicit]
+    | (pr_l, Q_Explicit) :: (pr_r, Q_Explicit) :: [] ->
+      if List.Tot.length (free_uvars pr_r) = 0
+      then
+        let arg = set_abduction_variable_term pr_l in
+        mk_app (`elim_and_l_squash) [arg, Q_Explicit]
+      else if List.Tot.length (free_uvars pr_l) = 0
+      then
+        let arg = set_abduction_variable_term pr_r in
+        mk_app (`elim_and_r_squash) [arg, Q_Explicit]
+      else
+        fail "set_abduction_variable_term: there are still uvars on both sides of l_and"
     | _ -> fail "set_abduction_variable: ill-formed /\\"
   else
     match hd with
@@ -1703,8 +1718,15 @@ let rec set_abduction_variable_term (pr: term) : Tac term =
       mk_app (`_return_squash) [`(), Q_Explicit]
     | _ -> fail "set_abduction_variable: cannot unify"
 
-let set_abduction_variable (pr: term) : Tac unit =
-  exact (set_abduction_variable_term pr)
+let set_abduction_variable () : Tac unit =
+  let g = cur_goal () in
+  match inspect g with
+  | Tv_Arrow b _ ->
+    let (bv, _) = inspect_binder b in
+    let bv = inspect_bv bv in
+    let pr = bv.bv_sort in
+    exact (set_abduction_variable_term pr)
+  | _ -> fail "Not an arrow goal"
 
 let canon_l_r (use_smt:bool)
   (carrier_t:term)  //e.g. vprop
@@ -1917,7 +1939,7 @@ let canon_l_r (use_smt:bool)
     t_trefl true;
     close_equality_typ (cur_goal());
     revert ();
-    set_abduction_variable pr
+    set_abduction_variable ()
 
 /// Wrapper around the tactic above
 /// The constraint should be of the shape `squash (equiv lhs rhs)`

@@ -73,12 +73,12 @@ let intro_can_be_split_exists
 // TODO: generate this via a generic tactic,
 // since can_be_split_forall_dep is transparently defined on top of can_be_split
 let intro_can_be_split_forall_dep_exists
-  a b x cond p
+  a b x p
 =
   let prf
     (y: b)
   : Lemma
-    (cond y ==> p y x `can_be_split` exists_ (fun x -> p y x))
+    (p y x `can_be_split` exists_ (fun x -> p y x))
   =
     intro_can_be_split_exists a x (p y)
   in
