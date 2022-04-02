@@ -23,6 +23,13 @@ let vrefine_drop
   s p
 = C.coerce_ghost (fun _ -> vrefine_drop' s p)
 
+let vselect_intro0
+  s
+=
+  let res = SA.gget s in
+  SA.intro_vrefine s (_equals (Ghost.reveal res));
+  res
+
 let vselect_intro'
   (#inames: _)
   (s: vprop)
@@ -30,14 +37,17 @@ let vselect_intro'
     s
     (fun res -> s `vselect` res)
 =
-  let res = SA.gget s in
-  SA.intro_vrefine s (_equals (Ghost.reveal res));
-  res
+  vselect_intro0 s
 
 let vselect_intro
   s
 =
   C.coerce_ghost (fun _ -> vselect_intro' s)
+
+let vselect_elim0
+  s x
+=
+  SA.elim_vrefine _ _
 
 let vselect_elim
   (#inames: _)

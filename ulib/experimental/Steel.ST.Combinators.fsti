@@ -1,6 +1,7 @@
 module Steel.ST.Combinators
 open Steel.ST.Util
 module Ghost = FStar.Ghost
+module SA = Steel.Effect.Atomic
 
 #set-options "--ide_id_info_off"
 
@@ -49,6 +50,15 @@ val vrefine_drop
     (s `vrefine` p)
     (fun _ -> s)
 
+val vselect_intro0
+  (#inames: _)
+  (s: vprop)
+: SA.SteelGhost (Ghost.erased (t_of s)) inames
+    s
+    (fun res -> s `vselect` res)
+    (requires (fun _ -> True))
+    (ensures (fun h res _ -> Ghost.reveal res == h s))
+
 val vselect_intro
   (#inames: _)
   (s: vprop)
@@ -93,6 +103,16 @@ let vselect_assert
     (Ghost.reveal y == Ghost.reveal x)
     (fun _ -> True)
 = noop ()
+
+val vselect_elim0
+  (#inames: _)
+  (s: vprop)
+  (x: Ghost.erased (t_of s))
+: SA.SteelGhost unit inames
+    (s `vselect` x)
+    (fun _ -> s)
+    (requires (fun _ -> True))
+    (ensures (fun _ _ h' -> Ghost.reveal x == h' s))
 
 val vselect_elim
   (#inames: _)
