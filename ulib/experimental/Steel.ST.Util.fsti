@@ -216,3 +216,208 @@ val with_invariant_g (#a:Type)
                                          (p `star` fp)
                                          (fun x -> p `star` fp' x))
   : STGhostT a opened_invariants fp fp'
+
+/// A tactic to automatically generate a unique binder
+
+let gen_elim_f
+  (p: vprop)
+  (a: Type0) // FIXME: generalize this universe
+  (q: (a -> vprop))
+  (post: (a -> prop))
+: Tot Type
+= ((opened: inames) -> STGhostF a opened p q True (fun x -> post x))
+
+[@@erasable]
+noeq
+type gen_elim_t
+  (p: vprop)
+= | GenElim:
+    a: Type0 ->
+    q: (a -> vprop) ->
+    post: (a -> prop) ->
+    f: gen_elim_f p a q post ->
+    gen_elim_t p
+
+[@@__reduce__]
+let gen_elim_a
+  (#p: vprop)
+  (g: gen_elim_t p)
+: Tot Type0
+= match g with
+  | GenElim a _ _ _ -> a
+
+[@@__reduce__]
+let gen_elim_q
+  (#p: vprop)
+  (g: gen_elim_t p)
+: Tot (gen_elim_a g -> Tot vprop)
+= match g with
+  | GenElim _ q _ _ -> q
+
+[@@__reduce__]
+let gen_elim_post
+  (#p: vprop)
+  (g: gen_elim_t p)
+: Tot (gen_elim_a g -> Tot prop)
+= match g with
+  | GenElim _ _ post _ -> post
+
+let gen_elim_id'
+  (p: vprop)
+: Tot (gen_elim_f p unit (fun _ -> p) (fun _ -> True))
+= (fun _ -> noop ())
+
+[@__reduce__]
+let gen_elim_id
+  (p: vprop)
+: Tot (gen_elim_t p)
+= GenElim
+    _
+    _
+    _
+    (gen_elim_id' p)
+
+let gen_elim_exists_simple'
+  (a: Type0)
+  (p: a -> Tot vprop)
+: Tot (gen_elim_f (exists_ p) (Ghost.erased a) (fun x -> p x) (fun _ -> True))
+= fun _ -> elim_exists _
+
+[@__reduce__]
+let gen_elim_exists_simple
+  (a: Type0)
+  (p: a -> Tot vprop)
+: Tot (gen_elim_t (exists_ p))
+= GenElim
+    _
+    _
+    _
+    (gen_elim_exists_simple' a p)
+
+[@@erasable]
+noeq
+type g_dep_pair
+  (a: Type)
+  (b: (a -> Type))
+=
+  | GDepPair:
+    x: a ->
+    y: b x ->
+    g_dep_pair a b
+
+let gen_elim_exists'
+  (a: Type0)
+  (p: a -> Tot vprop)
+  (g: (x: a) -> gen_elim_t (p x))
+: Tot (gen_elim_f (exists_ p) (g_dep_pair a (fun x -> gen_elim_a (g x))) (fun y -> gen_elim_q (g (GDepPair?.x y)) (GDepPair?.y y)) (fun y -> gen_elim_post (g (GDepPair?.x y)) (GDepPair?.y y)))
+= admit ()
+
+[@@__reduce__]
+let gen_elim_exists
+  (a: Type0)
+  (p: a -> Tot vprop)
+  (g: (x: a) -> gen_elim_t (p x))
+: Tot (gen_elim_t (exists_ p))
+= GenElim _ _ _ (gen_elim_exists' a p g)
+
+[@@erasable]
+noeq
+type g_pair
+  (a b: Type)
+=
+  | GPair:
+    fst: a ->
+    snd: b ->
+    g_pair a b
+
+let gen_elim_star'
+  (p q: vprop)
+  (gp: gen_elim_t p)
+  (gq: gen_elim_t q)
+: Tot (gen_elim_f (p `star` q) (gen_elim_a gp `g_pair` gen_elim_a gq) (fun x -> gen_elim_q gp (GPair?.fst x) `star` gen_elim_q gq (GPair?.snd x)) (fun x -> gen_elim_post gp (GPair?.fst x) /\ gen_elim_post gq (GPair?.snd x)))
+= admit ()
+
+[@@__reduce__]
+let gen_elim_star
+  (p q: vprop)
+  (gp: gen_elim_t p)
+  (gq: gen_elim_t q)
+: Tot (gen_elim_t (p `star` q))
+= GenElim _ _ _ (gen_elim_star' p q gp gq)
+
+let gen_elim_pure'
+  (p: prop)
+: Tot (gen_elim_f (pure p) unit (fun _ -> emp) (fun _ -> p))
+= admit ()
+
+[@@__reduce__]
+let gen_elim_pure
+  (p: prop)
+: Tot (gen_elim_t (pure p))
+= GenElim _ _ _ (gen_elim_pure' p)
+
+let gen_elim'
+  (#p: vprop)
+  (f: gen_elim_t p)
+  (#opened: _)
+  ()
+: STGhostF (GenElim?.a f) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
+= GenElim?.f f opened
+
+module T = FStar.Tactics
+
+let rec solve_gen_elim
+  ()
+: T.Tac unit
+= 
+  T.focus (fun _ ->
+    T.norm [];    
+    let g = T.cur_goal () in
+    let (hd, tl) = T.collect_app g in
+    if not (hd `T.term_eq` (`gen_elim_t))
+    then T.fail "solve_gen_elim: not a gen_elim_t goal";
+    match tl with
+    | [tl', T.Q_Explicit] ->
+      let (hd, _) = T.collect_app tl' in
+      if hd `T.term_eq` (`pure)
+      then T.apply (`gen_elim_pure)
+      else if hd `T.term_eq` (`exists_)
+      then begin
+        T.apply (`gen_elim_exists);
+        let _ = T.intro () in
+        solve_gen_elim ()
+      end
+      else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
+      then begin
+        T.apply (`gen_elim_star);
+        T.iseq [
+          solve_gen_elim;
+          solve_gen_elim;
+        ];
+        T.qed ()
+      end
+      else
+        T.apply (`gen_elim_id)
+    | _ -> T.fail "ill-formed gen_elim_t"
+  )
+
+let gen_elim
+  (#p: vprop)
+  (#[ solve_gen_elim () ] f: gen_elim_t p)
+  (#opened: _)
+: Tot (unit ->
+      STGhostF (gen_elim_a f) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x))
+= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x
+  in
+  coerce _ (gen_elim' f #opened) (_ by (T.trefl ()))
+
+let f
+  (#opened: _)
+  (p q: vprop)
+  (x: nat)
+: STGhostT bool opened (exists_ (fun n -> p `star` q `star` pure (n > 42 /\ x > 18))) (fun _ -> q)
+= noop ();
+  let _ = gen_elim () in
+  assert (x > 18);
+  drop p;
+  true
