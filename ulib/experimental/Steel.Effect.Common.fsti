@@ -2290,7 +2290,8 @@ let open_existentials_forall_dep () : Tac unit
             dismiss_all_but_last ();
             split ();
             focus f;
-            bring_last_goal_on_top ()
+            bring_last_goal_on_top ();
+            if Cons? (goals ()) then norm []
           end
         | _ -> fail "open_existentials_forall_dep : not an abstraction"
         end
