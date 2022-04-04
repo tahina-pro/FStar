@@ -217,13 +217,15 @@ val can_be_split_congr_r
   (requires (p `can_be_split` q))
   (ensures ((r `star` p) `can_be_split` (r `star` q)))
 
+let prop_and (p1 p2: prop) : Tot prop = p1 /\ p2
+
 let can_be_split_forall_dep_trans_rev
   (#a: Type)
   (cond1 cond2: a -> prop)
   (p q r: post_t a)
 : Lemma
   (requires (can_be_split_forall_dep cond2 q r /\ can_be_split_forall_dep cond1 p q))
-  (ensures (can_be_split_forall_dep (fun x -> cond1 x /\ cond2 x) p r))
+  (ensures (can_be_split_forall_dep (fun x -> cond1 x `prop_and` cond2 x) p r))
 =
   Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_trans x y) z)
 
@@ -1658,7 +1660,7 @@ let and_true (p: Type0) : Lemma (requires (p /\ True)) (ensures p) = ()
 
 let rec unify_pr_with_true (pr: term) : Tac unit =
   let hd, tl = collect_app pr in
-  if hd `term_eq` (`(/\))
+  if hd `term_eq` (`(/\)) || hd `term_eq` (`prop_and)
   then
     match tl with
     | [pr_l, _; pr_r, _] ->
@@ -1697,7 +1699,7 @@ let _return_squash (#a: Type) () (x: a) : Tot (squash a) =
 
 let rec set_abduction_variable_term (pr: term) : Tac term =
   let hd, tl = collect_app pr in
-  if hd `term_eq` (`(/\))
+  if hd `term_eq` (`(/\)) || hd `term_eq` (`prop_and)
   then
     match tl with
     | (pr_l, Q_Explicit) :: (pr_r, Q_Explicit) :: [] ->
