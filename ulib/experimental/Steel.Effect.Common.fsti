@@ -2109,9 +2109,9 @@ let extract_cbs_contexts = extract_contexts
   (`solve_can_be_split_lookup)
   (`solve_can_be_split_for)
 
-let try_open_existentials () : Tac bool
+let open_existentials () : Tac unit
   =
-     focus (fun _ ->
+       norm [delta_attr [`%__reduce__]];
        let t0 = cur_goal () in
        match collect_app t0 with
        | _ (* squash/auto_squash *) , (t1, Q_Explicit) :: [] ->
@@ -2121,24 +2121,26 @@ let try_open_existentials () : Tac bool
            match tl with
            | _ (* lhs *) :: (rhs, Q_Explicit) :: [] ->
              begin match extract_cbs_contexts rhs with
-             | None -> false
+             | None -> fail "open_existentials: no context found"
              | Some f ->
-               begin try
                  mapply (`can_be_split_trans_rev);
                  dismiss_all_but_last ();
                  split ();
                  focus f;
-                 bring_last_goal_on_top (); // so that any preconditions for the selected lemma are scheduled for later
-                 true
-               with
-               | _ -> false
-               end
+                 bring_last_goal_on_top () // so that any preconditions for the selected lemma are scheduled for later
              end
-           | _ -> false
+           | _ -> fail "open_existentials: ill-formed can_be_split"
          else
-           false
-       | _ -> false
-     )
+           fail "open_existentials: not a can_be_split goal"
+       | _ -> fail "open_existentials: not a squash goal"
+
+let try_open_existentials () : Tac bool =
+  focus (fun _ ->
+    try
+      open_existentials ();
+      true
+    with _ -> false
+  )
 
 (* Solving the can_be_split* constraints, if they are ready to be scheduled
    A constraint is deemed ready to be scheduled if it contains only one vprop unification variable
@@ -2273,6 +2275,7 @@ let open_existentials_forall_dep () : Tac unit
     `%rm;
     ];
     iota;
+    delta_attr [`%__reduce__];
   ];
   let t0 = cur_goal () in
   match collect_app t0 with
