@@ -271,37 +271,94 @@ let gen_elim_post
 = match g with
   | GenElim _ _ post _ -> post
 
-let gen_elim_id'
+let gen_unit_elim_f
   (p: vprop)
-: Tot (gen_elim_f p unit (fun _ -> p) (fun _ -> True))
+  (q: vprop)
+  (post: prop)
+: Tot Type
+= gen_elim_f p unit (fun _ -> q) (fun _ -> post)
+
+[@@erasable]
+noeq
+type gen_unit_elim_t
+  (p: vprop)
+= | GenUnitElim:
+    q: vprop ->
+    post: prop ->
+    f: gen_unit_elim_f p q post ->
+    gen_unit_elim_t p
+
+[@@__reduce__]
+let gen_unit_elim_q
+  (#p: vprop)
+  (g: gen_unit_elim_t p)
+: Tot vprop
+= match g with
+  | GenUnitElim q _ _ -> q
+
+[@@__reduce__]
+let gen_unit_elim_post
+  (#p: vprop)
+  (g: gen_unit_elim_t p)
+: Tot prop
+= match g with
+  | GenUnitElim _ post _ -> post
+
+[@@__reduce__]
+let gen_elim_of_gen_unit_elim
+  (#p: vprop)
+  (g: gen_unit_elim_t p)
+: Tot (gen_elim_t p)
+= GenElim unit (fun _ -> gen_unit_elim_q g) (fun _ -> gen_unit_elim_post g) (GenUnitElim?.f g)
+
+let gen_unit_elim_id'
+  (p: vprop)
+: Tot (gen_unit_elim_f p p True)
 = (fun _ -> noop (); Ghost.hide ())
+
+[@@ __reduce__]
+let gen_unit_elim_id
+  (p: vprop)
+: Tot (gen_unit_elim_t p)
+= GenUnitElim
+    _
+    _
+    (gen_unit_elim_id' p)
 
 [@@ __reduce__]
 let gen_elim_id
   (p: vprop)
 : Tot (gen_elim_t p)
+= gen_elim_of_gen_unit_elim (gen_unit_elim_id p)
+
+let gen_elim_exists_unit_body'
+  (a: Type0)
+  (p: a -> Tot vprop)
+  (g: (x: a) -> gen_unit_elim_t (p x))
+: Tot (gen_elim_f (exists_ p) a (fun x -> gen_unit_elim_q (g x)) (fun x -> gen_unit_elim_post (g x)))
+= fun opened ->
+  let x = elim_exists () in
+  let _ = GenUnitElim?.f (g x) opened in
+  x
+
+[@@__reduce__]
+let gen_elim_exists_unit_body
+  (a: Type0)
+  (p: a -> Tot vprop)
+  (g: (x: a) -> gen_unit_elim_t (p x))
+: Tot (gen_elim_t (exists_ p))
 = GenElim
     _
     _
     _
-    (gen_elim_id' p)
-
-let gen_elim_exists_simple'
-  (a: Type0)
-  (p: a -> Tot vprop)
-: Tot (gen_elim_f (exists_ p) a (fun x -> p x) (fun _ -> True))
-= fun _ -> elim_exists _
+    (gen_elim_exists_unit_body' a p g)
 
 [@@__reduce__]
 let gen_elim_exists_simple
   (a: Type0)
   (p: a -> Tot vprop)
 : Tot (gen_elim_t (exists_ p))
-= GenElim
-    _
-    _
-    _
-    (gen_elim_exists_simple' a p)
+= gen_elim_exists_unit_body a p (fun x -> gen_unit_elim_id (p x))
 
 let dfstp #a #b t = dfst #a #b t
 let dsndp #a #b t = dsnd #a #b t
@@ -340,6 +397,23 @@ let gen_elim_exists
 
 #set-options "--ide_id_info_off"
 
+let gen_unit_elim_pure'
+  (p: prop)
+: Tot (gen_unit_elim_f (pure p) emp p)
+= fun _ -> elim_pure _; ()
+
+[@@__reduce__]
+let gen_unit_elim_pure
+  (p: prop)
+: Tot (gen_unit_elim_t (pure p))
+= GenUnitElim _ _ (gen_unit_elim_pure' p)
+
+[@@__reduce__]
+let gen_elim_pure
+  (p: prop)
+: Tot (gen_elim_t (pure p))
+= gen_elim_of_gen_unit_elim (gen_unit_elim_pure p)
+
 let gen_elim_star''
   (p q: vprop)
   (gp: gen_elim_t p)
@@ -369,16 +443,89 @@ let gen_elim_star
 : Tot (gen_elim_t (p `star` q))
 = GenElim _ _ _ (gen_elim_star' p q gp gq ())
 
-let gen_elim_pure'
-  (p: prop)
-: Tot (gen_elim_f (pure p) unit (fun _ -> emp) (fun _ -> p))
-= fun _ -> elim_pure _; Ghost.hide ()
+let gen_elim_star_l''
+  (p q: vprop)
+  (gp: gen_elim_t p)
+  (gq: gen_unit_elim_t q)
+  ()
+: Tot (gen_elim_f (p `star` q) (GenElim?.a gp) (fun x -> GenElim?.q gp x `star` GenUnitElim?.q gq) (fun x -> GenElim?.post gp x /\ GenUnitElim?.post gq))
+= fun opened ->
+  let xp = frame_gen_elim_f (GenElim?.f gp) opened in
+  let _ = frame_gen_elim_f (GenUnitElim?.f gq) opened in
+  xp
+
+let gen_elim_star_l'
+  (p q: vprop)
+  (gp: gen_elim_t p)
+  (gq: gen_unit_elim_t q)
+: unit ->
+  Tot (gen_elim_f (p `star` q) (gen_elim_a gp) (fun x -> gen_elim_q gp x `star` gen_unit_elim_q gq) (fun x -> gen_elim_post gp x /\ gen_unit_elim_post gq))
+= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
+  coerce _ (gen_elim_star_l'' p q gp gq) (_ by (T.trefl ()))
 
 [@@__reduce__]
-let gen_elim_pure
-  (p: prop)
-: Tot (gen_elim_t (pure p))
-= GenElim _ _ _ (gen_elim_pure' p)
+let gen_elim_star_l
+  (p q: vprop)
+  (gp: gen_elim_t p)
+  (gq: gen_unit_elim_t q)
+: Tot (gen_elim_t (p `star` q))
+= GenElim _ _ _ (gen_elim_star_l' p q gp gq ())
+
+let gen_elim_star_r''
+  (p q: vprop)
+  (gp: gen_unit_elim_t p)
+  (gq: gen_elim_t q)
+  ()
+: Tot (gen_elim_f (p `star` q) (GenElim?.a gq) (fun x -> GenUnitElim?.q gp `star` GenElim?.q gq x) (fun x -> GenUnitElim?.post gp /\ GenElim?.post gq x))
+= fun opened ->
+  let _ = frame_gen_elim_f (GenUnitElim?.f gp) opened in
+  let xq = frame_gen_elim_f (GenElim?.f gq) opened in
+  xq
+
+let gen_elim_star_r'
+  (p q: vprop)
+  (gp: gen_unit_elim_t p)
+  (gq: gen_elim_t q)
+: unit ->
+  Tot (gen_elim_f (p `star` q) (gen_elim_a gq) (fun x -> gen_unit_elim_q gp `star` gen_elim_q gq x) (fun x -> gen_unit_elim_post gp /\ gen_elim_post gq x))
+= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
+  coerce _ (gen_elim_star_r'' p q gp gq) (_ by (T.trefl ()))
+
+[@@__reduce__]
+let gen_elim_star_r
+  (p q: vprop)
+  (gp: gen_unit_elim_t p)
+  (gq: gen_elim_t q)
+: Tot (gen_elim_t (p `star` q))
+= GenElim _ _ _ (gen_elim_star_r' p q gp gq ())
+
+let gen_unit_elim_star''
+  (p q: vprop)
+  (gp: gen_unit_elim_t p)
+  (gq: gen_unit_elim_t q)
+  ()
+: Tot (gen_unit_elim_f (p `star` q) (GenUnitElim?.q gp `star` GenUnitElim?.q gq) (GenUnitElim?.post gp /\ GenUnitElim?.post gq))
+= fun opened ->
+  let _ = frame_gen_elim_f (GenUnitElim?.f gp) opened in
+  let _ = frame_gen_elim_f (GenUnitElim?.f gq) opened in
+  ()
+
+let gen_unit_elim_star'
+  (p q: vprop)
+  (gp: gen_unit_elim_t p)
+  (gq: gen_unit_elim_t q)
+: unit ->
+  Tot (gen_unit_elim_f (p `star` q) (gen_unit_elim_q gp `star` gen_unit_elim_q gq) (gen_unit_elim_post gp /\ gen_unit_elim_post gq))
+= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
+  coerce _ (gen_unit_elim_star'' p q gp gq) (_ by (T.trefl ()))
+
+[@@__reduce__]
+let gen_unit_elim_star
+  (p q: vprop)
+  (gp: gen_unit_elim_t p)
+  (gq: gen_unit_elim_t q)
+: Tot (gen_unit_elim_t (p `star` q))
+= GenUnitElim _ _ (gen_unit_elim_star' p q gp gq ())
 
 let gen_elim'
   (#p: vprop)
@@ -389,6 +536,62 @@ let gen_elim'
 = GenElim?.f f opened
 
 module T = FStar.Tactics
+
+let rec term_has_head
+  (t: T.term)
+  (head: T.term)
+: T.Tac bool
+= let (hd, tl) = T.collect_app t in
+  if hd `T.term_eq` head
+  then true
+  else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
+  then
+    match tl with
+    | [tg, T.Q_Explicit; td, T.Q_Explicit] ->
+      if term_has_head tg head
+      then true
+      else term_has_head td head
+    | _ -> false
+  else false
+
+let rec solve_gen_unit_elim
+  ()
+: T.Tac unit
+= 
+  T.focus (fun _ ->
+    T.norm [];
+    let g = T.cur_goal () in
+    let (hd, tl) = T.collect_app g in
+    if not (hd `T.term_eq` (`gen_unit_elim_t))
+    then T.fail "solve_gen_unit_elim: not a gen_unit_elim_t goal";
+    match tl with
+    | [tl', T.Q_Explicit] ->
+      if not (term_has_head tl' (`pure))
+      then T.apply (`gen_unit_elim_id)
+      else
+        let (hd, _) = T.collect_app tl' in
+        if hd `T.term_eq` (`pure)
+        then T.apply (`gen_unit_elim_pure)
+        else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
+        then begin
+          T.apply (`gen_unit_elim_star);
+          T.iseq [
+            solve_gen_unit_elim;
+            solve_gen_unit_elim;
+          ];
+          T.qed ()
+        end
+        else
+          T.apply (`gen_unit_elim_id)
+    | _ -> T.fail "ill-formed gen_unit_elim_t"
+  )
+
+let abstr_has_exists
+  (t: T.term)
+: T.Tac bool
+= match T.inspect t with
+  | T.Tv_Abs _ body -> term_has_head body (`exists_)
+  | _ -> false
 
 let rec solve_gen_elim
   ()
@@ -402,26 +605,61 @@ let rec solve_gen_elim
     then T.fail "solve_gen_elim: not a gen_elim_t goal";
     match tl with
     | [tl', T.Q_Explicit] ->
-      let (hd, _) = T.collect_app tl' in
-      if hd `T.term_eq` (`pure)
-      then T.apply (`gen_elim_pure)
-      else if hd `T.term_eq` (`exists_)
+      if not (term_has_head tl' (`exists_))
       then begin
-        T.apply (`gen_elim_exists);
-        let _ = T.intro () in
-        solve_gen_elim ()
-      end
-      else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
-      then begin
-        T.apply (`gen_elim_star);
-        T.iseq [
-          solve_gen_elim;
-          solve_gen_elim;
-        ];
-        T.qed ()
-      end
-      else
-        T.apply (`gen_elim_id)
+        T.apply (`gen_elim_of_gen_unit_elim);
+        solve_gen_unit_elim ()
+      end else
+        let (hd, body) = T.collect_app tl' in
+        if hd `T.term_eq` (`exists_)
+        then
+          match body with
+          | [(_, T.Q_Implicit); (body, T.Q_Explicit)]
+          | [(body, T.Q_Explicit)] ->
+            if not (abstr_has_exists body)
+            then begin
+              T.apply (`gen_elim_exists_unit_body);
+              let _ = T.intro () in
+              solve_gen_unit_elim ()
+            end else begin
+              T.apply (`gen_elim_exists);
+              let _ = T.intro () in
+              solve_gen_elim ()
+            end
+          | _ -> T.fail "ill-formed exists_"
+        else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
+        then
+          match body with
+          | [(tl, T.Q_Explicit); (tr, T.Q_Explicit)] ->
+            if term_has_head tl (`exists_)
+            then
+              if term_has_head tr (`exists_)
+              then begin
+                T.apply (`gen_elim_star);
+                T.iseq [
+                  solve_gen_elim;
+                  solve_gen_elim;
+                ];
+                T.qed ()
+              end else begin
+                T.apply (`gen_elim_star_l);
+                T.iseq [
+                  solve_gen_elim;
+                  solve_gen_unit_elim;
+                ];
+                T.qed ()
+              end
+            else begin (* here, term_has_head tr (`exists_) holds, because otherwise we are in case (not (term_has_head tl (`exists_))) above *)
+              T.apply (`gen_elim_star_r);
+              T.iseq [
+                solve_gen_unit_elim;
+                solve_gen_elim;
+              ];
+              T.qed ()
+            end
+          | _ -> T.fail "ill-formed star"
+        else
+          T.apply (`gen_elim_id)
     | _ -> T.fail "ill-formed gen_elim_t"
   )
 

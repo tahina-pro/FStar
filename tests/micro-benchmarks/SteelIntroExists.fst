@@ -301,8 +301,6 @@ let f
   drop p;
   return true
 
-#set-options "--ide_id_info_off"
-
 let f'
   (p: ptr)
   (q: vprop)
