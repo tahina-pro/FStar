@@ -410,14 +410,3 @@ let gen_elim
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x
   in
   coerce _ (gen_elim' f #opened) (_ by (T.trefl ()))
-
-let f
-  (#opened: _)
-  (p q: vprop)
-  (x: nat)
-: STGhostT bool opened (exists_ (fun n -> p `star` q `star` pure (n > 42 /\ x > 18))) (fun _ -> q)
-= noop ();
-  let _ = gen_elim () in
-  assert (x > 18);
-  drop p;
-  true

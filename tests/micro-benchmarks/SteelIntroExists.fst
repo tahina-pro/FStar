@@ -123,12 +123,6 @@ module SteelIntroExists
 open Steel.Effect.Common
 open Steel.ST.Util
 
-[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_)]
-let _intro_can_be_split_exists = intro_can_be_split_exists
-
-[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_)]
-let _intro_can_be_split_forall_dep_exists = intro_can_be_split_forall_dep_exists
-
 assume
 val ptr : Type0
 
@@ -137,6 +131,19 @@ val pts_to (p:ptr) (v:nat) : vprop
 
 assume
 val free (p:ptr) : STT unit (exists_ (fun v -> pts_to p v)) (fun _ -> emp)
+
+let free_one_default (p q r:ptr)
+  : STT unit
+    (pts_to p 17 `star` pts_to q 18 `star` pts_to r 19)
+    (fun _ -> pts_to p 17 `star` pts_to r 19)
+ = intro_exists _ (fun v -> pts_to q v);
+   let _ = free q in ()
+
+[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_)]
+let _intro_can_be_split_exists = intro_can_be_split_exists
+
+[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_)]
+let _intro_can_be_split_forall_dep_exists = intro_can_be_split_forall_dep_exists
 
 // assume
 // val intro_exists_f (#a:Type) (#opened_invariants:_) (x:a) (p:a -> vprop)
@@ -282,3 +289,15 @@ val pred ([@@@smt_fallback] _ : nat) : vprop
 let test (x y:nat) : ST unit (pred x) (fun _ -> pred 17 `star` pure ((x > y)==true)) (requires x == 17 /\ x > y) (ensures fun _ -> True) =
  let _ = noop () in 
  return ()
+
+(* Testing gen_elim *)
+
+let f
+  (#opened: _)
+  (p q: vprop)
+  (x: nat)
+: STGhost bool opened (exists_ (fun n -> p `star` q `star` pure (n > 42 /\ x > 18))) (fun _ -> q) True (fun _ -> x > 18)
+= noop ();
+  let _ = gen_elim () in
+  drop p;
+  true
