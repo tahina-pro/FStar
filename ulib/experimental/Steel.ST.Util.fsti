@@ -225,7 +225,7 @@ let gen_elim_f
   (q: (a -> vprop))
   (post: (a -> prop))
 : Tot Type
-= ((opened: inames) -> STGhostF a opened p q True (fun x -> post x))
+= ((opened: inames) -> STGhostF (Ghost.erased a) opened p (fun x -> q (Ghost.reveal x)) True (fun x -> post x))
 
 let frame_gen_elim_f
   (#p: vprop)
@@ -234,7 +234,7 @@ let frame_gen_elim_f
   (#post: (a -> prop))
   (g: gen_elim_f p a q post)
   (opened: inames)
-: STGhost a opened p q True (fun x -> post x)
+: STGhost (Ghost.erased a) opened p (fun x -> q (Ghost.reveal x)) True (fun x -> post x)
 = g opened
 
 [@@erasable]
@@ -248,7 +248,6 @@ type gen_elim_t
     f: gen_elim_f p a q post ->
     gen_elim_t p
 
-[@@__reduce__]
 let gen_elim_a
   (#p: vprop)
   (g: gen_elim_t p)
@@ -275,9 +274,9 @@ let gen_elim_post
 let gen_elim_id'
   (p: vprop)
 : Tot (gen_elim_f p unit (fun _ -> p) (fun _ -> True))
-= (fun _ -> noop ())
+= (fun _ -> noop (); Ghost.hide ())
 
-[@__reduce__]
+[@@ __reduce__]
 let gen_elim_id
   (p: vprop)
 : Tot (gen_elim_t p)
@@ -290,10 +289,10 @@ let gen_elim_id
 let gen_elim_exists_simple'
   (a: Type0)
   (p: a -> Tot vprop)
-: Tot (gen_elim_f (exists_ p) (Ghost.erased a) (fun x -> p x) (fun _ -> True))
+: Tot (gen_elim_f (exists_ p) a (fun x -> p x) (fun _ -> True))
 = fun _ -> elim_exists _
 
-[@__reduce__]
+[@@__reduce__]
 let gen_elim_exists_simple
   (a: Type0)
   (p: a -> Tot vprop)
@@ -304,27 +303,21 @@ let gen_elim_exists_simple
     _
     (gen_elim_exists_simple' a p)
 
-[@@erasable]
-noeq
-type g_dep_pair
-  (a: Type)
-  (b: (a -> Type))
-=
-  | GDepPair:
-    x: a ->
-    y: b x ->
-    g_dep_pair a b
+let dfstp #a #b t = dfst #a #b t
+let dsndp #a #b t = dsnd #a #b t
+let fstp #a #b t = fst #a #b t
+let sndp #a #b t = snd #a #b t
 
 let gen_elim_exists''
   (a: Type0)
   (p: a -> Tot vprop)
   (g: (x: a) -> gen_elim_t (p x))
   ()
-: Tot (gen_elim_f (exists_ p) (g_dep_pair a (fun x -> GenElim?.a (g x))) (fun y -> GenElim?.q (g (GDepPair?.x y)) (GDepPair?.y y)) (fun y -> GenElim?.post (g (GDepPair?.x y)) (GDepPair?.y y)))
+: Tot (gen_elim_f (exists_ p) (dtuple2 a (fun x -> GenElim?.a (g x))) (fun y -> GenElim?.q (g (dfstp y)) (dsndp y)) (fun y -> GenElim?.post (g (dfstp y)) (dsndp y)))
 = fun opened ->
   let x = elim_exists () in
   let y = GenElim?.f (g x) opened in
-  let res = GDepPair (Ghost.reveal x) y in
+  let res = Ghost.hide (| Ghost.reveal x, Ghost.reveal y |) in
   res
 
 let gen_elim_exists'
@@ -332,7 +325,7 @@ let gen_elim_exists'
   (p: a -> Tot vprop)
   (g: (x: a) -> gen_elim_t (p x))
 : Tot (unit ->
-      Tot (gen_elim_f (exists_ p) (g_dep_pair a (fun x -> gen_elim_a (g x))) (fun y -> gen_elim_q (g (GDepPair?.x y)) (GDepPair?.y y)) (fun y -> gen_elim_post (g (GDepPair?.x y)) (GDepPair?.y y)))
+      Tot (gen_elim_f (exists_ p) (dtuple2 a (fun x -> gen_elim_a (g x))) (fun y -> gen_elim_q (g (dfstp y)) (dsndp y)) (fun y -> gen_elim_post (g (dfstp y)) (dsndp y)))
   )
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
   coerce _ (gen_elim_exists'' a p g) (_ by (T.trefl ()))
@@ -345,26 +338,18 @@ let gen_elim_exists
 : Tot (gen_elim_t (exists_ p))
 = GenElim _ _ _ (gen_elim_exists' a p g ())
 
-[@@erasable]
-noeq
-type g_pair
-  (a b: Type)
-=
-  | GPair:
-    fst: a ->
-    snd: b ->
-    g_pair a b
+#set-options "--ide_id_info_off"
 
 let gen_elim_star''
   (p q: vprop)
   (gp: gen_elim_t p)
   (gq: gen_elim_t q)
   ()
-: Tot (gen_elim_f (p `star` q) (GenElim?.a gp `g_pair` GenElim?.a gq) (fun x -> GenElim?.q gp (GPair?.fst x) `star` GenElim?.q gq (GPair?.snd x)) (fun x -> GenElim?.post gp (GPair?.fst x) /\ GenElim?.post gq (GPair?.snd x)))
+: Tot (gen_elim_f (p `star` q) (GenElim?.a gp & GenElim?.a gq) (fun x -> GenElim?.q gp (fstp x) `star` GenElim?.q gq (sndp x)) (fun x -> GenElim?.post gp (fstp x) /\ GenElim?.post gq (sndp x)))
 = fun opened ->
   let xp = frame_gen_elim_f (GenElim?.f gp) opened in
   let xq = frame_gen_elim_f (GenElim?.f gq) opened in
-  let res = GPair xp xq in
+  let res = Ghost.hide (Ghost.reveal xp, Ghost.reveal xq) in
   res
 
 let gen_elim_star'
@@ -372,7 +357,7 @@ let gen_elim_star'
   (gp: gen_elim_t p)
   (gq: gen_elim_t q)
 : unit ->
-  Tot (gen_elim_f (p `star` q) (gen_elim_a gp `g_pair` gen_elim_a gq) (fun x -> gen_elim_q gp (GPair?.fst x) `star` gen_elim_q gq (GPair?.snd x)) (fun x -> gen_elim_post gp (GPair?.fst x) /\ gen_elim_post gq (GPair?.snd x)))
+  Tot (gen_elim_f (p `star` q) (gen_elim_a gp & gen_elim_a gq) (fun x -> gen_elim_q gp (fstp x) `star` gen_elim_q gq (sndp x)) (fun x -> gen_elim_post gp (fstp x) /\ gen_elim_post gq (sndp x)))
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
   coerce _ (gen_elim_star'' p q gp gq) (_ by (T.trefl ()))
 
@@ -387,7 +372,7 @@ let gen_elim_star
 let gen_elim_pure'
   (p: prop)
 : Tot (gen_elim_f (pure p) unit (fun _ -> emp) (fun _ -> p))
-= fun _ -> elim_pure _
+= fun _ -> elim_pure _; Ghost.hide ()
 
 [@@__reduce__]
 let gen_elim_pure
@@ -400,7 +385,7 @@ let gen_elim'
   (f: gen_elim_t p)
   (#opened: _)
   ()
-: STGhostF (GenElim?.a f) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
+: STGhostF (Ghost.erased (GenElim?.a f)) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
 = GenElim?.f f opened
 
 module T = FStar.Tactics
@@ -445,7 +430,7 @@ let gen_elim
   (#[ solve_gen_elim () ] f: gen_elim_t p)
   (#opened: _)
 : Tot (unit ->
-      STGhostF (gen_elim_a f) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x))
+      STGhostF (Ghost.erased (gen_elim_a f)) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x))
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x
   in
   coerce _ (gen_elim' f #opened) (_ by (T.trefl ()))

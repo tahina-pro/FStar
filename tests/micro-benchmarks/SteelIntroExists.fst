@@ -293,11 +293,23 @@ let test (x y:nat) : ST unit (pred x) (fun _ -> pred 17 `star` pure ((x > y)==tr
 (* Testing gen_elim *)
 
 let f
-  (#opened: _)
   (p q: vprop)
   (x: nat)
-: STGhost bool opened (exists_ (fun n -> p `star` q `star` pure (n > 42 /\ x > 18))) (fun _ -> q) True (fun _ -> x > 18)
+: ST bool  (exists_ (fun n -> p `star` q `star` pure (n > 42 /\ x > 18))) (fun _ -> q) True (fun _ -> x > 18)
 = noop ();
   let _ = gen_elim () in
   drop p;
-  true
+  return true
+
+#set-options "--ide_id_info_off"
+
+let f'
+  (p: ptr)
+  (q: vprop)
+  (x: nat)
+: ST bool  (exists_ (fun n -> (p `pts_to` n) `star` q `star` pure (n > 42 /\ x > 18))) (fun _ -> q) True (fun _ -> x > 18)
+= noop ();
+  let _ = gen_elim () in
+  noop ();
+  free p;
+  return true
