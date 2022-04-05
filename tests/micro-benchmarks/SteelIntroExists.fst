@@ -139,12 +139,6 @@ let free_one_default (p q r:ptr)
  = intro_exists _ (fun v -> pts_to q v);
    let _ = free q in ()
 
-[@@solve_can_be_split_lookup; (solve_can_be_split_for exists_)]
-let _intro_can_be_split_exists = intro_can_be_split_exists
-
-[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_)]
-let _intro_can_be_split_forall_dep_exists = intro_can_be_split_forall_dep_exists
-
 // assume
 // val intro_exists_f (#a:Type) (#opened_invariants:_) (x:a) (p:a -> vprop)
 //   : STGhostF unit opened_invariants (p x) (fun _ -> exists_ (fun v -> p v)) (True) (fun _ -> True)
@@ -214,12 +208,6 @@ val alloc_rev (n:nat) : STT ptr emp (fun p -> pts_to_rev n p)
 let construct_rev () : STT ptr emp (fun p -> exists_ (fun v -> pts_to_rev v p)) =
   let p = alloc_rev 17 in
   p
-
-[@@solve_can_be_split_lookup; (solve_can_be_split_for pure)]
-let _intro_can_be_split_pure = intro_can_be_split_pure
-
-[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
-let _intro_can_be_split_forall_dep_pure = intro_can_be_split_forall_dep_pure
 
 let test_exists_intro_pure
   (p: ptr)
