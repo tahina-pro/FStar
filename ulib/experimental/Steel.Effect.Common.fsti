@@ -2111,6 +2111,9 @@ let extract_cbs_contexts = extract_contexts
 
 let open_existentials () : Tac unit
   =
+       let e = cur_env () in
+       if Nil? (lookup_attr (`solve_can_be_split_lookup) e)
+       then fail "Tactic disabled: no available lemmas in context";
        norm [delta_attr [`%__reduce__]];
        let t0 = cur_goal () in
        match collect_app t0 with
@@ -2268,6 +2271,9 @@ let extract_cbs_forall_dep_contexts
 
 let open_existentials_forall_dep () : Tac unit
 =
+  let e = cur_env () in
+  if Nil? (lookup_attr (`solve_can_be_split_forall_dep_lookup) e)
+  then fail "Tactic disabled: no available lemmas in context";
   norm [
     delta_only [
     `%FStar.Algebra.CommMonoid.Equiv.__proj__CM__item__unit;
