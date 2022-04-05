@@ -700,3 +700,32 @@ let gen_elim
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x
   in
   coerce _ (gen_elim' f opened) (_ by (T.trefl ()))
+
+/// Extracts an argument to a vprop from the context. This can be useful if we do need binders for some of the existentials opened by gen_elim.
+
+let vpattern
+  (#opened: _)
+  (#a: Type)
+  (#x: a)
+  (p: a -> vprop)
+: STGhost a opened (p x) (fun _ -> p x) True (fun res -> res == x)
+= noop ();
+  x
+
+let vpattern_replace
+  (#opened: _)
+  (#a: Type)
+  (#x: a)
+  (p: a -> vprop)
+: STGhost a opened (p x) (fun res -> p res) True (fun res -> res == x)
+= noop ();
+  x
+
+let vpattern_erased
+  (#opened: _)
+  (#a: Type)
+  (#x: a)
+  (p: a -> vprop)
+: STGhost (Ghost.erased a) opened (p x) (fun _ -> p x) True (fun res -> Ghost.reveal res == x)
+= noop ();
+  x
