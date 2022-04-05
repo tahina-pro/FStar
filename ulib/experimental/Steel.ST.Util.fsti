@@ -248,6 +248,7 @@ type gen_elim_t
     f: gen_elim_f p a q post ->
     gen_elim_t p
 
+[@@__reduce__; __steel_reduce__]
 let gen_elim_a
   (#p: vprop)
   (g: gen_elim_t p)
@@ -304,7 +305,7 @@ let gen_unit_elim_post
 = match g with
   | GenUnitElim _ post _ -> post
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_of_gen_unit_elim
   (#p: vprop)
   (g: gen_unit_elim_t p)
@@ -316,7 +317,7 @@ let gen_unit_elim_id'
 : Tot (gen_unit_elim_f p p True)
 = (fun _ -> noop (); Ghost.hide ())
 
-[@@ __reduce__]
+[@@ __reduce__; __steel_reduce__]
 let gen_unit_elim_id
   (p: vprop)
 : Tot (gen_unit_elim_t p)
@@ -325,7 +326,7 @@ let gen_unit_elim_id
     _
     (gen_unit_elim_id' p)
 
-[@@ __reduce__]
+[@@ __reduce__; __steel_reduce__]
 let gen_elim_id
   (p: vprop)
 : Tot (gen_elim_t p)
@@ -341,7 +342,7 @@ let gen_elim_exists_unit_body'
   let _ = GenUnitElim?.f (g x) opened in
   x
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_exists_unit_body
   (a: Type0)
   (p: a -> Tot vprop)
@@ -353,7 +354,7 @@ let gen_elim_exists_unit_body
     _
     (gen_elim_exists_unit_body' a p g)
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_exists_simple
   (a: Type0)
   (p: a -> Tot vprop)
@@ -387,7 +388,7 @@ let gen_elim_exists'
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
   coerce _ (gen_elim_exists'' a p g) (_ by (T.trefl ()))
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_exists
   (a: Type0)
   (p: a -> Tot vprop)
@@ -402,13 +403,13 @@ let gen_unit_elim_pure'
 : Tot (gen_unit_elim_f (pure p) emp p)
 = fun _ -> elim_pure _; ()
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_unit_elim_pure
   (p: prop)
 : Tot (gen_unit_elim_t (pure p))
 = GenUnitElim _ _ (gen_unit_elim_pure' p)
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_pure
   (p: prop)
 : Tot (gen_elim_t (pure p))
@@ -435,7 +436,7 @@ let gen_elim_star'
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
   coerce _ (gen_elim_star'' p q gp gq) (_ by (T.trefl ()))
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_star
   (p q: vprop)
   (gp: gen_elim_t p)
@@ -463,7 +464,7 @@ let gen_elim_star_l'
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
   coerce _ (gen_elim_star_l'' p q gp gq) (_ by (T.trefl ()))
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_star_l
   (p q: vprop)
   (gp: gen_elim_t p)
@@ -491,7 +492,7 @@ let gen_elim_star_r'
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
   coerce _ (gen_elim_star_r'' p q gp gq) (_ by (T.trefl ()))
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_elim_star_r
   (p q: vprop)
   (gp: gen_unit_elim_t p)
@@ -519,7 +520,7 @@ let gen_unit_elim_star'
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
   coerce _ (gen_unit_elim_star'' p q gp gq) (_ by (T.trefl ()))
 
-[@@__reduce__]
+[@@__reduce__; __steel_reduce__]
 let gen_unit_elim_star
   (p q: vprop)
   (gp: gen_unit_elim_t p)
@@ -530,9 +531,9 @@ let gen_unit_elim_star
 let gen_elim'
   (#p: vprop)
   (f: gen_elim_t p)
-  (#opened: _)
+  (opened: _)
   ()
-: STGhostF (Ghost.erased (GenElim?.a f)) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
+: STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
 = GenElim?.f f opened
 
 module T = FStar.Tactics
@@ -663,12 +664,20 @@ let rec solve_gen_elim
     | _ -> T.fail "ill-formed gen_elim_t"
   )
 
+[@@__reduce__]
+let gen_elim_j
+  (#p: vprop)
+  (f: gen_elim_t p)
+  (opened: inames)
+: Tot Type
+= unit ->
+  STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x)
+
 let gen_elim
   (#p: vprop)
   (#[ solve_gen_elim () ] f: gen_elim_t p)
   (#opened: _)
-: Tot (unit ->
-      STGhostF (Ghost.erased (gen_elim_a f)) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x))
+: Tot (gen_elim_j f opened)
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x
   in
-  coerce _ (gen_elim' f #opened) (_ by (T.trefl ()))
+  coerce _ (gen_elim' f opened) (_ by (T.trefl ()))
