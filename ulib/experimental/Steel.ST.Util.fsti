@@ -547,13 +547,26 @@ let gen_unit_elim_star
 : Tot (gen_unit_elim_t (p `star` q))
 = GenUnitElim _ _ (gen_unit_elim_star' p q gp gq ())
 
+let gen_elim_q'
+  (#p: vprop)
+  (g: gen_elim_t p)
+: Tot (gen_elim_a g -> Tot vprop)
+= gen_elim_q g
+
+let gen_elim_j'
+  (#p: vprop)
+  (f: gen_elim_t p)
+  (opened: _)
+: Tot Type
+= unit ->
+  STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q' f x) True (fun x -> norm [delta_attr [`%__reduce__]; iota] (gen_elim_post f x))
+
 let gen_elim'
   (#p: vprop)
   (f: gen_elim_t p)
   (opened: _)
-  ()
-: STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
-= GenElim?.f f opened
+: Tot (gen_elim_j' f opened)
+= fun _ -> GenElim?.f f opened
 
 module T = FStar.Tactics
 
@@ -690,7 +703,7 @@ let gen_elim_j
   (opened: inames)
 : Tot Type
 = unit ->
-  STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x)
+  STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> norm [delta_attr [`%__reduce__]; iota] (gen_elim_post f x))
 
 let gen_elim
   (#p: vprop)
