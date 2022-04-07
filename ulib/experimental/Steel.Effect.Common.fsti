@@ -2514,7 +2514,9 @@ let rec solve_return_eqs (l:list goal) : Tac unit =
 let goal_to_equiv (t:term) (loc:string) : Tac unit
   = let f = term_as_formula' t in
     match f with
-    | App _ t ->
+    | App hd0 t ->
+      if not (hd0 `term_eq` (`squash))
+      then fail (loc ^ " unexpected non-squash goal in goal_to_equiv");
       let hd, args = collect_app t in
       if term_eq hd (`can_be_split) then (
         apply_lemma (`equiv_can_be_split)
@@ -2544,7 +2546,9 @@ let solve_or_delay (g:goal) : Tac bool =
   norm [];
   let f = term_as_formula' (cur_goal ()) in
   match f with
-  | App _ t ->
+  | App hd0 t ->
+    if hd0 `term_eq` (`squash)
+    then
       let hd, args = collect_app t in
       if term_eq hd (`can_be_split) then solve_can_be_split args
       else if term_eq hd (`can_be_split_forall) then solve_can_be_split_forall args
@@ -2558,6 +2562,9 @@ let solve_or_delay (g:goal) : Tac bool =
         if List.Tot.length (FStar.Reflection.Builtins.free_uvars t) = 0
         then (smt (); true)
         else false
+    else
+      // TODO: handle non-squash goals here
+      false
   | Comp (Eq _) l r ->
     let lnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars l) in
     let rnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars r) in
@@ -2627,7 +2634,7 @@ let rec filter_goals (l:list goal) : Tac (list goal * list goal) =
         else (
           hd::slgoals, loggoals
         )
-      | App t _ -> if term_eq t (`squash) then hd::slgoals, loggoals else slgoals, loggoals
+      | App t _ -> if term_eq t (`squash) (* TODO: also allow some non-squash goals here *) then hd::slgoals, loggoals else slgoals, loggoals
       | _ -> slgoals, loggoals
 
 let is_true (t:term) () : Tac unit =
@@ -2644,17 +2651,20 @@ let rec solve_maybe_emps (l:list goal) : Tac unit =
   | hd::tl ->
     let f = term_as_formula' (cur_goal ()) in (
     match f with
-    | App _ t ->
-      let hd, args = collect_app t in
-      if term_eq hd (`maybe_emp) then
-        (norm [delta_only [`%maybe_emp]; iota; zeta; primops; simplify];
-         let g = cur_goal () in
-         or_else (is_true g) trefl)
-      else if term_eq hd (`maybe_emp_dep) then
-        (norm [delta_only [`%maybe_emp_dep]; iota; zeta; primops; simplify];
-         let g = cur_goal () in
-         or_else (is_true g) (fun _ -> ignore (forall_intro ()); trefl ()))
-      else later()
+    | App hd0 t ->
+      if not (hd0 `term_eq` (`squash))
+      then later()
+      else
+        let hd, args = collect_app t in
+        if term_eq hd (`maybe_emp) then
+          (norm [delta_only [`%maybe_emp]; iota; zeta; primops; simplify];
+          let g = cur_goal () in
+          or_else (is_true g) trefl)
+        else if term_eq hd (`maybe_emp_dep) then
+          (norm [delta_only [`%maybe_emp_dep]; iota; zeta; primops; simplify];
+          let g = cur_goal () in
+          or_else (is_true g) (fun _ -> ignore (forall_intro ()); trefl ()))
+        else later()
     | _ -> later()
     );
     solve_maybe_emps tl
