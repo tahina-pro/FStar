@@ -617,7 +617,6 @@ let rec solve_gen_elim
   ()
 : T.Tac unit
 = 
-  T.focus (fun _ ->
     T.norm [];    
     let g = T.cur_goal () in
     let (hd, tl) = T.collect_app g in
@@ -681,7 +680,14 @@ let rec solve_gen_elim
         else
           T.apply (`gen_elim_id)
     | _ -> T.fail "ill-formed gen_elim_t"
-  )
+
+[@@ solve_non_squash_goals_lookup; solve_non_squash_goals_for gen_elim_t ]
+let try_solve_gen_elim () : T.Tac bool =
+  let open T in
+  try
+    solve_gen_elim ();
+    true
+  with _ -> false
 
 [@@__reduce__]
 let gen_elim_j
@@ -693,8 +699,10 @@ let gen_elim_j
   STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x)
 
 let gen_elim
-  (#p: vprop)
-  (#[ solve_gen_elim () ] f: gen_elim_t p)
+  (#[@@@ framing_implicit ] p: vprop)
+  (#[@@@ framing_implicit ] f': gen_elim_t p)
+  (#[@@@ framing_implicit ] f: gen_elim_t p)
+  (#[@@@ framing_implicit ] sq: squash (f == f'))
   (#opened: _)
 : Tot (gen_elim_j f opened)
 = let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x

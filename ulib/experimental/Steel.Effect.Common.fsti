@@ -2478,7 +2478,7 @@ let rec solve_indirection_eqs (l:list goal) : Tac unit =
   match l with
   | [] -> ()
   | hd::tl ->
-    let f = term_as_formula' (goal_type hd) in
+    let f = term_as_formula' (cur_goal ()) in
     match f with
     | Comp (Eq _) l r ->
         if is_return_eq l r then later() else trefl();
@@ -2490,7 +2490,7 @@ let rec solve_all_eqs (l:list goal) : Tac unit =
   match l with
   | [] -> ()
   | hd::tl ->
-    let f = term_as_formula' (goal_type hd) in
+    let f = term_as_formula' (cur_goal ()) in
     match f with
     | Comp (Eq _) l r ->
         trefl();
@@ -2503,7 +2503,7 @@ let rec solve_return_eqs (l:list goal) : Tac unit =
   match l with
   | [] -> ()
   | hd::tl ->
-    let f = term_as_formula' (goal_type hd) in
+    let f = term_as_formula' (cur_goal ()) in
     match f with
     | Comp (Eq _) l r ->
         trefl();
@@ -2568,7 +2568,7 @@ let solve_or_delay (g:goal) : Tac bool =
     else
       let candidates = lookup_by_term_attr (`solve_non_squash_goals_lookup) (mk_app (`solve_non_squash_goals_for) [hd0, Q_Explicit]) in
       let try_tac (fv: fv) () : Tac bool =
-        let tm = mk_app (pack (Tv_FVar fv)) [(`()), Q_Explicit] in
+        let tm = pack (Tv_FVar fv) in
         let tac : unit -> Tac bool = unquote tm in
         focus tac
       in
