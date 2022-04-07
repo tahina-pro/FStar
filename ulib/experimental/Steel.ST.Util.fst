@@ -164,3 +164,5 @@ let par #aL #aR #preL #postL #preR #postR f g =
                        (fun y -> postL (fst y) `star` postR (snd y))
     = fun _ -> SE.par f g in
   coerce_steel p
+
+let compute_gen_elim_f' = admit ()

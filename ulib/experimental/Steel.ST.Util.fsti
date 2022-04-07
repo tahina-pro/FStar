@@ -238,6 +238,7 @@ val par
 
 /// A tactic to automatically generate a unique binder
 
+[@@__reduce__]
 let gen_elim_f
   (p: vprop)
   (a: Type0) // FIXME: generalize this universe
@@ -568,7 +569,142 @@ let gen_elim'
 : Tot (gen_elim_j' f opened)
 = fun _ -> GenElim?.f f opened
 
-module T = FStar.Tactics
+noeq
+type gen_unit_elim_i
+= | GUEId: (v: vprop) -> gen_unit_elim_i
+  | GUEPure: (p: prop) -> gen_unit_elim_i
+  | GUEStar: (left: gen_unit_elim_i) -> (right: gen_unit_elim_i) -> gen_unit_elim_i
+
+noeq
+type gen_elim_i =
+  | GEUnit: (i: gen_unit_elim_i) -> gen_elim_i
+  | GEStarL: (left: gen_elim_i) -> (right: gen_unit_elim_i) -> gen_elim_i
+  | GEStarR: (left: gen_unit_elim_i) -> (right: gen_elim_i) -> gen_elim_i
+  | GEStar: (left: gen_elim_i) -> (right: gen_elim_i) -> gen_elim_i
+  | GEExistsNoAbs: (#a: Type0) -> (body: (a -> vprop)) -> gen_elim_i
+  | GEExistsUnit: (#a: Type0) -> (body: (a -> gen_unit_elim_i)) -> gen_elim_i
+  | GEExists: (#a: Type0) -> (body: (a -> gen_elim_i)) -> gen_elim_i
+
+[@__reduce__]
+let rec compute_gen_unit_elim_p
+  (x: gen_unit_elim_i)
+: Tot vprop
+= match x with
+  | GUEId v -> v
+  | GUEPure p -> pure p
+  | GUEStar left right -> compute_gen_unit_elim_p left `star` compute_gen_unit_elim_p right
+
+let compute_gen_unit_elim_p' = compute_gen_unit_elim_p
+
+[@__reduce__]
+let rec compute_gen_unit_elim_q
+  (x: gen_unit_elim_i)
+: Tot vprop
+= match x with
+  | GUEId v -> v
+  | GUEPure _ -> emp
+  | GUEStar left right -> compute_gen_unit_elim_q left `star` compute_gen_unit_elim_q right
+
+let compute_gen_unit_elim_q' = compute_gen_unit_elim_q
+
+[@@__reduce__; __steel_reduce__]
+let rec compute_gen_unit_elim_post
+  (x: gen_unit_elim_i)
+: Tot prop
+= match x with
+  | GUEId _ -> True
+  | GUEPure p -> p
+  | GUEStar left right -> compute_gen_unit_elim_post left /\ compute_gen_unit_elim_post right
+
+let compute_gen_unit_elim_post' = compute_gen_unit_elim_post
+
+[@@__reduce__]
+let rec compute_gen_elim_p
+  (x: gen_elim_i)
+: Tot vprop
+= match x with
+  | GEUnit i -> compute_gen_unit_elim_p i
+  | GEStarL left right -> compute_gen_elim_p left `star` compute_gen_unit_elim_p right
+  | GEStarR left right -> compute_gen_unit_elim_p left `star` compute_gen_elim_p right
+  | GEStar left right -> compute_gen_elim_p left `star` compute_gen_elim_p right
+  | GEExistsNoAbs #a p -> exists_ p
+  | GEExistsUnit #a p -> exists_ (fun x -> compute_gen_unit_elim_p (p x))
+  | GEExists #a body -> exists_ (fun x -> compute_gen_elim_p (body x))
+
+let compute_gen_elim_p' = compute_gen_elim_p
+
+[@@ __reduce__; __steel_reduce__]
+let rec compute_gen_elim_a
+  (x: gen_elim_i)
+: Tot Type0
+= match x with
+  | GEUnit _ -> unit
+  | GEStarL left _ -> compute_gen_elim_a left
+  | GEStarR _ right -> compute_gen_elim_a right
+  | GEStar left right -> (compute_gen_elim_a left & compute_gen_elim_a right)
+  | GEExistsNoAbs #a _
+  | GEExistsUnit #a _ -> a
+  | GEExists #a body -> dtuple2 a (fun x -> compute_gen_elim_a (body x))
+
+let compute_gen_elim_a' = compute_gen_elim_a
+
+[@@__reduce__; __steel_reduce__]
+let coerce
+  (#a #b: Type)
+  (x: a)
+  (sq: squash (a == b))
+: Tot b
+= x
+
+[@@__reduce__]
+let rec compute_gen_elim_q
+  (x: gen_elim_i)
+: Tot (compute_gen_elim_a x -> Tot vprop)
+  (decreases x)
+= match x as x' returns (compute_gen_elim_a x' -> Tot vprop) with
+  | GEUnit u -> fun _ -> compute_gen_unit_elim_q u
+  | GEStarL left right -> fun v -> compute_gen_elim_q left (coerce v ()) `star` compute_gen_unit_elim_q right
+  | GEStarR left right -> fun v -> compute_gen_unit_elim_q left `star` compute_gen_elim_q right (coerce v ())
+  | GEStar left right -> fun v -> compute_gen_elim_q left (fst #(compute_gen_elim_a left) #(compute_gen_elim_a right) (coerce v ())) `star` compute_gen_elim_q right (snd #(compute_gen_elim_a left) #(compute_gen_elim_a right) (coerce v ()))
+  | GEExistsNoAbs #a p -> p
+  | GEExistsUnit #a p -> fun v -> compute_gen_unit_elim_q (p v)
+  | GEExists #a body -> fun v ->
+    compute_gen_elim_q (body (dfst #a #(fun x -> compute_gen_elim_a (body x)) (coerce v (_ by (T.trefl ()))))) (dsnd #a #(fun x -> compute_gen_elim_a (body x)) (coerce v (_ by (T.trefl ()))))
+
+let compute_gen_elim_q' = compute_gen_elim_q
+
+[@@__reduce__; __steel_reduce__]
+let rec compute_gen_elim_post
+  (x: gen_elim_i)
+: Tot (compute_gen_elim_a x -> Tot prop)
+  (decreases x)
+= match x as x' returns (compute_gen_elim_a x' -> Tot prop) with
+  | GEUnit u -> fun _ -> compute_gen_unit_elim_post u
+  | GEStarL left right -> fun v -> compute_gen_elim_post left (coerce v ()) /\ compute_gen_unit_elim_post right
+  | GEStarR left right -> fun v -> compute_gen_unit_elim_post left /\ compute_gen_elim_post right (coerce v ())
+  | GEStar left right -> fun v -> compute_gen_elim_post left (fst #(compute_gen_elim_a left) #(compute_gen_elim_a right) (coerce v ())) /\ compute_gen_elim_post right (snd #(compute_gen_elim_a left) #(compute_gen_elim_a right) (coerce v ()))
+  | GEExistsNoAbs #a p -> fun _ -> True
+  | GEExistsUnit #a p -> fun v -> compute_gen_unit_elim_post (p v)
+  | GEExists #a body -> fun v ->
+    compute_gen_elim_post (body (dfst #a #(fun x -> compute_gen_elim_a (body x)) (coerce v (_ by (T.trefl ()))))) (dsnd #a #(fun x -> compute_gen_elim_a (body x)) (coerce v (_ by (T.trefl ()))))
+
+let compute_gen_elim_post' = compute_gen_elim_post
+
+(*
+let rec compute_gen_unit_elim_f'
+  (x: gen_unit_elim_i)
+: Tot (gen_unit_elim_f (compute_gen_unit_elim_p' x) (compute_gen_unit_elim_q' x) (compute_gen_unit_elim_post' x))
+= match x as x' returns (gen_unit_elim_f (compute_gen_unit_elim_p' x') (compute_gen_unit_elim_q' x') (compute_gen_unit_elim_post' x')) with
+  | GUEId p -> fun _ -> noop (); Ghost.hide ()
+  | GUEPure p -> fun _ -> elim_pure p; Ghost.hide () 
+  | GUEStar left right ->
+    let aux (opened: inames) : STGhost (Ghost.erased unit) (compute_gen_unit_elim_p' 
+  | _ -> admit ()
+*)
+
+val compute_gen_elim_f'
+  (x: gen_elim_i)
+: Tot (gen_elim_f (compute_gen_elim_p' x) (compute_gen_elim_a' x) (compute_gen_elim_q' x) (compute_gen_elim_post' x))
 
 let rec term_has_head
   (t: T.term)
@@ -618,6 +754,28 @@ let rec solve_gen_unit_elim
           T.apply (`gen_unit_elim_id)
     | _ -> T.fail "ill-formed gen_unit_elim_t"
   )
+
+let rec compute_gen_unit_elim
+  (tl': T.term)
+: T.Tac T.term
+= 
+      if not (term_has_head tl' (`pure))
+      then T.mk_app (`GUEId) [tl', T.Q_Explicit]
+      else
+        let (hd, tl) = T.collect_app tl' in
+        if hd `T.term_eq` (`pure)
+        then
+          T.mk_app (`GUEPure) tl
+        else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
+        then
+          match tl with
+          | [(tleft, T.Q_Explicit); (tright, T.Q_Explicit)] ->
+            let tleft' = compute_gen_unit_elim tleft in
+            let tright' = compute_gen_unit_elim tright in
+            T.mk_app (`GUEStar) [tleft', T.Q_Explicit; tright', T.Q_Explicit]
+          | _ -> T.fail "ill-formed star"
+        else
+          T.mk_app (`GUEId) [tl', T.Q_Explicit]
 
 let abstr_has_exists
   (t: T.term)
@@ -695,6 +853,120 @@ let rec solve_gen_elim
           T.apply (`gen_elim_id)
     | _ -> T.fail "ill-formed gen_elim_t"
   )
+
+let rec compute_gen_elim
+  (tl': T.term)
+: T.Tac T.term
+=
+      if not (term_has_head tl' (`exists_))
+      then begin
+        let tl = compute_gen_unit_elim tl' in
+        T.mk_app (`GEUnit) [tl, T.Q_Explicit]
+      end else
+        let (hd, body0) = T.collect_app tl' in
+        if hd `T.term_eq` (`exists_)
+        then
+          match body0 with
+          | [(_, T.Q_Implicit); (body, T.Q_Explicit)]
+          | [(body, T.Q_Explicit)] ->
+            begin match T.inspect body with
+            | T.Tv_Abs bv bbody ->
+              let ta =
+                match body0 with
+                | [(a, T.Q_Implicit); (_, T.Q_Explicit)] -> [(a, T.Q_Implicit)]
+                | _ -> []
+              in
+              if not (abstr_has_exists body)
+              then
+                let tbody = T.mk_abs [bv] (compute_gen_unit_elim bbody) in
+                T.mk_app (`GEExistsUnit) (ta `List.Tot.append` [(tbody, T.Q_Explicit)])
+              else
+                let tbody = T.mk_abs [bv] (compute_gen_elim bbody) in
+                T.mk_app (`GEExists) (ta `List.Tot.append` [(tbody, T.Q_Explicit)])
+            | _ ->
+              T.mk_app (`GEExistsNoAbs) body0
+            end
+          | _ -> T.fail "ill-formed exists_"
+        else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
+        then
+          match body0 with
+          | [(tl, T.Q_Explicit); (tr, T.Q_Explicit)] ->
+            if term_has_head tl (`exists_)
+            then begin
+              let tl' = compute_gen_elim tl in
+              if term_has_head tr (`exists_)
+              then
+                let tr' = compute_gen_elim tr in
+                T.mk_app (`GEStar) [(tl', T.Q_Explicit); (tr', T.Q_Explicit)]
+              else
+                let tr' = compute_gen_unit_elim tr in
+                T.mk_app (`GEStarL) [(tl', T.Q_Explicit); (tr', T.Q_Explicit)]
+            end else (* here, term_has_head tr (`exists_) holds, because otherwise we are in case (not (term_has_head tl (`exists_))) above *)
+              let tl' = compute_gen_unit_elim tl in
+              let tr' = compute_gen_elim tr in
+              T.mk_app (`GEStarR) [(tl', T.Q_Explicit); (tr', T.Q_Explicit)]
+          | _ -> T.fail "ill-formed star"
+        else
+          let tb = T.mk_app (`GUEId) [(tl', T.Q_Explicit)] in
+          T.mk_app (`GEUnit) [(tb, T.Q_Explicit)]
+
+let compute_gen_elim_for (p: vprop) : Tot Type = gen_elim_i
+
+let solve_compute_gen_elim_for () : T.Tac unit =
+  T.focus (fun _ ->
+    T.norm [];    
+    let g = T.cur_goal () in
+    let (hd, tl) = T.collect_app g in
+    if not (hd `T.term_eq` (`compute_gen_elim_for))
+    then T.fail "solve_compute_gen_elim_for: not a compute_gen_elim_for goal";
+    match tl with
+    | [tl', T.Q_Explicit] ->
+      let ti = compute_gen_elim tl' in
+      T.exact ti
+    | _ -> T.fail "ill-formed compute_gen_elim_for"
+  )
+
+unfold
+let norm_reduce_steps = [
+  delta_attr [`%__reduce__];
+  iota; zeta; primops; simplify
+]
+
+let check_gen_elim
+  ()
+: T.Tac unit
+=
+  T.dump "before norm" ;
+  T.norm norm_reduce_steps;
+  T.dump "after norm";
+  T.trivial ();
+  T.qed ()
+
+let test_gen_elim
+  (p: vprop)
+  (# [ solve_compute_gen_elim_for () ] i: compute_gen_elim_for p)
+  ()
+: Pure unit
+    (requires (T.with_tactic check_gen_elim (squash (compute_gen_elim_p i == p))))
+    (ensures (fun _ -> True))
+= ()
+
+let test
+  (ptr: Type0)
+  (pts_to: ptr -> int -> vprop)
+  (p1 p2 p3: ptr)
+: Tot unit
+=
+  test_gen_elim (exists_ (fun x1 -> pts_to p1 x1 `star` pure (x1 == 18))) ()
+
+let compute_gen_elim_f
+  (#p: vprop)
+  (# [ solve_compute_gen_elim_for () ] i: compute_gen_elim_for p)
+  ()
+: Pure (gen_elim_f p (compute_gen_elim_a i) (compute_gen_elim_q i) (compute_gen_elim_post i))
+    (requires (T.with_tactic check_gen_elim (squash (compute_gen_elim_p i == p))))
+    (ensures (fun _ -> True))
+= coerce (compute_gen_elim_f' i) ()
 
 [@@__reduce__]
 let gen_elim_j
