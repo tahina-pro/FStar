@@ -207,3 +207,6 @@ let emp_unit_variant p = Mem.emp_unit (hp_of p)
 
 let solve_can_be_split_forall_dep_for _ = ()
 let solve_can_be_split_forall_dep_lookup = ()
+
+let solve_non_squash_goals_lookup = ()
+let solve_non_squash_goals_for _ = ()

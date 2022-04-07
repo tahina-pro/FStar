@@ -2540,6 +2540,9 @@ let goal_to_equiv (t:term) (loc:string) : Tac unit
         fail (loc ^ " goal in unexpected position")
     | _ -> fail (loc ^ " unexpected goal")
 
+val solve_non_squash_goals_lookup : unit
+val solve_non_squash_goals_for (#t: Type) (a: t) : Tot unit
+
 /// Returns true if the goal has been solved, false if it should be delayed
 let solve_or_delay (g:goal) : Tac bool =
   // Beta-reduce the goal first if possible
@@ -2563,8 +2566,18 @@ let solve_or_delay (g:goal) : Tac bool =
         then (smt (); true)
         else false
     else
-      // TODO: handle non-squash goals here
-      false
+      let candidates = lookup_by_term_attr (`solve_non_squash_goals_lookup) (mk_app (`solve_non_squash_goals_for) [hd0, Q_Explicit]) in
+      let try_tac (fv: fv) () : Tac bool =
+        let tm = mk_app (pack (Tv_FVar fv)) [(`()), Q_Explicit] in
+        let tac : unit -> Tac bool = unquote tm in
+        focus tac
+      in
+      begin try
+        first (List.Tot.map try_tac candidates)
+      with _ ->
+        false
+      end
+
   | Comp (Eq _) l r ->
     let lnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars l) in
     let rnbr = List.Tot.length (FStar.Reflection.Builtins.free_uvars r) in
@@ -2634,7 +2647,13 @@ let rec filter_goals (l:list goal) : Tac (list goal * list goal) =
         else (
           hd::slgoals, loggoals
         )
-      | App t _ -> if term_eq t (`squash) (* TODO: also allow some non-squash goals here *) then hd::slgoals, loggoals else slgoals, loggoals
+      | App t _ ->
+        let retain =
+          if term_eq t (`squash)
+          then true
+          else Cons? (lookup_by_term_attr (`solve_non_squash_goals_lookup) (mk_app (`solve_non_squash_goals_for) [t, Q_Explicit]))
+        in
+        if retain then hd::slgoals, loggoals else slgoals, loggoals
       | _ -> slgoals, loggoals
 
 let is_true (t:term) () : Tac unit =
