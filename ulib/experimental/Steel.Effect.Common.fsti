@@ -2552,7 +2552,7 @@ let goal_to_equiv (loc:string) : Tac unit
 val solve_squash_goal_lookup: unit
 val solve_squash_goal_for (#a: Type u#b) (x: a) : Tot unit
 
-/// Returns true if the goal has been solved, false if it should be delayed
+/// Returns true if the goal has been solved (or has at least made some nontrivial progress), false if it should be delayed
 let solve_or_delay () : Tac bool =
   // Beta-reduce the goal first if possible
   norm [];
@@ -2569,8 +2569,6 @@ let solve_or_delay () : Tac bool =
       else if term_eq hd (`equiv) then solve_equiv args
       else if term_eq hd (`can_be_split_dep) then solve_can_be_split_dep args
       else if term_eq hd (`can_be_split_forall_dep) then solve_can_be_split_forall_dep args
-      else if slterm_nbr_uvars_argv args > 1
-      then false // unitriangularity. FIXME: this test could be moved up, I believe it is correct and relevant in all cases
       else
         let candidates = lookup_by_term_attr (`solve_squash_goal_lookup) (mk_e_app (`solve_squash_goal_for) [hd]) in
         let run_tac (v: fv) () : Tac bool =
