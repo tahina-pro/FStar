@@ -2550,7 +2550,7 @@ let goal_to_equiv (loc:string) : Tac unit
     | _ -> fail (loc ^ " unexpected goal")
 
 val solve_squash_goal_lookup: unit
-val solve_squash_goal_for (#a: Type) (x: a) : Tot unit
+val solve_squash_goal_for (#a: Type u#b) (x: a) : Tot unit
 
 /// Returns true if the goal has been solved, false if it should be delayed
 let solve_or_delay () : Tac bool =
