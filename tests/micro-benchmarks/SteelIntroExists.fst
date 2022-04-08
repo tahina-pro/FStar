@@ -123,6 +123,19 @@ module SteelIntroExists
 open Steel.Effect.Common
 open Steel.ST.Util
 
+module T = FStar.Tactics
+
+let test_gen_elim_prop_elim
+  (#opened: _) (p q: nat -> vprop) : STGhostT unit opened (exists_ p `star` exists_ q) (fun _ -> emp)
+=
+  let z = gen_elim_prop_elim () in
+  let _ = noop () in
+  let vp = vpattern_replace p in
+  let vq = vpattern_replace q in
+  drop (p vp);
+  drop (q vq);
+  ()
+
 assume
 val ptr : Type0
 

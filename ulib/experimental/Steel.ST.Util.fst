@@ -164,3 +164,34 @@ let par #aL #aR #preL #postL #preR #postR f g =
                        (fun y -> postL (fst y) `star` postR (snd y))
     = fun _ -> SE.par f g in
   coerce_steel p
+
+let gen_elim_prop
+  p a q post
+=
+  exists (i: gen_elim_t p) .
+  a == GenElim?.a i /\
+  can_be_split_forall (fun (x: Ghost.erased a) -> GenElim?.q i x) q /\
+  post == (fun (x: Ghost.erased a) -> GenElim?.post i x)
+
+let gen_elim_prop_intro
+  p i a sq_a post sq_post q sq_q
+= ()
+
+let gen_elim_prop_elim'
+  (opened: _)
+  (p: vprop)
+  (a: Type0)
+  (q: Ghost.erased a -> Tot vprop)
+  (post: Ghost.erased a -> Tot prop)
+  (sq: squash (gen_elim_prop p a q post))
+: STGhost (Ghost.erased a) opened p q True post
+= let f = FStar.IndefiniteDescription.indefinite_description_ghost (gen_elim_t p) (fun i -> a == GenElim?.a i /\ (fun (x: Ghost.erased a) -> GenElim?.q i x) `can_be_split_forall` q /\ post == (fun (x: Ghost.erased a) -> GenElim?.post i x)) in
+  let z : Ghost.erased (GenElim?.a f) = frame_gen_elim_f (GenElim?.f f) opened in
+  let z' : Ghost.erased a = z in
+  weaken (GenElim?.q f (Ghost.reveal z)) (q z') (fun _ -> reveal_can_be_split ());
+  z'
+
+let gen_elim_prop_elim
+  #opened #p #a #q #post #sq _
+=
+  gen_elim_prop_elim' opened p a q post sq
