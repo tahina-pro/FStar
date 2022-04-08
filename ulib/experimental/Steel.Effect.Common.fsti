@@ -1979,13 +1979,15 @@ let rec slterm_nbr_uvars (t:term) : Tac int =
   | Tv_App _ _ ->
     let hd, args = collect_app t in
     if term_eq hd (`star) || term_eq hd (`VStar) || term_eq hd (`VUnit) then
-
       // Only count the number of unresolved slprops, not program implicits
-      fold_left (fun n (x, _) -> n + slterm_nbr_uvars x) 0 args
+      slterm_nbr_uvars_argv args
     else if is_uvar hd then 1
     else 0
   | Tv_Abs _ t -> slterm_nbr_uvars t
   | _ -> 0
+
+and slterm_nbr_uvars_argv (args: list argv) : Tac int =
+  fold_left (fun n (x, _) -> n + slterm_nbr_uvars x) 0 args
 
 val solve_can_be_split_for (#a: Type u#b) : a -> Tot unit
 
@@ -2547,6 +2549,9 @@ let goal_to_equiv (loc:string) : Tac unit
         fail (loc ^ " goal in unexpected position")
     | _ -> fail (loc ^ " unexpected goal")
 
+val solve_squash_goal_lookup: unit
+val solve_squash_goal_for (#a: Type) (x: a) : Tot unit
+
 /// Returns true if the goal has been solved, false if it should be delayed
 let solve_or_delay () : Tac bool =
   // Beta-reduce the goal first if possible
@@ -2564,11 +2569,22 @@ let solve_or_delay () : Tac bool =
       else if term_eq hd (`equiv) then solve_equiv args
       else if term_eq hd (`can_be_split_dep) then solve_can_be_split_dep args
       else if term_eq hd (`can_be_split_forall_dep) then solve_can_be_split_forall_dep args
+      else if slterm_nbr_uvars_argv args > 1
+      then false // unitriangularity. FIXME: this test could be moved up, I believe it is correct and relevant in all cases
       else
-        (* this is a logical goal, solve it only if it has no uvars *)
-        if List.Tot.length (FStar.Reflection.Builtins.free_uvars t) = 0
-        then (smt (); true)
-        else false
+        let candidates = lookup_by_term_attr (`solve_squash_goal_lookup) (mk_e_app (`solve_squash_goal_for) [hd]) in
+        let run_tac (v: fv) () : Tac bool =
+          let tac : unit -> Tac bool = unquote (pack (Tv_FVar v)) in
+          focus tac
+        in
+        begin try
+          first (List.Tot.map run_tac candidates)
+        with _ ->
+          (* this is a logical goal, solve it only if it has no uvars *)
+          if List.Tot.length (FStar.Reflection.Builtins.free_uvars t) = 0
+          then (smt (); true)
+          else false
+        end
     else
       // TODO: handle non-squash goals here
       false
