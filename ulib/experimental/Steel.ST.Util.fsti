@@ -98,10 +98,8 @@ val elim_pure (#uses:_) (p:prop)
   : STGhost unit uses (pure p) (fun _ -> emp) True (fun _ -> p)
 
 /// Extracting a proposition from a [pure p] while retaining [pure p]
-let extract_pure (#uses:_) (p:prop)
+val extract_pure (#uses:_) (p:prop)
   : STGhost unit uses (pure p) (fun _ -> pure p) True (fun _ -> p)
-  = let _ = elim_pure p in
-    intro_pure p
 
 /// Useful lemmas to make the framing tactic automatically handle `pure`
 
@@ -246,7 +244,7 @@ let gen_elim_f
 : Tot Type
 = ((opened: inames) -> STGhostF (Ghost.erased a) opened p (fun x -> q (Ghost.reveal x)) True (fun x -> post x))
 
-let frame_gen_elim_f
+val frame_gen_elim_f
   (#p: vprop)
   (#a: Type0) // FIXME: generalize this universe
   (#q: (a -> vprop))
@@ -254,7 +252,6 @@ let frame_gen_elim_f
   (g: gen_elim_f p a q post)
   (opened: inames)
 : STGhost (Ghost.erased a) opened p (fun x -> q (Ghost.reveal x)) True (fun x -> post x)
-= g opened
 
 [@@erasable]
 noeq
@@ -331,10 +328,9 @@ let gen_elim_of_gen_unit_elim
 : Tot (gen_elim_t p)
 = GenElim unit (fun _ -> gen_unit_elim_q g) (fun _ -> gen_unit_elim_post g) (GenUnitElim?.f g)
 
-let gen_unit_elim_id'
+val gen_unit_elim_id'
   (p: vprop)
 : Tot (gen_unit_elim_f p p True)
-= (fun _ -> noop (); Ghost.hide ())
 
 [@@ __reduce__; __steel_reduce__]
 let gen_unit_elim_id
@@ -351,15 +347,11 @@ let gen_elim_id
 : Tot (gen_elim_t p)
 = gen_elim_of_gen_unit_elim (gen_unit_elim_id p)
 
-let gen_elim_exists_unit_body'
+val gen_elim_exists_unit_body'
   (a: Type0)
   (p: a -> Tot vprop)
   (g: (x: a) -> gen_unit_elim_t (p x))
 : Tot (gen_elim_f (exists_ p) a (fun x -> gen_unit_elim_q (g x)) (fun x -> gen_unit_elim_post (g x)))
-= fun opened ->
-  let x = elim_exists () in
-  let _ = GenUnitElim?.f (g x) opened in
-  x
 
 [@@__reduce__; __steel_reduce__]
 let gen_elim_exists_unit_body
@@ -385,27 +377,13 @@ let dsndp #a #b t = dsnd #a #b t
 let fstp #a #b t = fst #a #b t
 let sndp #a #b t = snd #a #b t
 
-let gen_elim_exists''
-  (a: Type0)
-  (p: a -> Tot vprop)
-  (g: (x: a) -> gen_elim_t (p x))
-  ()
-: Tot (gen_elim_f (exists_ p) (dtuple2 a (fun x -> GenElim?.a (g x))) (fun y -> GenElim?.q (g (dfstp y)) (dsndp y)) (fun y -> GenElim?.post (g (dfstp y)) (dsndp y)))
-= fun opened ->
-  let x = elim_exists () in
-  let y = GenElim?.f (g x) opened in
-  let res = Ghost.hide (| Ghost.reveal x, Ghost.reveal y |) in
-  res
-
-let gen_elim_exists'
+val gen_elim_exists'
   (a: Type0)
   (p: a -> Tot vprop)
   (g: (x: a) -> gen_elim_t (p x))
 : Tot (unit ->
       Tot (gen_elim_f (exists_ p) (dtuple2 a (fun x -> gen_elim_a (g x))) (fun y -> gen_elim_q (g (dfstp y)) (dsndp y)) (fun y -> gen_elim_post (g (dfstp y)) (dsndp y)))
   )
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_exists'' a p g) (_ by (T.trefl ()))
 
 [@@__reduce__; __steel_reduce__]
 let gen_elim_exists
@@ -417,10 +395,9 @@ let gen_elim_exists
 
 #set-options "--ide_id_info_off"
 
-let gen_unit_elim_pure'
+val gen_unit_elim_pure'
   (p: prop)
 : Tot (gen_unit_elim_f (pure p) emp p)
-= fun _ -> elim_pure _; ()
 
 [@@__reduce__; __steel_reduce__]
 let gen_unit_elim_pure
@@ -434,26 +411,12 @@ let gen_elim_pure
 : Tot (gen_elim_t (pure p))
 = gen_elim_of_gen_unit_elim (gen_unit_elim_pure p)
 
-let gen_elim_star''
-  (p q: vprop)
-  (gp: gen_elim_t p)
-  (gq: gen_elim_t q)
-  ()
-: Tot (gen_elim_f (p `star` q) (GenElim?.a gp & GenElim?.a gq) (fun x -> GenElim?.q gp (fstp x) `star` GenElim?.q gq (sndp x)) (fun x -> GenElim?.post gp (fstp x) /\ GenElim?.post gq (sndp x)))
-= fun opened ->
-  let xp = frame_gen_elim_f (GenElim?.f gp) opened in
-  let xq = frame_gen_elim_f (GenElim?.f gq) opened in
-  let res = Ghost.hide (Ghost.reveal xp, Ghost.reveal xq) in
-  res
-
-let gen_elim_star'
+val gen_elim_star'
   (p q: vprop)
   (gp: gen_elim_t p)
   (gq: gen_elim_t q)
 : unit ->
   Tot (gen_elim_f (p `star` q) (gen_elim_a gp & gen_elim_a gq) (fun x -> gen_elim_q gp (fstp x) `star` gen_elim_q gq (sndp x)) (fun x -> gen_elim_post gp (fstp x) /\ gen_elim_post gq (sndp x)))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_star'' p q gp gq) (_ by (T.trefl ()))
 
 [@@__reduce__; __steel_reduce__]
 let gen_elim_star
@@ -463,25 +426,12 @@ let gen_elim_star
 : Tot (gen_elim_t (p `star` q))
 = GenElim _ _ _ (gen_elim_star' p q gp gq ())
 
-let gen_elim_star_l''
-  (p q: vprop)
-  (gp: gen_elim_t p)
-  (gq: gen_unit_elim_t q)
-  ()
-: Tot (gen_elim_f (p `star` q) (GenElim?.a gp) (fun x -> GenElim?.q gp x `star` GenUnitElim?.q gq) (fun x -> GenElim?.post gp x /\ GenUnitElim?.post gq))
-= fun opened ->
-  let xp = frame_gen_elim_f (GenElim?.f gp) opened in
-  let _ = frame_gen_elim_f (GenUnitElim?.f gq) opened in
-  xp
-
-let gen_elim_star_l'
+val gen_elim_star_l'
   (p q: vprop)
   (gp: gen_elim_t p)
   (gq: gen_unit_elim_t q)
 : unit ->
   Tot (gen_elim_f (p `star` q) (gen_elim_a gp) (fun x -> gen_elim_q gp x `star` gen_unit_elim_q gq) (fun x -> gen_elim_post gp x /\ gen_unit_elim_post gq))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_star_l'' p q gp gq) (_ by (T.trefl ()))
 
 [@@__reduce__; __steel_reduce__]
 let gen_elim_star_l
@@ -491,25 +441,12 @@ let gen_elim_star_l
 : Tot (gen_elim_t (p `star` q))
 = GenElim _ _ _ (gen_elim_star_l' p q gp gq ())
 
-let gen_elim_star_r''
-  (p q: vprop)
-  (gp: gen_unit_elim_t p)
-  (gq: gen_elim_t q)
-  ()
-: Tot (gen_elim_f (p `star` q) (GenElim?.a gq) (fun x -> GenUnitElim?.q gp `star` GenElim?.q gq x) (fun x -> GenUnitElim?.post gp /\ GenElim?.post gq x))
-= fun opened ->
-  let _ = frame_gen_elim_f (GenUnitElim?.f gp) opened in
-  let xq = frame_gen_elim_f (GenElim?.f gq) opened in
-  xq
-
-let gen_elim_star_r'
+val gen_elim_star_r'
   (p q: vprop)
   (gp: gen_unit_elim_t p)
   (gq: gen_elim_t q)
 : unit ->
   Tot (gen_elim_f (p `star` q) (gen_elim_a gq) (fun x -> gen_unit_elim_q gp `star` gen_elim_q gq x) (fun x -> gen_unit_elim_post gp /\ gen_elim_post gq x))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_star_r'' p q gp gq) (_ by (T.trefl ()))
 
 [@@__reduce__; __steel_reduce__]
 let gen_elim_star_r
@@ -519,25 +456,12 @@ let gen_elim_star_r
 : Tot (gen_elim_t (p `star` q))
 = GenElim _ _ _ (gen_elim_star_r' p q gp gq ())
 
-let gen_unit_elim_star''
-  (p q: vprop)
-  (gp: gen_unit_elim_t p)
-  (gq: gen_unit_elim_t q)
-  ()
-: Tot (gen_unit_elim_f (p `star` q) (GenUnitElim?.q gp `star` GenUnitElim?.q gq) (GenUnitElim?.post gp /\ GenUnitElim?.post gq))
-= fun opened ->
-  let _ = frame_gen_elim_f (GenUnitElim?.f gp) opened in
-  let _ = frame_gen_elim_f (GenUnitElim?.f gq) opened in
-  ()
-
-let gen_unit_elim_star'
+val gen_unit_elim_star'
   (p q: vprop)
   (gp: gen_unit_elim_t p)
   (gq: gen_unit_elim_t q)
 : unit ->
   Tot (gen_unit_elim_f (p `star` q) (gen_unit_elim_q gp `star` gen_unit_elim_q gq) (gen_unit_elim_post gp /\ gen_unit_elim_post gq))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_unit_elim_star'' p q gp gq) (_ by (T.trefl ()))
 
 [@@__reduce__; __steel_reduce__]
 let gen_unit_elim_star
@@ -547,13 +471,12 @@ let gen_unit_elim_star
 : Tot (gen_unit_elim_t (p `star` q))
 = GenUnitElim _ _ (gen_unit_elim_star' p q gp gq ())
 
-let gen_elim'
+val gen_elim'
   (#p: vprop)
   (f: gen_elim_t p)
   (opened: _)
-  ()
+  (_: unit)
 : STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
-= GenElim?.f f opened
 
 module T = FStar.Tactics
 
@@ -692,14 +615,11 @@ let gen_elim_j
 = unit ->
   STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x)
 
-let gen_elim
+val gen_elim
   (#p: vprop)
   (#[ solve_gen_elim () ] f: gen_elim_t p)
   (#opened: _)
 : Tot (gen_elim_j f opened)
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x
-  in
-  coerce _ (gen_elim' f opened) (_ by (T.trefl ()))
 
 val gen_elim_prop
   (p: vprop)
@@ -806,7 +726,7 @@ let solve_gen_elim_prop
     resolve_tac [] (* () *)
   | _ -> T.fail "ill-formed squash"
 
-let gen_elim_prop_elim'
+val gen_elim_prop_elim'
   (#opened: _)
   (#[@@@ framing_implicit] p: vprop)
   (#[@@@ framing_implicit] a: Type0)
@@ -815,7 +735,6 @@ let gen_elim_prop_elim'
   (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p a q post))
   (_: unit)
 : STGhostF (Ghost.erased a) opened p q ( T.with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post))) post
-= gen_elim_prop_elim p a q post () ()
 
 let solve_gen_elim_prop_placeholder
   ()
@@ -840,29 +759,28 @@ let solve_gen_elim_prop_placeholder
 
 /// Extracts an argument to a vprop from the context. This can be useful if we do need binders for some of the existentials opened by gen_elim.
 
-let vpattern
+val vpattern
   (#opened: _)
   (#a: Type)
   (#x: a)
   (p: a -> vprop)
 : STGhost a opened (p x) (fun _ -> p x) True (fun res -> res == x)
-= noop ();
-  x
 
-let vpattern_replace
+val vpattern_replace
   (#opened: _)
   (#a: Type)
   (#x: a)
   (p: a -> vprop)
 : STGhost a opened (p x) (fun res -> p res) True (fun res -> res == x)
-= noop ();
-  x
 
-let vpattern_erased
+val vpattern_erased
   (#opened: _)
   (#a: Type)
   (#x: a)
   (p: a -> vprop)
 : STGhost (Ghost.erased a) opened (p x) (fun _ -> p x) True (fun res -> Ghost.reveal res == x)
-= noop ();
-  x
+
+// TODO: change with our new tactics
+
+[@@ resolve_implicits; framing_implicit]
+let init_resolve_tac () = init_resolve_tac' ()
