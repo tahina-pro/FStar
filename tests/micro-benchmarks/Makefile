@@ -30,8 +30,8 @@ Coercions1Phase.fst: Coercions.fst
 %.ml-cmp: %.ml %.ml.expected
 	diff -u --strip-trailing-cr $< $<.expected
 
-# %.fst-in:
-# 	@echo "--no_plugins"
+%.fst-in:
+	@echo "--no_plugins"
 
 # clean:
 # 	rm -f .depend

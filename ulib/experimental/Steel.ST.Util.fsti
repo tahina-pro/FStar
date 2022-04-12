@@ -708,31 +708,87 @@ val gen_elim_prop
   (post: Ghost.erased a -> Tot prop)
 : Tot prop
 
+let gen_elim_dummy
+  (#p: vprop)
+  (i: gen_elim_t p)
+: Tot prop
+= True
+
+let gen_elim_dummy_intro
+  (#p: vprop)
+  (i: gen_elim_t p)
+: Lemma (gen_elim_dummy i)
+= ()
+
 val gen_elim_prop_intro
   (p: vprop)
   (i: gen_elim_t p)
+  (dummy: squash (gen_elim_dummy i))
   (a: Type0)
   (sq_a: squash (a == GenElim?.a i))
   (post: Ghost.erased a -> Tot prop)
   (sq_post: squash (post == (fun (x: Ghost.erased a) -> GenElim?.post i x)))
   (q: Ghost.erased a -> Tot vprop)
   (sq_q: squash (can_be_split_forall (fun (x: Ghost.erased a) -> GenElim?.q i x) q))
-: Tot (squash (gen_elim_prop p a q post))
+: Lemma (gen_elim_prop p a q post)
 
 val gen_elim_prop_elim
   (#opened: _)
-  (# [@@@ framing_implicit ] p: vprop)
-  (# [@@@ framing_implicit ] a: Type0)
-  (# [@@@ framing_implicit ] q: Ghost.erased a -> Tot vprop)
-  (# [@@@ framing_implicit ] post: Ghost.erased a -> Tot prop)
-  (# [@@@ framing_implicit ] sq: squash (gen_elim_prop p a q post))
+  (p: vprop)
+  (a: Type0)
+  (q: Ghost.erased a -> Tot vprop)
+  (post: Ghost.erased a -> Tot prop)
+  (sq: squash (gen_elim_prop p a q post))
   (_: unit)
 : STGhostF (Ghost.erased a) opened p q True post
 
-[@@ solve_squash_goal_lookup; solve_squash_goal_for gen_elim_prop]
+let gen_elim_prop_placeholder
+  (p: vprop)
+  (a: Type0)
+  (q: Ghost.erased a -> Tot vprop)
+  (post: Ghost.erased a -> Tot prop)
+: Tot prop
+= True
+
+let gen_elim_prop_placeholder_intro
+  (p: vprop)
+  (i: gen_elim_t p)
+  (dummy: squash (gen_elim_dummy i))
+  (a: Type0)
+  (sq_a: squash (a == GenElim?.a i))
+  (post: Ghost.erased a -> Tot prop)
+  (sq_post: squash (post == (fun (x: Ghost.erased a) -> GenElim?.post i x)))
+  (q: Ghost.erased a -> Tot vprop)
+  (sq_q: squash (can_be_split_forall (fun (x: Ghost.erased a) -> GenElim?.q i x) q))
+: Lemma (gen_elim_prop_placeholder p a q post)
+= ()
+
+let solve_gen_elim_dummy
+  ()
+: T.Tac unit
+=
+      let (hd, tl) = T.collect_app (T.cur_goal ()) in
+      if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
+      then T.fail "not a squash goal";
+      match tl with
+      | [body1, T.Q_Explicit] ->
+        let (hd1, tl1) = T.collect_app body1 in
+        if not (hd1 `T.term_eq` (`gen_elim_dummy))
+        then T.fail "not a gen_elim_dummy goal";
+        begin match List.Tot.filter (fun (_, x) -> T.Q_Explicit? x) tl1 with
+        | [(i, _)] ->
+          if not (T.Tv_Uvar? (T.inspect i))
+          then T.fail "gen_elim_dummy is already solved";
+          T.unshelve i;
+          T.focus solve_gen_elim;
+          T.apply_lemma (`gen_elim_dummy_intro)
+        | _ -> T.fail "ill-formed gen_elim_dummy"
+        end
+      | _ -> T.fail "ill-formed squash"
+
 let solve_gen_elim_prop
   ()
-: T.Tac bool
+: T.Tac unit
 =
   let (hd, tl) = T.collect_app (T.cur_goal ()) in
   if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
@@ -742,15 +798,46 @@ let solve_gen_elim_prop
     let (hd1, tl1) = T.collect_app body1 in
     if not (hd1 `T.term_eq` (`gen_elim_prop))
     then T.fail "not a gen_elim_prop goal";
-    T.apply_raw (`gen_elim_prop_intro);
-    T.focus solve_gen_elim;
+    T.apply_lemma (`gen_elim_prop_intro);
+    T.focus solve_gen_elim_dummy;
+    let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
+    T.focus (fun _ -> norm (); T.trefl ());
+    T.focus (fun _ -> norm (); T.trefl ());
+    resolve_tac ()
+  | _ -> T.fail "ill-formed squash"
+
+let gen_elim_prop_elim'
+  (#opened: _)
+  (#[@@@ framing_implicit] p: vprop)
+  (#[@@@ framing_implicit] a: Type0)
+  (#[@@@ framing_implicit] q: Ghost.erased a -> Tot vprop)
+  (#[@@@ framing_implicit] post: Ghost.erased a -> Tot prop)
+  (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p a q post))
+  (_: unit)
+: STGhostF (Ghost.erased a) opened p q (T.with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post))) post
+= gen_elim_prop_elim p a q post () ()
+
+[@@ solve_squash_goal_lookup; solve_squash_goal_for gen_elim_prop_placeholder]
+let solve_gen_elim_prop_placeholder
+  ()
+: T.Tac bool
+=
+  let (hd, tl) = T.collect_app (T.cur_goal ()) in
+  if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
+  then T.fail "not a squash goal";
+  match tl with
+  | [body1, T.Q_Explicit] ->
+    let (hd1, tl1) = T.collect_app body1 in
+    if not (hd1 `T.term_eq` (`gen_elim_prop_placeholder))
+    then T.fail "not a gen_elim_prop_placeholder goal";
+    T.apply_lemma (`gen_elim_prop_placeholder_intro);
+    T.focus solve_gen_elim_dummy;
     let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
     T.focus (fun _ -> norm (); T.trefl ());
     T.focus (fun _ -> norm (); T.trefl ());
     T.focus norm;
     true
   | _ -> T.fail "ill-formed squash"
-
 
 /// Extracts an argument to a vprop from the context. This can be useful if we do need binders for some of the existentials opened by gen_elim.
 
