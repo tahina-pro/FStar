@@ -55,7 +55,7 @@ val rewrite_with_tactic (#opened:_) (p q:vprop)
   : STGhost unit opened
       p
       (fun _ -> q)
-      (requires T.with_tactic init_resolve_tac (squash (p `equiv` q)))
+      (requires T.with_tactic init_resolve_tac' (squash (p `equiv` q)))
       (ensures fun _ -> True)
 
 /// This rewrite is useful when you have equiv predicate in the logical context
@@ -803,7 +803,7 @@ let solve_gen_elim_prop
     let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
     T.focus (fun _ -> norm (); T.trefl ());
     T.focus (fun _ -> norm (); T.trefl ());
-    resolve_tac ()
+    resolve_tac [] (* () *)
   | _ -> T.fail "ill-formed squash"
 
 let gen_elim_prop_elim'
@@ -814,10 +814,9 @@ let gen_elim_prop_elim'
   (#[@@@ framing_implicit] post: Ghost.erased a -> Tot prop)
   (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p a q post))
   (_: unit)
-: STGhostF (Ghost.erased a) opened p q (T.with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post))) post
+: STGhostF (Ghost.erased a) opened p q ( T.with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post))) post
 = gen_elim_prop_elim p a q post () ()
 
-[@@ solve_squash_goal_lookup; solve_squash_goal_for gen_elim_prop_placeholder]
 let solve_gen_elim_prop_placeholder
   ()
 : T.Tac bool
