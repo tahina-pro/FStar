@@ -128,7 +128,7 @@ module T = FStar.Tactics
 let test_gen_elim_prop_elim
   (#opened: _) (p q: nat -> vprop) : STGhostT unit opened (exists_ p `star` exists_ q) (fun _ -> emp)
 =
-  let z = gen_elim_prop_elim () in
+  let z = gen_elim_prop_elim' () in
   let _ = noop () in
   let vp = vpattern_replace p in
   let vq = vpattern_replace q in
@@ -298,7 +298,7 @@ let f
   (x: nat)
 : ST bool  (exists_ (fun n -> p `star` q `star` pure (n > 42 /\ x > 18))) (fun _ -> q) True (fun _ -> x > 18)
 = noop ();
-  let _ = gen_elim () in
+  let _ = gen_elim_prop_elim' () in
   drop p;
   return true
 

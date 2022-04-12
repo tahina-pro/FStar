@@ -174,10 +174,10 @@ let gen_elim_prop
   post == (fun (x: Ghost.erased a) -> GenElim?.post i x)
 
 let gen_elim_prop_intro
-  p i a sq_a post sq_post q sq_q
+  p i dummy a sq_a post sq_post q sq_q
 = ()
 
-let gen_elim_prop_elim'
+let gen_elim_prop_elim_
   (opened: _)
   (p: vprop)
   (a: Type0)
@@ -192,6 +192,6 @@ let gen_elim_prop_elim'
   z'
 
 let gen_elim_prop_elim
-  #opened #p #a #q #post #sq _
+  #opened p a q post sq _
 =
-  gen_elim_prop_elim' opened p a q post sq
+  gen_elim_prop_elim_ opened p a q post sq
