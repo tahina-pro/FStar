@@ -311,22 +311,6 @@ let gen_unit_elim_star'
 =
   coerce_with_trefl _ (gen_unit_elim_star'' p q gp gq)
 
-let gen_elim'
-  (#p: vprop)
-  (f: gen_elim_t p)
-  (opened: _)
-  ()
-: STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
-= GenElim?.f f opened
-
-let gen_elim
-  (#p: vprop)
-  (#[ solve_gen_elim () ] f: gen_elim_t p)
-  (#opened: _)
-: Tot (gen_elim_j f opened)
-=
-  coerce_with_trefl _ (gen_elim' f opened)
-
 let gen_elim_prop
   p a q post
 =
@@ -358,7 +342,7 @@ let gen_elim_prop_elim
 =
   gen_elim_prop_elim_ opened p a q post sq
 
-let gen_elim_prop_elim'
+let gen_elim
   #opened #p #a #q #post #sq _
 = gen_elim_prop_elim p a q post () ()
 

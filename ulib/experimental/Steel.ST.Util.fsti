@@ -474,13 +474,6 @@ let gen_unit_elim_star
 : Tot (gen_unit_elim_t (p `star` q))
 = GenUnitElim _ _ (gen_unit_elim_star' p q gp gq ())
 
-val gen_elim'
-  (#p: vprop)
-  (f: gen_elim_t p)
-  (opened: _)
-  (_: unit)
-: STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
-
 module T = FStar.Tactics
 
 let rec term_has_head
@@ -609,21 +602,6 @@ let rec solve_gen_elim
     | _ -> T.fail "ill-formed gen_elim_t"
   )
 
-[@@__reduce__]
-let gen_elim_j
-  (#p: vprop)
-  (f: gen_elim_t p)
-  (opened: inames)
-: Tot Type
-= unit ->
-  STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x)
-
-val gen_elim
-  (#p: vprop)
-  (#[ solve_gen_elim () ] f: gen_elim_t p)
-  (#opened: _)
-: Tot (gen_elim_j f opened)
-
 val gen_elim_prop
   (p: vprop)
   (a: Type0)
@@ -729,7 +707,7 @@ let solve_gen_elim_prop
     resolve_tac [] // we do not need to add our tactics into the dictionary here, because this call is only to solve can_be_split_forall
   | _ -> T.fail "ill-formed squash"
 
-val gen_elim_prop_elim'
+val gen_elim
   (#opened: _)
   (#[@@@ framing_implicit] p: vprop)
   (#[@@@ framing_implicit] a: Type0)
