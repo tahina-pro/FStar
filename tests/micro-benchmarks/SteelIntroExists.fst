@@ -125,17 +125,6 @@ open Steel.ST.Util
 
 module T = FStar.Tactics
 
-let test_gen_elim_prop_elim
-  (#opened: _) (p q: nat -> vprop) : STGhostT unit opened (exists_ p `star` exists_ q) (fun _ -> emp)
-=
-  let z = gen_elim_prop_elim' () in
-  let _ = noop () in
-  let vp = vpattern_replace p in
-  let vq = vpattern_replace q in
-  drop (p vp);
-  drop (q vq);
-  ()
-
 assume
 val ptr : Type0
 
@@ -292,6 +281,17 @@ let test (x y:nat) : ST unit (pred x) (fun _ -> pred 17 `star` pure ((x > y)==tr
  return ()
 
 (* Testing gen_elim *)
+
+let test_gen_elim
+  (#opened: _) (p q: nat -> vprop) : STGhostT unit opened (exists_ p `star` exists_ q) (fun _ -> emp)
+=
+  let _ = gen_elim () in
+  let _ = noop () in
+  let vp = vpattern_replace p in
+  let vq = vpattern_replace q in
+  drop (p vp);
+  drop (q vq);
+  ()
 
 let f
   (p q: vprop)
