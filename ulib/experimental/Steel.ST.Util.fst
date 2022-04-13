@@ -76,9 +76,8 @@ let intro_can_be_split_pure
 = intro_can_be_split_pure' p
 
 let intro_can_be_split_forall_dep_pure
-  (p: prop)
-: Tot (squash (can_be_split_forall_dep (fun x -> p) (fun _ -> emp) (fun _ -> pure p)))
-= (intro_can_be_split_pure' p)
+  p
+= Classical.forall_intro (fun x -> intro_can_be_split_pure' (p x))
 
 [@@noextract_to "Plugin"]
 let return0 #a #o #p (x:a)
