@@ -112,8 +112,8 @@ val intro_can_be_split_pure
 [@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
 val intro_can_be_split_forall_dep_pure
   (#a: Type)
-  (p: prop)
-: Tot (squash (can_be_split_forall_dep (fun (x: a) -> p) (fun _ -> emp) (fun _ -> pure p)))
+  (p: a -> Tot prop)
+: Tot (squash (can_be_split_forall_dep p (fun _ -> emp) (fun x -> pure (p x))))
 
 /// It's generally good practice to end a computation with a [return].
 ///
