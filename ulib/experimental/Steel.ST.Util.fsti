@@ -126,6 +126,7 @@ val intro_can_be_split_forall_dep_pure
 /// Else, the returned value will be given type SteelGhost, and F*
 /// will fail to typecheck the program as it will try to lift a
 /// SteelGhost computation with an informative return type
+[@@noextract_to "Plugin"]
 val return (#a:Type u#a)
            (#opened_invariants:inames)
            (#p:a -> vprop)
@@ -197,6 +198,7 @@ val new_invariant (#opened_invariants:inames) (p:vprop)
 /// Atomically executing function [f] which relies on the predicate [p] stored in invariant [i]
 /// as long as it maintains the validity of [p]
 /// This requires invariant [i] to not belong to the set of currently opened invariants.
+[@@noextract_to "Plugin"]
 val with_invariant (#a:Type)
                    (#fp:vprop)
                    (#fp':a -> vprop)
@@ -221,6 +223,7 @@ val with_invariant_g (#a:Type)
   : STGhostT a opened_invariants fp fp'
 
 /// Parallel composition of two STT functions
+[@@noextract_to "Plugin"]
 val par
   (#aL:Type u#a)
   (#aR:Type u#a)
@@ -723,7 +726,7 @@ let solve_gen_elim_prop
     let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
     T.focus (fun _ -> norm (); T.trefl ());
     T.focus (fun _ -> norm (); T.trefl ());
-    resolve_tac [] (* () *)
+    resolve_tac [] // we do not need to add our tactics into the dictionary here, because this call is only to solve can_be_split_forall
   | _ -> T.fail "ill-formed squash"
 
 val gen_elim_prop_elim'
@@ -780,7 +783,6 @@ val vpattern_erased
   (p: a -> vprop)
 : STGhost (Ghost.erased a) opened (p x) (fun _ -> p x) True (fun res -> Ghost.reveal res == x)
 
-// TODO: change with our new tactics
-
-[@@ resolve_implicits; framing_implicit]
-let init_resolve_tac () = init_resolve_tac' ()
+[@@ resolve_implicits; framing_implicit; plugin]
+let init_resolve_tac () = init_resolve_tac
+  [(`gen_elim_prop_placeholder), solve_gen_elim_prop_placeholder]

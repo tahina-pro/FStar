@@ -80,6 +80,7 @@ let intro_can_be_split_forall_dep_pure
 : Tot (squash (can_be_split_forall_dep (fun x -> p) (fun _ -> emp) (fun _ -> pure p)))
 = (intro_can_be_split_pure' p)
 
+[@@noextract_to "Plugin"]
 let return0 #a #o #p (x:a)
   : SEA.SteelAtomicBase a true o Unobservable
                         (return_pre (p x)) p
@@ -87,6 +88,7 @@ let return0 #a #o #p (x:a)
                         (fun _ v _ -> v == x)
   = let _ = () in SEA.return x
 
+[@@noextract_to "Plugin"]
 let return #a #o #p x = coerce_atomicF (fun _ -> return0 x)
 
 (* Lifting the separation logic exists combinator to vprop *)
@@ -211,6 +213,8 @@ let gen_elim_exists''
   let res = Ghost.hide (| Ghost.reveal x, Ghost.reveal y |) in
   res
 
+let coerce_with_trefl (#tfrom tto: Type) (x: tfrom) : Pure tto (requires (T.with_tactic T.trefl (tfrom == tto))) (ensures (fun _ -> True)) = x
+
 let gen_elim_exists'
   (a: Type0)
   (p: a -> Tot vprop)
@@ -218,8 +222,8 @@ let gen_elim_exists'
 : Tot (unit ->
       Tot (gen_elim_f (exists_ p) (dtuple2 a (fun x -> gen_elim_a (g x))) (fun y -> gen_elim_q (g (dfstp y)) (dsndp y)) (fun y -> gen_elim_post (g (dfstp y)) (dsndp y)))
   )
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_exists'' a p g) (_ by (T.trefl ()))
+=
+  coerce_with_trefl _ (gen_elim_exists'' a p g)
 
 let gen_unit_elim_pure'
   (p: prop)
@@ -244,8 +248,8 @@ let gen_elim_star'
   (gq: gen_elim_t q)
 : unit ->
   Tot (gen_elim_f (p `star` q) (gen_elim_a gp & gen_elim_a gq) (fun x -> gen_elim_q gp (fstp x) `star` gen_elim_q gq (sndp x)) (fun x -> gen_elim_post gp (fstp x) /\ gen_elim_post gq (sndp x)))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_star'' p q gp gq) (_ by (T.trefl ()))
+=
+  coerce_with_trefl _ (gen_elim_star'' p q gp gq)
 
 let gen_elim_star_l''
   (p q: vprop)
@@ -264,8 +268,8 @@ let gen_elim_star_l'
   (gq: gen_unit_elim_t q)
 : unit ->
   Tot (gen_elim_f (p `star` q) (gen_elim_a gp) (fun x -> gen_elim_q gp x `star` gen_unit_elim_q gq) (fun x -> gen_elim_post gp x /\ gen_unit_elim_post gq))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_star_l'' p q gp gq) (_ by (T.trefl ()))
+=
+  coerce_with_trefl _ (gen_elim_star_l'' p q gp gq)
 
 let gen_elim_star_r''
   (p q: vprop)
@@ -284,8 +288,8 @@ let gen_elim_star_r'
   (gq: gen_elim_t q)
 : unit ->
   Tot (gen_elim_f (p `star` q) (gen_elim_a gq) (fun x -> gen_unit_elim_q gp `star` gen_elim_q gq x) (fun x -> gen_unit_elim_post gp /\ gen_elim_post gq x))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_elim_star_r'' p q gp gq) (_ by (T.trefl ()))
+=
+  coerce_with_trefl _ (gen_elim_star_r'' p q gp gq)
 
 let gen_unit_elim_star''
   (p q: vprop)
@@ -304,8 +308,8 @@ let gen_unit_elim_star'
   (gq: gen_unit_elim_t q)
 : unit ->
   Tot (gen_unit_elim_f (p `star` q) (gen_unit_elim_q gp `star` gen_unit_elim_q gq) (gen_unit_elim_post gp /\ gen_unit_elim_post gq))
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x in
-  coerce _ (gen_unit_elim_star'' p q gp gq) (_ by (T.trefl ()))
+=
+  coerce_with_trefl _ (gen_unit_elim_star'' p q gp gq)
 
 let gen_elim'
   (#p: vprop)
@@ -320,9 +324,8 @@ let gen_elim
   (#[ solve_gen_elim () ] f: gen_elim_t p)
   (#opened: _)
 : Tot (gen_elim_j f opened)
-= let coerce (#tfrom tto: Type) (x: tfrom) (sq: squash (tfrom == tto)) : Tot tto = x
-  in
-  coerce _ (gen_elim' f opened) (_ by (T.trefl ()))
+=
+  coerce_with_trefl _ (gen_elim' f opened)
 
 let gen_elim_prop
   p a q post
