@@ -316,7 +316,7 @@ let gen_elim_prop
 =
   exists (i: gen_elim_t p) .
   a == GenElim?.a i /\
-  can_be_split_forall (fun (x: Ghost.erased a) -> GenElim?.q i x) q /\
+  q == (fun (x: Ghost.erased a) -> GenElim?.q i x) /\
   post == (fun (x: Ghost.erased a) -> GenElim?.post i x)
 
 let gen_elim_prop_intro
@@ -331,7 +331,7 @@ let gen_elim_prop_elim_
   (post: Ghost.erased a -> Tot prop)
   (sq: squash (gen_elim_prop p a q post))
 : STGhost (Ghost.erased a) opened p q True post
-= let f = FStar.IndefiniteDescription.indefinite_description_ghost (gen_elim_t p) (fun i -> a == GenElim?.a i /\ (fun (x: Ghost.erased a) -> GenElim?.q i x) `can_be_split_forall` q /\ post == (fun (x: Ghost.erased a) -> GenElim?.post i x)) in
+= let f = FStar.IndefiniteDescription.indefinite_description_ghost (gen_elim_t p) (fun i -> a == GenElim?.a i /\ q == (fun (x: Ghost.erased a) -> GenElim?.q i x) /\ post == (fun (x: Ghost.erased a) -> GenElim?.post i x)) in
   let z : Ghost.erased (GenElim?.a f) = frame_gen_elim_f (GenElim?.f f) opened in
   let z' : Ghost.erased a = z in
   weaken (GenElim?.q f (Ghost.reveal z)) (q z') (fun _ -> reveal_can_be_split ());

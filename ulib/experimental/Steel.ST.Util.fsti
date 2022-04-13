@@ -630,7 +630,7 @@ val gen_elim_prop_intro
   (post: Ghost.erased a -> Tot prop)
   (sq_post: squash (post == (fun (x: Ghost.erased a) -> GenElim?.post i x)))
   (q: Ghost.erased a -> Tot vprop)
-  (sq_q: squash (can_be_split_forall (fun (x: Ghost.erased a) -> GenElim?.q i x) q))
+  (sq_q: squash (q == (fun (x: Ghost.erased a) -> GenElim?.q i x)))
 : Lemma (gen_elim_prop p a q post)
 
 val gen_elim_prop_elim
@@ -660,7 +660,7 @@ let gen_elim_prop_placeholder_intro
   (post: Ghost.erased a -> Tot prop)
   (sq_post: squash (post == (fun (x: Ghost.erased a) -> GenElim?.post i x)))
   (q: Ghost.erased a -> Tot vprop)
-  (sq_q: squash (can_be_split_forall (fun (x: Ghost.erased a) -> GenElim?.q i x) q))
+  (sq_q: squash (q == (fun (x: Ghost.erased a) -> GenElim?.q i x)))
 : Lemma (gen_elim_prop_placeholder p a q post)
 = ()
 
@@ -704,7 +704,7 @@ let solve_gen_elim_prop
     let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
     T.focus (fun _ -> norm (); T.trefl ());
     T.focus (fun _ -> norm (); T.trefl ());
-    resolve_tac [] // we do not need to add our tactics into the dictionary here, because this call is only to solve can_be_split_forall
+    T.focus (fun _ -> norm (); T.trefl ())
   | _ -> T.fail "ill-formed squash"
 
 val gen_elim
@@ -734,7 +734,7 @@ let solve_gen_elim_prop_placeholder
     let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
     T.focus (fun _ -> norm (); T.trefl ());
     T.focus (fun _ -> norm (); T.trefl ());
-    T.focus norm;
+    T.focus (fun _ -> norm (); T.trefl ());
     true
   | _ -> T.fail "ill-formed squash"
 
