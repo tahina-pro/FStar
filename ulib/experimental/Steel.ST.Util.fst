@@ -341,9 +341,18 @@ let gen_elim_prop_elim
 =
   gen_elim_prop_elim_ opened p a q post sq
 
+#push-options "--admit_smt_queries true"
 let gen_elim
   #opened #p #a #q #post #sq _
 = gen_elim_prop_elim p a q post () ()
+#pop-options
+
+let gen_id_guard = admit ()
+
+let gen_id = admit ()
+
+let gen_id_guard_elim = admit ()
+let gen_id_guard_elim' = admit ()
 
 let vpattern
   (#opened: _)

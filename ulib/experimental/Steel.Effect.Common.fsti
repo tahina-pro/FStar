@@ -223,9 +223,8 @@ let can_be_split_forall_dep_trans_rev
   (#a: Type)
   (cond1 cond2: a -> prop)
   (p q r: post_t a)
-: Lemma
-  (requires (can_be_split_forall_dep cond2 q r /\ can_be_split_forall_dep cond1 p q))
-  (ensures (can_be_split_forall_dep (fun x -> cond1 x `prop_and` cond2 x) p r))
+  (sq: squash (can_be_split_forall_dep cond2 q r /\ can_be_split_forall_dep cond1 p q))
+: Tot (squash (can_be_split_forall_dep (fun x -> cond1 x `prop_and` cond2 x) p r))
 =
   Classical.forall_intro_3 (fun x y z -> Classical.move_requires (can_be_split_trans x y) z)
 
@@ -1456,6 +1455,7 @@ let identity_right_diff (#a:Type) (eq:CE.equiv a) (m:CE.cm a eq) (x y:a) : Lemma
 /// Dismiss possible vprops goals that might have been created by lemma application.
 /// These vprops will be instantiated at a later stage; else, Meta-F* will raise an error
 let rec dismiss_slprops () : Tac unit =
+  dump "dismiss_slprops";
   match term_as_formula' (cur_goal ()) with
     | App t _ -> if term_eq t (`squash) then () else (dismiss(); dismiss_slprops ())
     | _ -> dismiss(); dismiss_slprops ()
@@ -2017,6 +2017,7 @@ let rec dismiss_non_squash_goals' (keep:list goal) (goals:list goal)
        dismiss_non_squash_goals' keep tl
 
 let dismiss_non_squash_goals () =
+  dump "dismiss_non_squash_goals";
   let g = goals () in
   dismiss_non_squash_goals' [] g
 
@@ -2101,7 +2102,7 @@ let rec extract_contexts
     then None
     else
       Some (fun _ ->
-        first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates);
+        first (List.Tot.map (fun candidate _ -> apply (Tv_FVar candidate) <: Tac unit) candidates);
         dismiss_non_squash_goals ()
       )
 
@@ -2128,7 +2129,7 @@ let open_existentials () : Tac unit
              begin match extract_cbs_contexts rhs with
              | None -> fail "open_existentials: no context found"
              | Some f ->
-                 mapply (`can_be_split_trans_rev);
+                 apply_lemma (`can_be_split_trans_rev);
                  dismiss_all_but_last ();
                  split ();
                  focus f;
@@ -2299,7 +2300,7 @@ let open_existentials_forall_dep () : Tac unit
           begin match extract_cbs_forall_dep_contexts body with
           | None -> fail "open_existentials_forall_dep: no candidate"
           | Some f ->
-            mapply (`can_be_split_forall_dep_trans_rev);
+            apply (`can_be_split_forall_dep_trans_rev);
             dismiss_all_but_last ();
             split ();
             focus f;
@@ -2325,6 +2326,7 @@ let try_open_existentials_forall_dep () : Tac bool
 
 /// Solves a can_be_split_forall_dep constraint
 let rec solve_can_be_split_forall_dep (args:list argv) : Tac bool =
+  dump "solve_can_be_split_forall_dep";
   match args with
   | [_; (pr, _); (t1, _); (t2, _)] ->
       let lnbr = slterm_nbr_uvars t1 in
@@ -2615,6 +2617,7 @@ let rec pick_next (dict: _) (fuel: nat) : Tac bool =
 /// Main loop to schedule solving of goals.
 /// The goals () function fetches all current goals in the context
 let rec resolve_tac (dict: _) : Tac unit =
+  dump "resolve_tac";
   match goals () with
   | [] -> ()
   | g ->
@@ -2625,6 +2628,7 @@ let rec resolve_tac (dict: _) : Tac unit =
 
 /// Special case for logical requires/ensures goals, which correspond only to equalities
 let rec resolve_tac_logical (dict: _) : Tac unit =
+  dump "resolve_tac_logical";
   match goals () with
   | [] -> ()
   | g ->
@@ -2762,6 +2766,8 @@ let init_resolve_tac (dict: _) : Tac unit =
   set_goals loggs;
 
   resolve_tac_logical dict
+
+; qed ()
 
 [@@plugin]
 let init_resolve_tac' () = init_resolve_tac []

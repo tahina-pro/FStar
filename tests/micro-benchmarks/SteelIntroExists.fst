@@ -437,3 +437,42 @@ let h4
   let res = vpattern (fun res -> pred' res) in
   noop ();
   res
+
+let h5
+  (#opened: _)
+  (r: vprop)
+  (f: ((#opened: _) -> unit -> STGhostT nat opened
+    r
+    (fun p -> exists_ (fun n -> pred n `star` pred' p `star` pure (n == 18)))))
+: STGhostT nat opened r (fun n -> pred 18 `star` exists_ (fun q -> pred' q `star` pure (q == n)))
+= let res = f () in
+  let _ = gen_elim () in
+  noop ();
+  res
+
+let s2
+  (split: ((#opened: _) -> (#before: nat) -> unit -> STGhostT nat opened (pred before) (fun after -> pred after `star` exists_ (fun other -> pred' other `star` pure (before + other == after)))))
+  (r: vprop)
+  (intro: ((#opened: _) -> (#after: nat) -> unit -> STGhostT unit opened (pred after) (fun _ -> r)))
+  (opened: _)
+  (before: nat)
+: STGhostT nat opened (pred before) (fun res -> exists_ (fun other -> r `star` pred' other `star` pure ((other <= res) == true)))
+=
+  let res = split () in
+  let _ = gen_elim () in
+  noop ();
+  intro ();
+  res
+
+let s3
+  (split: ((#before: nat) -> unit -> STT nat (pred before) (fun after -> pred after `star` exists_ (fun other -> pred' other `star` pure (before + other == after)))))
+  (r: vprop)
+  (intro: ((#opened: _) -> (#after: nat) -> unit -> STGhostT unit opened (pred after) (fun _ -> r)))
+  (before: nat)
+: STT nat (pred before) (fun res -> exists_ (fun other -> r `star` pred' other `star` pure ((other <= res) == true)))
+=
+  let res = split () in
+  let _ = gen_elim () in
+  noop ();
+  intro ();
+  return res

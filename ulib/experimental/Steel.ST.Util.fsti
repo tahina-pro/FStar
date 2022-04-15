@@ -142,15 +142,13 @@ val exists_ (#a:Type u#a) (p:a -> vprop) : vprop
 /// Useful lemmas to make the framing tactic automatically handle `exists_`
 [@@solve_can_be_split_lookup; (solve_can_be_split_for exists_)]
 val intro_can_be_split_exists (a:Type) (x:a) (p: a -> vprop)
-  : Lemma
-    (ensures (p x `can_be_split` (exists_ (fun x -> p x))))
+  : Tot (squash (p x `can_be_split` (exists_ (fun x -> p x))))
 
 [@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_)]
 val intro_can_be_split_forall_dep_exists (a:Type) (b:Type)
                            (x:a)
                            (p: b -> a -> vprop)
-  : Lemma
-    (ensures (fun (y:b) -> p y x) `(can_be_split_forall_dep (fun _ -> True))` (fun (y:b) -> exists_ (fun x -> p y x)))
+  : Tot (squash ((fun (y:b) -> p y x) `(can_be_split_forall_dep (fun _ -> True))` (fun (y:b) -> exists_ (fun x -> p y x))))
 
 /// Introducing an existential if the predicate [p] currently holds for value [x]
 val intro_exists (#a:Type) (#opened_invariants:_) (x:a) (p:a -> vprop)
@@ -707,16 +705,6 @@ let solve_gen_elim_prop
     T.focus (fun _ -> norm (); T.trefl ())
   | _ -> T.fail "ill-formed squash"
 
-val gen_elim
-  (#opened: _)
-  (#[@@@ framing_implicit] p: vprop)
-  (#[@@@ framing_implicit] a: Type0)
-  (#[@@@ framing_implicit] q: Ghost.erased a -> Tot vprop)
-  (#[@@@ framing_implicit] post: Ghost.erased a -> Tot prop)
-  (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p a q post))
-  (_: unit)
-: STGhostF (Ghost.erased a) opened p q ( T.with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post))) post
-
 let solve_gen_elim_prop_placeholder
   ()
 : T.Tac bool
@@ -737,6 +725,107 @@ let solve_gen_elim_prop_placeholder
     T.focus (fun _ -> norm (); T.trefl ());
     true
   | _ -> T.fail "ill-formed squash"
+
+val gen_elim
+  (#opened: _)
+  (#[@@@ framing_implicit] p: vprop)
+  (#[@@@ framing_implicit] a: Type0)
+  (#[@@@ framing_implicit] q: Ghost.erased a -> Tot vprop)
+  (#[@@@ framing_implicit] post: Ghost.erased a -> Tot prop)
+  (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p a q post))
+  (_: unit)
+: STGhostF (Ghost.erased a) opened p q ( True (* T.with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post)) *) ) post
+
+let gen_id_prop
+  (p: vprop)
+  (u: Type0)
+  (q: (Ghost.erased u -> Tot vprop))
+  (post: (Ghost.erased u -> Tot prop))
+: Tot prop
+= True
+
+let gen_id_intro
+  (p: vprop)
+: Lemma
+  (gen_id_prop p unit (fun _ -> p) (fun _ -> True))
+= ()
+
+val gen_id_guard
+  (#a: Type)
+  (q: (a -> Tot vprop))
+: Tot (a -> vprop)
+
+val gen_id
+  (#opened: _)
+  (#[@@@ framing_implicit] p: vprop)
+  (#[@@@ framing_implicit] u: Type0)
+  (#[@@@ framing_implicit] q: (Ghost.erased u -> Tot vprop))
+  (#[@@@ framing_implicit] post: (Ghost.erased u -> Tot prop))
+  (#[@@@ framing_implicit] dummy: squash (gen_id_prop p u q post))
+  (_: unit)
+: STGhostF (Ghost.erased u) opened p (gen_id_guard q) True post
+
+let can_be_split_guarded
+  (p1 p2: vprop)
+: Tot prop
+= True
+
+let intro_can_be_split_guarded
+  (p1 p2: vprop)
+: Lemma
+  (requires (p1 `can_be_split` p2))
+  (ensures (p1 `can_be_split_guarded` p2))
+= ()
+
+val gen_id_guard_elim
+  (#opened: _)
+  (#[@@@ framing_implicit] a: Type)
+  (#[@@@ framing_implicit] q: a -> vprop)
+  (#[@@@ framing_implicit] v: a)
+  (#[@@@ framing_implicit] r: vprop)
+  (#[@@@ framing_implicit] sq: squash (q v `can_be_split_guarded` r))
+  (_: unit)
+: STGhostF unit opened (gen_id_guard q v) (fun _ -> r) True (fun _ -> True)
+
+val gen_id_guard_elim'
+  (#opened: _)
+  (#a: Type)
+  (#q: a -> vprop)
+  (#v: a)
+  (_: unit)
+: STGhost unit opened (gen_id_guard q v) (fun _ -> q v) True (fun _ -> True)
+
+let solve_gen_id_prop
+  ()
+: T.Tac bool
+= T.dump "solve_gen_id_prop";
+  T.apply_lemma (`gen_id_intro);
+  true
+
+let solve_can_be_split_guarded
+  ()
+: T.Tac bool
+= T.dump "solve_can_be_split_guarded";
+  let (hd, tl) = T.collect_app (T.cur_goal ()) in
+  if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
+  then T.fail "Not a squash goal";
+  match tl with
+  | [ t1, T.Q_Explicit ] ->
+    let (hd1, tl1) = T.collect_app t1 in
+    if not (hd1 `T.term_eq` (`can_be_split_guarded))
+    then T.fail "Not a can_be_split_guarded goal";
+    begin match tl1 with
+    | [q1, T.Q_Explicit; q2, T.Q_Explicit] ->
+      if Nil? (T.free_uvars q1)
+      then begin
+        T.apply_lemma (`intro_can_be_split_guarded);
+        dismiss_slprops ();
+        true
+      end else
+        false
+    | _ -> T.fail "Ill-formed can_be_split_guarded"
+    end
+  | _ -> T.fail "Ill-formed squash"
 
 /// Extracts an argument to a vprop from the context. This can be useful if we do need binders for some of the existentials opened by gen_elim.
 
@@ -763,4 +852,6 @@ val vpattern_erased
 
 [@@ resolve_implicits; framing_implicit; plugin]
 let init_resolve_tac () = init_resolve_tac
-  [(`gen_elim_prop_placeholder), solve_gen_elim_prop_placeholder]
+  [(`gen_elim_prop_placeholder), solve_gen_elim_prop_placeholder;
+   (`can_be_split_guarded), solve_can_be_split_guarded;
+   (`gen_id_prop), solve_gen_id_prop ]
