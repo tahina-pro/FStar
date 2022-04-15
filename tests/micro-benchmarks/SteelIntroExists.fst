@@ -125,8 +125,76 @@ open Steel.ST.Util
 
 module T = FStar.Tactics
 
+#set-options "--ide_id_info_off"
+
 assume
 val ptr : Type0
+
+assume
+val pts_to1 (p: ptr) (v: Ghost.erased nat) : vprop
+
+assume
+val pts_to2 (p: ptr) (v: Ghost.erased bool) : vprop
+
+assume
+val split
+  (#v: Ghost.erased nat)
+  (p: ptr)
+: STT ptr
+    (pts_to1 p v)
+    (fun res -> exists_ (fun vl -> pts_to1 p vl `star` exists_ (fun vr -> pts_to1 res vr)))
+
+assume
+val pts_to2_intro
+  (#opened: _)
+  (#v: Ghost.erased nat) (p: ptr)
+: STGhostT (Ghost.erased bool) opened
+    (pts_to1 p v)
+    (fun res -> pts_to2 p res)
+
+let test_split1
+  (#v: Ghost.erased nat)
+  (p: ptr)
+: STT ptr
+    (pts_to1 p v)
+    (fun res -> exists_ (fun vl -> pts_to2 p vl `star` exists_ (fun vres -> pts_to1 res vres)))
+=
+  let res = split p in
+  let _ = elim_exists () in
+  let _ = elim_exists () in
+  noop ();
+  let _ = pts_to2_intro p in
+  noop ();
+  return res
+
+let test_split2
+  (#v: Ghost.erased nat)
+  (p: ptr)
+: STT ptr
+    (pts_to1 p v)
+    (fun res -> exists_ (fun vl -> pts_to2 p vl `star` exists_ (fun vres -> pts_to1 res vres)))
+=
+  let res = split p in
+  let _ = gen_elim () in
+  noop ();
+  let _ = pts_to2_intro p in
+  intro_exists _ (fun vres -> pts_to1 res vres);
+  return res
+
+// [@@expect_failure]
+let test_split
+  (#v: Ghost.erased nat)
+  (p: ptr)
+: STT ptr
+    (pts_to1 p v)
+    (fun res -> exists_ (fun vl -> pts_to2 p vl `star` exists_ (fun vres -> pts_to1 res vres)))
+=
+  let res = split p in
+  let z = gen_elim () in
+  noop ();
+  let r = pts_to2_intro p in
+  noop ();
+  return res
 
 assume
 val pts_to (p:ptr) (v:nat) : vprop
@@ -313,8 +381,6 @@ let f'
   free p;
   return true
 
-#set-options "--ide_id_info_off"
-
 assume
 val pred' ([@@@smt_fallback] _ : nat) : vprop
 
@@ -390,14 +456,6 @@ let h3f
   res
 
 let eqprop (#a: Type) (b1 b2: a) : Tot prop = b1 == b2
-
-#set-options "--print_implicits"
-
-[@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
-assume val intro_can_be_split_forall_dep_pure'
-  (#a: Type)
-  (p: a -> prop)
-: Tot (squash (can_be_split_forall_dep p (fun _ -> emp) (fun x -> pure (p x))))
 
 let h31
   (#opened: _)
