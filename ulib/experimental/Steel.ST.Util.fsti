@@ -616,7 +616,7 @@ let gen_elim_j
   (opened: inames)
 : Tot Type
 = unit ->
-  STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> gen_elim_post f x)
+  STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> norm [delta_attr [`%__reduce__]; iota] (gen_elim_post f x))
 
 val gen_elim
   (#p: vprop)
