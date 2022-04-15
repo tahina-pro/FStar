@@ -319,9 +319,7 @@ let gen_elim'
 = GenElim?.f f opened
 
 let gen_elim
-  (#p: vprop)
-  (#[ solve_gen_elim () ] f: gen_elim_t p)
-  (#opened: _)
+  #p #f #sq #opened
 : Tot (gen_elim_j f opened)
 =
   coerce_with_trefl _ (gen_elim' f opened)

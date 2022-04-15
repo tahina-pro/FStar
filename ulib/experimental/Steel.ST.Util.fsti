@@ -474,13 +474,6 @@ let gen_unit_elim_star
 : Tot (gen_unit_elim_t (p `star` q))
 = GenUnitElim _ _ (gen_unit_elim_star' p q gp gq ())
 
-val gen_elim'
-  (#p: vprop)
-  (f: gen_elim_t p)
-  (opened: _)
-  (_: unit)
-: STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> GenElim?.q f x) True (fun x -> GenElim?.post f x)
-
 module T = FStar.Tactics
 
 let rec term_has_head
@@ -618,19 +611,6 @@ let gen_elim_j
 = unit ->
   STGhostF (Ghost.erased (normal (gen_elim_a f))) opened p (fun x -> gen_elim_q f x) True (fun x -> norm [delta_attr [`%__reduce__]; iota] (gen_elim_post f x))
 
-val gen_elim
-  (#p: vprop)
-  (#[ solve_gen_elim () ] f: gen_elim_t p)
-  (#opened: _)
-: Tot (gen_elim_j f opened)
-
-val gen_elim_prop
-  (p: vprop)
-  (a: Type0)
-  (q: Ghost.erased a -> Tot vprop)
-  (post: Ghost.erased a -> Tot prop)
-: Tot prop
-
 let gen_elim_dummy
   (#p: vprop)
   (i: gen_elim_t p)
@@ -642,6 +622,20 @@ let gen_elim_dummy_intro
   (i: gen_elim_t p)
 : Lemma (gen_elim_dummy i)
 = ()
+
+val gen_elim
+  (#[@@@ framing_implicit ] p: vprop)
+  (#[@@@ framing_implicit ] f: gen_elim_t p)
+  (#[@@@ framing_implicit ] sq: squash (gen_elim_dummy f))
+  (#opened: _)
+: Tot (gen_elim_j f opened)
+
+val gen_elim_prop
+  (p: vprop)
+  (a: Type0)
+  (q: Ghost.erased a -> Tot vprop)
+  (post: Ghost.erased a -> Tot prop)
+: Tot prop
 
 val gen_elim_prop_intro
   (p: vprop)
@@ -708,6 +702,15 @@ let solve_gen_elim_dummy
         | _ -> T.fail "ill-formed gen_elim_dummy"
         end
       | _ -> T.fail "ill-formed squash"
+
+let solve_gen_elim_dummy'
+  ()
+: T.Tac bool
+= let open FStar.Tactics in
+  try
+    focus solve_gen_elim_dummy;
+    true
+  with _ -> false
 
 let solve_gen_elim_prop
   ()
@@ -785,4 +788,5 @@ val vpattern_erased
 
 [@@ resolve_implicits; framing_implicit; plugin]
 let init_resolve_tac () = init_resolve_tac
-  [(`gen_elim_prop_placeholder), solve_gen_elim_prop_placeholder]
+  [(`gen_elim_prop_placeholder), solve_gen_elim_prop_placeholder;
+   (`gen_elim_dummy), solve_gen_elim_dummy' ]
