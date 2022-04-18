@@ -338,7 +338,7 @@ function fstar_default_build () {
     OLD_Z3="$OLD_Z3_DIR-old/z3$EXE"
 
     # Build F*, along with fstarlib
-    if ! env Z3=$NEW_Z3 make -C src -j $threads utest-prelude; then
+    if ! env OTHERFLAGS='--admit_smt_queries true' Z3=$NEW_Z3 make -C src -j $threads utest-prelude; then
         echo Warm-up failed
         echo Failure >$result_file
         return 1
@@ -364,13 +364,13 @@ function fstar_default_build () {
     # Once F* is built, run its main regression suite, along with more relevant
     # tests.
     {
-        Z3=$NEW_Z3 \
+        OTHERFLAGS='--admit_smt_queries true' Z3=$NEW_Z3 \
         $gnutime make -C src -j $threads -k $localTarget && echo true >$status_file
         echo Done building FStar
     } &
 
     {
-        OTHERFLAGS="--smt $OLD_Z3 --warn_error -276 --use_hint_hashes" \
+        OTHERFLAGS="--admit_smt_queries true --smt $OLD_Z3 --warn_error -276 --use_hint_hashes" \
         NOOPENSSLCHECK=1 make -C hacl-star -j $threads min-test ||
             {
                 echo "Error - Hacl.Hash.MD.fst.checked (HACL*)"
@@ -380,7 +380,7 @@ function fstar_default_build () {
 
     # The LowParse test suite is now in project-everest/everparse
     {
-        OTHERFLAGS="--smt $OLD_Z3" \
+        OTHERFLAGS="--admit_smt_queries true --smt $OLD_Z3" \
         $gnutime make -C everparse -j $threads -k lowparse-fstar-test || {
             echo "Error - LowParse"
             echo " - min-test (LowParse)" >>$ORANGE_FILE
@@ -394,16 +394,16 @@ function fstar_default_build () {
         # already does this; but it will become necessary if
         # we later decide to perform these tests in parallel,
         # to avoid races.)
-        OTHERFLAGS="--smt $OLD_Z3" \
+        OTHERFLAGS="--admit_smt_queries true --smt $OLD_Z3" \
         make -C mitls-fstar/src/tls refresh-depend
 
-        OTHERFLAGS="--smt $OLD_Z3 --use_hint_hashes" make -C mitls-fstar/src/tls -j $threads StreamAE.fst-ver ||
+        OTHERFLAGS="--admit_smt_queries true --smt $OLD_Z3 --use_hint_hashes" make -C mitls-fstar/src/tls -j $threads StreamAE.fst-ver ||
             {
                 echo "Error - StreamAE.fst-ver (mitls)"
                 echo " - StreamAE.fst-ver (mitls)" >>$ORANGE_FILE
             }
 
-        OTHERFLAGS="--smt $OLD_Z3 --use_hint_hashes" make -C mitls-fstar/src/tls -j $threads Pkg.fst-ver ||
+        OTHERFLAGS="--admit_smt_queries true --smt $OLD_Z3 --use_hint_hashes" make -C mitls-fstar/src/tls -j $threads Pkg.fst-ver ||
             {
                 echo "Error - Pkg.fst-ver (mitls verify)"
                 echo " - Pkg.fst-ver (mitls verify)" >>$ORANGE_FILE
