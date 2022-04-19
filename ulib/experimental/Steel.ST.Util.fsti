@@ -107,13 +107,13 @@ val extract_pure (#uses:_) (p:prop)
 val intro_can_be_split_pure
   (p: prop)
   (sq: squash p)
-: Tot (squash (emp `can_be_split` pure p))
+: Lemma (emp `can_be_split` pure p)
 
 [@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for pure)]
 val intro_can_be_split_forall_dep_pure
   (#a: Type)
   (p: a -> Tot prop)
-: Tot (squash (can_be_split_forall_dep p (fun _ -> emp) (fun x -> pure (p x))))
+: Lemma (can_be_split_forall_dep p (fun _ -> emp) (fun x -> pure (p x)))
 
 /// It's generally good practice to end a computation with a [return].
 ///

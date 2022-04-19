@@ -2136,7 +2136,7 @@ let rec extract_contexts
     then None
     else
       Some (fun _ ->
-        first (List.Tot.map (fun candidate _ -> mapply (Tv_FVar candidate) <: Tac unit) candidates);
+        first (List.Tot.map (fun candidate _ -> apply_lemma (Tv_FVar candidate) <: Tac unit) candidates);
         dismiss_non_squash_goals ()
       )
 
@@ -2163,7 +2163,7 @@ let open_existentials () : Tac unit
              begin match extract_cbs_contexts rhs with
              | None -> fail "open_existentials: no context found"
              | Some f ->
-                 mapply (`can_be_split_trans_rev);
+                 apply_lemma (`can_be_split_trans_rev);
                  dismiss_all_but_last ();
                  split ();
                  focus f;
@@ -2346,7 +2346,7 @@ let open_existentials_forall_dep () : Tac unit
           begin match extract_cbs_forall_dep_contexts body with
           | None -> fail "open_existentials_forall_dep: no candidate"
           | Some f ->
-            mapply (`can_be_split_forall_dep_trans_rev);
+            apply_lemma (`can_be_split_forall_dep_trans_rev);
             dismiss_all_but_last ();
             split ();
             focus f;
