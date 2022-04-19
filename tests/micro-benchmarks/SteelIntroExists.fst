@@ -179,6 +179,7 @@ let test_split2
   noop ();
   let _ = pts_to2_intro p in
   intro_exists _ (fun vres -> pts_to1 res vres);
+  noop ();
   return res
 
 // [@@expect_failure]
