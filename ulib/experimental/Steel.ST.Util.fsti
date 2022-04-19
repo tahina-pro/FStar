@@ -147,10 +147,10 @@ val intro_can_be_split_exists (a:Type) (x:a) (p: a -> vprop)
 
 [@@solve_can_be_split_forall_dep_lookup; (solve_can_be_split_forall_dep_for exists_)]
 val intro_can_be_split_forall_dep_exists (a:Type) (b:Type)
-                           (x:a)
+                           (x:b -> GTot a)
                            (p: b -> a -> vprop)
   : Lemma
-    (ensures (fun (y:b) -> p y x) `(can_be_split_forall_dep (fun _ -> True))` (fun (y:b) -> exists_ (fun x -> p y x)))
+    (ensures (fun (y:b) -> p y (x y)) `(can_be_split_forall_dep (fun _ -> True))` (fun (y:b) -> exists_ (fun x -> p y x)))
 
 /// Introducing an existential if the predicate [p] currently holds for value [x]
 val intro_exists (#a:Type) (#opened_invariants:_) (x:a) (p:a -> vprop)

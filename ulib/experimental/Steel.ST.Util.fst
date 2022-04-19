@@ -109,9 +109,9 @@ let intro_can_be_split_forall_dep_exists
   let prf
     (y: b)
   : Lemma
-    (p y x `can_be_split` exists_ (fun x -> p y x))
+    (p y (x y) `can_be_split` exists_ (fun x -> p y x))
   =
-    intro_can_be_split_exists a x (p y)
+    intro_can_be_split_exists a (x y) (p y)
   in
   Classical.forall_intro prf
 
