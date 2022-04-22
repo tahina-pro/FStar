@@ -16,8 +16,14 @@ FSTAR_REALIZED_MODULES=All BaseTypes Buffer Bytes Char CommonST Constructive Dyn
 
 NOEXTRACT_STEEL_MODULES = -Steel -FStar.MSTTotal -FStar.MST -FStar.NMSTTotal -FStar.NMST
 
-NOEXTRACT_MODULES=$(addprefix -FStar., $(FSTAR_REALIZED_MODULES) Printf) \
+NOEXTRACT_MODULES0=$(addprefix -FStar., $(FSTAR_REALIZED_MODULES) Printf) \
   -LowStar.Printf +FStar.List.Tot.Properties +FStar.Int.Cast.Full $(NOEXTRACT_STEEL_MODULES)
+
+# Replace spaces with commas as described in the GNU Make manual
+comma:= ,
+empty:=
+space:= $(empty) $(empty)
+NOEXTRACT_MODULES=$(subst $(space),$(comma),$(NOEXTRACT_MODULES0))
 
 FSTAR_DEFAULT_ARGS=
 ifdef FSTAR_HOME

@@ -26,7 +26,7 @@ fstarlib.mgen: *.fst *.fsti experimental/*.fst experimental/*.fsti legacy/*.fst 
 	mkdir -p ml/extracted
 	rm -f .depend.extract
 	+OUTPUT_DIRECTORY=ml/extracted \
-	    EXTRACT_MODULES="--extract '-Prims +FStar +LowStar -FStar.Tactics -FStar.Reflection -FStar.InteractiveHelpers $(NOEXTRACT_MODULES)'" \
+	    EXTRACT_MODULES="--extract '-Prims,+FStar,+LowStar,-FStar.Tactics,-FStar.Reflection,-FStar.InteractiveHelpers,$(NOEXTRACT_MODULES)'" \
 	    $(MAKE) -f Makefile.extract all-ml
 	# the next cp is done because FStar_Pervasives.ml is needed to bootstrap the compiler
 	# we could follow this style for other files too, e.g., FStar_Option.ml
@@ -40,7 +40,7 @@ fstartaclib.mgen: fstarlib.mgen
 	rm -f .depend.extract
 	+OUTPUT_DIRECTORY=tactics_ml/extracted \
 	    CODEGEN=Plugin \
-	    EXTRACT_MODULES="--extract '+FStar.Tactics +FStar.Reflection $(NOEXTRACT_MODULES) +Steel.Effect.Common +FStar.InteractiveHelpers'" \
+	    EXTRACT_MODULES="--extract '+FStar.Tactics,+FStar.Reflection,$(NOEXTRACT_MODULES),+Steel.Effect.Common,+FStar.InteractiveHelpers'" \
 	    $(MAKE) -f Makefile.extract all-ml
 	mkdir -p tactics_ml/fstarlib_leftovers
 	cp $(FSTARLIB_LEFTOVERS) tactics_ml/fstarlib_leftovers
@@ -149,9 +149,11 @@ $(TACLIB_DIR)/META: $(TACLIB_OBJECTS)
 
 clean_checked:
 	$(Q)rm -f *.checked .cache/*.checked .depend
+	$(Q)rm -f .depend.rsp
 
 clean: clean_checked clean_ocaml
 	@echo "[CLEAN     ulib/]"
+	$(Q)rm -f .depend.rsp
 	$(Q)rm -f .depend.extract
 	$(Q)rm -f *.mgen
 	$(Q)rm -f *.checked.lax .cache/*.checked.lax

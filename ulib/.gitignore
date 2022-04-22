@@ -7,5 +7,6 @@ tactics_ml/extracted
 tactics_ml/fstarlib_leftovers
 tactics_ml/fstartaclib.mllib
 .depend.extract
+.depend.extract.rsp
 [Bb]in/
 [Oo]bj/
