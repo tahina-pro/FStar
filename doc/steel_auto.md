@@ -155,14 +155,14 @@ val gen_elim
   (#a: Type)
   (#q: Ghost.erased a -> vprop)
   (#post -> vprop)
-  (#[ solve_gen_elim () ] dummy: squash (gen_elim_dummy p a q post))
+  (#[ solve_gen_elim () ] dummy: squash (gen_elim_prop_placeholder p a q post))
   (_: unit)
 : STGhost (Ghost.erased a) p q (with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post))) post
 ```
 
-where the `gen_elim_dummy` predicate is just defined as `True`, and is solved by basically just calling the `solve_gen_elim` tactic in Phase 1 of F\*'s two-phase type checking to infer `a`, `q` and `post`. The actual proof for `gen_elim_dummy` kept by F* after running the tactic, was just `()`, so retypechecking the proof by SMT would no longer fail. On the other hand, the actual proof of `gen_elim_prop` is done in Phase 2 once all arguments are solved.
+where the `gen_elim_prop_placeholder` predicate is just defined as `True`, and is solved by basically just calling the `solve_gen_elim` tactic in Phase 1 of F\*'s two-phase type checking to infer `a`, `q` and `post`. The actual proof for `gen_elim_prop_placeholder` kept by F* after running the tactic, was just `()`, so retypechecking the proof by SMT would no longer fail. On the other hand, the actual proof of `gen_elim_prop` is done in Phase 2 once all arguments are solved.
 
-Relying on these two phases made it more critical to integrate `solve_gen_elim` into the framing tactic to avoid spurious interactions between the tactic for solving the arguments to `gen_elim_dummy` and the framing tactic.
+Relying on these two phases made it more critical to integrate `solve_gen_elim` into the framing tactic to avoid spurious interactions between the tactic for solving the arguments to `gen_elim_prop_placeholder` and the framing tactic.
 
 </details>
 
@@ -179,7 +179,7 @@ val gen_elim
   (#[@@@framing_implicit] a: Type)
   (#[@@@framing_implicit] q: Ghost.erased a -> vprop)
   (#[@@@framing_implicit] post -> vprop)
-  (#[@@@framing_implicit] dummy: squash (gen_elim_dummy p a q post))
+  (#[@@@framing_implicit] dummy: squash (gen_elim_prop_placeholder p a q post))
   (_: unit)
 : STGhost (Ghost.erased a) p q (with_tactic solve_gen_elim_prop (squash (gen_elim_prop p a q post))) post
 ```
@@ -197,17 +197,56 @@ In both cases, now since the framing tactic can deal with more goals than just `
 <details>
     <summary>Click to expand</summary>
 
-Consider the following example:
+Consider the following example, where I have, say, an array but want to split it into two parts and run an operation on its right-hand-side part only and join the two parts back again:
 
 ```
+assume val ptr : Type0
+assume val pts_to (p: ptr) (v: Ghost.erased nat) : vprop
+assume val split (#v: Ghost.erased nat) (p: ptr)
+    : STT ptr (pts_to p v)
+        (fun res -> exists_ (fun vl -> pts_to p vl `star` exists_ (fun vr -> pts_to res vr)))
+assume val join (#opened: _) (#pl #pr: Ghost.erased nat) (al ar: ptr)
+    : STGhostT (Ghost.erased nat) opened (pts_to al pl `star` pts_to ar pr)
+        (fun res -> pts_to al res)
+assume val v1 (#p: Ghost.erased nat) (a: ptr) (err: ptr)
+    : STT unit (pts_to a p `star` pts_to err 0)
+        (fun _ -> pts_to a p `star` exists_ (fun v -> pts_to err v))
 
+let v2 (#p: Ghost.erased nat) (al: ptr) (err: ptr) : STT unit
+  (pts_to al p `star` pts_to err 0)
+  (fun _ -> exists_ (fun p -> pts_to al p `star` exists_ (fun v -> pts_to err v)))
+= let ar = split al in
+  let _ = gen_elim () in
+  let _ = v1 ar err in
+  let _ = gen_elim () in
+  let _ = join al ar in
+  return ()
 ```
 
-With `gen_elim` as described so far, the post-resource computed by `gen_elim` conflicts with the resources inferred by the framing tactic:
+With `gen_elim` as described so far, the framing tactic wrongly unified the pre-resource for `join` with the expected post-resource for the second call to `gen_elim`, which would conflict with the one that would be computed by the tactic for `gen_elim`:
 
-> Error message
+```
+Goal 1/1 (Instantiating meta argument in application)
+p: Ghost.erased nat
+al err ar: ptr
+uu___: Ghost.erased (x: Ghost.erased nat & (Ghost.erased nat <: Prims.Tot Type0))
+uu___'0: unit
+--------------------------------------------------------------------------------
+squash (gen_elim_prop_placeholder (VStar (pts_to1 al (dfstp (Ghost.reveal _)))
+          (VStar (exists_ (fun v -> pts_to1 err v)) (pts_to1 ar (dsndp (Ghost.reveal _)))))
+      (*?u8765*)
+      _
+      (fun x ->
+          star (star (pts_to1 al ((*?u8818*) _ x)) (pts_to1 ar ((*?u8817*) _ x)))
+            (exists_ (fun v -> pts_to1 err v)))
+      (*?u552*)
+      _)
+(*?u50*) _
+```
 
-To solve this issue, upon advice from @nikswamy, I marked the post-resource of `gen_elim` with an identity function, `guarded_vprop`, and I modified the framing tactic to systematically delay any goal where `guarded_vprop` has any unsolved vprop uvar (even if that vprop uvar is the only one), so that the post-resource of `gen_elim` is first fully computed by the `gen_elim`-specific tactics before the framing tactic has any opportunity to unify it with any vprops arising afterwards (see bf48d2b14703fba972bcfdd583c1783b6e884f74 for more details.)
+A candidate for the post-resource for `gen_elim` already appears to have been inferred by the framing tactic even before the tactic for `gen_elim` has started running.
+
+To solve this issue, upon advice from @nikswamy, I marked the post-resource of `gen_elim` with an identity function, `guard_vprop`, and I modified the framing tactic to systematically delay any goal where `guard_vprop` has any unsolved vprop uvar (even if that vprop uvar is the only one), so that the post-resource of `gen_elim` is first fully computed by the `gen_elim`-specific tactics before the framing tactic has any opportunity to unify it with any vprops arising afterwards (see bf48d2b14703fba972bcfdd583c1783b6e884f74 for more details.)
 
 </details>
 
