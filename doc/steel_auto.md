@@ -104,7 +104,7 @@ While this code might seemingly require more boilerplate from the user, any addi
 
 I wrote a single generic eliminator, `gen_elim`, such that, if `p` is the whole current resource, then `gen_elim ()` returns a tuple containing all the values obtained by eliminating all `exists_` in `p`, and the whole new resource is `p` with all existentials opened; moreover, after `gen_elim`, all pure vprops in `p` hold.
 
-## Step 1: a tactic to produce eliminator calls
+### Step 1: a tactic to produce eliminator calls
 
 <details>
     <summary>Click to expand</summary>
@@ -208,6 +208,8 @@ With `gen_elim` as described so far, the post-resource computed by `gen_elim` co
 > Error message
 
 To solve this issue, upon advice from @nikswamy, I marked the post-resource of `gen_elim` with an identity function, `guarded_vprop`, and I modified the framing tactic to systematically delay any goal where `guarded_vprop` has any unsolved vprop uvar (even if that vprop uvar is the only one), so that the post-resource of `gen_elim` is first fully computed by the `gen_elim`-specific tactics before the framing tactic has any opportunity to unify it with any vprops arising afterwards (see bf48d2b14703fba972bcfdd583c1783b6e884f74 for more details.)
+
+</details>
 
 </details>
 
