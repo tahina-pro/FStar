@@ -190,7 +190,8 @@ function update_version_number () {
 }
 
 function refresh_fstar_hints() {
-    refresh_hints "git@github.com:FStarLang/FStar.git" "git ls-files src/ocaml-output/ | xargs git add" "regenerate hints + ocaml snapshot" "."
+    [[ -n "$DZOMO_GITHUB_TOKEN" ]] &&
+    refresh_hints "https://$DZOMO_GITHUB_TOKEN@github.com/FStarLang/FStar.git" "git ls-files src/ocaml-output/ | xargs git add" "regenerate hints + ocaml snapshot" "."
 }
 
 # Note: this performs an _approximate_ refresh of the hints, in the sense that
