@@ -115,7 +115,7 @@ let read_pt (#t:Type)
     intro_pts_to a s' s;
     return x
 
-let read (#t:Type)
+let read' (#t:Type)
          (#p:perm)
          (a:array t)
          (#s:erased (seq t))
@@ -127,6 +127,8 @@ let read (#t:Type)
        (ensures fun v ->
          v == Seq.index s (U32.v i))
   = let x = coerce_steel (fun _ -> read_pt a i) in x
+
+let read = admit ()
 
 let write_pt (#t:Type)
              (a:array t)
@@ -143,7 +145,7 @@ let write_pt (#t:Type)
     intro_pts_to a _ _;
     return ()
 
-let write (#t:Type)
+let write' (#t:Type)
           (a:array t)
           (#s:erased (seq t))
           (i:U32.t { U32.v i < Seq.length s })
@@ -152,6 +154,8 @@ let write (#t:Type)
        (pts_to a full_perm s)
        (fun _ -> pts_to a full_perm (Seq.upd s (U32.v i) x))
   = coerce_steel (fun _ -> write_pt a i x); ()
+
+let write = admit ()
 
 let free_pt (#t:Type) (a:array t) (#s:erased (repr a))
   : SE.SteelT unit

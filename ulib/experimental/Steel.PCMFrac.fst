@@ -28,3 +28,9 @@ let pcm_frac #a : pcm (fractional a) = {
   is_unit = (fun _ -> ());
   refine = (fun _ -> True)
 }
+
+let mk_frame_preserving_upd
+  (#a: Type)
+  (v0 v1: a)
+: Tot (frame_preserving_upd pcm_frac (Some (v0, full_perm)) (Some (v1, full_perm)))
+= fun _ -> Some (v1, full_perm)

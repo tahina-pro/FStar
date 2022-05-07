@@ -79,11 +79,11 @@ val alloc (#t:Type)
 
 /// Accesses index [i] in array [r], as long as [i] is in bounds and the array
 /// is currently valid in memory
-val read (#t:Type) (#p:perm)
+val read (#t:Type) (#p:perm) (#opened: _)
          (a:array t)
          (#s:erased (seq t))
          (i:U32.t { U32.v i < Seq.length s })
-  : ST t
+  : STAtomic t opened
        (pts_to a p s)
        (fun _ -> pts_to a p s)
        (requires True)
@@ -92,12 +92,12 @@ val read (#t:Type) (#p:perm)
 
 /// Updates index [i] in array [r] with value [x], as long as [i]
 /// is in bounds and the array is currently valid in memory
-val write (#t:Type)
+val write (#t:Type) (#opened: _)
           (a:array t)
           (#s:erased (seq t))
           (i:U32.t { U32.v i < Seq.length s })
           (x:t)
-  : STT unit
+  : STAtomicT unit opened
        (pts_to a full_perm s)
        (fun _ -> pts_to a full_perm (Seq.upd s (U32.v i) x))
 
