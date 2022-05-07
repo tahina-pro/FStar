@@ -157,6 +157,21 @@ let forall_inv
   = fun b -> exists_ (forall_pred n arr p r perm s () b)
 
 inline_for_extraction
+[@@noextract_to "krml"]
+let array_read
+    (#t:Type) (#p:perm)
+         (a:A.array t)
+         (#s:Ghost.erased (Seq.seq t))
+         (i:U32.t { U32.v i < Seq.length s })
+  : ST t
+       (A.pts_to a p s)
+       (fun _ -> A.pts_to a p s)
+       (requires True)
+       (ensures fun v -> 
+         v == Seq.index s (U32.v i))
+= A.read a i
+
+inline_for_extraction
 let forall_cond
   (#a:Type0)
   (n:U32.t)
@@ -180,7 +195,7 @@ let forall_cond
     let b = i = n in
     let res =
       if b then return false
-      else let elt = A.read arr i in
+      else let elt = array_read arr i in
            return (p elt) in
 
     intro_pure (forall_pure_inv n p s () i);
@@ -353,8 +368,8 @@ let forall2_cond
     let b = i = n in
     let res =
       if b then return false
-      else let elt0 = A.read a0 i in
-           let elt1 = A.read a1 i in
+      else let elt0 = array_read a0 i in
+           let elt1 = array_read a1 i in
            return (p elt0 elt1) in
 
     intro_pure (forall2_pure_inv n p s0 s1 () i);
