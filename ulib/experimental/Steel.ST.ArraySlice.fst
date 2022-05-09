@@ -6,7 +6,6 @@ module R = Steel.ST.GhostPCMReference
 module P = Steel.PCMFrac
 module M = FStar.Map
 module PM = Steel.PCMMap
-module U32 = FStar.UInt32
 
 /// Gather permissions on reference [r]
 let derive_composable (#o:inames)
@@ -67,7 +66,7 @@ let invariant0
     pure (Seq.length whole_seq == A.length base)
   )
 
-let invariant
+let invariant1
   (#elt: Type)
   (base: A.array elt)
   (gr: R.ref _ (pcm elt (A.length base)))
@@ -78,11 +77,23 @@ noeq
 type array_slice (elt: Type) = {
   base: A.array elt;
   base_gr: R.ref _ (pcm elt (A.length base));
-  base_inv: inv (invariant base base_gr);
+  base_inv: inv (invariant1 base base_gr);
   base_len: Ghost.erased U32.t; // to prove that A.read, A.write offset computation does not overflow
   offset: U32.t;
   prf: squash (U32.v offset <= A.length base /\ U32.v base_len == A.length base);
 }
+
+let base_length a = A.length a.base
+
+let offset a = U32.v a.offset
+
+let invariant
+  (#elt: Type)
+  (a: array_slice elt)
+: Tot vprop
+= invariant1 a.base a.base_gr
+
+let invariant_of a = a.base_inv
 
 let valid_perm
   (len: nat)
@@ -149,12 +160,7 @@ let mk_carrier_perm
 inline_for_extraction
 [@@noextract_to "krml"]
 let alloc
-  (#elt: Type)
-  (x: elt)
-  (n: U32.t)
-: STT (array_slice elt)
-    emp
-    (fun a -> pts_to a P.full_perm (Seq.create (U32.v n) x))
+  #elt x n
 =
   let base = A.alloc x n in
   let c = Ghost.hide (mk_carrier (A.length base) 0 (Seq.create (U32.v n) x) P.full_perm) in
@@ -164,8 +170,8 @@ let alloc
   R.share base_gr c c_h c_h;
   rewrite
     (invariant0 base base_gr)
-    (invariant base base_gr);
-  let i = new_invariant (invariant base base_gr) in
+    (invariant1 base base_gr);
+  let i = new_invariant (invariant1 base base_gr) in
   let a = {
     base = base;
     base_gr = base_gr;
@@ -271,16 +277,6 @@ let mk_carrier_index
   ))
 = ()
 
-[@@noextract_to "krml"]
-let seq_index
-  (#t: Type)
-  (s: Seq.seq t)
-  (i: nat)
-: Pure t
-    (requires (i < Seq.length s))
-    (ensures (fun _ -> True))
-= Seq.index s i
-
 inline_for_extraction
 [@@noextract_to "krml"]
 let read_body
@@ -290,11 +286,11 @@ let read_body
   (i: U32.t)
   (_: unit)
 : STAtomicT t opened
-    (invariant a.base a.base_gr `star` (pts_to a p s `star` pure ((U32.v i < Seq.length s) == true)))
-    (fun res -> invariant a.base a.base_gr `star` (pts_to a p s `star` pure (U32.v i < Seq.length s /\ res == seq_index s (U32.v i))))
+    (invariant1 a.base a.base_gr `star` (pts_to a p s `star` pure ((U32.v i < Seq.length s) == true)))
+    (fun res -> invariant1 a.base a.base_gr `star` (pts_to a p s `star` pure (U32.v i < Seq.length s /\ res == seq_index s (U32.v i))))
 =
   rewrite
-    (invariant a.base a.base_gr)
+    (invariant1 a.base a.base_gr)
     (invariant0 a.base a.base_gr);
   rewrite
     (pts_to a p s)
@@ -312,7 +308,7 @@ let read_body
   let res = A.read a.base (a.offset `U32.add` i) in
   rewrite
     (invariant0 a.base a.base_gr)
-    (invariant a.base a.base_gr);
+    (invariant1 a.base a.base_gr);
   rewrite
     (pts_to0 a p s)
     (pts_to a p s);
@@ -338,23 +334,6 @@ let atomic_read (#t:Type) (#p:perm) (#opened: _)
   let res = with_invariant a.base_inv (read_body a i) in
   let _ = gen_elim () in
   return res
-
-inline_for_extraction
-[@@noextract_to "krml"]
-let read (#t:Type) (#p:perm)
-         (a:array_slice t)
-         (#s:Ghost.erased (Seq.seq t))
-         (i:U32.t)
-: ST t
-       (pts_to a p s)
-       (fun _ -> pts_to a p s)
-       (requires (
-         U32.v i < Seq.length s
-       ))
-       (ensures fun v ->
-         U32.v i < Seq.length s /\
-         v == seq_index s (U32.v i))
-= atomic_read a i
 
 let mk_carrier_upd
   (#elt: Type)
@@ -394,11 +373,11 @@ let write_body
   (v: t)
   (_: unit)
 : STAtomicT unit opened
-    (invariant a.base a.base_gr `star` pts_to a P.full_perm s)
-    (fun res -> invariant a.base a.base_gr `star` pts_to a P.full_perm (Seq.upd s (U32.v i) v))
+    (invariant1 a.base a.base_gr `star` pts_to a P.full_perm s)
+    (fun res -> invariant1 a.base a.base_gr `star` pts_to a P.full_perm (Seq.upd s (U32.v i) v))
 =
   rewrite
-    (invariant a.base a.base_gr)
+    (invariant1 a.base a.base_gr)
     (invariant0 a.base a.base_gr);
   rewrite
     (pts_to a P.full_perm s)
@@ -441,7 +420,7 @@ let write_body
   assert_ (A.pts_to a.base P.full_perm (Seq.upd full (U32.v a.offset + U32.v i) v)); // FIXME: WHY WHY WHY?
   rewrite
     (invariant0 a.base a.base_gr)
-    (invariant a.base a.base_gr)
+    (invariant1 a.base a.base_gr)
 
 inline_for_extraction
 [@@noextract_to "krml"]
@@ -471,46 +450,18 @@ let atomic_write (#t:Type) (#opened: _)
   let _ = gen_elim () in
   vpattern_replace_erased (fun s' -> pts_to a P.full_perm s')
 
-inline_for_extraction
-[@@noextract_to "krml"]
-let write (#t:Type)
-         (a:array_slice t)
-         (#s:Ghost.erased (Seq.seq t))
-         (i:U32.t)
-         (v: t)
-: ST (Ghost.erased (Seq.seq t))
-       (pts_to a P.full_perm s)
-       (fun s' -> pts_to a P.full_perm s')
-       (requires (
-         U32.v i < Seq.length s
-       ))
-       (ensures fun s' ->
-         U32.v i < Seq.length s /\
-         Ghost.reveal s' == Seq.upd s (U32.v i) v)
-= atomic_write a i v
-
 let ptr_le (#elt: Type) (a1 a2: array_slice elt) : Tot prop =
   a1.base == a2.base /\
   a1.base_gr == a2.base_gr /\
   a1.base_inv == a2.base_inv /\
   U32.v a1.offset <= U32.v a2.offset
 
-let ptr_diff (#elt: Type) (a2 a1: array_slice elt) : Pure U32.t
-  (requires (ptr_le a1 a2))
-  (ensures (fun _ -> True))
+let ptr_diff
+  a2 a1
 = a2.offset `U32.sub` a1.offset
 
-let has_ptr_diff (#elt: Type) (a2 a1: array_slice elt) (diff: nat) : Tot prop =
-  ptr_le a1 a2 /\
-  U32.v (ptr_diff a2 a1) == diff
-
 let ptr_shift
-  (#elt: Type)
-  (a: array_slice elt)
-  (i: U32.t)
-: Pure (array_slice elt)
-    (requires (U32.v a.offset + U32.v i <= A.length a.base))
-    (ensures (fun y -> has_ptr_diff y a (U32.v i)))
+  a i
 = {
   base = a.base;
   base_gr = a.base_gr;
@@ -586,8 +537,6 @@ let mk_carrier_split
       mk_carrier len offset s p `M.equal` (c1 `compose` c2)
   ))
 = ()
-    
-#set-options "--ide_id_info_off"
 
 let ghost_split
   (#opened: _)
