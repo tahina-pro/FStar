@@ -54,6 +54,27 @@ let mk_carrier
   in
   M.map_literal f
 
+let mk_carrier_inj
+  (#elt: Type)
+  (len: nat)
+  (offset: nat)
+  (s1 s2: Seq.seq elt)
+  (p1 p2: P.perm)
+: Lemma
+  (requires (
+    mk_carrier len offset s1 p1 == mk_carrier len offset s2 p2 /\
+    offset + Seq.length s1 <= len /\
+    offset + Seq.length s2 <= len
+  ))
+  (ensures (
+    s1 `Seq.equal` s2 /\
+    (Seq.length s1 > 0 ==> p1 == p2)
+  ))
+= assert (forall (i: nat) . i < Seq.length s1 ==>
+    (M.sel (mk_carrier len offset s1 p1) (offset + i) == Some (Seq.index s1 i, p1)));
+  assert (forall (i: nat) . i < Seq.length s2 ==>
+     M.sel (mk_carrier len offset s2 p2) (offset + i) == Some (Seq.index s2 i, p2))
+
 [@@__reduce__]
 let invariant0
   (#elt: Type)
@@ -215,34 +236,66 @@ let share
     (pts_to0 a p2 x)
     (pts_to a p2 x)
 
+let mk_carrier_gather
+  (#elt: Type)
+  (len: nat)
+  (offset: nat)
+  (s1 s2: Seq.seq elt)
+  (p1 p2: P.perm)
+: Lemma
+  (requires (
+    let c1 = mk_carrier len offset s1 p1 in
+    let c2 = mk_carrier len offset s2 p2 in
+    composable c1 c2 /\
+    Seq.length s1 == Seq.length s2 /\
+    offset + Seq.length s1 <= len
+  ))
+  (ensures (
+    let c1 = mk_carrier len offset s1 p1 in
+    let c2 = mk_carrier len offset s2 p2 in
+      composable c1 c2 /\
+      mk_carrier len offset s1 (p1 `P.sum_perm` p2) == (c1 `compose` c2) /\
+      mk_carrier len offset s2 (p1 `P.sum_perm` p2) == (c1 `compose` c2) /\
+      s1 == s2
+  ))
+=
+  let c1 = mk_carrier len offset s1 p1 in
+  let c2 = mk_carrier len offset s2 p2 in
+  assert (composable c1 c2);
+  assert (mk_carrier len offset s1 (p1 `P.sum_perm` p2) `M.equal` (c1 `compose` c2));
+  assert (mk_carrier len offset s2 (p1 `P.sum_perm` p2) `M.equal` (c1 `compose` c2));
+  mk_carrier_inj len offset s1 s2 (p1 `P.sum_perm` p2) (p1 `P.sum_perm` p2)
+
 let gather
   (#opened: _)
   (#elt: Type)
-  (#x: Seq.seq elt)
   (a: array_slice elt)
-  (p1 p2: P.perm)
-: STGhostT unit opened
-    (pts_to a p1 x `star` pts_to a p2 x)
-    (fun _ -> pts_to a (p1 `P.sum_perm` p2) x)
+  (#x1: Seq.seq elt) (p1: P.perm)
+  (#x2: Seq.seq elt) (p2: P.perm)
+: STGhost unit opened
+    (pts_to a p1 x1 `star` pts_to a p2 x2)
+    (fun _ -> pts_to a (p1 `P.sum_perm` p2) x1)
+    (requires (Seq.length x1 == Seq.length x2))
+    (ensures (fun _ -> x1 == x2))
 = rewrite
-    (pts_to a p1 x)
-    (pts_to0 a p1 x);
+    (pts_to a p1 x1)
+    (pts_to0 a p1 x1);
   rewrite
-    (pts_to a p2 x)
-    (pts_to0 a p2 x);
+    (pts_to a p2 x2)
+    (pts_to0 a p2 x2);
   let _ = gen_elim () in
   derive_composable
     a.base_gr
-    (mk_carrier (A.length a.base) (U32.v a.offset) x (P.half_perm p1))
-    (mk_carrier (A.length a.base) (U32.v a.offset) x (P.half_perm p2));
-  mk_carrier_valid_sum_perm (A.length a.base) (U32.v a.offset) x (P.half_perm p1) (P.half_perm p2);
-  mk_carrier_perm (A.length a.base) (U32.v a.offset) x (P.half_perm p1) (P.half_perm p2);
+    (mk_carrier (A.length a.base) (U32.v a.offset) x1 (P.half_perm p1))
+    (mk_carrier (A.length a.base) (U32.v a.offset) x2 (P.half_perm p2));
+  mk_carrier_gather (A.length a.base) (U32.v a.offset) x1 x2 (P.half_perm p1) (P.half_perm p2);
+  mk_carrier_valid_sum_perm (A.length a.base) (U32.v a.offset) x1 (P.half_perm p1) (P.half_perm p2);
   R.gather a.base_gr
-    (mk_carrier (A.length a.base) (U32.v a.offset) x (P.half_perm p1))
-    (mk_carrier (A.length a.base) (U32.v a.offset) x (P.half_perm p2));
+    (mk_carrier (A.length a.base) (U32.v a.offset) x1 (P.half_perm p1))
+    (mk_carrier (A.length a.base) (U32.v a.offset) x2 (P.half_perm p2));
   rewrite
-    (pts_to0 a (p1 `P.sum_perm` p2) x)
-    (pts_to a (p1 `P.sum_perm` p2) x)
+    (pts_to0 a (p1 `P.sum_perm` p2) x1)
+    (pts_to a (p1 `P.sum_perm` p2) x1)
 
 let mk_carrier_index
   (#elt: Type)

@@ -50,12 +50,14 @@ val share
 val gather
   (#opened: _)
   (#elt: Type)
-  (#x: Seq.seq elt)
   (a: array_slice elt)
-  (p1 p2: P.perm)
-: STGhostT unit opened
-    (pts_to a p1 x `star` pts_to a p2 x)
-    (fun _ -> pts_to a (p1 `P.sum_perm` p2) x)
+  (#x1: Seq.seq elt) (p1: P.perm)
+  (#x2: Seq.seq elt) (p2: P.perm)
+: STGhost unit opened
+    (pts_to a p1 x1 `star` pts_to a p2 x2)
+    (fun _ -> pts_to a (p1 `P.sum_perm` p2) x1)
+    (requires (Seq.length x1 == Seq.length x2))
+    (ensures (fun _ -> x1 == x2))
 
 [@@noextract_to "krml"]
 let seq_index
