@@ -524,6 +524,21 @@ let ptr_shift
   prf = ();
 }
 
+let ptr_le_trans
+  (#elt: Type)
+  (a1 a2 a3: array_slice elt)
+: Lemma
+  (requires (ptr_le a1 a2 /\ ptr_le a2 a3))
+  (ensures (
+    ptr_le a1 a3 /\
+    U32.v (ptr_diff a3 a1) == U32.v (ptr_diff a3 a2) + U32.v (ptr_diff a2 a1)
+  ))
+= ()
+
+let ptr_shift_assoc
+  a i1 i2
+= i1 `U32.add` i2
+
 let mk_carrier_merge
   (#elt: Type)
   (len: nat)

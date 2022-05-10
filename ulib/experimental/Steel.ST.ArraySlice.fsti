@@ -160,6 +160,27 @@ val ptr_shift
     (requires (offset a + U32.v i <= base_length a))
     (ensures (fun y -> has_ptr_diff y a (U32.v i)))
 
+val ptr_le_trans
+  (#elt: Type)
+  (a1 a2 a3: array_slice elt)
+: Lemma
+  (requires (ptr_le a1 a2 /\ ptr_le a2 a3))
+  (ensures (
+    ptr_le a1 a3 /\
+    U32.v (ptr_diff a3 a1) == U32.v (ptr_diff a3 a2) + U32.v (ptr_diff a2 a1)
+  ))
+
+val ptr_shift_assoc
+  (#elt: Type)
+  (a: array_slice elt)
+  (i1 i2: U32.t)
+: Ghost U32.t
+    (requires (offset a + U32.v i1 + U32.v i2 <= base_length a))
+    (ensures (fun y ->
+      U32.v y == U32.v i1 + U32.v i2 /\
+      ptr_shift (ptr_shift a i1) i2 == ptr_shift a y
+    ))
+
 val join
   (#opened: _)
   (#elt: Type)
