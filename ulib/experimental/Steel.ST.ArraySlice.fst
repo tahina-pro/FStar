@@ -524,6 +524,8 @@ let ptr_shift
   prf = ();
 }
 
+let has_ptr_diff_inj _ _ _ _ = ()
+
 let ptr_le_trans
   (#elt: Type)
   (a1 a2 a3: array_slice elt)

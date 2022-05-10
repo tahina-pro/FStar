@@ -160,6 +160,10 @@ val ptr_shift
     (requires (offset a + U32.v i <= base_length a))
     (ensures (fun y -> has_ptr_diff y a (U32.v i)))
 
+val has_ptr_diff_inj (#elt: Type) (a2 a1: array_slice elt) (diff: nat) (a2' : array_slice elt) : Lemma
+  (requires (has_ptr_diff a2 a1 diff /\ has_ptr_diff a2' a1 diff))
+  (ensures (a2 == a2'))
+
 val ptr_le_trans
   (#elt: Type)
   (a1 a2 a3: array_slice elt)
