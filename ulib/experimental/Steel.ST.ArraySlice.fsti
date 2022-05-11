@@ -185,6 +185,24 @@ val ptr_shift_assoc
       ptr_shift (ptr_shift a i1) i2 == ptr_shift a y
     ))
 
+val ptr_le_interpolate
+  (#elt: Type)
+  (a1 a2 a3: array_slice elt)
+: Lemma
+  (requires (ptr_le a1 a2 /\ ptr_le a1 a3 /\ U32.v (ptr_diff a2 a1) <= U32.v (ptr_diff a3 a1)))
+  (ensures (ptr_le a2 a3))
+
+let ptr_le_unique
+  (#t: Type)
+  (p1 p2: array_slice t)
+: Lemma
+  (requires (ptr_le p1 p2))
+  (ensures (
+    p2 == ptr_shift p1 (ptr_diff p2 p1)
+  ))
+= let d = ptr_diff p2 p1 in
+  has_ptr_diff_inj p2 p1 (U32.v d) (ptr_shift p1 d)
+
 val join
   (#opened: _)
   (#elt: Type)

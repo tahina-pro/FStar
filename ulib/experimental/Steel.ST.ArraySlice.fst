@@ -559,6 +559,8 @@ let mk_carrier_merge
   ))
 = ()
 
+let ptr_le_interpolate _ _ _ = ()
+
 let join
   (#opened: _)
   (#elt: Type)
