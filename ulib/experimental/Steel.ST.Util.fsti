@@ -684,7 +684,9 @@ let solve_gen_elim_dummy
           if not (T.Tv_Uvar? (T.inspect i))
           then T.fail "gen_elim_dummy is already solved";
           T.unshelve i;
+          T.dump "solve_gen_elim_dummy: before solve_gen_elim";
           T.focus solve_gen_elim;
+          T.dump "solve_gen_elim_dummy: after solve_gen_elim";
           T.apply_lemma (`gen_elim_dummy_intro)
         | _ -> T.fail "ill-formed gen_elim_dummy"
         end
@@ -694,6 +696,7 @@ let solve_gen_elim_prop
   ()
 : T.Tac unit
 =
+  T.dump "BEGIN solve_gen_elim_prop";
   let (hd, tl) = T.collect_app (T.cur_goal ()) in
   if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
   then T.fail "not a squash goal";
@@ -705,9 +708,19 @@ let solve_gen_elim_prop
     T.apply_lemma (`gen_elim_prop_intro);
     T.focus solve_gen_elim_dummy;
     let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
+    T.dump "solve_gen_elim_prop: normalizing and unifying return type";
     T.focus (fun _ -> norm (); T.trefl ());
-    T.focus (fun _ -> norm (); T.trefl ());
-    T.focus (fun _ -> norm (); T.trefl ())
+    T.focus (fun _ ->
+      T.dump "solve_gen_elim_prop: normalizing postcondition";
+      norm ();
+      T.dump "solve_gen_elim_prop: unifying postcondition";
+      T.trefl ());
+    T.focus (fun _ ->
+      T.dump "solve_gen_elim_prop: normalizing post-resource";
+      norm ();
+      T.dump "solve_gen_elim_prop: unifying post-resource";
+      T.trefl ())
+;  T.dump "END solve_gen_elim_prop"
   | _ -> T.fail "ill-formed squash"
 
 val gen_elim
@@ -724,6 +737,7 @@ let solve_gen_elim_prop_placeholder
   ()
 : T.Tac bool
 =
+  T.dump "BEGIN solve_gen_elim_prop_placeholder";
   let (hd, tl) = T.collect_app (T.cur_goal ()) in
   if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
   then T.fail "not a squash goal";
@@ -735,9 +749,19 @@ let solve_gen_elim_prop_placeholder
     T.apply_lemma (`gen_elim_prop_placeholder_intro);
     T.focus solve_gen_elim_dummy;
     let norm () = T.norm [delta_attr [(`%__reduce__)]; delta_only [(`%GenElim?.a); (`%GenElim?.q); (`%GenElim?.post)]; iota] in
+    T.dump "solve_gen_elim_prop_placeholder: normalizing and unifying return type";
     T.focus (fun _ -> norm (); T.trefl ());
-    T.focus (fun _ -> norm (); T.trefl ());
-    T.focus (fun _ -> norm (); T.trefl ());
+    T.focus (fun _ ->
+      T.dump "solve_gen_elim_prop_placeholder: normalizing postcondition";
+      norm ();
+      T.dump "solve_gen_elim_prop_placeholder: unifying postcondition";
+      T.trefl ());
+    T.focus (fun _ ->
+      T.dump "solve_gen_elim_prop_placeholder: normalizing post-resource";
+      norm ();
+      T.dump "solve_gen_elim_prop_placeholder: unifying post-resource";
+      T.trefl ());
+    T.dump "END solve_gen_elim_prop_placeholder";
     true
   | _ -> T.fail "ill-formed squash"
 
