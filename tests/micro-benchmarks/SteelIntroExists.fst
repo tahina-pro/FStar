@@ -133,6 +133,45 @@ val ptr : Type0
 assume
 val pts_to0 (p: ptr) (v: nat) : vprop
 
+let endure_tuple3 (opened: _) (p1 p2 p3 p4 p5 p6: ptr) : STGhostT unit opened
+  (exists_ (fun (res:dtuple2 nat (fun _ -> nat)) -> exists_ (fun (fres: dtuple2 nat (fun _ -> nat)) -> exists_ (fun (dres: dtuple2 nat (fun _ -> nat)) ->
+    pts_to0 p1 (dfst res) `star`
+    pts_to0 p2 (dfst res) `star`
+    pts_to0 p3 (dfst fres) `star`
+    pts_to0 p4 (dsnd fres) `star`
+    pts_to0 p5 (dfst dres) `star`
+    pts_to0 p6 (dsnd dres)
+  ))))
+  (fun _ -> emp)
+= let _ = gen_elim () in
+  admit_ ()
+
+let endure_tuple2 (opened: _) (p1 p2 p3 p4 p5 p6: ptr) : STGhostT unit opened
+  (exists_ (fun (res:dtuple2 nat (fun _ -> dtuple2 nat (fun _ -> nat))) -> exists_ (fun (dres: dtuple2 nat (fun _ -> dtuple2 nat (fun _ -> nat))) ->
+    pts_to0 p1 (dfst res) `star`
+    pts_to0 p2 (dfst (dsnd res)) `star`
+    pts_to0 p3 (dsnd (dsnd res)) `star`
+    pts_to0 p4 (dfst dres) `star`
+    pts_to0 p5 (dfst (dsnd dres)) `star`
+    pts_to0 p6 (dsnd (dsnd dres))
+  )))
+  (fun _ -> emp)
+= let _ = gen_elim () in
+  admit_ ()
+
+let endure_tuple1 (opened: _) (p1 p2 p3 p4 p5 p6: ptr) : STGhostT unit opened
+  (exists_ (fun (res:dtuple2 nat (fun _ -> dtuple2 nat (fun _ -> dtuple2 nat (fun _ -> dtuple2 nat (fun _ -> dtuple2 nat (fun _ -> nat)))))) ->
+    pts_to0 p1 (dfst res) `star`
+    pts_to0 p2 (dfst (dsnd res)) `star`
+    pts_to0 p3 (dfst (dsnd (dsnd res))) `star`
+    pts_to0 p4 (dfst (dsnd (dsnd (dsnd res)))) `star`
+    pts_to0 p5 (dfst (dsnd (dsnd (dsnd (dsnd res))))) `star`
+    pts_to0 p6 (dsnd (dsnd (dsnd (dsnd (dsnd res)))))
+  ))
+  (fun _ -> emp)
+= let _ = gen_elim () in
+  admit_ ()
+
 let endure4 (opened: _) (p1 p2 p3 p4: ptr) : STGhostT unit opened
   (exists_ (fun v1 -> exists_ (fun v2 -> exists_ (fun v3 -> exists_ (fun v4 ->
     pts_to0 p1 v1 `star`
