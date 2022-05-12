@@ -133,6 +133,17 @@ val ptr : Type0
 assume
 val pts_to0 (p: ptr) (v: nat) : vprop
 
+let endure4 (opened: _) (p1 p2 p3 p4: ptr) : STGhostT unit opened
+  (exists_ (fun v1 -> exists_ (fun v2 -> exists_ (fun v3 -> exists_ (fun v4 ->
+    pts_to0 p1 v1 `star`
+    pts_to0 p2 v2 `star`
+    pts_to0 p3 v3 `star`
+    pts_to0 p4 v4
+  )))))
+  (fun _ -> emp)
+= let _ = gen_elim () in
+  admit_ ()
+
 let endure5 (opened: _) (p1 p2 p3 p4 p5: ptr) : STGhostT unit opened
   (exists_ (fun v1 -> exists_ (fun v2 -> exists_ (fun v3 -> exists_ (fun v4 -> exists_ (fun v5 ->
     pts_to0 p1 v1 `star`
