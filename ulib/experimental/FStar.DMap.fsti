@@ -3,11 +3,12 @@ module FStar.DMap
 noeq
 type tele : nat -> Type = | TEnd: tele 0 | T: (n : nat) -> (t: Type0) -> (t -> tele n) -> tele (n + 1)
 
+[@@erasable]
 val dmap : Type u#1
 
 val type_of_dmap (d: dmap) (i: nat) : Tot Type0
 
-val value_of_dmap (d: dmap) (i: nat) (t: Type0) : Pure t
+val value_of_dmap (d: dmap) (i: nat) (t: Type0) : Ghost t
   (requires (type_of_dmap d i == t))
   (ensures (fun _ -> True))
 
