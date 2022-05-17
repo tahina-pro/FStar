@@ -332,8 +332,11 @@ let rec compute_gen_elim_q' (processed: nat) (t: gen_elim_tele) (d: DM.dmap { DM
 [@@gen_elim_reduce]
 let compute_gen_elim_refine (t: gen_elim_tele) (d: DM.dmap) : Tot prop = DM.dmap_types 0 (compute_type_tele t) d
 
+let refine_dmap (r: DM.dmap -> Tot prop) : Tot Type =
+  (d: DM.dmap { r d })
+
 [@@gen_elim_reduce]
-let compute_gen_elim_q (t: gen_elim_tele) : Tot ((d: DM.dmap { compute_gen_elim_refine t d }) -> vprop)
+let compute_gen_elim_q (t: gen_elim_tele) : Tot (refine_dmap (compute_gen_elim_refine t) -> vprop)
 = compute_gen_elim_q' 0 t
 
 [@@gen_elim_reduce]
@@ -344,7 +347,7 @@ let rec compute_gen_elim_post' (processed: nat) (t: gen_elim_tele) (d: DM.dmap {
   | TExists ty f -> compute_gen_elim_post' (processed + 1) (f (DM.value_of_dmap d processed ty)) d
 
 [@@gen_elim_reduce]
-let compute_gen_elim_post (t: gen_elim_tele) : Tot ((d: DM.dmap { compute_gen_elim_refine t d }) -> prop)
+let compute_gen_elim_post (t: gen_elim_tele) : Tot (refine_dmap (compute_gen_elim_refine t) -> prop)
 = compute_gen_elim_post' 0 t
 
 module T = FStar.Tactics
@@ -416,8 +419,8 @@ val gen_elim_prop
   (i: gen_elim_i)
   (j: gen_elim_tele)
   (r: DM.dmap -> Tot prop)
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (post: (d: DM.dmap {r d }) -> Tot prop)
+  (q: refine_dmap r -> Tot vprop)
+  (post: refine_dmap r -> Tot prop)
 : Tot prop
 
 val gen_elim_prop_intro
@@ -428,9 +431,9 @@ val gen_elim_prop_intro
   (sq_j: squash (j == compute_gen_elim_tele i))
   (r: DM.dmap -> Tot prop)
   (sq_r: squash (r == compute_gen_elim_refine j))
-  (post: (d: DM.dmap { r d }) -> Tot prop)
+  (post: refine_dmap r -> Tot prop)
   (sq_post: squash (post == compute_gen_elim_post j))
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
+  (q: refine_dmap r -> Tot vprop)
   (sq_q: squash (q == compute_gen_elim_q j))
 : Lemma (gen_elim_prop p i j r q post)
 
@@ -439,8 +442,8 @@ let gen_elim_prop_placeholder
   (i: gen_elim_i)
   (j: gen_elim_tele)
   (r: DM.dmap -> Tot prop)
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (post: (d: DM.dmap {r d }) -> Tot prop)
+  (q: refine_dmap r -> Tot vprop)
+  (post: refine_dmap r -> Tot prop)
 : Tot prop
 = True
 
@@ -465,9 +468,9 @@ let gen_elim_prop_placeholder_intro
   (sq_j: squash (j == compute_gen_elim_tele i))
   (r: DM.dmap -> Tot prop)
   (sq_r: squash (r == compute_gen_elim_refine j))
-  (post: (d: DM.dmap { r d }) -> Tot prop)
+  (post: refine_dmap r -> Tot prop)
   (sq_post: squash (post == compute_gen_elim_post j))
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
+  (q: refine_dmap r -> Tot vprop)
   (sq_q: squash (q == compute_gen_elim_q j))
 : Lemma (gen_elim_prop_placeholder p i j r q post)
 = ()
@@ -523,11 +526,11 @@ val gen_elim'
   (i: gen_elim_i)
   (j: gen_elim_tele)
   (r: DM.dmap -> Tot prop)
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (post: (d: DM.dmap {r d}) -> Tot prop)
+  (q: (d: refine_dmap r) -> Tot vprop)
+  (post: (d: refine_dmap r) -> Tot prop)
   (sq: squash (gen_elim_prop_placeholder p i j r q post))
   (_: unit)
-: STGhost (d: DM.dmap {r d}) opened p (fun x -> guard_vprop (q x)) (gen_elim_prop p i j r q post) post
+: STGhost (refine_dmap r) opened p (fun x -> guard_vprop (q x)) (gen_elim_prop p i j r q post) post
 
 val gen_elim
   (#opened: _)
@@ -535,11 +538,11 @@ val gen_elim
   (#[@@@ framing_implicit] i: gen_elim_i)
   (#[@@@ framing_implicit] j: gen_elim_tele)
   (#[@@@ framing_implicit] r: DM.dmap -> Tot prop)
-  (#[@@@ framing_implicit] q: (d: DM.dmap { r d }) -> Tot vprop)
-  (#[@@@ framing_implicit] post: (d: DM.dmap {r d}) -> Tot prop)
+  (#[@@@ framing_implicit] q: refine_dmap r -> Tot vprop)
+  (#[@@@ framing_implicit] post: refine_dmap r -> Tot prop)
   (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p i j r q post))
   (_: unit)
-: STGhostF (d: DM.dmap {r d}) opened p (fun x -> guard_vprop (q x)) ( (T.with_tactic solve_gen_elim_prop) (squash (gen_elim_prop p i j r q post))) post
+: STGhostF (refine_dmap r) opened p (fun x -> guard_vprop (q x)) ( (T.with_tactic solve_gen_elim_prop) (squash (gen_elim_prop p i j r q post))) post
 
 let solve_gen_elim_prop_placeholder
   ()
