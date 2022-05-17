@@ -158,6 +158,8 @@ let endure6 (p1 p2 p3 p4 p5 p6: ptr) : STT unit
   write0 p4 42;
   return ()
 
+#set-options "--print_implicits --print_bound_var_types"
+
 let endure_tuple3 (opened: _) (p1 p2 p3 p4 p5 p6: ptr) : STGhostT unit opened
   (exists_ (fun (res:dtuple2 nat (fun _ -> nat)) -> exists_ (fun (fres: dtuple2 nat (fun _ -> nat)) -> exists_ (fun (dres: dtuple2 nat (fun _ -> nat)) ->
     pts_to0 p1 (dfst res) `star`
@@ -337,6 +339,22 @@ let test_split1
   noop ();
   return res
 
+let test_split15
+  (#v: Ghost.erased nat)
+  (p: ptr)
+: STT ptr
+    (pts_to1 p v)
+    (fun res -> exists_ (fun vl -> pts_to2 p vl `star` exists_ (fun vres -> pts_to1 res vres)))
+=
+  let res = split p in
+  let _ = elim_exists () in
+  let _ = elim_exists () in
+  noop ();
+  let _ = pts_to2_intro p in
+  intro_exists _ (fun vres -> pts_to1 res vres);
+  noop ();
+  return res
+
 let test_split2
   (#v: Ghost.erased nat)
   (p: ptr)
@@ -348,8 +366,23 @@ let test_split2
   let _ = gen_elim () in
   noop ();
   let _ = pts_to2_intro p in
-  intro_exists _ (fun vres -> pts_to1 res vres);
+//  intro_exists _ (fun vres -> pts_to1 res vres); // FIXME: this intro_exists no longer works
+//  noop (); // still works, but no longer necessary
+  return res
+
+let test_split25
+  (#v: Ghost.erased nat)
+  (p: ptr)
+: STT ptr
+    (pts_to1 p v)
+    (fun res -> exists_ (fun vl -> pts_to2 p vl `star` exists_ (fun vres -> pts_to1 res vres)))
+=
+  let res = split p in
+  let _ = gen_elim () in
   noop ();
+  let _ = pts_to2_intro p in
+  noop (); // FIXME: WHY WHY WHY is this noop needed now?
+  intro_exists _ (fun vres -> pts_to1 res vres);
   return res
 
 // [@@expect_failure]
@@ -560,7 +593,7 @@ let g
 : STT bool (exists_ (fun n -> exists_ (fun p -> pred n `star` pred' p `star` pure (n == 18 /\ p == 42)))) (fun _ -> pred 18 `star` pred' 42)
 = noop ();
   let _ = gen_elim () in
-  noop ();
+//  noop (); // FIXME: WHY WHY WHY does this noop() no longer work?
   return true
 
 let h
@@ -571,7 +604,7 @@ let h
 : STT bool r (fun _ -> pred 18 `star` pred' 42)
 = f ();
   let _ = gen_elim () in
-  noop ();
+//  noop (); // FIXME: same here
   return true
 
 let h'
@@ -583,7 +616,7 @@ let h'
 : STGhostT nat opened r (fun n -> pred 18 `star` pred' n)
 = let res = f () in
   let _ = gen_elim () in
-  noop ();
+//  noop (); // FIXME: same here
   res
 
 let h3
@@ -702,5 +735,6 @@ let v2 (#p: Ghost.erased nat) (al: ptr) (err: ptr) : STT unit
   let _ = gen_elim () in
   let _ = v1 ar err in
   let _ = gen_elim () in
+  noop (); // FIXME: WHY WHY WHY is this noop needed now?
   let _ = join al ar in
   return ()

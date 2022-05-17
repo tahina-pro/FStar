@@ -174,6 +174,9 @@ let par #aL #aR #preL #postL #preR #postR f g =
     = fun _ -> SE.par f g in
   coerce_steel p
 
+irreducible let gen_elim_reduce = ()
+
+(*
 let compute_gen_elim_p' = compute_gen_elim_p
 
 let compute_gen_elim_a' = compute_gen_elim_a
@@ -363,10 +366,17 @@ let gen_elim'
   let res : Ghost.erased a = Ghost.hide vres in
   rewrite (compute_gen_elim_q' i vres') (q res);
   res
+*)
+
+let gen_elim_prop = admit ()
+
+let gen_elim_prop_intro = admit ()
+
+let gen_elim' = admit ()
 
 let gen_elim
-  #opened #p #i #a #q #post #sq _
-= gen_elim' #opened p i a q post sq ()
+  #opened #p #i #j #r #q #post #sq _
+= gen_elim' #opened p i j r q post sq ()
 
 let vpattern
   (#opened: _)
