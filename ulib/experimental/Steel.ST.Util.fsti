@@ -594,6 +594,9 @@ val gen_elim
   (_: unit)
 : STGhostF (Ghost.erased a) opened p (fun x -> guard_vprop (q x)) ( (T.with_tactic solve_gen_elim_prop) (squash (gen_elim_prop p i a q post))) post
 
+
+
+
 let solve_gen_elim_prop_placeholder
   ()
 : T.Tac bool
@@ -615,6 +618,260 @@ let solve_gen_elim_prop_placeholder
     T.focus (fun _ -> norm (); T.trefl ());
     true
   | _ -> T.fail "ill-formed squash"
+
+/// An alternative implementation with dmap instead
+
+noeq
+type gen_elim_dmap_i =
+  | GEDId: (v: vprop) -> gen_elim_dmap_i
+  | GEDPure: (p: prop) -> gen_elim_dmap_i
+  | GEDStar: (left: gen_elim_dmap_i) -> (right: gen_elim_dmap_i) -> gen_elim_dmap_i
+  | GEDExistsNoAbs: (#a: Type0) -> (body: (a -> vprop)) -> gen_elim_dmap_i // FIXME: generalize the universe
+  | GEDExists: (#a: Type0) -> (body: (a -> gen_elim_dmap_i)) -> gen_elim_dmap_i
+
+val gen_elim_dmap_reduce: unit
+
+[@@ gen_elim_dmap_reduce]
+let rec compute_gen_elim_dmap_p
+  (x: gen_elim_dmap_i)
+: Tot vprop
+= match x with
+  | GEDId v -> v
+  | GEDPure p -> pure p
+  | GEDStar left right -> compute_gen_elim_dmap_p left `star` compute_gen_elim_dmap_p right
+  | GEDExistsNoAbs #a p -> exists_ p
+  | GEDExists #a body -> exists_ (fun x -> compute_gen_elim_dmap_p (body x))
+
+noeq
+type gen_elim_dmap_tele =
+  | TRet: vprop -> prop -> gen_elim_dmap_tele
+  | TExists: (ty: Type u#0) -> (ty -> gen_elim_dmap_tele) -> gen_elim_dmap_tele
+
+[@@gen_elim_dmap_reduce]
+let rec tele_star_vprop (i: gen_elim_dmap_tele) (v: vprop) (p: prop) : Tot gen_elim_dmap_tele (decreases i) =
+  match i with
+  | TRet v' p' -> TRet (v `star` v') (p /\ p')
+  | TExists ty f -> TExists ty (fun x -> tele_star_vprop (f x) v p)
+
+[@@gen_elim_dmap_reduce]
+let rec tele_star (i1 i2: gen_elim_dmap_tele) : Tot gen_elim_dmap_tele =
+  match i1, i2 with
+  | TRet v1 p1, _ -> tele_star_vprop i2 v1 p1
+  | _, TRet v2 p2 -> tele_star_vprop i1 v2 p2
+  | TExists ty1 f1, TExists ty2 f2 -> TExists ty1 (fun x1 -> TExists ty2 (fun x2 -> tele_star (f1 x1) (f2 x2)))
+
+[@@gen_elim_dmap_reduce]
+let rec compute_gen_elim_dmap_tele (x: gen_elim_dmap_i) : Tot gen_elim_dmap_tele =
+  match x with
+  | GEDId v -> TRet v True
+  | GEDPure p -> TRet emp p
+  | GEDExistsNoAbs #ty body -> TExists ty (fun x -> TRet (body x) True)
+  | GEDExists #ty f -> TExists ty (fun x -> compute_gen_elim_dmap_tele (f x))
+  | GEDStar v1 v2 -> compute_gen_elim_dmap_tele v1 `tele_star` compute_gen_elim_dmap_tele v2
+
+module DM = FStar.DMap
+
+[@@gen_elim_dmap_reduce]
+let rec compute_type_tele (t: gen_elim_dmap_tele) : DM.tele
+= match t with
+  | TRet _ _ -> DM.TEnd
+  | TExists ty f -> DM.T ty (fun x -> compute_type_tele (f x))
+
+[@@gen_elim_dmap_reduce]
+let rec compute_gen_elim_dmap_q' (processed: nat) (t: gen_elim_dmap_tele) (d: DM.dmap { DM.dmap_types processed (compute_type_tele t) d }) : Tot vprop
+  (decreases t)
+= match t with
+  | TRet v _ -> v
+  | TExists ty f -> compute_gen_elim_dmap_q' (processed + 1) (f (DM.value_of_dmap d processed ty)) d
+
+[@@gen_elim_dmap_reduce]
+let compute_gen_elim_dmap_refine (t: gen_elim_dmap_tele) (d: DM.dmap) : Tot prop = DM.dmap_types 0 (compute_type_tele t) d
+
+[@@gen_elim_dmap_reduce]
+let rec compute_gen_elim_dmap_post' (processed: nat) (t: gen_elim_dmap_tele) (d: DM.dmap { DM.dmap_types processed (compute_type_tele t) d }) : Tot prop
+  (decreases t)
+= match t with
+  | TRet _ p -> p
+  | TExists ty f -> compute_gen_elim_dmap_post' (processed + 1) (f (DM.value_of_dmap d processed ty)) d
+
+[@@gen_elim_dmap_reduce]
+let compute_gen_elim_dmap_post (t: gen_elim_dmap_tele) (d: DM.dmap) : Tot prop
+= compute_gen_elim_dmap_refine t d /\ compute_gen_elim_dmap_post' 0 t d
+
+[@@gen_elim_dmap_reduce]
+let compute_gen_elim_dmap_q (t: gen_elim_dmap_tele) (d: DM.dmap) : Tot vprop
+= exists_ (fun (_: squash (compute_gen_elim_dmap_post t d)) -> compute_gen_elim_dmap_q' 0 t d)
+
+let rec solve_gen_elim_dmap
+  (tl': T.term)
+: T.Tac T.term
+= 
+      if not (if term_has_head tl' (`exists_) then true else term_has_head tl' (`pure))
+      then
+        T.mk_app (`GEDId) [tl', T.Q_Explicit]
+      else
+        let (hd, lbody) = T.collect_app tl' in
+        if hd `T.term_eq` (`exists_)
+        then
+          let (ty, body) =
+            match lbody with
+            | [(ty, T.Q_Implicit); (body, T.Q_Explicit)] -> ([(ty, T.Q_Implicit)], body)
+            | [(body, T.Q_Explicit)] -> ([], body)
+            | _ -> T.fail "ill-formed exists_"
+          in
+          begin match T.inspect body with
+            | T.Tv_Abs b abody ->
+              let body' = solve_gen_elim_dmap abody in
+              T.mk_app (`GEDExists) (ty `List.Tot.append` [T.mk_abs [b] body', T.Q_Explicit])
+            | _ ->
+              T.mk_app (`GEDExistsNoAbs) lbody
+          end
+        else if hd `T.term_eq` (`star) || hd `T.term_eq` (`VStar)
+        then
+          match lbody with
+          | [(tl, T.Q_Explicit); (tr, T.Q_Explicit)] ->
+            let tl' = solve_gen_elim_dmap tl in
+            let tr' = solve_gen_elim_dmap tr in
+            T.mk_app (`GEDStar) [tl', T.Q_Explicit; tr', T.Q_Explicit]
+          | _ -> T.fail "ill-formed star"
+        else if hd `T.term_eq` (`pure)
+        then
+          T.mk_app (`GEDPure) lbody
+        else
+          T.mk_app (`GEDId) [tl', T.Q_Explicit]
+
+val gen_elim_dmap_prop
+  (p: vprop)
+  (i: gen_elim_dmap_i)
+  (j: gen_elim_dmap_tele)
+  (q: DM.dmap -> Tot vprop)
+: Tot prop
+
+val gen_elim_dmap_prop_intro
+  (p: vprop)
+  (i: gen_elim_dmap_i)
+  (sq_p: squash (p == compute_gen_elim_dmap_p i))
+  (j: gen_elim_dmap_tele)
+  (sq_j: squash (j == compute_gen_elim_dmap_tele i))
+  (q: DM.dmap -> Tot vprop)
+  (sq_q: squash (q == compute_gen_elim_dmap_q j))
+: Lemma (gen_elim_dmap_prop p i j q)
+
+let gen_elim_dmap_prop_placeholder
+  (p: vprop)
+  (i: gen_elim_dmap_i)
+  (j: gen_elim_dmap_tele)
+  (q: DM.dmap -> Tot vprop)
+: Tot prop
+= True
+
+let gen_elim_dmap_dummy
+  (p: vprop)
+  (i: gen_elim_dmap_i)
+: Tot prop
+= True
+
+let gen_elim_dmap_dummy_intro
+  (p: vprop)
+  (i: gen_elim_dmap_i)
+: Tot (squash (gen_elim_dmap_dummy p i))
+= ()
+
+let gen_elim_dmap_prop_placeholder_intro
+  (p: vprop)
+  (i: gen_elim_dmap_i)
+  (dummy: squash (gen_elim_dmap_dummy p i))
+  (sq_p: squash (p == compute_gen_elim_dmap_p i))
+  (j: gen_elim_dmap_tele)
+  (sq_j: squash (j == compute_gen_elim_dmap_tele i))
+  (q: DM.dmap -> Tot vprop)
+  (sq_q: squash (q == compute_gen_elim_dmap_q j))
+: Lemma (gen_elim_dmap_prop_placeholder p i j q)
+= ()
+
+let solve_gen_elim_dmap_dummy
+  ()
+: T.Tac unit
+=
+      let (hd, tl) = T.collect_app (T.cur_goal ()) in
+      if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
+      then T.fail "not a squash goal";
+      match tl with
+      | [body1, T.Q_Explicit] ->
+        let (hd1, tl1) = T.collect_app body1 in
+        if not (hd1 `T.term_eq` (`gen_elim_dmap_dummy))
+        then T.fail "not a gen_elim_dmap_dummy goal";
+        begin match List.Tot.filter (fun (_, x) -> T.Q_Explicit? x) tl1 with
+        | [(p, _); (i, _)] ->
+          if slterm_nbr_uvars p <> 0
+          then T.fail "pre-resource not solved yet";
+          if not (T.Tv_Uvar? (T.inspect i))
+          then T.fail "gen_elim_dmap_dummy is already solved";
+          let i' = solve_gen_elim_dmap p in
+          T.exact (T.mk_app (`gen_elim_dmap_dummy_intro) [(p, T.Q_Explicit); (i', T.Q_Explicit)])
+        | _ -> T.fail "ill-formed gen_elim_dmap_dummy"
+        end
+      | _ -> T.fail "ill-formed squash"
+
+let solve_gen_elim_dmap_prop
+  ()
+: T.Tac unit
+=
+  let (hd, tl) = T.collect_app (T.cur_goal ()) in
+  if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
+  then T.fail "not a squash goal";
+  match tl with
+  | [body1, T.Q_Explicit] ->
+    let (hd1, tl1) = T.collect_app body1 in
+    if not (hd1 `T.term_eq` (`gen_elim_dmap_prop))
+    then T.fail "not a gen_elim_dmap_prop goal";
+    T.apply_lemma (`gen_elim_dmap_prop_intro);
+    let norm () = T.norm [delta_attr [(`%gen_elim_dmap_reduce); (`%DM.norm_dmap)]; zeta; iota; primops] in
+    T.focus (fun _ -> norm (); T.trefl ()); // p
+    T.focus (fun _ -> norm (); T.trefl ()); // j
+    T.focus (fun _ -> norm (); T.trefl ()) // q
+  | _ -> T.fail "ill-formed squash"
+
+val gen_elim_dmap'
+  (#opened: _)
+  (p: vprop)
+  (i: gen_elim_dmap_i)
+  (j: gen_elim_dmap_tele)
+  (q: DM.dmap -> Tot vprop)
+  (sq: squash (gen_elim_dmap_prop_placeholder p i j q))
+: STGhost DM.dmap opened p (fun x -> guard_vprop (q x)) (gen_elim_dmap_prop p i j q) (fun _ -> True)
+
+val gen_elim_dmap
+  (#opened: _)
+  (#[@@@ framing_implicit] p: vprop)
+  (#[@@@ framing_implicit] i: gen_elim_dmap_i)
+  (#[@@@ framing_implicit] j: gen_elim_dmap_tele)
+  (#[@@@ framing_implicit] q: DM.dmap -> Tot vprop)
+  (#[@@@ framing_implicit] sq: squash (gen_elim_dmap_prop_placeholder p i j q))
+  (_: unit)
+: STGhostF DM.dmap opened p (fun x -> guard_vprop (q x)) ( (T.with_tactic solve_gen_elim_dmap_prop) (squash (gen_elim_dmap_prop p i j q))) (fun _ -> True)
+
+let solve_gen_elim_dmap_prop_placeholder
+  ()
+: T.Tac bool
+=
+  let (hd, tl) = T.collect_app (T.cur_goal ()) in
+  if not (hd `T.term_eq` (`squash) || hd `T.term_eq` (`auto_squash))
+  then T.fail "not a squash goal";
+  match tl with
+  | [body1, T.Q_Explicit] ->
+    let (hd1, tl1) = T.collect_app body1 in
+    if not (hd1 `T.term_eq` (`gen_elim_dmap_prop_placeholder))
+    then T.fail "not a gen_elim_dmap_prop_placeholder goal";
+    T.apply_lemma (`gen_elim_dmap_prop_placeholder_intro);
+    T.focus solve_gen_elim_dmap_dummy;
+    let norm () = T.norm [delta_attr [(`%gen_elim_dmap_reduce); (`%DM.norm_dmap)]; zeta; iota; primops] in
+    T.focus (fun _ -> norm (); T.trefl ()); // p
+    T.focus (fun _ -> norm (); T.trefl ()); // j
+    T.focus (fun _ -> norm (); T.trefl ()); // q
+    true
+  | _ -> T.fail "ill-formed squash"
+
 
 /// Extracts an argument to a vprop from the context. This can be useful if we do need binders for some of the existentials opened by gen_elim.
 
@@ -656,4 +913,7 @@ val vpattern_replace_erased_global
 
 [@@ resolve_implicits; framing_implicit; plugin]
 let init_resolve_tac () = init_resolve_tac'
-  [(`gen_elim_prop_placeholder), solve_gen_elim_prop_placeholder]
+  [
+    (`gen_elim_prop_placeholder), solve_gen_elim_prop_placeholder;
+    (`gen_elim_dmap_prop_placeholder), solve_gen_elim_dmap_prop_placeholder;
+  ]

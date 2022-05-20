@@ -368,6 +368,17 @@ let gen_elim
   #opened #p #i #a #q #post #sq _
 = gen_elim' #opened p i a q post sq ()
 
+irreducible let gen_elim_dmap_reduce = ()
+
+let gen_elim_dmap_prop = admit ()
+
+let gen_elim_dmap_prop_intro = admit ()
+
+let gen_elim_dmap' = admit ()
+
+let gen_elim_dmap #_ #p #i #j #q #sq () =
+  gen_elim_dmap' p i j q sq
+
 let vpattern
   (#opened: _)
   (#a: Type)
