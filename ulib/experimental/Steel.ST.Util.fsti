@@ -333,7 +333,10 @@ let rec compute_gen_elim_q' (processed: nat) (t: gen_elim_tele) (d: DM.dmap { DM
 let compute_gen_elim_refine (t: gen_elim_tele) (d: DM.dmap) : Tot prop = DM.dmap_types 0 (compute_type_tele t) d
 
 [@@gen_elim_reduce]
-let compute_gen_elim_q (t: gen_elim_tele) : Tot ((d: DM.dmap { compute_gen_elim_refine t d }) -> vprop)
+let compute_gen_elim_a (t: gen_elim_tele) : Tot (Type u#1) = (d: DM.dmap { compute_gen_elim_refine t d })
+
+[@@gen_elim_reduce]
+let compute_gen_elim_q (t: gen_elim_tele) : Tot (compute_gen_elim_a t -> vprop)
 = compute_gen_elim_q' 0 t
 
 [@@gen_elim_reduce]
@@ -344,7 +347,7 @@ let rec compute_gen_elim_post' (processed: nat) (t: gen_elim_tele) (d: DM.dmap {
   | TExists ty f -> compute_gen_elim_post' (processed + 1) (f (DM.value_of_dmap d processed ty)) d
 
 [@@gen_elim_reduce]
-let compute_gen_elim_post (t: gen_elim_tele) : Tot ((d: DM.dmap { compute_gen_elim_refine t d }) -> prop)
+let compute_gen_elim_post (t: gen_elim_tele) : Tot (compute_gen_elim_a t -> prop)
 = compute_gen_elim_post' 0 t
 
 module T = FStar.Tactics
@@ -415,9 +418,9 @@ val gen_elim_prop
   (p: vprop)
   (i: gen_elim_i)
   (j: gen_elim_tele)
-  (r: DM.dmap -> Tot prop)
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (post: (d: DM.dmap {r d }) -> Tot prop)
+  (a: Type u#1)
+  (q: (Ghost.erased a -> Tot vprop))
+  (post: (Ghost.erased a -> Tot prop))
 : Tot prop
 
 val gen_elim_prop_intro
@@ -426,21 +429,21 @@ val gen_elim_prop_intro
   (sq_p: squash (p == compute_gen_elim_p i))
   (j: gen_elim_tele)
   (sq_j: squash (j == compute_gen_elim_tele i))
-  (r: DM.dmap -> Tot prop)
-  (sq_r: squash (r == compute_gen_elim_refine j))
-  (post: (d: DM.dmap { r d }) -> Tot prop)
-  (sq_post: squash (post == compute_gen_elim_post j))
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (sq_q: squash (q == compute_gen_elim_q j))
-: Lemma (gen_elim_prop p i j r q post)
+  (a: Type u#1)
+  (sq_a: squash (a == compute_gen_elim_a j))
+  (post: (Ghost.erased a -> Tot prop))
+  (sq_post: squash (post == (fun (d: Ghost.erased (compute_gen_elim_a j)) -> compute_gen_elim_post j (Ghost.reveal d))))
+  (q: (Ghost.erased a -> Tot vprop))
+  (sq_q: squash (q == (fun (d: Ghost.erased (compute_gen_elim_a j)) -> compute_gen_elim_q j (Ghost.reveal d))))
+: Lemma (gen_elim_prop p i j a q post)
 
 let gen_elim_prop_placeholder
   (p: vprop)
   (i: gen_elim_i)
   (j: gen_elim_tele)
-  (r: DM.dmap -> Tot prop)
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (post: (d: DM.dmap {r d }) -> Tot prop)
+  (a: Type u#1)
+  (q: Ghost.erased a -> Tot vprop)
+  (post: Ghost.erased a -> Tot prop)
 : Tot prop
 = True
 
@@ -463,13 +466,13 @@ let gen_elim_prop_placeholder_intro
   (sq_p: squash (p == compute_gen_elim_p i))
   (j: gen_elim_tele)
   (sq_j: squash (j == compute_gen_elim_tele i))
-  (r: DM.dmap -> Tot prop)
-  (sq_r: squash (r == compute_gen_elim_refine j))
-  (post: (d: DM.dmap { r d }) -> Tot prop)
-  (sq_post: squash (post == compute_gen_elim_post j))
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (sq_q: squash (q == compute_gen_elim_q j))
-: Lemma (gen_elim_prop_placeholder p i j r q post)
+  (a: Type u#1)
+  (sq_a: squash (a == compute_gen_elim_a j))
+  (post: (Ghost.erased a -> Tot prop))
+  (sq_post: squash (post == (fun (d: Ghost.erased (compute_gen_elim_a j)) -> compute_gen_elim_post j (Ghost.reveal d))))
+  (q: (Ghost.erased a -> Tot vprop))
+  (sq_q: squash (q == (fun (d: Ghost.erased (compute_gen_elim_a j)) -> compute_gen_elim_q j (Ghost.reveal d))))
+: Lemma (gen_elim_prop_placeholder p i j a q post)
 = ()
 
 let solve_gen_elim_dummy
@@ -512,7 +515,7 @@ let solve_gen_elim_prop
     let norm () = T.norm [delta_attr [(`%gen_elim_reduce); (`%DM.norm_dmap)]; zeta; iota; primops] in
     T.focus (fun _ -> norm (); T.trefl ()); // p
     T.focus (fun _ -> norm (); T.trefl ()); // j
-    T.focus (fun _ -> norm (); T.trefl ()); // r
+    T.focus (fun _ -> norm (); T.trefl ()); // a
     T.focus (fun _ -> norm (); T.trefl ()); // post
     T.focus (fun _ -> norm (); T.trefl ()) // q
   | _ -> T.fail "ill-formed squash"
@@ -522,24 +525,24 @@ val gen_elim'
   (p: vprop)
   (i: gen_elim_i)
   (j: gen_elim_tele)
-  (r: DM.dmap -> Tot prop)
-  (q: (d: DM.dmap { r d }) -> Tot vprop)
-  (post: (d: DM.dmap {r d}) -> Tot prop)
-  (sq: squash (gen_elim_prop_placeholder p i j r q post))
+  (a: Type u#1)
+  (q: Ghost.erased a -> Tot vprop)
+  (post: Ghost.erased a -> Tot prop)
+  (sq: squash (gen_elim_prop_placeholder p i j a q post))
   (_: unit)
-: STGhost (d: DM.dmap {r d}) opened p (fun x -> guard_vprop (q x)) (gen_elim_prop p i j r q post) post
+: STGhost (Ghost.erased a) opened p (fun x -> guard_vprop (q x)) (gen_elim_prop p i j a q post) post
 
 val gen_elim
   (#opened: _)
   (#[@@@ framing_implicit] p: vprop)
   (#[@@@ framing_implicit] i: gen_elim_i)
   (#[@@@ framing_implicit] j: gen_elim_tele)
-  (#[@@@ framing_implicit] r: DM.dmap -> Tot prop)
-  (#[@@@ framing_implicit] q: (d: DM.dmap { r d }) -> Tot vprop)
-  (#[@@@ framing_implicit] post: (d: DM.dmap {r d}) -> Tot prop)
-  (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p i j r q post))
+  (#[@@@ framing_implicit] a: Type u#1)
+  (#[@@@ framing_implicit] q: Ghost.erased a -> Tot vprop)
+  (#[@@@ framing_implicit] post: Ghost.erased a -> Tot prop)
+  (#[@@@ framing_implicit] sq: squash (gen_elim_prop_placeholder p i j a q post))
   (_: unit)
-: STGhostF (d: DM.dmap {r d}) opened p (fun x -> guard_vprop (q x)) ( (T.with_tactic solve_gen_elim_prop) (squash (gen_elim_prop p i j r q post))) post
+: STGhostF (Ghost.erased a) opened p (fun x -> guard_vprop (q x)) ( (T.with_tactic solve_gen_elim_prop) (squash (gen_elim_prop p i j a q post))) post
 
 let solve_gen_elim_prop_placeholder
   ()
@@ -558,7 +561,7 @@ let solve_gen_elim_prop_placeholder
     let norm () = T.norm [delta_attr [(`%gen_elim_reduce); (`%DM.norm_dmap)]; zeta; iota; primops] in
     T.focus (fun _ -> norm (); T.trefl ()); // p
     T.focus (fun _ -> norm (); T.trefl ()); // j
-    T.focus (fun _ -> norm (); T.trefl ()); // r
+    T.focus (fun _ -> norm (); T.trefl ()); // a
     T.focus (fun _ -> norm (); T.trefl ()); // post
     T.focus (fun _ -> norm (); T.trefl ()); // q
     true
