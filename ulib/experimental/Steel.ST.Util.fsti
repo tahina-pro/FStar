@@ -698,9 +698,17 @@ let rec compute_gen_elim_dmap_post' (processed: nat) (t: gen_elim_dmap_tele) (d:
 let compute_gen_elim_dmap_post (t: gen_elim_dmap_tele) (d: DM.dmap) : Tot prop
 = compute_gen_elim_dmap_refine t d /\ compute_gen_elim_dmap_post' 0 t d
 
+val exists_squash (p: prop) (body: squash p -> Tot vprop) : Tot vprop
+
+val elim_exists_squash (#opened: _) (#p: prop) (#body: squash p -> Tot vprop) (_: unit) : STGhost (squash p) opened
+  (exists_squash p body)
+  (fun sq -> body sq)
+  True
+  (fun _ -> p)
+
 [@@gen_elim_dmap_reduce]
 let compute_gen_elim_dmap_q (t: gen_elim_dmap_tele) (d: DM.dmap) : Tot vprop
-= exists_ (fun (_: squash (compute_gen_elim_dmap_post t d)) -> compute_gen_elim_dmap_q' 0 t d)
+= exists_squash (compute_gen_elim_dmap_post t d) (fun _ -> compute_gen_elim_dmap_q' 0 t d)
 
 let rec solve_gen_elim_dmap
   (tl': T.term)

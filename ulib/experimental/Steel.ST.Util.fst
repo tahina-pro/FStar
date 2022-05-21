@@ -370,6 +370,15 @@ let gen_elim
 
 irreducible let gen_elim_dmap_reduce = ()
 
+let exists_squash p body = exists_ body
+
+let elim_exists_squash #_ #p #body _ =
+  rewrite (exists_squash p body) (exists_ body);
+  let gres = elim_exists #(squash p) #_ #body  () in
+  let res = Ghost.reveal gres in
+  rewrite (body _) (body res);
+  res
+
 let gen_elim_dmap_prop = admit ()
 
 let gen_elim_dmap_prop_intro = admit ()
