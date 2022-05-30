@@ -206,6 +206,11 @@ let pure_star_interp' (p:slprop u#a) (q:prop) (m:mem)
 let pts_to_inj
   a p1 s1 p2 s2 m
 =
+  reveal_pure
+    (
+      valid_perm (U32.v (ptr_of a).base_len) (ptr_of a).offset (Seq.length s1) p1 /\
+      Seq.length s1 == length a
+    );
   pure_star_interp'
     (hp_of (R.pts_to (ptr_of a).base (mk_carrier (U32.v (ptr_of a).base_len) (ptr_of a).offset s1 p1)))
     (
@@ -213,6 +218,11 @@ let pts_to_inj
       Seq.length s1 == length a
     )
     m;
+  reveal_pure
+    (
+      valid_perm (U32.v (ptr_of a).base_len) (ptr_of a).offset (Seq.length s2) p2 /\
+      Seq.length s2 == length a
+    );
   pure_star_interp'
     (hp_of (R.pts_to (ptr_of a).base (mk_carrier (U32.v (ptr_of a).base_len) (ptr_of a).offset s2 p2)))
     (
