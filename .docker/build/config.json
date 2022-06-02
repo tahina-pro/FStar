@@ -31,7 +31,7 @@
     "TrackPerformance" : false,
 
     "RepoVersions" : {
-        "hacl_version" : "origin/master",
+        "hacl_version" : "origin/dev_pnmadelaine_dotnet",
         "karamel_version" : "origin/master",
         "everparse_version" : "origin/master",
         "mitls_version" : "origin/master"
