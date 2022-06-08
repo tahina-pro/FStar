@@ -13,6 +13,8 @@ RUN apt-get update && \
       wget \
       git \
       gnupg \
+      gawk \
+      coreutils \
       sudo \
       python3 \
       python-is-python3 \
