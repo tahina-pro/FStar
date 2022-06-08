@@ -19,8 +19,9 @@ jobs:
           echo "CI_SLACK_CHANNEL=$(jq -c -r '.NotificationChannel' .docker/build/config.json)" >> $GITHUB_ENV
       - name: Build FStar and its dependencies
         run: |
+          set -x
           ci_docker_image_tag=fstar:local-run-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT
-          docker buildx build --pull --load --secret id=DZOMO_GITHUB_TOKEN -t $ci_docker_image_tag -f .docker/standalone.Dockerfile --build-arg CI_BRANCH=$GITHUB_REF_NAME .
+          docker buildx build --pull --load --progress=plain --secret id=DZOMO_GITHUB_TOKEN -t $ci_docker_image_tag -f .docker/standalone.Dockerfile --build-arg CI_BRANCH=$GITHUB_REF_NAME .
           ci_docker_status=$(docker run $ci_docker_image_tag /bin/bash -c 'cat $FSTAR_HOME/status.txt' || echo false)
           if $ci_docker_status ; then
             if ! { echo $GITHUB_REF_NAME | grep '/' ; } ; then
