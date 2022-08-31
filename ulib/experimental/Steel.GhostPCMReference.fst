@@ -46,6 +46,11 @@ let alloc (#o:inames)
     let r = as_atomic_action_ghost (alloc_action o x) in
     r
 
+let free
+  #o #a #p #x r
+=
+  as_atomic_action_ghost (free_action o r x)
+
 let read (#o:inames)
          (#a:Type)
          (#pcm:pcm a)
