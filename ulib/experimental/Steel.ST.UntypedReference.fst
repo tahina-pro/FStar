@@ -6,47 +6,34 @@ module GHR = Steel.ST.GhostHigherReference
 module FP = FStar.PCM
 
 let is_base_type
-  (r: GHR.ref (dtuple2 Type0 FP.pcm))
+  (r: GHR.ref Type0)
   (i: iname)
   (t0: Type)
 : Tot prop
-= exists (p0: FP.pcm t0) . (i >--> GHR.pts_to r (half_perm full_perm) (| t0, p0 |) )
+= (i >--> GHR.pts_to r (half_perm full_perm) t0)
 
 let has_base_type
-  (r: GHR.ref (dtuple2 Type0 FP.pcm))
+  (r: GHR.ref Type0)
   (i: iname)
 : Tot prop
 = exists (t0: Type) . is_base_type r i t0
 
 let has_base_type_intro
-  (r: GHR.ref (dtuple2 Type0 FP.pcm))
+  (r: GHR.ref Type0)
   (i: iname)
   (t0: Type)
-  (p0: FP.pcm t0)
 : Lemma
-  (requires (i >--> GHR.pts_to r (half_perm full_perm) (| t0, p0 |)))
+  (requires (i >--> GHR.pts_to r (half_perm full_perm) t0))
   (ensures (has_base_type r i))
 = ()
 
 let get_base_type
-  (r: GHR.ref (dtuple2 Type0 FP.pcm))
+  (r: GHR.ref Type0)
   (i: iname)
 : Pure Type
     (requires (has_base_type r i))
     (ensures (fun t0 -> is_base_type r i t0))
 = FStar.IndefiniteDescription.indefinite_description_ghost Type (fun t0 -> is_base_type r i t0)
-
-let get_base_pcm
-  (r: GHR.ref (dtuple2 Type0 FP.pcm))
-  (i: iname)
-  (sq: squash (has_base_type r i))
-: Ghost (FP.pcm (get_base_type r i))
-    (requires True)
-    (ensures (fun p0 ->
-      (i >--> GHR.pts_to r (half_perm full_perm) (| get_base_type r i, p0 |))
-    ))
-= let t0 = get_base_type r i in
-  FStar.IndefiniteDescription.indefinite_description_ghost (FP.pcm (get_base_type r i)) (fun p0 -> i >--> GHR.pts_to r (half_perm full_perm) (| t0, p0 |))
 
 let with_invariant_g_f (#a:Type)
                      (#fp:vprop)
@@ -62,23 +49,23 @@ let with_invariant_g_f (#a:Type)
 
 let has_base_type_idem
   (#opened: _)
-  (r: GHR.ref (dtuple2 Type0 FP.pcm))
+  (r: GHR.ref Type0)
   (i: iname)
   (p: perm)
-  (v: dtuple2 Type0 FP.pcm)
+  (v: Type0)
   (sq: squash (
     not (mem_inv opened i) /\
     has_base_type r i
   ))
-: STGhostT (squash (v == (| get_base_type r i, get_base_pcm r i () |))) opened
+: STGhostT (squash (v == get_base_type r i)) opened
     (GHR.pts_to r p v)
     (fun _ -> GHR.pts_to r p v)
 = with_invariant_g_f
-    #(squash (v == (| get_base_type r i, get_base_pcm r i () |)))
+    #(squash (v == get_base_type r i))
     #(GHR.pts_to r p v)
     #(fun _ -> GHR.pts_to r p v)
     #_
-    #(GHR.pts_to r (half_perm full_perm) (| get_base_type r i, get_base_pcm r i () |))
+    #(GHR.pts_to r (half_perm full_perm) (get_base_type r i))
     i
     (fun _ ->
       GHR.pts_to_injective_eq #_ #_ #_ #_ #v r
@@ -91,12 +78,11 @@ module FPU = FStar.Universe.PCM
 
 noeq
 type ptr (a: Type0) : (Type0) = {
-  base_type: GHR.ref (dtuple2 Type0 FP.pcm);
+  base_type: GHR.ref Type0;
   base_inv: Ghost.erased iname;
   base_has_type: squash (has_base_type base_type base_inv);
-  base: ref (U.raise_t (get_base_type base_type base_inv)) (FPU.raise (get_base_pcm base_type base_inv ()));
   base_pcm: P.pcm (get_base_type base_type base_inv);
-  base_pcm_eq: squash (get_base_pcm base_type base_inv () == P.fstar_pcm_of_pcm base_pcm);
+  base: ref (U.raise_t (get_base_type base_type base_inv)) (FPU.raise (P.fstar_pcm_of_pcm base_pcm));
   target_pcm: P.pcm a;
   base_to_target_conn: C.connection base_pcm target_pcm;
 }
@@ -137,18 +123,17 @@ let alloc
       freeable p
     )
 = let r : ref (U.raise_t a) (FPU.raise (P.fstar_pcm_of_pcm pcm)) = R.alloc (U.raise_val v) in
-  let g: GHR.ref (dtuple2 Type0 FP.pcm) = GHR.alloc (| a, P.fstar_pcm_of_pcm pcm |) in
+  let g: GHR.ref Type0 = GHR.alloc a in
   GHR.share g;
-  let i = new_invariant (GHR.pts_to g (half_perm full_perm) (| a, P.fstar_pcm_of_pcm pcm |)) in
-  has_base_type_intro g i a (P.fstar_pcm_of_pcm pcm);
+  let i = new_invariant (GHR.pts_to g (half_perm full_perm) a) in
+  has_base_type_intro g i a;
   has_base_type_idem g i _ _ ();
   let p = {
     base_type = g;
     base_inv = i;
     base_has_type = ();
-    base = r;
     base_pcm = pcm;
-    base_pcm_eq = ();
+    base = r;
     target_pcm = pcm;
     base_to_target_conn = C.connection_id _;
   }
