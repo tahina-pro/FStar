@@ -6,34 +6,35 @@ open Steel.ST.GenElim
 module P = Steel.C.PCM
 module C = Steel.C.Connection
 module R = Steel.ST.PCMReference
-module GHR = Steel.ST.GhostHigherReference
+module GHR = Steel.ST.GhostHigherPCMReference
+module RO = Steel.PCMReadOnly
 
 #push-options "--print_universes"
 
 let is_base_type
-  (r: GHR.ref Type0)
+  (r: GHR.ref _ (RO.pcm_readonly #Type0))
   (i: iname)
   (t0: Type)
 : Tot prop
-= (i >--> GHR.pts_to r (half_perm full_perm) t0)
+= (i >--> GHR.pts_to r (Some t0))
 
 let has_base_type
-  (r: GHR.ref Type0)
+  (r: GHR.ref _ (RO.pcm_readonly #Type0))
   (i: iname)
 : Tot prop
 = exists (t0: Type) . is_base_type r i t0
 
 let has_base_type_intro
-  (r: GHR.ref Type0)
+  (r: GHR.ref _ (RO.pcm_readonly #Type0))
   (i: iname)
   (t0: Type)
 : Lemma
-  (requires (i >--> GHR.pts_to r (half_perm full_perm) t0))
+  (requires (i >--> GHR.pts_to r (Some t0)))
   (ensures (has_base_type r i))
 = ()
 
 let get_base_type
-  (r: GHR.ref Type0)
+  (r: GHR.ref _ (RO.pcm_readonly #Type0))
   (i: iname)
 : Pure Type
     (requires (has_base_type r i))
@@ -54,30 +55,30 @@ let with_invariant_g_f (#a:Type)
 
 let has_base_type_idem
   (#opened: _)
-  (r: GHR.ref Type0)
+  (r: GHR.ref _ (RO.pcm_readonly #Type0))
   (i: iname)
-  (p: perm)
   (v: Type0)
   (sq: squash (
     not (mem_inv opened i) /\
     has_base_type r i
   ))
 : STGhostT (squash (v == get_base_type r i)) opened
-    (GHR.pts_to r p v)
-    (fun _ -> GHR.pts_to r p v)
+    (GHR.pts_to r (Some v))
+    (fun _ -> GHR.pts_to r (Some v))
 = with_invariant_g_f
     #(squash (v == get_base_type r i))
-    #(GHR.pts_to r p v)
-    #(fun _ -> GHR.pts_to r p v)
+    #(GHR.pts_to r (Some v))
+    #(fun _ -> GHR.pts_to r (Some v))
     #_
-    #(GHR.pts_to r (half_perm full_perm) (get_base_type r i))
+    #(GHR.pts_to r (Some (get_base_type r i)))
     i
     (fun _ ->
-      GHR.pts_to_injective_eq #_ #_ #_ #_ #v r
+      GHR.gather r (Some v) _;
+      GHR.share r _ (Some v) (Some (get_base_type r i))
     )
 
 noeq type ref0 (b: Type u#b) : Type u#b = {
-  base_type: GHR.ref Type0;
+  base_type: GHR.ref _ (RO.pcm_readonly #Type0);
   base_inv: Ghost.erased iname;
   base_has_type: squash (has_base_type base_type base_inv);
   p: pcm (get_base_type base_type base_inv);
@@ -110,6 +111,12 @@ let raise_p
 : Tot (pcm (U.raise_t u#0 u#1 (get_base_type (NonNull?.v r).base_type (NonNull?.v r).base_inv)))
 = U.raise_pcm (NonNull?.v r).p
 
+let base_of
+  (#b: Type u#b)
+  (r: ptr' b { NonNull? r })
+: Tot (Steel.Memory.ref _ (fstar_pcm_of_pcm (raise_p r)))
+= (NonNull?.v r).r
+
 let lower_conn
   (#b: Type u#b)
   (r: ptr' b { NonNull? r})
@@ -127,8 +134,8 @@ let pts_to0
   (#b: Type u#b) (#p: pcm b)
   (r: ref p) (v: b)
 : Tot vprop
-= R.pts_to #_ #(fstar_pcm_of_pcm (raise_p r)) (NonNull?.v r).r ((raise_pl r).conn_small_to_large.morph v) `star`
-  exists_ (GHR.pts_to (NonNull?.v r).base_type (half_perm full_perm))
+= R.pts_to (base_of r) ((raise_pl r).conn_small_to_large.morph v) `star`
+  GHR.pts_to (NonNull?.v r).base_type (Some (get_base_type (NonNull?.v r).base_type (NonNull?.v r).base_inv))
 
 let pts_to r v = pts_to0 r v
 
@@ -158,11 +165,11 @@ let freeable #b #p r =
 
 let ref_alloc #a pcm v =
   let r : Steel.Memory.ref (U.raise_t a) (P.fstar_pcm_of_pcm (U.raise_pcm pcm)) = R.alloc (U.raise_val v) in
-  let g: GHR.ref Type0 = GHR.alloc a in
-  GHR.share g;
-  let i = new_invariant (GHR.pts_to g (half_perm full_perm) a) in
+  let g: GHR.ref _ (RO.pcm_readonly #Type0) = GHR.alloc (Some a) in
+  GHR.share g (Some a) (Some a) (Some a);
+  let i = new_invariant (GHR.pts_to g (Some a)) in
   has_base_type_intro g i a;
-  has_base_type_idem g i _ _ ();
+  has_base_type_idem g i _ ();
   let p : ref pcm = NonNull ({
     base_type = g;
     base_inv = i;
@@ -175,8 +182,10 @@ let ref_alloc #a pcm v =
   in
   rewrite
     (R.pts_to r (U.raise_val v))
-    (R.pts_to #_ #(fstar_pcm_of_pcm (raise_p p)) (NonNull?.v p).r ((raise_pl p).conn_small_to_large.morph v));
-  vpattern_rewrite (fun g -> GHR.pts_to g _ _) (NonNull?.v p).base_type;
+    (R.pts_to (base_of p) ((raise_pl p).conn_small_to_large.morph v));
+rewrite
+  (GHR.pts_to g _)
+  (GHR.pts_to (NonNull?.v p).base_type (Some (get_base_type (NonNull?.v p).base_type (NonNull?.v p).base_inv)));
   rewrite
     (pts_to0 p v)
     (pts_to p v);
@@ -210,48 +219,41 @@ let unfocus r r' l x =
     (r `pts_to` x)
     (r' `pts_to` l.conn_small_to_large.morph x)
 
-(*
+#push-options "--z3rlimit 16"
+#restart-solver
+
 let split r xy x y =
   let c = raise_pl r in
-  let xy2 = Ghost.hide (c.conn_small_to_large.morph xy) in
-  let x2 = Ghost.hide (c.conn_small_to_large.morph x) in
-  let y2 = Ghost.hide (c.conn_small_to_large.morph y) in
-  assert (composable (raise_p r) x2 y2);
-  A.change_equal_slprop
-    (r `pts_to` xy)
-    ((NonNull?.v r).r `mpts_to` xy2);
-  Steel.PCMReference.split (NonNull?.v r).r
+  let xy2 = (c.conn_small_to_large.morph xy) in
+  let x2 = (c.conn_small_to_large.morph x) in
+  let y2 = (c.conn_small_to_large.morph y) in
+  assert (FP.composable (fstar_pcm_of_pcm (raise_p r)) x2 y2);
+  rewrite (r `pts_to` xy) (r `pts_to0` xy);
+  rewrite
+    (R.pts_to _ _)
+    (R.pts_to (base_of r) xy2);
+  R.split (base_of r)
     xy2
     x2
     y2;
-  A.change_equal_slprop
-    ((NonNull?.v r).r `mpts_to` x2)
+  let v = vpattern_replace (GHR.pts_to (NonNull?.v r).base_type) in
+  GHR.share (NonNull?.v r).base_type v v v;
+  rewrite
+    (R.pts_to (base_of r) x2 `star` GHR.pts_to _ _)
     (r `pts_to` x);
-  A.change_equal_slprop
-    ((NonNull?.v r).r `mpts_to` y2)
+  rewrite
+    (R.pts_to (base_of r) y2 `star` GHR.pts_to _ _)
     (r `pts_to` y)
 
-let mgather
-  (#inames: _) (#a:Type) (#p:FP.pcm a)
-  (r:Steel.Memory.ref a p) (v0:Ghost.erased a) (v1:Ghost.erased a)
-: A.SteelGhostT (_:unit{FP.composable p v0 v1}) inames
-    (mpts_to r v0 `star` mpts_to r v1)
-    (fun _ -> mpts_to r (FP.op p v0 v1))
-= Steel.PCMReference.gather r v0 v1
-
-let gather #inames #a #b #p r x y =
+let gather #inames #b #p r x y =
   let c = raise_pl r in
-  let x2 = Ghost.hide (c.conn_small_to_large.morph x) in
-  let y2 = Ghost.hide (c.conn_small_to_large.morph y) in
-  A.change_equal_slprop
-    (r `pts_to` x)
-    ((NonNull?.v r).r `mpts_to` x2);
-  A.change_equal_slprop
-    (r `pts_to` y)
-    ((NonNull?.v r).r `mpts_to` y2);
-  mgather (NonNull?.v r).r
-    x2
-    y2;
+  let x2 = (c.conn_small_to_large.morph x) in
+  let y2 = (c.conn_small_to_large.morph y) in
+  rewrite (r `pts_to` x) (r `pts_to0` x);
+  vpattern_rewrite (R.pts_to (base_of r)) x2;
+  rewrite (r `pts_to` y) (r `pts_to0` y);
+  R.gather (base_of r) x2 _;
+  GHR.gather (NonNull?.v r).base_type _ _;
   assert (composable (raise_p r) x2 y2);
   assert (
     let x' = c.conn_large_to_small.morph x2 in
@@ -259,45 +261,38 @@ let gather #inames #a #b #p r x y =
     composable p x' y' /\
     Ghost.reveal x == x' /\ Ghost.reveal y == y'
   );
-  A.change_equal_slprop _ (r `pts_to` op p x y)
+  rewrite
+    (R.pts_to _ _ `star` GHR.pts_to _ _)
+    (r `pts_to` op p x y)
 
-let ref_read (#p: pcm 'b) (#x: Ghost.erased 'b) (r: ref 'a p)
-: Steel 'b
-    (r `pts_to` x)
-    (fun _ -> r `pts_to` x)
-    (requires fun _ -> True)
-    (ensures fun _ x' _ -> compatible p x x')
+let ref_read
+  #b #p #x r
 = let w = Ghost.hide ((raise_pl r).conn_small_to_large.morph x) in
-  A.change_equal_slprop (r `pts_to` x) ((NonNull?.v r).r `mpts_to` w);
-  let w' = Steel.PCMReference.read (NonNull?.v r).r w in
-  A.change_equal_slprop ((NonNull?.v r).r `mpts_to` w) (r `pts_to` x);
+  rewrite (r `pts_to` x) (r `pts_to0` x);
+  vpattern_rewrite (R.pts_to (base_of r)) (Ghost.reveal w);
+  let w' = R.read (NonNull?.v r).r w in
+  rewrite (R.pts_to _ _ `star` GHR.pts_to _ _) (r `pts_to` x);
   let x' = (raise_pl r).conn_large_to_small.morph w' in
   compatible_morphism (raise_pl r).conn_large_to_small w w';
-  A.return x'
+  return x'
 
-let ref_upd_act (r: ref 'a 'p) (x: Ghost.erased 'b { ~ (Ghost.reveal x == one 'p) }) (y: Ghost.erased 'b) (f: frame_preserving_upd 'p x y)
-: Tot (M.action_except unit Set.empty (hp_of (r `pts_to` x)) (fun _ -> hp_of (r `pts_to` y)))
-= let c = raise_pl r in
+let ref_upd #b #p r x y f =
+  let c = raise_pl r in
   let x' = Ghost.hide (c.conn_small_to_large.morph x) in
   let y' = Ghost.hide (c.conn_small_to_large.morph y) in
-  M.upd_gen Set.empty (NonNull?.v r).r x' y' (fstar_fpu_of_fpu (raise_p r) x' y' (mk_restricted_frame_preserving_upd (c.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = restricted_frame_preserving_upd_intro f; }) )))
-
-let as_action (#p:vprop)
-              (#q:vprop)
-              (f:M.action_except unit Set.empty (hp_of p) (fun _ -> hp_of q))
-: SteelT unit p (fun x -> q)
-= A.change_slprop_rel p (to_vprop (hp_of p)) (fun _ _ -> True) (fun m -> ());
-  let x = Steel.Effect.as_action f in
-  A.change_slprop_rel (to_vprop (hp_of q)) q (fun _ _ -> True) (fun m -> ());
-  A.return x
-
-let ref_upd r x y f = as_action (ref_upd_act r x y f)
+  rewrite (r `pts_to` x) (r `pts_to0` x);
+  vpattern_rewrite (R.pts_to _) (Ghost.reveal x');
+  R.upd_gen (base_of r) x' y' (fstar_fpu_of_fpu (raise_p r) x' y' (mk_restricted_frame_preserving_upd (c.conn_lift_frame_preserving_upd ({ fpu_lift_dom_x = x; fpu_lift_dom_y = y; fpu_lift_dom_f = restricted_frame_preserving_upd_intro f; }) )));
+  rewrite (R.pts_to _ _ `star` GHR.pts_to _ _) (r `pts_to` y)
 
 let base_fpu p x y =
   fun _ ->
   compatible_refl p y;
   y
 
+#pop-options
+
+(*
 let pts_to_view_explicit
   (#a: Type u#0) (#b: Type u#b) (#p: pcm b)
   (r: ref a p)

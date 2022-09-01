@@ -108,12 +108,6 @@ val unfocus (#opened:inames)
     (ensures fun _ -> True)
 
 (** Split the permissions on a reference into two halves. *)
-val adjacent
-  (#b: Type)
-  (#p: pcm b)
-  (r1 r2: ref p)
-: Tot prop
-
 val split (#inames: _) (#b:Type) (#p: pcm b) (r: ref p) (xy x y: b)
 : STGhost unit inames
     (r `pts_to` xy)
@@ -122,7 +116,7 @@ val split (#inames: _) (#b:Type) (#p: pcm b) (r: ref p) (xy x y: b)
     (fun _ -> True)
 
 (** Inverse of split. *)
-val gather (#inames: _) (#b:Type) (#p: pcm b) (r: ref p) (x y: Ghost.erased b)
+val gather (#inames: _) (#b:Type) (#p: pcm b) (r: ref p) (x y: b)
 : STGhostT (_:unit{composable p x y}) inames
     ((r `pts_to` x) `star` (r `pts_to` y))
     (fun _ -> r `pts_to` op p x y)
