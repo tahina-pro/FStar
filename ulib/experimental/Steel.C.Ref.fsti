@@ -2,144 +2,145 @@ module Steel.C.Ref
 open FStar.FunctionalExtensionality
 open Steel.C.PCM
 open Steel.C.Connection
+open Steel.ST.Util
 
 #push-options "--print_universes"
 
-(** A [ptr a b] is a (maybe null) pointer to some value of type b inside of a "base object" of type a. *)
-val ptr (a: Type u#0) (#b: Type u#b) (p: pcm b) : Tot (Type u#b)
+(** A [ptr b] is a (maybe null) pointer to some value of type b. *)
+val ptr (#b: Type u#b) (p: pcm b) : Tot (Type u#b)
 
-val null (a: Type u#0) (#b: Type u#b) (p: pcm b) : Tot (ptr a p)
+val null (#b: Type u#b) (p: pcm b) : Tot (ptr p)
 
-val ptr_is_null (#a: Type u#0) (#b: Type u#b) (#p: pcm b) (r: ptr a p) : Ghost bool (requires True) (ensures (fun res -> res == true <==> r == null a p))
+val ptr_is_null (#b: Type u#b) (#p: pcm b) (r: ptr p) : Ghost bool (requires True) (ensures (fun res -> res == true <==> r == null p))
 
 let refine (a: Type) (p: (a -> prop)) : Tot Type =
   (x: a { p x })
 
 let not_null
-  (#a: Type u#0) (#b: Type u#b) (#p: pcm b) (r: ptr a p)
+  (#b: Type u#b) (#p: pcm b) (r: ptr p)
 : Tot prop
 = ptr_is_null r == false
 
 (** A [ref a #b q] is a [ref' a b] where the PCM inside the ref' is forced to be q *)
-let ref (a: Type u#0) (#b: Type u#b) (q: pcm b) : Type u#b =
-  refine (ptr a q) (not_null #a #b #q)
-
-open Steel.Effect
+let ref (#b: Type u#b) (q: pcm b) : Type u#b =
+  refine (ptr q) (not_null #b #q)
 
 (** r points to PCM carrier value v *)
 val pts_to
-  (#a: Type u#0) (#b: Type u#b) (#p: pcm b)
-  (r: ref a p) ([@@@smt_fallback] v: b)
+  (#b: Type u#b) (#p: pcm b)
+  (r: ref p) ([@@@smt_fallback] v: b)
 : vprop
 
 (** Given a reference to an element of PCM p and a connection l from p to q,
     [ref_focus r l] is a reference to an element of q. The intuition is that
     q represents a "part of" p (e.g. a struct field, union case, or array slice). *)
 val ref_focus
-  (#a:Type) (#b:Type) (#c:Type) (#p: pcm b)
-  (r: ref a p) (#q: pcm c) (l: connection p q)
-: GTot (ref a q)
+  (#b:Type) (#c:Type) (#p: pcm b)
+  (r: ref p) (#q: pcm c) (l: connection p q)
+: GTot (ref q)
 
 val ref_focus_id
-  (#a:Type) (#b:Type) (#p: pcm b)
-  (r: ref a p)
+  (#b:Type) (#p: pcm b)
+  (r: ref p)
 : Lemma
   (ref_focus r (connection_id _) == r)
 
-val ref_focus_comp (#p: pcm 'a) (#q: pcm 'b) (#s: pcm 'c) (r: ref 'd p)
+val ref_focus_comp (#p: pcm 'a) (#q: pcm 'b) (#s: pcm 'c) (r: ref p)
   (l: connection p q) (m: connection q s)
 : Lemma (ref_focus (ref_focus r l) m == ref_focus r (l `connection_compose` m))
   [SMTPatOr [
     [SMTPat (ref_focus (ref_focus r l) m)]; 
     [SMTPat (ref_focus r (l `connection_compose` m))]]]
 
-module A = Steel.Effect.Atomic
-
 val freeable
-  (#a: Type0) (#b:Type0) (#p: pcm b) (r: ref a p)
+  (#b:Type0) (#p: pcm b) (r: ref p)
 : Tot prop
 
 (** Allocate a reference containing value x. *)
 val ref_alloc
   (#a:Type0) (p: pcm a) (x: a)
-: Steel (ref a p)
+: ST (ref p)
     emp
     (fun r -> r `pts_to` x)
-    (requires fun _ -> p_refine p x)
-    (ensures fun _ r _ -> freeable r)
+    (requires p_refine p x)
+    (ensures fun r -> freeable r)
 
 (** Free a "base" (freeable) reference containing a "whole" (p_refine) value x. *)
 val ref_free
-  (#a #b:Type0) (#p: pcm b) (#x: Ghost.erased b) (r: ref a p)
-: Steel unit
+  (#b:Type0) (#p: pcm b) (#x: Ghost.erased b) (r: ref p)
+: ST unit
     (r `pts_to` x)
     (fun _ -> emp)
-    (requires fun _ -> p_refine p x /\ freeable r)
-    (ensures fun _ _ _ -> True)
+    (requires p_refine p x /\ freeable r)
+    (ensures fun _ -> True)
 
 
 (** Take a pointer to a "substructure" of a reference. *)
-val gfocus (#inames: _) (#p: pcm 'b) (r: ref 'a p)
+val gfocus (#inames: _) (#p: pcm 'b) (r: ref p)
   (#q: pcm 'c)
-  (l: connection p q) (s: Ghost.erased 'b) (x: Ghost.erased 'c)
-: A.SteelGhost unit inames
+  (l: connection p q) (s: 'b) (x: 'c)
+: STGhost unit inames
     (r `pts_to` s)
     (fun _ -> ref_focus r l `pts_to` x)
-    (fun _ -> Ghost.reveal s == l.conn_small_to_large.morph x)
-    (fun _ _ _ -> True)
+    (Ghost.reveal s == l.conn_small_to_large.morph x)
+    (fun _ -> True)
 
-val focus (#opened: _) (#p: pcm 'b) (r: ref 'a p)
+val focus (#opened: _) (#p: pcm 'b) (r: ref p)
   (#q: pcm 'c)
   (l: connection p q) (s: Ghost.erased 'b) (x: Ghost.erased 'c)
-: A.SteelAtomicBase (ref 'a q)
-    false opened A.Unobservable
+: STAtomicBase (ref q)
+    false opened Unobservable
     (r `pts_to` s)
     (fun r' -> r' `pts_to` x)
-    (fun _ -> Ghost.reveal s == l.conn_small_to_large.morph x)
-    (fun _ r' _ -> r' == ref_focus r l)
-
-module M = Steel.Memory
+    (Ghost.reveal s == l.conn_small_to_large.morph x)
+    (fun r' -> r' == ref_focus r l)
 
 (** Inverse of focus. *)
-val unfocus (#opened:M.inames)
+val unfocus (#opened:inames)
   (#p: pcm 'b)
   (#q: pcm 'c)
-  (r: ref 'a q) (r': ref 'a p)
-  (l: connection p q) (x: Ghost.erased 'c)
-: A.SteelGhost unit opened
+  (r: ref q) (r': ref p)
+  (l: connection p q) (x: 'c)
+: STGhost unit opened
     (r `pts_to` x)
     (fun _ -> r' `pts_to` l.conn_small_to_large.morph x)
-    (requires fun _ -> r == ref_focus r' l)
-    (ensures fun _ _ _ -> True)
+    (requires (r == ref_focus r' l))
+    (ensures fun _ -> True)
 
 (** Split the permissions on a reference into two halves. *)
-val split (#inames: _) (#a:Type) (#b:Type) (#p: pcm b) (r: ref a p) (xy x y: Ghost.erased b)
-: A.SteelGhost unit inames
+val adjacent
+  (#b: Type)
+  (#p: pcm b)
+  (r1 r2: ref p)
+: Tot prop
+
+val split (#inames: _) (#b:Type) (#p: pcm b) (r: ref p) (xy x y: b)
+: STGhost unit inames
     (r `pts_to` xy)
     (fun _ -> (r `pts_to` x) `star` (r `pts_to` y))
-    (fun _ -> composable p x y /\ xy == Ghost.hide (op p x y))
-    (fun _ _ _ -> True)
+    (composable p x y /\ xy == op p x y)
+    (fun _ -> True)
 
 (** Inverse of split. *)
-val gather (#inames: _) (#a:Type) (#b:Type) (#p: pcm b) (r: ref a p) (x y: Ghost.erased b)
-: A.SteelGhostT (_:unit{composable p x y}) inames
+val gather (#inames: _) (#b:Type) (#p: pcm b) (r: ref p) (x y: Ghost.erased b)
+: STGhostT (_:unit{composable p x y}) inames
     ((r `pts_to` x) `star` (r `pts_to` y))
     (fun _ -> r `pts_to` op p x y)
 
 (** Read a PCM carrier value. *)
 val ref_read
-  (#a:Type) (#b:Type) (#p: pcm b) (#x: Ghost.erased b) (r: ref a p)
-: Steel b
+  (#b:Type) (#p: pcm b) (#x: Ghost.erased b) (r: ref p)
+: ST b
     (r `pts_to` x)
     (fun _ -> r `pts_to` x)
-    (requires fun _ -> True)
-    (ensures fun _ x' _ -> compatible p x x')
+    (requires True)
+    (ensures fun x' -> compatible p x x')
 
 (** Write a PCM carrier value. *)
 val ref_upd
-  (#a:Type) (#b:Type) (#p: pcm b)
-  (r: ref a p) (x: Ghost.erased b { ~ (Ghost.reveal x == one p) }) (y: Ghost.erased b) (f: frame_preserving_upd p x y)
-: SteelT unit (r `pts_to` x) (fun _ -> r `pts_to` y)
+  (#b:Type) (#p: pcm b)
+  (r: ref p) (x: Ghost.erased b { ~ (Ghost.reveal x == one p) }) (y: Ghost.erased b) (f: frame_preserving_upd p x y)
+: STT unit (r `pts_to` x) (fun _ -> r `pts_to` y)
 
 (** Construct a write from a frame-preserving update. *)
 val base_fpu
@@ -150,6 +151,8 @@ val base_fpu
 : Pure (frame_preserving_upd p x y)
   (requires (exclusive p x /\ p_refine p y))
   (ensures (fun _ -> True))
+
+(*
 
 (** PCM carrier values are cumbersome to work with directly. To
     abstract over them, we define "view"s, which are essentially

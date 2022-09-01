@@ -1,66 +1,143 @@
 module Steel.C.Ref
-module P = FStar.PCM
+module FP = FStar.PCM
 module U = Steel.C.Universe
 open FStar.FunctionalExtensionality
+open Steel.ST.GenElim
+module P = Steel.C.PCM
+module C = Steel.C.Connection
+module R = Steel.ST.PCMReference
+module GHR = Steel.ST.GhostHigherReference
 
 #push-options "--print_universes"
 
-noeq type ref0 (a: Type u#0) (b: Type u#b) : Type u#b = {
-  p: pcm a;
+let is_base_type
+  (r: GHR.ref Type0)
+  (i: iname)
+  (t0: Type)
+: Tot prop
+= (i >--> GHR.pts_to r (half_perm full_perm) t0)
+
+let has_base_type
+  (r: GHR.ref Type0)
+  (i: iname)
+: Tot prop
+= exists (t0: Type) . is_base_type r i t0
+
+let has_base_type_intro
+  (r: GHR.ref Type0)
+  (i: iname)
+  (t0: Type)
+: Lemma
+  (requires (i >--> GHR.pts_to r (half_perm full_perm) t0))
+  (ensures (has_base_type r i))
+= ()
+
+let get_base_type
+  (r: GHR.ref Type0)
+  (i: iname)
+: Pure Type
+    (requires (has_base_type r i))
+    (ensures (fun t0 -> is_base_type r i t0))
+= FStar.IndefiniteDescription.indefinite_description_ghost Type (fun t0 -> is_base_type r i t0)
+
+let with_invariant_g_f (#a:Type)
+                     (#fp:vprop)
+                     (#fp':a -> vprop)
+                     (#opened_invariants:inames)
+                     (#p:vprop)
+                     (i:inv p{not (mem_inv opened_invariants i)})
+                     (f:unit -> STGhostT a (add_inv opened_invariants i)
+                                         (p `star` fp)
+                                         (fun x -> p `star` fp' x))
+  : STGhostF a opened_invariants fp fp' True (fun _ -> True)
+= with_invariant_g i f
+
+let has_base_type_idem
+  (#opened: _)
+  (r: GHR.ref Type0)
+  (i: iname)
+  (p: perm)
+  (v: Type0)
+  (sq: squash (
+    not (mem_inv opened i) /\
+    has_base_type r i
+  ))
+: STGhostT (squash (v == get_base_type r i)) opened
+    (GHR.pts_to r p v)
+    (fun _ -> GHR.pts_to r p v)
+= with_invariant_g_f
+    #(squash (v == get_base_type r i))
+    #(GHR.pts_to r p v)
+    #(fun _ -> GHR.pts_to r p v)
+    #_
+    #(GHR.pts_to r (half_perm full_perm) (get_base_type r i))
+    i
+    (fun _ ->
+      GHR.pts_to_injective_eq #_ #_ #_ #_ #v r
+    )
+
+noeq type ref0 (b: Type u#b) : Type u#b = {
+  base_type: GHR.ref Type0;
+  base_inv: Ghost.erased iname;
+  base_has_type: squash (has_base_type base_type base_inv);
+  p: pcm (get_base_type base_type base_inv);
   q: pcm b;
   pl: connection p q;
-  r: Steel.Memory.ref (U.raise_t u#0 u#1 a) (fstar_pcm_of_pcm (U.raise_pcm p));
+  r: ref (U.raise_t (get_base_type base_type base_inv)) (P.fstar_pcm_of_pcm (U.raise_pcm p));
 }
 
-noeq type ptr' (a: Type u#0) (b: Type u#b) : Type u#b =
-  | NonNull: (v: ref0 a b) -> ptr' a b
-  | Null: (v: pcm b) -> ptr' a b
+noeq type ptr' (b: Type u#b) : Type u#b =
+  | NonNull: (v: ref0 b) -> ptr' b
+  | Null: (v: pcm b) -> ptr' b
 
 let pcm_of_ptr'
-  (#a: Type u#0)
   (#b: Type u#b)
-  (r: ptr' a b)
+  (r: ptr' b)
 : Tot (pcm b)
 = if Null? r then Null?.v r else (NonNull?.v r).q
 
-let ptr a #b p = (r: ptr' a b { pcm_of_ptr' r == p })
+let ptr #b p = (r: ptr' b { pcm_of_ptr' r == p })
 
-let null a p = Null p
+let null p = Null p
 
 let ptr_is_null p = Null? p
 
-let mpts_to (#a: Type u#1) (#p: P.pcm a) (r: Steel.Memory.ref a p) ([@@@smt_fallback] v: a) = Steel.PCMReference.pts_to r v
+// let mpts_to (#a: Type u#1) (#p: FP.pcm a) (r: Steel.Memory.ref a p) ([@@@smt_fallback] v: a) = R.pts_to r v
 
 let raise_p
-  (#a: Type u#0)
   (#b: Type u#b)
-  (r: ptr' a b { NonNull? r})
-: Tot (pcm (U.raise_t u#0 u#1 a))
+  (r: ptr' b { NonNull? r})
+: Tot (pcm (U.raise_t u#0 u#1 (get_base_type (NonNull?.v r).base_type (NonNull?.v r).base_inv)))
 = U.raise_pcm (NonNull?.v r).p
 
 let lower_conn
-  (#a: Type u#0)
   (#b: Type u#b)
-  (r: ptr' a b { NonNull? r})
+  (r: ptr' b { NonNull? r})
 : Tot (connection (raise_p r) (NonNull?.v r).p)
 = connection_of_isomorphism (isomorphism_inverse (U.raise_pcm_isomorphism u#0 u#1 (NonNull?.v r).p))
 
 let raise_pl
-  (#a: Type u#0)
   (#b: Type u#b)
-  (r: ptr' a b {NonNull? r})
+  (r: ptr' b {NonNull? r})
 : Tot (connection (raise_p r) (NonNull?.v r).q)
 = lower_conn r `connection_compose` (NonNull?.v r).pl
 
-let pts_to r v =
-  (NonNull?.v r).r `mpts_to` (raise_pl r).conn_small_to_large.morph v
+[@@__reduce__]
+let pts_to0
+  (#b: Type u#b) (#p: pcm b)
+  (r: ref p) (v: b)
+: Tot vprop
+= R.pts_to #_ #(fstar_pcm_of_pcm (raise_p r)) (NonNull?.v r).r ((raise_pl r).conn_small_to_large.morph v) `star`
+  exists_ (GHR.pts_to (NonNull?.v r).base_type (half_perm full_perm))
+
+let pts_to r v = pts_to0 r v
 
 let t_ref_focus
-  (#a:Type) (#b:Type) (#c:Type) (#p: pcm b)
-  (r: ref a p) (#q: pcm c) (l: connection p q)
-: Tot (ref a q)
+  (#b:Type) (#c:Type) (#p: pcm b)
+  (r: ref p) (#q: pcm c) (l: connection p q)
+: Tot (ref q)
 = let NonNull r = r in
-  NonNull ({p = r.p; pl = connection_compose r.pl l; r = r.r; q = q})
+  NonNull ({r with p = r.p; pl = connection_compose r.pl l; q = q})
 
 let ref_focus r l = t_ref_focus r l
 
@@ -69,63 +146,71 @@ let ref_focus_id r = connection_compose_id_right (NonNull?.v r).pl
 let ref_focus_comp r l m
 = connection_compose_assoc (NonNull?.v r).pl l m
 
-let mk_id_ref
-  (#a: Type0)
-  (p: pcm a)
-  (r0: Steel.Memory.ref (U.raise_t u#0 u#1 a) (fstar_pcm_of_pcm (U.raise_pcm u#0 u#1 p)))
-: Tot (ref a p)
-=
-  let p' : pcm u#1 _ = U.raise_pcm u#0 u#1 p in
-  let fp = fstar_pcm_of_pcm p' in
-  NonNull ({ p = p; q = p; pl = connection_id p; r = r0 })
-
 (* freeable r if and only if r is a "base" reference, i.e. its connection path is empty *)
 
-let freeable #a #b #p r =
+let freeable #b #p r =
   let NonNull r = r in
-  a == b /\
-  r.p == p /\
-  r.pl == connection_id p
+  get_base_type r.base_type r.base_inv == b /\
+  r.q == r.p /\
+  r.pl == C.connection_id _
 
 #push-options "--z3rlimit 16"
 
-let ref_alloc #a p x =
-  let x' : U.raise_t u#0 u#1 a = U.raise_val u#0 u#1 x in
-  let p' : pcm u#1 _ = U.raise_pcm u#0 u#1 p in
-//  let fp : P.pcm u#1 _ = fstar_pcm_of_pcm p' in // FIXME: I can define this local definition, but WHY WHY WHY can't I USE it?
-  compatible_refl p' x';
-  let r0 : Steel.Memory.ref (U.raise_t u#0 u#1 a) (fstar_pcm_of_pcm (U.raise_pcm u#0 u#1 p)) = Steel.PCMReference.alloc #_ #(fstar_pcm_of_pcm (U.raise_pcm u#0 u#1 p)) x' in
-  let r : ref a p = mk_id_ref p r0 in
-  connection_compose_id_right (lower_conn r);
-  A.change_equal_slprop (r0 `mpts_to` _) (r `pts_to` x);
-  A.return r
+let ref_alloc #a pcm v =
+  let r : Steel.Memory.ref (U.raise_t a) (P.fstar_pcm_of_pcm (U.raise_pcm pcm)) = R.alloc (U.raise_val v) in
+  let g: GHR.ref Type0 = GHR.alloc a in
+  GHR.share g;
+  let i = new_invariant (GHR.pts_to g (half_perm full_perm) a) in
+  has_base_type_intro g i a;
+  has_base_type_idem g i _ _ ();
+  let p : ref pcm = NonNull ({
+    base_type = g;
+    base_inv = i;
+    base_has_type = ();
+    p = pcm;
+    q = pcm;
+    pl = C.connection_id _;
+    r = r;
+  })
+  in
+  rewrite
+    (R.pts_to r (U.raise_val v))
+    (R.pts_to #_ #(fstar_pcm_of_pcm (raise_p p)) (NonNull?.v p).r ((raise_pl p).conn_small_to_large.morph v));
+  vpattern_rewrite (fun g -> GHR.pts_to g _ _) (NonNull?.v p).base_type;
+  rewrite
+    (pts_to0 p v)
+    (pts_to p v);
+  return p
 
-let ref_free #a #b #p #x r =
+#pop-options
+
+let ref_free #b #p #x r =
   // TODO: use Steel.PCMReference.free, but we are blocked by (p.refine (one p)), which we explicitly excluded in Steel.C.PCM
-  Steel.Effect.Atomic.drop ((NonNull?.v r).r `mpts_to` _)
+  drop (pts_to _ _)
 
 #pop-options
 
 let gfocus r l s x =
   connection_compose_assoc (lower_conn r) (NonNull?.v r).pl l;
-  A.change_equal_slprop
+  rewrite
     (r `pts_to` s)
     (ref_focus r l `pts_to` x)
 
 let focus r l s x =
   let r' = t_ref_focus r l in
   gfocus r l s x;
-  A.change_equal_slprop
+  rewrite
     (ref_focus r l `pts_to` x)
     (r' `pts_to` x);
-  A.return r'
+  return r'
 
 let unfocus r r' l x =
   connection_compose_assoc (lower_conn r') (NonNull?.v r').pl l;
-  A.change_equal_slprop
+  rewrite
     (r `pts_to` x)
     (r' `pts_to` l.conn_small_to_large.morph x)
 
+(*
 let split r xy x y =
   let c = raise_pl r in
   let xy2 = Ghost.hide (c.conn_small_to_large.morph xy) in
@@ -147,11 +232,11 @@ let split r xy x y =
     (r `pts_to` y)
 
 let mgather
-  (#inames: _) (#a:Type) (#p:P.pcm a)
+  (#inames: _) (#a:Type) (#p:FP.pcm a)
   (r:Steel.Memory.ref a p) (v0:Ghost.erased a) (v1:Ghost.erased a)
-: A.SteelGhostT (_:unit{P.composable p v0 v1}) inames
+: A.SteelGhostT (_:unit{FP.composable p v0 v1}) inames
     (mpts_to r v0 `star` mpts_to r v1)
-    (fun _ -> mpts_to r (P.op p v0 v1))
+    (fun _ -> mpts_to r (FP.op p v0 v1))
 = Steel.PCMReference.gather r v0 v1
 
 let gather #inames #a #b #p r x y =
