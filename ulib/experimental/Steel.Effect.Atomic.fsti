@@ -823,3 +823,36 @@ val mk_selector_vprop_elim
     (fun x -> p x)
     (fun _ -> True)
     (fun h x _ -> h (mk_selector_vprop p p_inj) == Ghost.reveal x)
+
+/// From selector-style to points-to style
+
+[@@__steel_reduce__]
+let vselect (v: vprop) (x: normal (t_of v))  : vprop =
+   v `vrefine` (fun x' -> x == x') `vrewrite` (fun _ -> ())
+
+let vselect_intro
+  (#opened: _)
+  (v: vprop)
+: SteelGhost (Ghost.erased (normal (t_of v))) opened
+    v
+    (fun r -> vselect v r)
+    (fun _ -> True)
+    (fun h r _ -> Ghost.reveal r == h v)
+= let r = gget v in
+  intro_vrefine v (fun x' -> Ghost.reveal r == x');
+  intro_vrewrite (vrefine v _) (fun _ -> ());
+  change_equal_slprop (vrewrite (vrefine v _) _) (vselect v r);
+  r
+
+let vselect_elim
+  (#opened: _)
+  (v: vprop)
+  (r: normal (t_of v))
+: SteelGhost unit opened
+    (vselect v r)
+    (fun _ -> v)
+    (fun _ -> True)
+    (fun _ _ h' -> r == h' v)
+= change_equal_slprop (vselect v r) (v `vrefine` (fun x' -> r == x') `vrewrite` (fun _ -> ()));
+  elim_vrewrite _ _;
+  elim_vrefine _ _
