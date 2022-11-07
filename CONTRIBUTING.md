@@ -42,11 +42,11 @@ https://github.com/FStarLang/FStar/wiki/Style-guide
 ## Snapshots
 
 The F\* compiler is written in F\*, then extracted to OCaml. We keep a copy
-of the OCaml extracted compiler under version control. We **do not** expect external
-pull requests to refresh the snapshot. However, reviewers should take it upon
+of the OCaml extracted compiler under version control. We expect external
+pull requests to refresh the snapshot. Reviewers should take it upon
 themselves to update the snapshot before merging to master when this is needed
 to obtain a "Success" without breakages from CI (in particular without
-"snapshot-diff" breakages in the VSTS "Extra logs" = "Build Summary").
+"snapshot-diff" breakages in the build logs.)
 The reviewer may (in rare cases, when the change touches extraction)
 need to bootstrap twice to reach the fixpoint.
 
