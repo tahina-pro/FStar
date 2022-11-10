@@ -102,6 +102,35 @@ let vrefine_vrefine_equals_intro
     (fun _ -> True)
 = C.coerce_ghost (fun _ -> vrefine_vrefine_equals_intro' s p x)
 
+#restart-solver
+let vrefine_equals_star_intro_aux
+  (s1 s2: vprop)
+  (x1: t_of s1)
+  (x2: t_of s2)
+  (m: mem)
+: Lemma
+  (requires (interp (hp_of ((s1 `vrefine` equals x1) `star` (s2 `vrefine` equals x2))) m))
+  (ensures (interp (hp_of ((s1 `star` s2) `vrefine` equals (x1, x2))) m))
+= 
+      interp_star (hp_of (s1 `vrefine` equals x1)) (hp_of (s2 `vrefine` equals x2)) m;
+      let m1 = FStar.IndefiniteDescription.indefinite_description_ghost mem (fun m1 -> exists m2 . disjoint m1 m2 /\ interp (hp_of (s1 `vrefine` equals x1)) m1 /\ interp (hp_of (s2 `vrefine` equals x2)) m2 /\ join m1 m2 == m) in
+      let m2 = FStar.IndefiniteDescription.indefinite_description_ghost mem (fun m2 -> disjoint m1 m2 /\ interp (hp_of (s1 `vrefine` equals x1)) m1 /\ interp (hp_of (s2 `vrefine` equals x2)) m2 /\ join m1 m2 == m) in
+      interp_vrefine_hp s1 (equals x1) m1;
+      assert (interp (hp_of s1) m1);
+      assert (sel_of s1 m1 == x1);
+      interp_vrefine_hp s2 (equals x2) m2;
+      assert (interp (hp_of s2) m2);
+      assert (sel_of s2 m2 == x2);
+      interp_star (hp_of s1) (hp_of s2) m;
+      assert (interp (hp_of (s1 `star` s2)) m);
+      assert (sel_of s1 m == sel_of s1 m1);
+      assert (disjoint m2 m1);
+      join_commutative m1 m2;
+      assert (join m2 m1 == m);
+      assert (sel_of s2 m == sel_of s2 m2);
+      assert (sel_of (s1 `star` s2) m == (x1, x2));
+      interp_vrefine_hp (s1 `star` s2) (equals (x1, x2)) m
+
 let vrefine_equals_star_intro'
   (#inames: _)
   (s1 s2: vprop)
@@ -111,9 +140,10 @@ let vrefine_equals_star_intro'
     inames
     ((s1 `vrefine` equals x1) `star` (s2 `vrefine` equals x2))
     (fun _ -> (s1 `star` s2) `vrefine` equals (x1, x2))
-= SA.elim_vrefine s1 (equals x1);
-  SA.elim_vrefine s2 (equals x2);
-  SA.intro_vrefine (s1 `star` s2) (equals (x1, x2))
+= SA.rewrite_slprop
+    ((s1 `vrefine` equals x1) `star` (s2 `vrefine` equals x2))
+    ((s1 `star` s2) `vrefine` equals (x1, x2))
+    (vrefine_equals_star_intro_aux s1 s2 x1 x2)
 
 let vrefine_equals_star_intro
   (#inames: _)
@@ -126,6 +156,30 @@ let vrefine_equals_star_intro
     (fun _ -> (s1 `star` s2) `vrefine` equals (x1, x2))
 = C.coerce_ghost (fun _ -> vrefine_equals_star_intro' s1 s2 x1 x2)
 
+#restart-solver
+let vrefine_equals_star_elim_aux
+  (s1 s2: vprop)
+  (x1: t_of s1)
+  (x2: t_of s2)
+  (m: mem)
+: Lemma
+  (requires (interp (hp_of ((s1 `star` s2) `vrefine` equals (x1, x2))) m))
+  (ensures (interp (hp_of ((s1 `vrefine` equals x1) `star` (s2 `vrefine` equals x2))) m))
+= 
+      interp_vrefine_hp (s1 `star` s2) (equals (x1, x2)) m;
+      assert (sel_of (s1 `star` s2) m == (x1, x2));
+      interp_star (hp_of s1) (hp_of s2) m;
+      let m1 = FStar.IndefiniteDescription.indefinite_description_ghost mem (fun m1 -> exists m2 . disjoint m1 m2 /\ interp (hp_of s1) m1 /\ interp (hp_of s2) m2 /\ join m1 m2 == m) in
+      let m2 = FStar.IndefiniteDescription.indefinite_description_ghost mem (fun m2 -> disjoint m1 m2 /\ interp (hp_of s1) m1 /\ interp (hp_of s2) m2 /\ join m1 m2 == m) in
+      assert (sel_of s1 m == sel_of s1 m1);
+      assert (disjoint m2 m1);
+      join_commutative m1 m2;
+      assert (join m2 m1 == m);
+      assert (sel_of s2 m == sel_of s2 m2);
+      interp_vrefine_hp s1 (equals x1) m1;
+      interp_vrefine_hp s2 (equals x2) m2;
+      interp_star (hp_of (s1 `vrefine` equals x1)) (hp_of (s2 `vrefine` equals x2)) m
+
 let vrefine_equals_star_elim'
   (#inames: _)
   (s1 s2: vprop)
@@ -134,10 +188,10 @@ let vrefine_equals_star_elim'
     inames
     ((s1 `star` s2) `vrefine` equals x)
     (fun _ -> (s1 `vrefine` equals (fst x)) `star` (s2 `vrefine` equals (snd x)))
-=
-  SA.elim_vrefine (s1 `star` s2) (equals x);
-  SA.intro_vrefine s1 (equals (fst x));
-  SA.intro_vrefine s2 (equals (snd x))
+= SA.rewrite_slprop
+    ((s1 `star` s2) `vrefine` equals x)
+    ((s1 `vrefine` equals (fst x)) `star` (s2 `vrefine` equals (snd x)))
+    (vrefine_equals_star_elim_aux s1 s2 (fst x) (snd x))
 
 let vrefine_equals_star_elim
   (#inames: _)
@@ -227,12 +281,15 @@ let vdep_intro'
       dfst (Ghost.reveal res) == tag /\
       dsnd (Ghost.reveal res) == pl
     )
-= SA.elim_vrefine vtag (equals tag);
+= admit_ ()
+(*
+  SA.elim_vrefine vtag (equals tag);
   SA.elim_vrefine vpl0 (equals pl);
   SA.intro_vdep vtag vpl0 vpl;
   let res : Ghost.erased (normal (t_of (vtag `vdep` vpl))) = (| tag, pl |) in
   SA.intro_vrefine (vtag `vdep` vpl) (equals (Ghost.reveal res));
   res
+*)
 
 let vdep_intro
   (#inames: _)
@@ -260,13 +317,16 @@ let vdep_elim'
 : SA.SteelGhostT unit inames
     ((vtag `vdep` vpl) `vrefine` equals x)
     (fun _ -> (vtag `vrefine` equals (dfst x)) `star` (vpl (dfst x) `vrefine` equals (dsnd x)))
-= SA.elim_vrefine (vtag `vdep` vpl) (equals x);
+= admit_ ()
+(*
+  SA.elim_vrefine (vtag `vdep` vpl) (equals x);
   let tag = SA.elim_vdep vtag vpl in
   SA.intro_vrefine vtag (equals (dfst x));
   SA.change_equal_slprop
     (vpl tag)
     (vpl (dfst x));
   SA.intro_vrefine (vpl (dfst x)) (equals (dsnd x))
+*)
 
 let vdep_elim
   (#inames: _)
