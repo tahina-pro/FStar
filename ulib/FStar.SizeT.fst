@@ -5,16 +5,10 @@ module I64 = FStar.Int64
 (* This is only intended as a model, but will be extracted natively by Krml
    with the correct C semantics *)
 
-(* We assume the existence of some lower bound on the size, 
-   where the bound is at least 2^16 *)
-assume
-val bound : x:nat { x >= pow2 16 }
-
-let t = x:U64.t { U64.v x < bound }
+let t = U64.t
 
 let fits x =
-  FStar.UInt.fits x U64.n == true /\
-  x < bound
+  FStar.UInt.fits x U64.n == true
 
 let fits_at_least_16 _ = ()
 
@@ -31,8 +25,8 @@ let size_uint_to_t_inj (x: nat) = ()
 /// These two predicates are only used for modeling purposes, and their definitions must
 /// remain abstract to ensure they can only be introduced through a static assert.
 /// We simply define them as True here
-let fits_u32 = (bound >= pow2 32) == true
-let fits_u64 = (bound == pow2 64)
+let fits_u32 = True
+let fits_u64 = True
 
 let fits_u64_implies_fits_32 ()
   : Lemma
