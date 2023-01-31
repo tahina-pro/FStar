@@ -1,5 +1,5 @@
 >> Got issues: [
-Bug2021.fst(5,15-5,16): (Error 66) Failed to resolve implicit argument ?2 of type Type introduced for user-provided implicit term at Bug2021.fst(5,15-5,16)
+Bug2021.fst(5,15-5,16): (Error 66) Failed to resolve implicit argument ?8 of type Type introduced for user-provided implicit term at Bug2021.fst(5,15-5,16)
 >>]
 >> Got issues: [
 Bug2021.fst(10,8-10,9): (Error 66) Failed to resolve implicit argument ?2 of type Type introduced for user-provided implicit term at Bug2021.fst(10,8-10,9)
