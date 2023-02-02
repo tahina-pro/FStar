@@ -297,7 +297,7 @@ let run_tests tests run =
   Options.__clear_unit_tests();
   l
 
-let whnf_tests =
+let whnf_tests () =
     let _ = Pars.pars_and_tc_fragment "assume val def : Type0" in
     let _ = Pars.pars_and_tc_fragment "assume val pred : Type0" in    
     let _ = Pars.pars_and_tc_fragment "let def0 (y:int) = def" in
@@ -317,7 +317,7 @@ let whnf_tests =
 
 let run_all_whnf () = 
   BU.print_string "Testing Normlizer WHNF\n";
-  let _ = run_tests whnf_tests run_whnf in
+  let _ = run_tests (whnf_tests ()) run_whnf in
   BU.print_string "Normalizer WHNF ok\n"
 
 let run_all_nbe () =
@@ -332,7 +332,7 @@ let run_all_interpreter () =
 
 let run_all_whnf_with_time () =
   BU.print_string "Testing WHNF\n";
-  let l = run_tests whnf_tests run_whnf_with_time in
+  let l = run_tests (whnf_tests ()) run_whnf_with_time in
   BU.print_string "WHNF ok\n";
   l
 
