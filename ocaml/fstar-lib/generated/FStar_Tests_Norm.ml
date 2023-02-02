@@ -1350,26 +1350,28 @@ let run_tests :
               match uu___1 with | (no, test, res) -> run no test res) tests in
        FStar_Options.__clear_unit_tests (); l)
 let (whnf_tests :
-  (Prims.int * FStar_Syntax_Syntax.term * FStar_Syntax_Syntax.term)
-    Prims.list)
+  unit ->
+    (Prims.int * FStar_Syntax_Syntax.term * FStar_Syntax_Syntax.term)
+      Prims.list)
   =
-  FStar_Tests_Pars.pars_and_tc_fragment "assume val def : Type0";
-  FStar_Tests_Pars.pars_and_tc_fragment "assume val pred : Type0";
-  FStar_Tests_Pars.pars_and_tc_fragment "let def0 (y:int) = def";
-  FStar_Tests_Pars.pars_and_tc_fragment
-    "unfold let def1 (y:int) = x:def0 y { pred }";
-  (let def_def1 = FStar_Tests_Pars.tc "x:def0 17 { pred }" in
-   let def_def1_unfolded = FStar_Tests_Pars.tc "x:def { pred }" in
-   let tests =
-     let uu___4 =
-       let uu___5 = FStar_Tests_Pars.tc "def1 17" in
-       ((Prims.of_int (601)), uu___5, def_def1) in
-     [uu___4; ((Prims.of_int (602)), def_def1, def_def1_unfolded)] in
-   tests)
+  fun uu___ ->
+    FStar_Tests_Pars.pars_and_tc_fragment "assume val def : Type0";
+    FStar_Tests_Pars.pars_and_tc_fragment "assume val pred : Type0";
+    FStar_Tests_Pars.pars_and_tc_fragment "let def0 (y:int) = def";
+    FStar_Tests_Pars.pars_and_tc_fragment
+      "unfold let def1 (y:int) = x:def0 y { pred }";
+    (let def_def1 = FStar_Tests_Pars.tc "x:def0 17 { pred }" in
+     let def_def1_unfolded = FStar_Tests_Pars.tc "x:def { pred }" in
+     let tests =
+       let uu___5 =
+         let uu___6 = FStar_Tests_Pars.tc "def1 17" in
+         ((Prims.of_int (601)), uu___6, def_def1) in
+       [uu___5; ((Prims.of_int (602)), def_def1, def_def1_unfolded)] in
+     tests)
 let (run_all_whnf : unit -> unit) =
   fun uu___ ->
     FStar_Compiler_Util.print_string "Testing Normlizer WHNF\n";
-    (let uu___2 = run_tests whnf_tests run_whnf in
+    (let uu___2 = let uu___3 = whnf_tests () in run_tests uu___3 run_whnf in
      FStar_Compiler_Util.print_string "Normalizer WHNF ok\n")
 let (run_all_nbe : unit -> unit) =
   fun uu___ ->
@@ -1385,7 +1387,8 @@ let (run_all_whnf_with_time :
   unit -> (Prims.int * FStar_BaseTypes.float) Prims.list) =
   fun uu___ ->
     FStar_Compiler_Util.print_string "Testing WHNF\n";
-    (let l = run_tests whnf_tests run_whnf_with_time in
+    (let l =
+       let uu___2 = whnf_tests () in run_tests uu___2 run_whnf_with_time in
      FStar_Compiler_Util.print_string "WHNF ok\n"; l)
 let (run_all_nbe_with_time :
   unit -> (Prims.int * FStar_BaseTypes.float) Prims.list) =
