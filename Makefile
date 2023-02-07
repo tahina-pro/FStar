@@ -2,26 +2,70 @@
 
 include .common.mk
 
-all:
-	$(Q)+$(MAKE) -C src/ocaml-output
-	$(Q)+$(MAKE) -C ulib/ml
-	$(Q)+$(MAKE) -C ulib
+all: dune
+
+DUNE_SNAPSHOT ?= $(CURDIR)/ocaml
+
+# The directory where we install files when doing "make install".
+# Overridden via the command-line by the OPAM invocation.
+PREFIX ?= /usr/local
+
+.PHONY: dune dune-fstar verify-ulib
+dune-fstar:
+	@# Create the FStar_Version.ml file
+	$(Q)+$(MAKE) -C src/ocaml-output fstar-version-ml-install
+	@# Call Dune to build the snapshot.
+	cd $(DUNE_SNAPSHOT) && dune build --profile release && dune install --prefix=$(CURDIR)
+
+verify-ulib:
+	+$(MAKE) -C ulib
+
+dune: dune-fstar
+	+$(MAKE) verify-ulib
+
+.PHONY: clean-dune-snapshot
+
+clean-dune-snapshot:
+	rm -rf $(DUNE_SNAPSHOT)/fstar-lib/generated/*
+	rm -rf $(DUNE_SNAPSHOT)/fstar-lib/dynamic/*
+
+.PHONY: dune-extract-all
+
+dune-extract-all:
+	+$(MAKE) -C src/ocaml-output dune-snapshot
+
+dune-full-bootstrap:
+	+$(MAKE) dune
+	+$(MAKE) clean-dune-snapshot
+	rm -rf ulib/.depend*
+	+$(MAKE) -C src/ocaml-output clean
+	+$(MAKE) dune-extract-all
+	rm -rf ulib/.depend*
+	+$(MAKE) dune
+
+.PHONY: dune-bootstrap
+dune-bootstrap:
+	+$(MAKE) dune-extract-all
+	+$(MAKE) dune
+
+.PHONY: boot
+
+boot:
+	+$(MAKE) dune
+	+$(MAKE) dune-bootstrap
 
 install:
 	$(Q)+$(MAKE) -C src/ocaml-output install
 
-# The directory where we install files when doing "make install".
-# Overridden via the command-line by the OPAM invocation.
-PREFIX=$(shell pwd)/fstar
+# The `uninstall` rule is only necessary for users who manually ran
+# `make install`. It is not needed if F* was installed with opam,
+# since `opam remove` can uninstall packages automatically with its
+# own way.
 
 uninstall:
-	ocamlfind remove fstarlib
-	ocamlfind remove fstar-compiler-lib
-	ocamlfind remove fstar-tactics-lib
 	rm -rf \
 	  $(PREFIX)/lib/fstar \
-	  $(PREFIX)/doc/fstar \
-	  $(PREFIX)/etc/fstar \
+	  $(PREFIX)/bin/fstar_tests.exe \
 	  $(PREFIX)/bin/fstar.exe \
 	  $(PREFIX)/share/fstar
 
@@ -35,52 +79,10 @@ clean:
 	$(Q)+$(MAKE) -C ulib clean
 	$(Q)+$(MAKE) -C src/ocaml-output clean
 
-# Shortcuts for developers
-
-# Build the OCaml snapshot. NOTE: This will not build the standard library,
-# nor tests, and native tactics will not run
-1:
-	$(Q)+$(MAKE) -C src/ocaml-output ../../bin/fstar.exe
-
-# Bootstrap just the compiler, not the library and tests;
-# fastest way to incrementally build a patch to the compiler
-boot:
-	$(Q)+$(MAKE) -C src/ ocaml
-	$(Q)+$(MAKE) -C src/ocaml-output ../../bin/fstar.exe
-
-boot_tests:
-	$(Q)+$(MAKE) -C src/ ocaml
-	$(Q)+$(MAKE) -C src/ocaml-output ../../bin/tests.exe
-
-boot_libs: boot
-	$(Q)+$(MAKE) libs
-
-boot.ocaml:
-	$(Q)+$(MAKE) -C src/ ocaml
-	$(Q)+$(MAKE) -C src/ocaml-output ../../bin/fstar.ocaml
-
-# Alias for boot
-2: boot
-
-# Build the snapshot and then regen, i.e. 1 + 2
-3:
-	$(Q)+$(MAKE) -C src/ocaml-output ../../bin/fstar.exe
-	$(Q)+$(MAKE) -C src/ ocaml
-	$(Q)+$(MAKE) -C src/ocaml-output ../../bin/fstar.exe
-
-# Build the binary libraries: fstar-compiler-lib, fstarlib, fstartaclib
-# Removes the .mgen files to trigger rebuild of the libraries if needed.
-# This does NOT verify the library modules.
-libs:
-	$(Q)+$(MAKE) -C src/ocaml-output
-	$(Q)rm -f ulib/*.mgen
-	$(Q)+$(MAKE) -C ulib/ml
-
 # Regenerate all hints for the standard library and regression test suite
 hints:
 	+$(Q)OTHERFLAGS=--record_hints $(MAKE) -C ulib/
-	+$(Q)OTHERFLAGS=--record_hints $(MAKE) -C ulib/ml
-	+$(Q)OTHERFLAGS=--record_hints $(MAKE) -C src/ uregressions
+	+$(Q)OTHERFLAGS=--record_hints $(MAKE) ci-uregressions
 
 bench:
 	./bin/run_benchmark.sh
@@ -91,3 +93,18 @@ output:
 	$(Q)+$(MAKE) -C tests/error-messages accept
 	$(Q)+$(MAKE) -C tests/interactive accept
 	$(Q)+$(MAKE) -C tests/bug-reports output-accept
+
+.PHONY: ci-utest-prelude
+
+ci-utest-prelude: dune
+	$(Q)+$(MAKE) dune-bootstrap
+	$(Q)+$(MAKE) -C src ocaml-unit-tests
+	$(Q)+$(MAKE) -C ulib ulib-in-fsharp    #build ulibfs
+
+.PHONY: ci-uregressions ci-uregressions-ulong
+
+ci-uregressions:
+	$(Q)+$(MAKE) -C src uregressions
+
+ci-uregressions-ulong:
+	$(Q)+$(MAKE) -C src uregressions-ulong
