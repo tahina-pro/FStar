@@ -17,9 +17,13 @@ stdenv.mkDerivation {
     $CP ${fstar-dune}/* .
     $CP ${ulib}/* .
 
-    mkdir -p share/fstar
+    # FIXME: Why not use `make -C src/ocaml-output install-sides` ?
+    # (after moving the ulib install command back to `install`)
+    mkdir -p share/fstar/doc
     $CP ${../examples} share/fstar/examples
     $CP ${../ucontrib} share/fstar/contrib
+    $CP ${../doc/Makefile.include} share/fstar/doc/Makefile.include
+    $CP ${../doc/tutorial} share/fstar/doc/tutorial
 
     for binary in $out/bin/*
     do
