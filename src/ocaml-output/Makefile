@@ -181,7 +181,7 @@ package:
 	@# Make the F* ulib F# DLL (NOT the nuget package)
 	+PREFIX=$(package_prefix) $(MAKE) -C $(FSTAR_HOME)/ulib ulib-in-fsharp-dll
 	@# Then the version file.
-	cp ../../ocaml/version.txt $(package_prefix)/
+	cp ../../version.txt $(package_prefix)/
 	@# Documentation and licenses
 	cp ../../README.md ../../INSTALL.md ../../LICENSE ../../LICENSE-fsharp.txt $(package_prefix)
 	cp $(Z3_LICENSE) $(package_prefix)/LICENSE-z3.txt

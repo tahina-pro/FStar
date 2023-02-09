@@ -12,6 +12,7 @@ PREFIX ?= /usr/local
 
 .PHONY: dune dune-fstar verify-ulib
 dune-fstar:
+	cp version.txt $(DUNE_SNAPSHOT)/
 	@# Call Dune to build the snapshot.
 	cd $(DUNE_SNAPSHOT) && dune build --profile release && dune install --prefix=$(CURDIR)
 

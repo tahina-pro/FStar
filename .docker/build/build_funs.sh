@@ -67,7 +67,7 @@ function update_version_number () {
     local dev='~dev'
 
     # Read the latest version number
-    last_version_number=$(sed 's!'"$dev"'!!' < ocaml/version.txt)
+    last_version_number=$(sed 's!'"$dev"'!!' < version.txt)
 
     # If the only diffs are the snapshot hints and/or CI scripts,
     # then we don't need to
@@ -91,7 +91,7 @@ function update_version_number () {
     [[ $version_number != $last_version_number ]]
 
     # Update it in version.txt
-    echo $version_number > ocaml/version.txt
+    echo $version_number > version.txt
 
     # Update it in fstar.opam
     sed -i 's!^version:.*$!version: "'$version_number'"!' fstar.opam
@@ -99,7 +99,7 @@ function update_version_number () {
     # Commit the new version number. This is guaranteed to be a
     # nonempty change, since version numbers were tested to be
     # different
-    git add -u ocaml/version.txt fstar.opam
+    git add -u version.txt fstar.opam
     git commit -m "[CI] bump version number to $version_number"
 }
 

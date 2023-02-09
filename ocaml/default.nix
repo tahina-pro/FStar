@@ -1,4 +1,6 @@
-{ batteries, buildDunePackage, includeBinaryAnnotations ? false
+{ batteries, buildDunePackage
+, fstar-pre
+, includeBinaryAnnotations ? false
 , installShellFiles, makeWrapper, menhirLib, ocaml, pprint, ppxlib, ppx_deriving
 , ppx_deriving_yojson, process, removeReferencesTo, sedlex, stdint, version
 , yojson, zarith }:
@@ -12,6 +14,7 @@ buildDunePackage {
   src = ./.;
 
   prePatch = ''
+    cp ${fstar-pre}/lib/fstar/version.txt ./
     patchShebangs fstar-lib/make_fstar_version.sh
   '';
 
