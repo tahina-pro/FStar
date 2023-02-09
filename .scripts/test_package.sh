@@ -28,7 +28,7 @@ make -j6 package
 cd src/ocaml-output
 
 if [[ -z "$CURRENT_VERSION" ]] ; then
-  CURRENT_VERSION=$(cat fstar/version.txt | sed 's!^v!!' | sed 's!'"\r"'$!!')
+  CURRENT_VERSION=$(cat fstar/ocaml/version.txt | sed 's!^v!!' | sed 's!'"\r"'$!!')
 fi
 
 diag "*** Unzip and verify the Package  ***"

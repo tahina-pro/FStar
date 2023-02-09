@@ -52,7 +52,7 @@ else
     # update_version_number in .docker/build/build.sh . Please mind
     # the 'v' introducing the tag.
     dev='~dev'
-    my_tag=v$(sed 's!'"$dev"'!!' < version.txt)
+    my_tag=v$(sed 's!'"$dev"'!!' < ocaml/version.txt)
 fi
 
 # Check if the commit pointed to by that tag (if any) points to the current commit
@@ -76,7 +76,7 @@ fi
 # but the version number used at compilation time will be read from
 # version.txt
 CURRENT_VERSION=$(echo $my_tag | sed 's!^v!!')
-echo $CURRENT_VERSION > version.txt
+echo $CURRENT_VERSION > ocaml/version.txt
 
 # Exit the F* directory
 popd

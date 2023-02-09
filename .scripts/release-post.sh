@@ -4,7 +4,7 @@
 
 # Clear the version number, since everything has worked well so far
 pushd "$FSTAR_HOST_HOME"
-git checkout version.txt
+git checkout ocaml/version.txt
 
 # Publish the release
 docker build -t fstar-release \

@@ -13,6 +13,6 @@
 . "$FSTAR_HOST_HOME/.scripts/release-post.sh"
 
 # Manual steps on major releases - use the major version number from make package ... this process creates binary builds and minor version
-# 1) Update https://github.com/FStarLang/FStar/blob/master/version.txt
+# 1) Update https://github.com/FStarLang/FStar/blob/master/ocaml/version.txt
 # 2) Create a new branch based on that version
 # 3) Document the release

@@ -18,3 +18,11 @@
  (wrapped false)
  (preprocess (pps ppx_deriving.show ppx_deriving_yojson sedlex.ppx))
 )
+
+(rule
+  (target FStar_Version.ml)
+  (deps ./make_fstar_version.sh ../version.txt)
+  (action
+    (with-stdout-to
+      FStar_Version.ml
+      (system ./make_fstar_version.sh))))
