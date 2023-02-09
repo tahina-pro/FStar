@@ -1,7 +1,7 @@
 { batteries, buildDunePackage, includeBinaryAnnotations ? false
 , installShellFiles, makeWrapper, menhirLib, ocaml, pprint, ppxlib, ppx_deriving
 , ppx_deriving_yojson, process, removeReferencesTo, sedlex, stdint, version
-, yojson, z3, zarith }:
+, yojson, zarith }:
 
 buildDunePackage {
   pname = "fstar";
@@ -15,7 +15,7 @@ buildDunePackage {
     patchShebangs fstar-lib/make_fstar_version.sh
   '';
 
-  nativeBuildInputs = [ installShellFiles makeWrapper removeReferencesTo z3 ];
+  nativeBuildInputs = [ installShellFiles makeWrapper removeReferencesTo ];
 
   buildInputs = [
     batteries
