@@ -681,19 +681,47 @@ let compute_gen_elim_nondep_correct_tac (lemma: T.term) (constructor: T.term) : 
     compute_gen_elim_nondep_correct_aux_3 lemma constructor args
   | _ -> T.fail "compute_gen_elim_nondep_correct_aux_2: args"
 
-let compute_gen_elim_nondep_correct2
+let compute_gen_elim_nondep_correct3_gen
+  (t1: Type u#u1)
+  (t2: Type u#u2)
+  (t3: Type u#u3)
   (i0: gen_elim_i)
-  (t1: _) (t2: _)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2])
-= (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct2_gen) (`UTuple2)))
+  (l: list tagged_type)
+  (prf: (mktuple: (t1 -> t2 -> t3 -> compute_gen_elim_nondep_a' l) & (
+    (q: curried_function_type u#2 l vprop) ->
+    (post: curried_function_type l prop) ->
+    (q': (t1 -> t2 -> t3 -> vprop) & (
+      (post': (t1 -> t2 -> t3 -> prop) & (
+        squash (gen_elim_nondep_p l q post == exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> q' x1 x2 x3 `star` pure (post' x1 x2 x3))))) &
+        ((x1: t1) -> (x2: t2) -> (x3: t3) -> (
+          squash (q' x1 x2 x3 == compute_uncurry vprop (compute_gen_elim_p' i0) l q (mktuple x1 x2 x3)) &
+          squash (post' x1 x2 x3 == compute_uncurry prop True l post (mktuple x1 x2 x3))
+        ))
+      ))
+    ))
+  )))
+: Tot (compute_gen_elim_nondep_correct_t i0 l)
+= fun q post intro _ ->
+    intro _;
+    let (| mktuple, rewrites |) = prf in
+    let (| q', (| post', (sq1, f) |) |) = rewrites q post in
+    rewrite_with_squash (gen_elim_nondep_p l q post) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> q' x1 x2 x3 `star` pure (post' x1 x2 x3))))) sq1;
+    let x1 = elim_exists' () in
+    let x2 = elim_exists' () in
+    let x3 = elim_exists' () in
+    let res = mktuple x1 x2 x3 in
+    let (sq2, _) = f x1 x2 x3 in
+    elim_pure _;
+    rewrite_with_squash (q' _ _ _) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res) sq2;
+    res
 
 let compute_gen_elim_nondep_correct_default
   (i0: gen_elim_i)
-  (t1 t2 t3 (* t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) : _) (tq: list _)
-: Tot (compute_gen_elim_nondep_correct_t i0 (t1 :: t2 :: t3 (* :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq))
+  (t1 t2 t3 t4 (* t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) : _) (tq: list _)
+: Tot (compute_gen_elim_nondep_correct_t i0 (t1 :: t2 :: t3 :: t4 (* :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq))
 = fun q post intro _ ->
     // default case: no exists is opened
-    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 (* :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq) = (U.raise_val ()) in
+    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 :: t4 (* :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq) = (U.raise_val ()) in
     rewrite (compute_gen_elim_p i0) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res);
     res
 
@@ -701,12 +729,13 @@ let compute_gen_elim_nondep_correct'
   (i0: gen_elim_i)
   (ty: list tagged_type)
 : Tot (compute_gen_elim_nondep_correct_t i0 ty)
-= match ty returns compute_gen_elim_nondep_correct_t i0 ty with
+= match ty as ty' returns compute_gen_elim_nondep_correct_t i0 ty' with
   | [] -> compute_gen_elim_nondep_correct0 i0
   | [T0 t1] -> compute_gen_elim_nondep_correct1_0 i0 t1
   | [T1 t1] -> compute_gen_elim_nondep_correct1_1 i0 t1
-  | [t1; t2] -> compute_gen_elim_nondep_correct2 i0 t1 t2
-  | t1 :: t2 :: t3 (* :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq -> compute_gen_elim_nondep_correct_default i0 t1 t2 t3 (* t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) tq  
+  | [_; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct2_gen) (`UTuple2)))
+  | [_; _; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct3_gen) (`UTuple3)))
+  | t1 :: t2 :: t3 :: t4 (* :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq -> compute_gen_elim_nondep_correct_default i0 t1 t2 t3 t4 (* t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) tq
 
 let compute_gen_elim_nondep_correct_0
   (i0: gen_elim_i)

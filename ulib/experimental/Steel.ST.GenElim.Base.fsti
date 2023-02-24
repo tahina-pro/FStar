@@ -281,6 +281,11 @@ noeq
 type utuple2 (t1: Type u#u1) (t2: Type u#u2) : Type u#(max u1 u2 u0) =
   | UTuple2: t1 -> t2 -> utuple2 t1 t2
 
+[@@gen_elim_reduce; noextract_to "Plugin"]
+noeq
+type utuple3 (t1: Type u#u1) (t2: Type u#u2) (t3: Type u#u3) : Type u#(max u1 u2 u3 u0) =
+  | UTuple3: t1 -> t2 -> t3 -> utuple3 t1 t2 t3
+
 let rec list_tac_map
   (#t1 #t2: Type)
   (f: (t1 -> T.Tac t2))
@@ -340,6 +345,7 @@ let compute_gen_elim_nondep_a' (ty: list (tagged_type)) : Tot Type =
     | [T0 t1] -> U.raise_t t1
     | [T1 t1] -> t1
     | [t1; t2] -> _ by (compute_gen_elim_nondep_a_tac (`utuple2) [(quote t1); (quote t2)])
+    | [t1; t2; t3] -> _ by (compute_gen_elim_nondep_a_tac (`utuple3) [(quote t1); (quote t2); (quote t3)])
 (*
     | [t1; t2] -> tuple2 t1 t2
     | [t1; t2; t3] -> tuple3 t1 t2 t3
@@ -406,6 +412,7 @@ let compute_uncurry (ret_type: Type u#(max 1 a)) (def: ret_type) (ty: list (tagg
     | [T0 _] -> fun q x -> q (U.downgrade_val x)
     | [T1 _] -> fun q -> q
     | [t1; t2] -> (_ by (compute_uncurry_tac [(quote t1); (quote t2)] [(`UTuple2?._0); (`UTuple2?._1)]))
+    | [t1; t2; t3] -> (_ by (compute_uncurry_tac [(quote t1); (quote t2); (quote t3)] [(`UTuple3?._0); (`UTuple3?._1); (`UTuple3?._2)]))
 (*
     | [t1; t2; t3] -> fun q x -> q x._1 x._2 x._3
     | [t1; t2; t3; t4] -> fun q x -> q x._1 x._2 x._3 x._4
@@ -711,7 +718,7 @@ let solve_gen_elim_nondep0 (enable_nondep_opt: bool) (t: T.term) : T.Tac (option
     try
       let tele = mk_app (`compute_gen_elim_tele) [t, Q_Explicit] in
       let t' = norm_term [delta_attr [(`%gen_elim_reduce)]; zeta; iota] tele in
-      solve_gen_elim_nondep' 3 [] t'  // fuel necessary because F* standard tuple types only go from 0 up to 14 elts
+      solve_gen_elim_nondep' 4 [] t'  // fuel necessary because F* standard tuple types only go from 0 up to 14 elts
     with _ -> None
   else None
 
