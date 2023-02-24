@@ -625,11 +625,6 @@ let assert_prop
     (ensures (fun _ -> True))
 = ()
 
-let intro_term () : T.Tac T.term =
-  let binder = T.intro () in
-  let (bv, _) = T.inspect_binder binder in
-  T.pack (T.Tv_Var bv)
-
 let compute_gen_elim_nondep_correct_aux_1 (tl: list T.term) (lemma: T.term) (constructor: T.term) : T.Tac unit =
   T.apply (
     T.mk_app
@@ -648,31 +643,6 @@ let compute_gen_elim_nondep_correct_aux_1 (tl: list T.term) (lemma: T.term) (con
   T.apply (`Mktuple2);
   T.trefl ();
   T.trefl ()
-
-let rec list_tac_map
-  (#t1 #t2: Type)
-  (f: (t1 -> T.Tac t2))
-  (l: list t1)
-: T.Tac (list t2)
-= match l with
-  | [] -> []
-  | x1 :: l' -> f x1 :: list_tac_map f l'
-
-let rec list_of_term_list
-  (t: T.term)
-: T.Tac (list T.term)
-=
-  let (tf, tx) = T.collect_app t in
-  if tf `T.is_fvar` (`%Nil)
-  then []
-  else if tf `T.is_fvar` (`%Cons)
-  then
-    match tx with
-    | [(_, T.Q_Implicit); (hd, T.Q_Explicit); (tl, T.Q_Explicit)]
-    | [(hd, T.Q_Explicit); (tl, T.Q_Explicit)]
-    -> hd :: list_of_term_list tl
-    | _ -> T.fail "list_of_term_list: tx"
-  else T.fail "list_of_term_list: tf"
 
 let compute_gen_elim_nondep_correct_aux_2 (lemma: T.term) (constructor: T.term) : T.Tac unit =
   let (_, args) = T.collect_app (T.cur_goal ()) in

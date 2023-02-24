@@ -281,17 +281,66 @@ noeq
 type utuple2 (t1: Type u#u1) (t2: Type u#u2) : Type u#(max u1 u2 u0) =
   | UTuple2: t1 -> t2 -> utuple2 t1 t2
 
+let rec list_tac_map
+  (#t1 #t2: Type)
+  (f: (t1 -> T.Tac t2))
+  (l: list t1)
+: T.Tac (list t2)
+= match l with
+  | [] -> []
+  | x1 :: l' -> f x1 :: list_tac_map f l'
+
+let rec list_of_term_list
+  (t: T.term)
+: T.Tac (list T.term)
+=
+  let (tf, tx) = T.collect_app t in
+  if tf `T.is_fvar` (`%Nil)
+  then []
+  else if tf `T.is_fvar` (`%Cons)
+  then
+    match tx with
+    | [(_, T.Q_Implicit); (hd, T.Q_Explicit); (tl, T.Q_Explicit)]
+    | [(hd, T.Q_Explicit); (tl, T.Q_Explicit)]
+    -> hd :: list_of_term_list tl
+    | _ -> T.fail "list_of_term_list: tx"
+  else T.fail "list_of_term_list: tf"
+
+[@@gen_elim_reduce; noextract_to "Plugin"]
+let rec compute_gen_elim_nondep_a_tac
+  (f: T.term)
+  (ty: list T.term)
+: T.Tac unit
+= match ty with
+  | [] -> T.exact f; T.qed ()
+  | t :: ty' ->
+    T.destruct t;
+    T.iterAll (fun _ ->
+      let _ = T.intro () in
+      let t_eq = T.intro () in
+      let (t, _) = T.inspect_binder t_eq in
+      let t = T.inspect_bv t in
+      let t = match T.term_as_formula t.bv_sort with
+      | T.Comp (T.Eq _) _ t ->
+        let (_, tl) = T.collect_app t in
+        begin match tl with
+        | (t, _) :: _ -> t
+        | _ -> T.fail "compute_gen_elim_nondep_a_tac: collect_app"
+        end
+      | _ -> T.fail "compute_gen_elim_nondep_a_tac: term_as_formula"
+      in
+      let f' = T.mk_app f [t, T.Q_Explicit] in
+      compute_gen_elim_nondep_a_tac f' ty'
+    )
+
 [@@gen_elim_reduce; noextract_to "Plugin"]
 let compute_gen_elim_nondep_a' (ty: list (tagged_type)) : Tot Type =
     match ty with
     | [] -> U.raise_t unit
     | [T0 t1] -> U.raise_t t1
     | [T1 t1] -> t1
-    | [T0 t1; T0 t2] -> utuple2 t1 t2
-    | [T0 t1; T1 t2] -> utuple2 t1 t2
-    | [T1 t1; T0 t2] -> utuple2 t1 t2
-    | [T1 t1; T1 t2] -> utuple2 t1 t2
-(*    
+    | [t1; t2] -> _ by (compute_gen_elim_nondep_a_tac (`utuple2) [(quote t1); (quote t2)])
+(*
     | [t1; t2] -> tuple2 t1 t2
     | [t1; t2; t3] -> tuple3 t1 t2 t3
     | [t1; t2; t3; t4] -> tuple4 t1 t2 t3 t4
@@ -308,7 +357,6 @@ let compute_gen_elim_nondep_a' (ty: list (tagged_type)) : Tot Type =
 *)    
     | _ -> U.raise_t unit // unsupported
 
-
 [@@gen_elim_reduce; noextract_to "Plugin"]
 let compute_gen_elim_nondep_a (i0: gen_elim_i) (i: gen_elim_nondep_t) : Tot Type =
   match i with
@@ -316,15 +364,48 @@ let compute_gen_elim_nondep_a (i0: gen_elim_i) (i: gen_elim_nondep_t) : Tot Type
   | GEDep -> compute_gen_elim_a i0
 
 [@@gen_elim_reduce; noextract_to "Plugin"]
+let rec compute_uncurry_body_tac
+  (q: T.term)
+  (x: T.term)
+  (destrl: list T.term)
+: T.Tac unit
+= match destrl with
+  | [] -> T.exact q; T.qed ()
+  | d :: destrl' ->
+    let q' = T.mk_app q [T.mk_app d [x, T.Q_Explicit], T.Q_Explicit] in
+    compute_uncurry_body_tac q' x destrl'
+
+let intro_term () : T.Tac T.term =
+  let binder = T.intro () in
+  let (bv, _) = T.inspect_binder binder in
+  T.pack (T.Tv_Var bv)
+
+[@@gen_elim_reduce; noextract_to "Plugin"]
+let rec compute_uncurry_tac
+  (ty: list T.term)
+  (destrl: list T.term)
+: T.Tac unit
+= match ty with
+  | [] ->
+    let q = intro_term () in
+    let x = intro_term () in
+    compute_uncurry_body_tac q x destrl
+  | t :: ty' ->
+    T.destruct t;
+    T.iterAll (fun _ ->
+      let _ = T.intro () in
+      let t_eq = T.intro () in
+      T.rewrite t_eq;
+      compute_uncurry_tac ty' destrl
+    )
+
+[@@gen_elim_reduce; noextract_to "Plugin"]
 let compute_uncurry (ret_type: Type u#(max 1 a)) (def: ret_type) (ty: list (tagged_type)) : curried_function_type ty ret_type -> compute_gen_elim_nondep_a' ty -> ret_type =
     match ty as ty' returns (curried_function_type ty' ret_type -> compute_gen_elim_nondep_a' ty' -> ret_type) with
     | [] -> fun q _ -> q
     | [T0 _] -> fun q x -> q (U.downgrade_val x)
     | [T1 _] -> fun q -> q
-    | [T0 _; T0 _] -> fun q x -> q x._0 x._1
-    | [T0 _; T1 _] -> fun q x -> q x._0 x._1
-    | [T1 _; T0 _] -> fun q x -> q x._0 x._1
-    | [T1 _; T1 _] -> fun q x -> q x._0 x._1
+    | [t1; t2] -> (_ by (compute_uncurry_tac [(quote t1); (quote t2)] [(`UTuple2?._0); (`UTuple2?._1)]))
 (*
     | [t1; t2; t3] -> fun q x -> q x._1 x._2 x._3
     | [t1; t2; t3; t4] -> fun q x -> q x._1 x._2 x._3 x._4
@@ -630,7 +711,7 @@ let solve_gen_elim_nondep0 (enable_nondep_opt: bool) (t: T.term) : T.Tac (option
     try
       let tele = mk_app (`compute_gen_elim_tele) [t, Q_Explicit] in
       let t' = norm_term [delta_attr [(`%gen_elim_reduce)]; zeta; iota] tele in
-      solve_gen_elim_nondep' 15 [] t'  // fuel necessary because F* standard tuple types only go from 0 up to 14 elts
+      solve_gen_elim_nondep' 3 [] t'  // fuel necessary because F* standard tuple types only go from 0 up to 14 elts
     with _ -> None
   else None
 
