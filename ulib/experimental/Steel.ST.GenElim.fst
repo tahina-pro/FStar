@@ -194,7 +194,8 @@ let rec compute_gen_elim_f
 let rec tele_p (x: gen_elim_tele) : Tot vprop =
   match x with
   | TRet v p -> v `star` pure p
-  | TExists ty body -> exists_ (fun x -> tele_p (body x))
+  | TExists0 ty body -> exists_ (fun x -> tele_p (body x))
+  | TExists1 ty body -> exists_ (fun x -> tele_p (body x))
 
 let elim_exists' (#a:Type)
                 (#opened_invariants:_)
@@ -221,10 +222,21 @@ let tele_star_vprop_correct_ret
     intro_pure (p /\ p');
     rewrite ((v `star` v') `star` pure (p /\ p')) (tele_p _)
 
-let tele_star_vprop_correct_exists
+let tele_star_vprop_correct_exists0
   (v: vprop) (p: prop)
   (ty: _) (body: ty -> gen_elim_tele) (ih: (x: ty) -> GTot (vprop_rewrite (tele_p (body x) `star` v `star` pure p) (tele_p (tele_star_vprop (body x) v p))))
-: Tot (vprop_rewrite (tele_p (TExists ty body) `star` v `star` pure p) (tele_p (tele_star_vprop (TExists ty body) v p)))
+: Tot (vprop_rewrite (tele_p (TExists0 ty body) `star` v `star` pure p) (tele_p (tele_star_vprop (TExists0 ty body) v p)))
+= fun _ ->
+    rewrite_with_trefl (tele_p _) (exists_ (fun x -> tele_p (body x)));
+    let x = elim_exists' () in
+    ih x _;
+    intro_exists x (fun x -> tele_p (tele_star_vprop (body x) v p));
+    rewrite_with_trefl (exists_ (fun x -> tele_p (tele_star_vprop (body x) v p))) (tele_p _)
+
+let tele_star_vprop_correct_exists1
+  (v: vprop) (p: prop)
+  (ty: _) (body: ty -> gen_elim_tele) (ih: (x: ty) -> GTot (vprop_rewrite (tele_p (body x) `star` v `star` pure p) (tele_p (tele_star_vprop (body x) v p))))
+: Tot (vprop_rewrite (tele_p (TExists1 ty body) `star` v `star` pure p) (tele_p (tele_star_vprop (TExists1 ty body) v p)))
 = fun _ ->
     rewrite_with_trefl (tele_p _) (exists_ (fun x -> tele_p (body x)));
     let x = elim_exists' () in
@@ -242,7 +254,8 @@ let rec tele_star_vprop_correct
     (tele_p i `star` v `star` pure p)
     (tele_p (tele_star_vprop i v p)) with
   | TRet v' p' -> tele_star_vprop_correct_ret v' p' v p
-  | TExists ty body -> tele_star_vprop_correct_exists v p ty body (fun x -> tele_star_vprop_correct (body x) v p)
+  | TExists0 ty body -> tele_star_vprop_correct_exists0 v p ty body (fun x -> tele_star_vprop_correct (body x) v p)
+  | TExists1 ty body -> tele_star_vprop_correct_exists1 v p ty body (fun x -> tele_star_vprop_correct (body x) v p)
 
 let tele_star_correct_ret_l
   (v1: vprop) (p1: prop) (i2: gen_elim_tele)
@@ -260,29 +273,70 @@ let tele_star_correct_ret_r
   tele_star_vprop_correct i1 v2 p2 _;
   rewrite (tele_p _) (tele_p (i1 `tele_star` TRet v2 p2))
 
-let tele_star_correct_exists
-  (ty1: _) (f1: ty1 -> gen_elim_tele) (ty2: _) (f2: ty2 -> gen_elim_tele)
+let tele_star_correct_exists_gen
+  (ty1: Type u#u1) (f1: ty1 -> gen_elim_tele) (ty2: Type u#u2) (f2: ty2 -> gen_elim_tele)
   (ih: (x1: ty1) -> (x2: ty2) -> GTot (vprop_rewrite (tele_p (f1 x1) `star` tele_p (f2 x2)) (tele_p (f1 x1 `tele_star` f2 x2))))
-: Tot (vprop_rewrite (tele_p (TExists ty1 f1) `star` tele_p (TExists ty2 f2)) (tele_p (tele_star (TExists ty1 f1) (TExists ty2 f2))))
+  (tf1: gen_elim_tele)
+  (tf1_eq: squash (tele_p tf1 == exists_ (fun x -> tele_p (f1 x))))
+  (tf2: gen_elim_tele)
+  (tf2_eq: squash (tele_p tf2 == exists_ (fun x -> tele_p (f2 x))))
+  (ts: gen_elim_tele)
+  (ts_eq: squash (tele_p ts == exists_ (fun x1 -> exists_ (fun x2 -> tele_p (tele_star (f1 x1) (f2 x2))))))
+: Tot (vprop_rewrite (tele_p tf1 `star` tele_p tf2) (tele_p ts))
 = fun _ ->
-  rewrite_with_trefl (tele_p (TExists ty1 f1)) (exists_ (fun x1 -> tele_p (f1 x1)));
+  rewrite (tele_p tf1) (exists_ (fun x1 -> tele_p (f1 x1)));
   let x1 = elim_exists' () in
-  rewrite_with_trefl (tele_p (TExists ty2 f2)) (exists_ (fun x2 -> tele_p (f2 x2)));
+  rewrite (tele_p tf2) (exists_ (fun x2 -> tele_p (f2 x2)));
   let x2 = elim_exists' () in
   ih x1 x2 _;
   intro_exists x2 (fun x2 -> tele_p (tele_star (f1 x1) (f2 x2)));
   intro_exists x1 (fun x1 -> exists_ (fun x2 -> tele_p (tele_star (f1 x1) (f2 x2))));
-  rewrite_with_trefl (exists_ _) (tele_p _)
+  rewrite (exists_ _) (tele_p _)
+
+let tele_star_correct_exists_0_0
+  (ty1: _) (f1: ty1 -> gen_elim_tele) (ty2: _) (f2: ty2 -> gen_elim_tele)
+  (ih: (x1: ty1) -> (x2: ty2) -> GTot (vprop_rewrite (tele_p (f1 x1) `star` tele_p (f2 x2)) (tele_p (f1 x1 `tele_star` f2 x2))))
+: Tot (vprop_rewrite (tele_p (TExists0 ty1 f1) `star` tele_p (TExists0 ty2 f2)) (tele_p (tele_star (TExists0 ty1 f1) (TExists0 ty2 f2))))
+= tele_star_correct_exists_gen ty1 f1 ty2 f2 ih _ (_ by (T.trefl ())) _ (_ by (T.trefl ())) _ (_ by (T.trefl ()))
+
+let tele_star_correct_exists_0_1
+  (ty1: _) (f1: ty1 -> gen_elim_tele) (ty2: _) (f2: ty2 -> gen_elim_tele)
+  (ih: (x1: ty1) -> (x2: ty2) -> GTot (vprop_rewrite (tele_p (f1 x1) `star` tele_p (f2 x2)) (tele_p (f1 x1 `tele_star` f2 x2))))
+: Tot (vprop_rewrite (tele_p (TExists0 ty1 f1) `star` tele_p (TExists1 ty2 f2)) (tele_p (tele_star (TExists0 ty1 f1) (TExists1 ty2 f2))))
+= tele_star_correct_exists_gen ty1 f1 ty2 f2 ih _ (_ by (T.trefl ())) _ (_ by (T.trefl ())) _ (_ by (T.trefl ()))
+
+let tele_star_correct_exists_1_0
+  (ty1: _) (f1: ty1 -> gen_elim_tele) (ty2: _) (f2: ty2 -> gen_elim_tele)
+  (ih: (x1: ty1) -> (x2: ty2) -> GTot (vprop_rewrite (tele_p (f1 x1) `star` tele_p (f2 x2)) (tele_p (f1 x1 `tele_star` f2 x2))))
+: Tot (vprop_rewrite (tele_p (TExists1 ty1 f1) `star` tele_p (TExists0 ty2 f2)) (tele_p (tele_star (TExists1 ty1 f1) (TExists0 ty2 f2))))
+= tele_star_correct_exists_gen ty1 f1 ty2 f2 ih _ (_ by (T.trefl ())) _ (_ by (T.trefl ())) _ (_ by (T.trefl ()))
+
+let tele_star_correct_exists_1_1
+  (ty1: _) (f1: ty1 -> gen_elim_tele) (ty2: _) (f2: ty2 -> gen_elim_tele)
+  (ih: (x1: ty1) -> (x2: ty2) -> GTot (vprop_rewrite (tele_p (f1 x1) `star` tele_p (f2 x2)) (tele_p (f1 x1 `tele_star` f2 x2))))
+: Tot (vprop_rewrite (tele_p (TExists1 ty1 f1) `star` tele_p (TExists1 ty2 f2)) (tele_p (tele_star (TExists1 ty1 f1) (TExists1 ty2 f2))))
+= tele_star_correct_exists_gen ty1 f1 ty2 f2 ih _ (_ by (T.trefl ())) _ (_ by (T.trefl ())) _ (_ by (T.trefl ()))
 
 let rec tele_star_correct
   (i1 i2: gen_elim_tele)
 : GTot (vprop_rewrite (tele_p i1 `star` tele_p i2) (tele_p (i1 `tele_star` i2)))
-= match i1 returns vprop_rewrite (tele_p i1 `star` tele_p i2) (tele_p (i1 `tele_star` i2)) with
-  | TRet v1 p1 -> tele_star_correct_ret_l v1 p1 i2
-  | TExists ty1 f1 ->
-    begin match i2 returns vprop_rewrite (tele_p (TExists ty1 f1) `star` tele_p i2) (tele_p (TExists ty1 f1 `tele_star` i2)) with
-    | TRet v2 p2 -> tele_star_correct_ret_r (TExists ty1 f1) v2 p2
-    | TExists ty2 f2 -> tele_star_correct_exists ty1 f1 ty2 f2 (fun x1 x2 -> tele_star_correct (f1 x1) (f2 x2))
+= match i1, i2 with
+  | TRet v1 p1, _ ->
+    coerce_eq () (tele_star_correct_ret_l v1 p1 i2)
+  | _, TRet v2 p2 ->
+    coerce_eq () (tele_star_correct_ret_r i1 v2 p2)
+  | _ ->
+    begin match i1 with
+    | TExists0 ty1 f1 ->
+      begin match i2 with
+      | TExists0 ty2 f2 -> coerce_eq () (tele_star_correct_exists_0_0 ty1 f1 ty2 f2 (fun x1 x2 -> tele_star_correct (f1 x1) (f2 x2)))
+      | TExists1 ty2 f2 -> coerce_eq () (tele_star_correct_exists_0_1 ty1 f1 ty2 f2 (fun x1 x2 -> tele_star_correct (f1 x1) (f2 x2)))
+      end
+    | TExists1 ty1 f1 ->
+      begin match i2 with
+      | TExists0 ty2 f2 -> coerce_eq () (tele_star_correct_exists_1_0 ty1 f1 ty2 f2 (fun x1 x2 -> tele_star_correct (f1 x1) (f2 x2)))
+      | TExists1 ty2 f2 -> coerce_eq () (tele_star_correct_exists_1_1 ty1 f1 ty2 f2 (fun x1 x2 -> tele_star_correct (f1 x1) (f2 x2)))
+      end
     end
 
 [@@noextract_to "Plugin" ]
@@ -347,8 +401,7 @@ let compute_gen_elim_tele_correct_exists_no_abs0
   rewrite_with_trefl (compute_gen_elim_p _) (exists_ body);
   let x = elim_exists' () in
   intro_pure True;
-  rewrite (body x) (body (U.downgrade_val (U.raise_val x)));
-  intro_exists (U.raise_val u#0 u#1 x) (fun x -> body (U.downgrade_val x) `star` pure True);
+  intro_exists x (fun x -> body x `star` pure True);
   rewrite_with_trefl (exists_ _) (tele_p _)
 
 let compute_gen_elim_tele_correct_exists_unit0
@@ -359,9 +412,8 @@ let compute_gen_elim_tele_correct_exists_unit0
   rewrite_with_trefl (compute_gen_elim_p _) (exists_ (fun x -> compute_gen_unit_elim_p (body x)));
   let x = elim_exists' () in
   let _ = compute_gen_unit_elim_f (body x) _ in
-  intro_pure (compute_gen_unit_elim_post (body (U.downgrade_val (U.raise_val u#0 u#1 x))));
-  rewrite (compute_gen_unit_elim_q (body x)) (compute_gen_unit_elim_q (body (U.downgrade_val (U.raise_val x))));
-  intro_exists (U.raise_val u#0 u#1 x) (fun x -> compute_gen_unit_elim_q (body (U.downgrade_val x)) `star` pure (compute_gen_unit_elim_post (body (U.downgrade_val x))));
+  intro_pure (compute_gen_unit_elim_post (body x));
+  intro_exists x (fun x -> compute_gen_unit_elim_q (body (x)) `star` pure (compute_gen_unit_elim_post (body (x))));
   rewrite_with_trefl (exists_ _) (tele_p _)
 
 let compute_gen_elim_tele_correct_exists0
@@ -373,8 +425,7 @@ let compute_gen_elim_tele_correct_exists0
   rewrite_with_trefl (compute_gen_elim_p _) (exists_ (fun x -> compute_gen_elim_p (body x)));
   let x = elim_exists' () in
   ih x _;
-  rewrite (tele_p (compute_gen_elim_tele (body x))) (tele_p (compute_gen_elim_tele (body (U.downgrade_val (U.raise_val u#0 u#1 x)))));
-  intro_exists (U.raise_val u#0 u#1 x) (fun x -> tele_p (compute_gen_elim_tele (body (U.downgrade_val u#0 u#1 x))));
+  intro_exists (x) (fun x -> tele_p (compute_gen_elim_tele (body (x))));
   rewrite_with_trefl (exists_ _) (tele_p _)
 
 let compute_gen_elim_tele_correct_exists_no_abs1
@@ -427,13 +478,33 @@ let rec compute_gen_elim_tele_correct
   | GEExistsUnit1 #ty body -> compute_gen_elim_tele_correct_exists_unit1 ty body
   | GEExists1 #ty body -> compute_gen_elim_tele_correct_exists1 ty body (fun x -> compute_gen_elim_tele_correct (body x))
 
-let rec gen_elim_nondep_p (ty: list (Type u#a)) : Tot (curried_function_type ty (U.raise_t u#_ u#(max 2 a) unit -> vprop) -> curried_function_type ty (U.raise_t u#_ u#(max 2 a) unit -> prop) -> Tot vprop) =
-  match ty as ty' returns curried_function_type ty' (U.raise_t u#_ u#(max 2 a) unit -> vprop) -> curried_function_type ty' (U.raise_t u#_ u#(max 2 a) unit -> prop) -> Tot vprop with
-  | [] -> fun q post -> q (U.raise_val ()) `star` pure (post (U.raise_val ()))
-  | t :: tq -> fun q post -> exists_ (fun x -> gen_elim_nondep_p tq (q x) (post x))
+let rec gen_elim_nondep_p (ty: list (tagged_type)) : Tot (curried_function_type u#2 ty (vprop) -> curried_function_type ty (prop) -> Tot vprop) =
+  match ty as ty' returns curried_function_type u#2 ty' (vprop) -> curried_function_type ty' (prop) -> Tot vprop with
+  | [] -> fun q post -> q `star` pure post
+  | T0 t :: tq -> fun q post -> exists_ (fun x -> gen_elim_nondep_p tq (q x) (post x))
+  | T1 t :: tq -> fun q post -> exists_ (fun x -> gen_elim_nondep_p tq (q x) (post x))
+
+let gen_elim_nondep_sem_correct_cons
+  (tq: list tagged_type)
+  (#ta: Type u#a)
+  (q: (ta -> curried_function_type u#2 tq vprop))
+  (post: (ta -> curried_function_type tq prop))
+  (phi: (
+    (x: ta) ->
+    Lemma
+    (tele_p (gen_elim_nondep_sem tq (q x) (post x)) `equiv` gen_elim_nondep_p tq (q x) (post x))
+  ))
+  (a: vprop)
+  (a_eq: squash (a == exists_ (fun x -> tele_p (gen_elim_nondep_sem tq (q x) (post x)))))
+  (b: vprop)
+  (b_eq: squash (b == exists_ (fun x -> gen_elim_nondep_p tq (q x) (post x))))
+: Lemma
+  (a `equiv` b)
+= Classical.forall_intro phi;
+  exists_equiv (fun x -> tele_p (gen_elim_nondep_sem tq (q x) (post x))) (fun x -> gen_elim_nondep_p tq (q x) (post x))
 
 let rec gen_elim_nondep_sem_correct
-  (ty: list (Type u#a))
+  (ty: list (tagged_type))
 : Tot ((q: curried_function_type ty _) -> (post: curried_function_type ty _) -> Lemma
     (tele_p (gen_elim_nondep_sem ty q post) `equiv` gen_elim_nondep_p ty q post)
   )
@@ -441,27 +512,27 @@ let rec gen_elim_nondep_sem_correct
     (tele_p (gen_elim_nondep_sem ty q post) `equiv` gen_elim_nondep_p ty q post)
   )
   with
-  | [] -> fun q post -> equiv_refl (q (U.raise_val ()) `star` pure (post (U.raise_val ())))
-  | ta :: tq -> fun q post ->
-    let phi
-      (x: ta)
-    : Lemma
-      (tele_p (gen_elim_nondep_sem tq (q x) (post x)) `equiv` gen_elim_nondep_p tq (q x) (post x))
-    = gen_elim_nondep_sem_correct tq (q x) (post x)
-    in
-    Classical.forall_intro phi;
-    let prf () : Lemma
-      (exists_ (fun x -> tele_p (gen_elim_nondep_sem tq (q x) (post x))) `equiv` exists_ (fun x -> gen_elim_nondep_p tq (q x) (post x)))
-    =
-      exists_equiv (fun x -> tele_p (gen_elim_nondep_sem tq (q x) (post x))) (fun x -> gen_elim_nondep_p tq (q x) (post x))
-    in
-    assert_norm (tele_p (gen_elim_nondep_sem (ta :: tq) q post) == exists_ (fun x -> tele_p (gen_elim_nondep_sem tq (q x) (post x))));
-    assert_norm (gen_elim_nondep_p (ta :: tq) q post == exists_ (fun x -> gen_elim_nondep_p tq (q x) (post x)));
-    prf ()
+  | [] -> fun q post -> equiv_refl (q `star` pure (post ))
+  | (T0 ta) :: tq ->
+    begin fun q post ->
+      gen_elim_nondep_sem_correct_cons
+        tq q post
+        (fun x -> gen_elim_nondep_sem_correct tq (q x) (post x))
+        (tele_p (gen_elim_nondep_sem (T0 ta :: tq) q post)) (_ by (T.trefl ()))
+        (gen_elim_nondep_p (T0 ta :: tq) q post) (_ by (T.trefl ()))
+    end
+  | (T1 ta) :: tq ->
+    begin fun q post ->
+      gen_elim_nondep_sem_correct_cons
+        tq q post
+        (fun x -> gen_elim_nondep_sem_correct tq (q x) (post x))
+        (tele_p (gen_elim_nondep_sem (T1 ta :: tq) q post)) (_ by (T.trefl ()))
+        (gen_elim_nondep_p (T1 ta :: tq) q post) (_ by (T.trefl ()))
+    end
 
 let compute_gen_elim_nondep_correct_t
   (i0: gen_elim_i)
-  (ty: list (Type u#1))
+  (ty: list (tagged_type))
 : Tot Type
 = (q: _) ->
   (post: _) ->
@@ -469,8 +540,8 @@ let compute_gen_elim_nondep_correct_t
   GTot (gen_elim_f
     (compute_gen_elim_p i0)
     (compute_gen_elim_nondep_a' ty)
-    (fun x -> compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) ty q x (U.raise_val ()))
-    (fun x -> compute_uncurry _ (fun _ -> True) ty post x (U.raise_val ()))
+    (compute_uncurry _ (compute_gen_elim_p' i0) ty q)
+    (compute_uncurry _ (True) ty post)
   )
 
 let compute_gen_elim_nondep_correct0
@@ -478,315 +549,194 @@ let compute_gen_elim_nondep_correct0
 : Tot (compute_gen_elim_nondep_correct_t i0 [])
 = fun q post intro _ ->
     intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (q (U.raise_val ()) `star` pure (post (U.raise_val ())));
+    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (q `star` pure (post));
     let res = U.raise_val () in
     elim_pure _;
-    rewrite_with_trefl (q (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
+    rewrite_with_trefl (q) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res);
     res
 
-let compute_gen_elim_nondep_correct1
+let compute_gen_elim_nondep_correct1_0
   (i0: gen_elim_i)
   (t1: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1])
+: Tot (compute_gen_elim_nondep_correct_t i0 [T0 t1])
 = fun q post intro _ ->
     intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> q x1 (U.raise_val ()) `star` pure (post x1 (U.raise_val ()))));
-    let res = elim_exists' () in
-    elim_pure _;
-    rewrite_with_trefl (q _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
+    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> q x1 `star` pure (post x1)));
+    let x1 = elim_exists' () in
+    let res = U.raise_val u#_ u#1 x1 in
+    rewrite (q _) (compute_uncurry vprop (compute_gen_elim_p' i0) [T0 t1] q res);
+    elim_pure (post x1);
     res
+
+let compute_gen_elim_nondep_correct1_1
+  (i0: gen_elim_i)
+  (t1: Type)
+: Tot (compute_gen_elim_nondep_correct_t i0 [T1 t1])
+= fun q post intro _ ->
+    intro _;
+    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> q x1 `star` pure (post x1)));
+    let x1 = elim_exists' () in
+    rewrite (q _) (compute_uncurry vprop (compute_gen_elim_p' i0) [T1 t1] q x1);
+    elim_pure (post x1);
+    x1
+
+let rewrite_with_squash (#opened:inames)
+            (p q: vprop)
+            (sq: squash (p == q))
+  : STGhostT unit opened p (fun _ -> q)
+= rewrite p q
+
+let compute_gen_elim_nondep_correct2_gen
+  (t1: Type u#u1)
+  (t2: Type u#u2)
+  (i0: gen_elim_i)
+  (l: list tagged_type)
+  (prf: (mktuple: (t1 -> t2 -> compute_gen_elim_nondep_a' l) & (
+    (q: curried_function_type u#2 l vprop) ->
+    (post: curried_function_type l prop) ->
+    (q': (t1 -> t2 -> vprop) & (
+      (post': (t1 -> t2 -> prop) & (
+        squash (gen_elim_nondep_p l q post == exists_ (fun x1 -> exists_ (fun x2 -> q' x1 x2 `star` pure (post' x1 x2)))) &
+        ((x1: t1) -> (x2: t2) -> (
+          squash (q' x1 x2 == compute_uncurry vprop (compute_gen_elim_p' i0) l q (mktuple x1 x2)) &
+          squash (post' x1 x2 == compute_uncurry prop True l post (mktuple x1 x2))
+        ))
+      ))
+    ))
+  )))
+: Tot (compute_gen_elim_nondep_correct_t i0 l)
+= fun q post intro _ ->
+    intro _;
+    let (| mktuple, rewrites |) = prf in
+    let (| q', (| post', (sq1, f) |) |) = rewrites q post in
+    rewrite_with_squash (gen_elim_nondep_p l q post) (exists_ (fun x1 -> exists_ (fun x2 -> q' x1 x2 `star` pure (post' x1 x2)))) sq1;
+    let x1 = elim_exists' () in
+    let x2 = elim_exists' () in
+    let res = mktuple x1 x2 in
+    let (sq2, _) = f x1 x2 in
+    elim_pure _;
+    rewrite_with_squash (q' _ _) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res) sq2;
+    res
+
+let assert_prop
+  (p: prop)
+: Pure (squash p)
+    (requires (normalize p))
+    (ensures (fun _ -> True))
+= ()
+
+let intro_term () : T.Tac T.term =
+  let binder = T.intro () in
+  let (bv, _) = T.inspect_binder binder in
+  T.pack (T.Tv_Var bv)
+
+let compute_gen_elim_nondep_correct_aux_1 (tl: list T.term) (lemma: T.term) (constructor: T.term) : T.Tac unit =
+  T.apply (
+    T.mk_app
+      lemma
+      (T.map (fun t -> (t, T.Q_Explicit)) tl)
+  );
+  T.norm [delta_attr [(`%gen_elim_reduce)]; iota; zeta];
+  T.apply (T.mk_app (`Mkdtuple2) [constructor, T.Q_Explicit]);
+  let q = intro_term () in
+  let post = intro_term () in
+  T.apply (T.mk_app (`Mkdtuple2) [q, T.Q_Explicit]);
+  T.apply (T.mk_app (`Mkdtuple2) [post, T.Q_Explicit]);
+  T.apply (`Mktuple2);
+  T.trefl ();
+  let _ = T.intros () in
+  T.apply (`Mktuple2);
+  T.trefl ();
+  T.trefl ()
+
+let rec list_tac_map
+  (#t1 #t2: Type)
+  (f: (t1 -> T.Tac t2))
+  (l: list t1)
+: T.Tac (list t2)
+= match l with
+  | [] -> []
+  | x1 :: l' -> f x1 :: list_tac_map f l'
+
+let rec list_of_term_list
+  (t: T.term)
+: T.Tac (list T.term)
+=
+  let (tf, tx) = T.collect_app t in
+  if tf `T.is_fvar` (`%Nil)
+  then []
+  else if tf `T.is_fvar` (`%Cons)
+  then
+    match tx with
+    | [(_, T.Q_Implicit); (hd, T.Q_Explicit); (tl, T.Q_Explicit)]
+    | [(hd, T.Q_Explicit); (tl, T.Q_Explicit)]
+    -> hd :: list_of_term_list tl
+    | _ -> T.fail "list_of_term_list: tx"
+  else T.fail "list_of_term_list: tf"
+
+let compute_gen_elim_nondep_correct_aux_2 (lemma: T.term) (constructor: T.term) : T.Tac unit =
+  let (_, args) = T.collect_app (T.cur_goal ()) in
+  match args with
+  | _ :: (args, _) :: _ ->
+    let args = list_of_term_list args in
+    let tl = list_tac_map
+      (fun t ->
+        let (_, t) = T.collect_app t in
+        match t with
+        | [] -> T.fail "compute_gen_elim_nondep_correct_aux_2: tl"
+        | (t, _) :: _ -> t
+      )
+      args
+    in
+    compute_gen_elim_nondep_correct_aux_1 tl lemma constructor
+  | _ -> T.fail "compute_gen_elim_nondep_correct_aux_2: args"
+
+let rec compute_gen_elim_nondep_correct_aux_3 (lemma: T.term) (constructor: T.term) (tl: list T.term) : T.Tac unit =
+  match tl with
+  | [] -> compute_gen_elim_nondep_correct_aux_2 lemma constructor; T.qed ()
+  | a :: q ->
+    T.destruct a;
+    T.iterAll (fun _ ->
+      let _ = T.intro () in
+      let eq = T.intro () in
+      T.rewrite eq;
+      compute_gen_elim_nondep_correct_aux_3 lemma constructor q
+    )
+
+let compute_gen_elim_nondep_correct_tac (lemma: T.term) (constructor: T.term) : T.Tac unit =
+  let (_, args) = T.collect_app (T.cur_goal ()) in
+  match args with
+  | _ :: (args, _) :: _ ->
+    let args = list_of_term_list args in
+    compute_gen_elim_nondep_correct_aux_3 lemma constructor args
+  | _ -> T.fail "compute_gen_elim_nondep_correct_aux_2: args"
 
 let compute_gen_elim_nondep_correct2
   (i0: gen_elim_i)
-  (t1 t2: Type)
+  (t1: _) (t2: _)
 : Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> q x1 x2 (U.raise_val ()) `star` pure (post x1 x2 (U.raise_val ())))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let res = Mktuple2 x1 x2 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct3
-  (i0: gen_elim_i)
-  (t1 t2 t3: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> q x1 x2 x3 (U.raise_val ()) `star` pure (post x1 x2 x3 (U.raise_val ()))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let res = Mktuple3 x1 x2 x3 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct4
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> q x1 x2 x3 x4 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 (U.raise_val ())))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let res = Mktuple4 x1 x2 x3 x4 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct5
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> q x1 x2 x3 x4 x5 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 (U.raise_val ()))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let res = Mktuple5 x1 x2 x3 x4 x5 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct6
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> q x1 x2 x3 x4 x5 x6 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 (U.raise_val ())))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let res = Mktuple6 x1 x2 x3 x4 x5 x6 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct7
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> q x1 x2 x3 x4 x5 x6 x7 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 (U.raise_val ()))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let res = Mktuple7 x1 x2 x3 x4 x5 x6 x7 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct8
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7; t8])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> exists_ (fun x8 -> q x1 x2 x3 x4 x5 x6 x7 x8 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 x8 (U.raise_val ())))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let x8 = elim_exists' () in
-    let res = Mktuple8 x1 x2 x3 x4 x5 x6 x7 x8 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct9
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8 t9: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7; t8; t9])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> exists_ (fun x8 -> exists_ (fun x9 -> q x1 x2 x3 x4 x5 x6 x7 x8 x9 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 x8 x9 (U.raise_val ()))))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let x8 = elim_exists' () in
-    let x9 = elim_exists' () in
-    let res = Mktuple9 x1 x2 x3 x4 x5 x6 x7 x8 x9 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct10
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8 t9 t10: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> exists_ (fun x8 -> exists_ (fun x9 -> exists_ (fun x10 -> q x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 (U.raise_val ())))))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let x8 = elim_exists' () in
-    let x9 = elim_exists' () in
-    let x10 = elim_exists' () in
-    let res = Mktuple10 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct11
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> exists_ (fun x8 -> exists_ (fun x9 -> exists_ (fun x10 -> exists_ (fun x11 -> q x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 (U.raise_val ()))))))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let x8 = elim_exists' () in
-    let x9 = elim_exists' () in
-    let x10 = elim_exists' () in
-    let x11 = elim_exists' () in
-    let res = Mktuple11 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct12
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> exists_ (fun x8 -> exists_ (fun x9 -> exists_ (fun x10 -> exists_ (fun x11 -> exists_ (fun x12 -> q x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 (U.raise_val ())))))))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let x8 = elim_exists' () in
-    let x9 = elim_exists' () in
-    let x10 = elim_exists' () in
-    let x11 = elim_exists' () in
-    let x12 = elim_exists' () in
-    let res = Mktuple12 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct13
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> exists_ (fun x8 -> exists_ (fun x9 -> exists_ (fun x10 -> exists_ (fun x11 -> exists_ (fun x12 -> exists_ (fun x13 -> q x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 (U.raise_val ()))))))))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let x8 = elim_exists' () in
-    let x9 = elim_exists' () in
-    let x10 = elim_exists' () in
-    let x11 = elim_exists' () in
-    let x12 = elim_exists' () in
-    let x13 = elim_exists' () in
-    let res = Mktuple13 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
-
-let compute_gen_elim_nondep_correct14
-  (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13; t14])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> exists_ (fun x5 -> exists_ (fun x6 -> exists_ (fun x7 -> exists_ (fun x8 -> exists_ (fun x9 -> exists_ (fun x10 -> exists_ (fun x11 -> exists_ (fun x12 -> exists_ (fun x13 -> exists_ (fun x14 -> q x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 (U.raise_val ()) `star` pure (post x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 (U.raise_val ())))))))))))))))));
-    let x1 = elim_exists' () in
-    let x2 = elim_exists' () in
-    let x3 = elim_exists' () in
-    let x4 = elim_exists' () in
-    let x5 = elim_exists' () in
-    let x6 = elim_exists' () in
-    let x7 = elim_exists' () in
-    let x8 = elim_exists' () in
-    let x9 = elim_exists' () in
-    let x10 = elim_exists' () in
-    let x11 = elim_exists' () in
-    let x12 = elim_exists' () in
-    let x13 = elim_exists' () in
-    let x14 = elim_exists' () in
-    let res = Mktuple14 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14 in
-    elim_pure _;
-    rewrite_with_trefl (q _ _ _ _ _ _ _ _ _ _ _ _ _ _ (U.raise_val ())) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
-    res
+= (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct2_gen) (`UTuple2)))
 
 let compute_gen_elim_nondep_correct_default
   (i0: gen_elim_i)
-  (t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15: Type) (tq: list Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 (t1 :: t2 :: t3 :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 :: tq))
+  (t1 t2 t3 (* t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) : _) (tq: list _)
+: Tot (compute_gen_elim_nondep_correct_t i0 (t1 :: t2 :: t3 (* :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq))
 = fun q post intro _ ->
     // default case: no exists is opened
-    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 :: tq) = (U.raise_val ()) in
-    rewrite_with_trefl (compute_gen_elim_p i0) (compute_uncurry _ (fun _ -> compute_gen_elim_p' i0) _ _ res (U.raise_val ()));
+    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 (* :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq) = (U.raise_val ()) in
+    rewrite (compute_gen_elim_p i0) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res);
     res
 
 let compute_gen_elim_nondep_correct'
   (i0: gen_elim_i)
-  (ty: list Type)
+  (ty: list tagged_type)
 : Tot (compute_gen_elim_nondep_correct_t i0 ty)
 = match ty returns compute_gen_elim_nondep_correct_t i0 ty with
   | [] -> compute_gen_elim_nondep_correct0 i0
-  | [t1] -> compute_gen_elim_nondep_correct1 i0 t1
+  | [T0 t1] -> compute_gen_elim_nondep_correct1_0 i0 t1
+  | [T1 t1] -> compute_gen_elim_nondep_correct1_1 i0 t1
   | [t1; t2] -> compute_gen_elim_nondep_correct2 i0 t1 t2
-  | [t1; t2; t3] -> compute_gen_elim_nondep_correct3 i0 t1 t2 t3
-  | [t1; t2; t3; t4] -> compute_gen_elim_nondep_correct4 i0 t1 t2 t3 t4
-  | [t1; t2; t3; t4; t5] -> compute_gen_elim_nondep_correct5 i0 t1 t2 t3 t4 t5
-  | [t1; t2; t3; t4; t5; t6] -> compute_gen_elim_nondep_correct6 i0 t1 t2 t3 t4 t5 t6
-  | [t1; t2; t3; t4; t5; t6; t7] -> compute_gen_elim_nondep_correct7 i0 t1 t2 t3 t4 t5 t6 t7
-  | [t1; t2; t3; t4; t5; t6; t7; t8] -> compute_gen_elim_nondep_correct8 i0 t1 t2 t3 t4 t5 t6 t7 t8
-  | [t1; t2; t3; t4; t5; t6; t7; t8; t9] -> compute_gen_elim_nondep_correct9 i0 t1 t2 t3 t4 t5 t6 t7 t8 t9
-  | [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10] -> compute_gen_elim_nondep_correct10 i0 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10
-  | [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11] -> compute_gen_elim_nondep_correct11 i0 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11
-  | [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12] -> compute_gen_elim_nondep_correct12 i0 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12
-  | [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13] -> compute_gen_elim_nondep_correct13 i0 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13
-  | [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13; t14] -> compute_gen_elim_nondep_correct14 i0 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 
-  | t1 :: t2 :: t3 :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 :: tq -> compute_gen_elim_nondep_correct_default i0 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 tq  
+  | t1 :: t2 :: t3 (* :: t4 :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq -> compute_gen_elim_nondep_correct_default i0 t1 t2 t3 (* t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) tq  
 
 let compute_gen_elim_nondep_correct_0
   (i0: gen_elim_i)
