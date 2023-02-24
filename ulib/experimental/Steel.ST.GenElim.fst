@@ -715,13 +715,49 @@ let compute_gen_elim_nondep_correct3_gen
     rewrite_with_squash (q' _ _ _) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res) sq2;
     res
 
+let compute_gen_elim_nondep_correct4_gen
+  (t1: Type u#u1)
+  (t2: Type u#u2)
+  (t3: Type u#u3)
+  (t4: Type u#u4)
+  (i0: gen_elim_i)
+  (l: list tagged_type)
+  (prf: (mktuple: (t1 -> t2 -> t3 -> t4 -> compute_gen_elim_nondep_a' l) & (
+    (q: curried_function_type u#2 l vprop) ->
+    (post: curried_function_type l prop) ->
+    (q': (t1 -> t2 -> t3 -> t4 -> vprop) & (
+      (post': (t1 -> t2 -> t3 -> t4 -> prop) & (
+        squash (gen_elim_nondep_p l q post == exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> q' x1 x2 x3 x4 `star` pure (post' x1 x2 x3 x4)))))) &
+        ((x1: t1) -> (x2: t2) -> (x3: t3) -> (x4: t4) -> (
+          squash (q' x1 x2 x3 x4 == compute_uncurry vprop (compute_gen_elim_p' i0) l q (mktuple x1 x2 x3 x4)) &
+          squash (post' x1 x2 x3 x4 == compute_uncurry prop True l post (mktuple x1 x2 x3 x4))
+        ))
+      ))
+    ))
+  )))
+: Tot (compute_gen_elim_nondep_correct_t i0 l)
+= fun q post intro _ ->
+    intro _;
+    let (| mktuple, rewrites |) = prf in
+    let (| q', (| post', (sq1, f) |) |) = rewrites q post in
+    rewrite_with_squash (gen_elim_nondep_p l q post) (exists_ (fun x1 -> exists_ (fun x2 -> exists_ (fun x3 -> exists_ (fun x4 -> q' x1 x2 x3 x4 `star` pure (post' x1 x2 x3 x4)))))) sq1;
+    let x1 = elim_exists' () in
+    let x2 = elim_exists' () in
+    let x3 = elim_exists' () in
+    let x4 = elim_exists' () in
+    let res = mktuple x1 x2 x3 x4 in
+    let (sq2, _) = f x1 x2 x3 x4 in
+    elim_pure _;
+    rewrite_with_squash (q' _ _ _ _) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res) sq2;
+    res
+
 let compute_gen_elim_nondep_correct_default
   (i0: gen_elim_i)
-  (t1 t2 t3 t4 (* t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) : _) (tq: list _)
-: Tot (compute_gen_elim_nondep_correct_t i0 (t1 :: t2 :: t3 :: t4 (* :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq))
+  (t1 t2 t3 t4 t5 (* t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) : _) (tq: list _)
+: Tot (compute_gen_elim_nondep_correct_t i0 (t1 :: t2 :: t3 :: t4 :: t5 (* :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq))
 = fun q post intro _ ->
     // default case: no exists is opened
-    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 :: t4 (* :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq) = (U.raise_val ()) in
+    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 :: t4 :: t5 (* :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq) = (U.raise_val ()) in
     rewrite (compute_gen_elim_p i0) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res);
     res
 
@@ -735,7 +771,8 @@ let compute_gen_elim_nondep_correct'
   | [T1 t1] -> compute_gen_elim_nondep_correct1_1 i0 t1
   | [_; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct2_gen) (`UTuple2)))
   | [_; _; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct3_gen) (`UTuple3)))
-  | t1 :: t2 :: t3 :: t4 (* :: t5 :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq -> compute_gen_elim_nondep_correct_default i0 t1 t2 t3 t4 (* t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) tq
+  | [_; _; _; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct4_gen) (`UTuple4)))
+  | t1 :: t2 :: t3 :: t4 :: t5 (* :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq -> compute_gen_elim_nondep_correct_default i0 t1 t2 t3 t4 t5 (* t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 *) tq
 
 let compute_gen_elim_nondep_correct_0
   (i0: gen_elim_i)
