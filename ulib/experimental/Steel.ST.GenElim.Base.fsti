@@ -276,17 +276,17 @@ let check_gen_elim_nondep_sem (i: gen_elim_i) (nd: gen_elim_nondep_t) : Tot prop
 
 #set-options "--print_universes --print_full_names --print_bound_var_types"
 
-[@@gen_elim_reduce; noextract_to "Plugin"]
+[@@noextract_to "Plugin"]
 noeq
 type utuple2 (t1: Type u#u1) (t2: Type u#u2) : Type u#(max u1 u2 u0) =
   | UTuple2: t1 -> t2 -> utuple2 t1 t2
 
-[@@gen_elim_reduce; noextract_to "Plugin"]
+[@@noextract_to "Plugin"]
 noeq
 type utuple3 (t1: Type u#u1) (t2: Type u#u2) (t3: Type u#u3) : Type u#(max u1 u2 u3 u0) =
   | UTuple3: t1 -> t2 -> t3 -> utuple3 t1 t2 t3
 
-[@@gen_elim_reduce; noextract_to "Plugin"]
+[@@noextract_to "Plugin"]
 noeq
 type utuple4 (t1: Type u#u1) (t2: Type u#u2) (t3: Type u#u3) (t4: Type u#u4) : Type u#(max u1 u2 u3 u4 u0) =
   | UTuple4: t1 -> t2 -> t3 -> t4 -> utuple4 t1 t2 t3 t4
