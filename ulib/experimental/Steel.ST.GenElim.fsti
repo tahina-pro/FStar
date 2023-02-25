@@ -1,5 +1,6 @@
 module Steel.ST.GenElim
-include Steel.ST.GenElim.Base
+include Steel.ST.Util
+open Steel.ST.GenElim.Base
 
 module T = FStar.Tactics
 
