@@ -23,11 +23,11 @@ let rec list_tac_map :
                  (Obj.repr
                     (FStar_Tactics_Effect.tac_bind
                        (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                          (Prims.of_int (301)) (Prims.of_int (16))
-                          (Prims.of_int (301)) (Prims.of_int (20)))
+                          (Prims.of_int (308)) (Prims.of_int (16))
+                          (Prims.of_int (308)) (Prims.of_int (20)))
                        (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                          (Prims.of_int (301)) (Prims.of_int (21))
-                          (Prims.of_int (301)) (Prims.of_int (23)))
+                          (Prims.of_int (308)) (Prims.of_int (21))
+                          (Prims.of_int (308)) (Prims.of_int (23)))
                        (Obj.magic (f x1))
                        (fun uu___ ->
                           (fun uu___ ->
@@ -35,12 +35,12 @@ let rec list_tac_map :
                                (FStar_Tactics_Effect.tac_bind
                                   (Prims.mk_range
                                      "Steel.ST.GenElim.Base.fsti"
-                                     (Prims.of_int (301)) (Prims.of_int (24))
-                                     (Prims.of_int (301)) (Prims.of_int (41)))
+                                     (Prims.of_int (308)) (Prims.of_int (24))
+                                     (Prims.of_int (308)) (Prims.of_int (41)))
                                   (Prims.mk_range
                                      "Steel.ST.GenElim.Base.fsti"
-                                     (Prims.of_int (301)) (Prims.of_int (21))
-                                     (Prims.of_int (301)) (Prims.of_int (23)))
+                                     (Prims.of_int (308)) (Prims.of_int (21))
+                                     (Prims.of_int (308)) (Prims.of_int (23)))
                                   (Obj.magic (list_tac_map f l'))
                                   (fun uu___1 ->
                                      FStar_Tactics_Effect.lift_div_tac
@@ -53,10 +53,10 @@ let rec (list_of_term_list :
   =
   fun t ->
     FStar_Tactics_Effect.tac_bind
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (307))
-         (Prims.of_int (17)) (Prims.of_int (307)) (Prims.of_int (32)))
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (307))
-         (Prims.of_int (2)) (Prims.of_int (317)) (Prims.of_int (37)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (314))
+         (Prims.of_int (17)) (Prims.of_int (314)) (Prims.of_int (32)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (314))
+         (Prims.of_int (2)) (Prims.of_int (324)) (Prims.of_int (37)))
       (FStar_Tactics_Effect.lift_div_tac
          (fun uu___ -> FStar_Reflection_Derived.collect_app t))
       (fun uu___ ->
@@ -79,11 +79,11 @@ let rec (list_of_term_list :
                               (tl, FStar_Reflection_Data.Q_Explicit)::[] ->
                               FStar_Tactics_Effect.tac_bind
                                 (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                   (Prims.of_int (315)) (Prims.of_int (13))
-                                   (Prims.of_int (315)) (Prims.of_int (33)))
+                                   (Prims.of_int (322)) (Prims.of_int (13))
+                                   (Prims.of_int (322)) (Prims.of_int (33)))
                                 (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                   (Prims.of_int (315)) (Prims.of_int (10))
-                                   (Prims.of_int (315)) (Prims.of_int (12)))
+                                   (Prims.of_int (322)) (Prims.of_int (10))
+                                   (Prims.of_int (322)) (Prims.of_int (12)))
                                 (Obj.magic (list_of_term_list tl))
                                 (fun uu___3 ->
                                    FStar_Tactics_Effect.lift_div_tac
@@ -93,11 +93,11 @@ let rec (list_of_term_list :
                               ->
                               FStar_Tactics_Effect.tac_bind
                                 (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                   (Prims.of_int (315)) (Prims.of_int (13))
-                                   (Prims.of_int (315)) (Prims.of_int (33)))
+                                   (Prims.of_int (322)) (Prims.of_int (13))
+                                   (Prims.of_int (322)) (Prims.of_int (33)))
                                 (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                   (Prims.of_int (315)) (Prims.of_int (10))
-                                   (Prims.of_int (315)) (Prims.of_int (12)))
+                                   (Prims.of_int (322)) (Prims.of_int (10))
+                                   (Prims.of_int (322)) (Prims.of_int (12)))
                                 (Obj.magic (list_of_term_list tl))
                                 (fun uu___2 ->
                                    FStar_Tactics_Effect.lift_div_tac
@@ -113,21 +113,21 @@ let (intro_term :
   =
   fun uu___ ->
     FStar_Tactics_Effect.tac_bind
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (391))
-         (Prims.of_int (15)) (Prims.of_int (391)) (Prims.of_int (25)))
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (392))
-         (Prims.of_int (2)) (Prims.of_int (393)) (Prims.of_int (22)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (397))
+         (Prims.of_int (15)) (Prims.of_int (397)) (Prims.of_int (25)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (398))
+         (Prims.of_int (2)) (Prims.of_int (399)) (Prims.of_int (22)))
       (Obj.magic (FStar_Tactics_Builtins.intro ()))
       (fun uu___1 ->
          (fun binder ->
             Obj.magic
               (FStar_Tactics_Effect.tac_bind
                  (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                    (Prims.of_int (392)) (Prims.of_int (16))
-                    (Prims.of_int (392)) (Prims.of_int (39)))
+                    (Prims.of_int (398)) (Prims.of_int (16))
+                    (Prims.of_int (398)) (Prims.of_int (39)))
                  (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                    (Prims.of_int (392)) (Prims.of_int (2))
-                    (Prims.of_int (393)) (Prims.of_int (22)))
+                    (Prims.of_int (398)) (Prims.of_int (2))
+                    (Prims.of_int (399)) (Prims.of_int (22)))
                  (FStar_Tactics_Effect.lift_div_tac
                     (fun uu___1 ->
                        FStar_Reflection_Builtins.inspect_binder binder))
@@ -169,10 +169,10 @@ let rec (term_has_head :
   fun t ->
     fun head ->
       FStar_Tactics_Effect.tac_bind
-        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (470))
-           (Prims.of_int (17)) (Prims.of_int (470)) (Prims.of_int (32)))
-        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (470))
-           (Prims.of_int (2)) (Prims.of_int (481)) (Prims.of_int (12)))
+        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (475))
+           (Prims.of_int (17)) (Prims.of_int (475)) (Prims.of_int (32)))
+        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (475))
+           (Prims.of_int (2)) (Prims.of_int (486)) (Prims.of_int (12)))
         (FStar_Tactics_Effect.lift_div_tac
            (fun uu___ -> FStar_Reflection_Derived.collect_app t))
         (fun uu___ ->
@@ -182,11 +182,11 @@ let rec (term_has_head :
                   Obj.magic
                     (FStar_Tactics_Effect.tac_bind
                        (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                          (Prims.of_int (471)) (Prims.of_int (5))
-                          (Prims.of_int (471)) (Prims.of_int (28)))
+                          (Prims.of_int (476)) (Prims.of_int (5))
+                          (Prims.of_int (476)) (Prims.of_int (28)))
                        (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                          (Prims.of_int (471)) (Prims.of_int (2))
-                          (Prims.of_int (481)) (Prims.of_int (12)))
+                          (Prims.of_int (476)) (Prims.of_int (2))
+                          (Prims.of_int (486)) (Prims.of_int (12)))
                        (Obj.magic
                           (FStar_Tactics_Builtins.term_eq_old hd head))
                        (fun uu___1 ->
@@ -203,15 +203,15 @@ let rec (term_has_head :
                                     (FStar_Tactics_Effect.tac_bind
                                        (Prims.mk_range
                                           "Steel.ST.GenElim.Base.fsti"
-                                          (Prims.of_int (473))
+                                          (Prims.of_int (478))
                                           (Prims.of_int (10))
-                                          (Prims.of_int (473))
+                                          (Prims.of_int (478))
                                           (Prims.of_int (29)))
                                        (Prims.mk_range
                                           "Steel.ST.GenElim.Base.fsti"
-                                          (Prims.of_int (473))
+                                          (Prims.of_int (478))
                                           (Prims.of_int (7))
-                                          (Prims.of_int (481))
+                                          (Prims.of_int (486))
                                           (Prims.of_int (12)))
                                        (Obj.magic (is_star_or_vstar hd))
                                        (fun uu___3 ->
@@ -230,15 +230,15 @@ let rec (term_has_head :
                                                            (FStar_Tactics_Effect.tac_bind
                                                               (Prims.mk_range
                                                                  "Steel.ST.GenElim.Base.fsti"
-                                                                 (Prims.of_int (477))
+                                                                 (Prims.of_int (482))
                                                                  (Prims.of_int (9))
-                                                                 (Prims.of_int (477))
+                                                                 (Prims.of_int (482))
                                                                  (Prims.of_int (30)))
                                                               (Prims.mk_range
                                                                  "Steel.ST.GenElim.Base.fsti"
-                                                                 (Prims.of_int (477))
+                                                                 (Prims.of_int (482))
                                                                  (Prims.of_int (6))
-                                                                 (Prims.of_int (479))
+                                                                 (Prims.of_int (484))
                                                                  (Prims.of_int (32)))
                                                               (Obj.magic
                                                                  (term_has_head
@@ -277,16 +277,16 @@ let rec (solve_gen_unit_elim :
   =
   fun tl' ->
     FStar_Tactics_Effect.tac_bind
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (487))
-         (Prims.of_int (9)) (Prims.of_int (487)) (Prims.of_int (40)))
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (487))
-         (Prims.of_int (6)) (Prims.of_int (501)) (Prims.of_int (47)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (492))
+         (Prims.of_int (9)) (Prims.of_int (492)) (Prims.of_int (40)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (492))
+         (Prims.of_int (6)) (Prims.of_int (506)) (Prims.of_int (47)))
       (Obj.magic
          (FStar_Tactics_Effect.tac_bind
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (487))
-               (Prims.of_int (13)) (Prims.of_int (487)) (Prims.of_int (40)))
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (487))
-               (Prims.of_int (9)) (Prims.of_int (487)) (Prims.of_int (40)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (492))
+               (Prims.of_int (13)) (Prims.of_int (492)) (Prims.of_int (40)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (492))
+               (Prims.of_int (9)) (Prims.of_int (492)) (Prims.of_int (40)))
             (Obj.magic
                (term_has_head tl'
                   (FStar_Reflection_Builtins.pack_ln
@@ -319,11 +319,11 @@ let rec (solve_gen_unit_elim :
                 (Obj.repr
                    (FStar_Tactics_Effect.tac_bind
                       (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                         (Prims.of_int (490)) (Prims.of_int (23))
-                         (Prims.of_int (490)) (Prims.of_int (40)))
+                         (Prims.of_int (495)) (Prims.of_int (23))
+                         (Prims.of_int (495)) (Prims.of_int (40)))
                       (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                         (Prims.of_int (490)) (Prims.of_int (8))
-                         (Prims.of_int (501)) (Prims.of_int (47)))
+                         (Prims.of_int (495)) (Prims.of_int (8))
+                         (Prims.of_int (506)) (Prims.of_int (47)))
                       (FStar_Tactics_Effect.lift_div_tac
                          (fun uu___2 ->
                             FStar_Reflection_Derived.collect_app tl'))
@@ -352,15 +352,15 @@ let rec (solve_gen_unit_elim :
                                        (FStar_Tactics_Effect.tac_bind
                                           (Prims.mk_range
                                              "Steel.ST.GenElim.Base.fsti"
-                                             (Prims.of_int (493))
+                                             (Prims.of_int (498))
                                              (Prims.of_int (16))
-                                             (Prims.of_int (493))
+                                             (Prims.of_int (498))
                                              (Prims.of_int (35)))
                                           (Prims.mk_range
                                              "Steel.ST.GenElim.Base.fsti"
-                                             (Prims.of_int (493))
+                                             (Prims.of_int (498))
                                              (Prims.of_int (13))
-                                             (Prims.of_int (501))
+                                             (Prims.of_int (506))
                                              (Prims.of_int (47)))
                                           (Obj.magic (is_star_or_vstar hd))
                                           (fun uu___4 ->
@@ -378,15 +378,15 @@ let rec (solve_gen_unit_elim :
                                                             FStar_Tactics_Effect.tac_bind
                                                               (Prims.mk_range
                                                                  "Steel.ST.GenElim.Base.fsti"
-                                                                 (Prims.of_int (496))
+                                                                 (Prims.of_int (501))
                                                                  (Prims.of_int (20))
-                                                                 (Prims.of_int (496))
+                                                                 (Prims.of_int (501))
                                                                  (Prims.of_int (42)))
                                                               (Prims.mk_range
                                                                  "Steel.ST.GenElim.Base.fsti"
-                                                                 (Prims.of_int (497))
+                                                                 (Prims.of_int (502))
                                                                  (Prims.of_int (10))
-                                                                 (Prims.of_int (498))
+                                                                 (Prims.of_int (503))
                                                                  (Prims.of_int (68)))
                                                               (Obj.magic
                                                                  (solve_gen_unit_elim
@@ -397,15 +397,15 @@ let rec (solve_gen_unit_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (497))
+                                                                    (Prims.of_int (502))
                                                                     (Prims.of_int (20))
-                                                                    (Prims.of_int (497))
+                                                                    (Prims.of_int (502))
                                                                     (Prims.of_int (42)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (498))
+                                                                    (Prims.of_int (503))
                                                                     (Prims.of_int (10))
-                                                                    (Prims.of_int (498))
+                                                                    (Prims.of_int (503))
                                                                     (Prims.of_int (68)))
                                                                     (Obj.magic
                                                                     (solve_gen_unit_elim
@@ -456,10 +456,10 @@ let (abstr_has_exists :
   =
   fun t ->
     FStar_Tactics_Effect.tac_bind
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (506))
-         (Prims.of_int (8)) (Prims.of_int (506)) (Prims.of_int (19)))
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (506))
-         (Prims.of_int (2)) (Prims.of_int (508)) (Prims.of_int (14)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (511))
+         (Prims.of_int (8)) (Prims.of_int (511)) (Prims.of_int (19)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (511))
+         (Prims.of_int (2)) (Prims.of_int (513)) (Prims.of_int (14)))
       (Obj.magic (FStar_Tactics_Builtins.inspect t))
       (fun uu___ ->
          (fun uu___ ->
@@ -494,11 +494,11 @@ let rec (get_universe :
              (Obj.repr
                 (FStar_Tactics_Effect.tac_bind
                    (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                      (Prims.of_int (515)) (Prims.of_int (23))
-                      (Prims.of_int (515)) (Prims.of_int (37)))
+                      (Prims.of_int (520)) (Prims.of_int (23))
+                      (Prims.of_int (520)) (Prims.of_int (37)))
                    (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                      (Prims.of_int (515)) (Prims.of_int (19))
-                      (Prims.of_int (515)) (Prims.of_int (37)))
+                      (Prims.of_int (520)) (Prims.of_int (19))
+                      (Prims.of_int (520)) (Prims.of_int (37)))
                    (Obj.magic (get_universe u1))
                    (fun uu___ ->
                       FStar_Tactics_Effect.lift_div_tac
@@ -514,16 +514,16 @@ let rec (solve_gen_elim :
   =
   fun tl' ->
     FStar_Tactics_Effect.tac_bind
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (522))
-         (Prims.of_int (9)) (Prims.of_int (522)) (Prims.of_int (43)))
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (522))
-         (Prims.of_int (6)) (Prims.of_int (587)) (Prims.of_int (68)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (527))
+         (Prims.of_int (9)) (Prims.of_int (527)) (Prims.of_int (43)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (527))
+         (Prims.of_int (6)) (Prims.of_int (592)) (Prims.of_int (68)))
       (Obj.magic
          (FStar_Tactics_Effect.tac_bind
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (522))
-               (Prims.of_int (13)) (Prims.of_int (522)) (Prims.of_int (43)))
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (522))
-               (Prims.of_int (9)) (Prims.of_int (522)) (Prims.of_int (43)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (527))
+               (Prims.of_int (13)) (Prims.of_int (527)) (Prims.of_int (43)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (527))
+               (Prims.of_int (9)) (Prims.of_int (527)) (Prims.of_int (43)))
             (Obj.magic
                (term_has_head tl'
                   (FStar_Reflection_Builtins.pack_ln
@@ -540,11 +540,11 @@ let rec (solve_gen_elim :
               Obj.magic
                 (FStar_Tactics_Effect.tac_bind
                    (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                      (Prims.of_int (524)) (Prims.of_int (17))
-                      (Prims.of_int (524)) (Prims.of_int (40)))
+                      (Prims.of_int (529)) (Prims.of_int (17))
+                      (Prims.of_int (529)) (Prims.of_int (40)))
                    (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                      (Prims.of_int (525)) (Prims.of_int (8))
-                      (Prims.of_int (525)) (Prims.of_int (45)))
+                      (Prims.of_int (530)) (Prims.of_int (8))
+                      (Prims.of_int (530)) (Prims.of_int (45)))
                    (Obj.magic (solve_gen_unit_elim tl'))
                    (fun t' ->
                       FStar_Tactics_Effect.lift_div_tac
@@ -563,11 +563,11 @@ let rec (solve_gen_elim :
               Obj.magic
                 (FStar_Tactics_Effect.tac_bind
                    (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                      (Prims.of_int (527)) (Prims.of_int (26))
-                      (Prims.of_int (527)) (Prims.of_int (43)))
+                      (Prims.of_int (532)) (Prims.of_int (26))
+                      (Prims.of_int (532)) (Prims.of_int (43)))
                    (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                      (Prims.of_int (527)) (Prims.of_int (8))
-                      (Prims.of_int (587)) (Prims.of_int (68)))
+                      (Prims.of_int (532)) (Prims.of_int (8))
+                      (Prims.of_int (592)) (Prims.of_int (68)))
                    (FStar_Tactics_Effect.lift_div_tac
                       (fun uu___2 -> FStar_Reflection_Derived.collect_app tl'))
                    (fun uu___2 ->
@@ -580,15 +580,15 @@ let rec (solve_gen_elim :
                                  (FStar_Tactics_Effect.tac_bind
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (530))
+                                       (Prims.of_int (535))
                                        (Prims.of_int (25))
-                                       (Prims.of_int (532))
+                                       (Prims.of_int (537))
                                        (Prims.of_int (63)))
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (534))
+                                       (Prims.of_int (539))
                                        (Prims.of_int (10))
-                                       (Prims.of_int (566))
+                                       (Prims.of_int (571))
                                        (Prims.of_int (13)))
                                     (match FStar_Reflection_Derived.inspect_ln_unascribe
                                              hd
@@ -606,15 +606,15 @@ let rec (solve_gen_elim :
                                             (FStar_Tactics_Effect.tac_bind
                                                (Prims.mk_range
                                                   "Steel.ST.GenElim.Base.fsti"
-                                                  (Prims.of_int (535))
+                                                  (Prims.of_int (540))
                                                   (Prims.of_int (12))
-                                                  (Prims.of_int (538))
+                                                  (Prims.of_int (543))
                                                   (Prims.of_int (46)))
                                                (Prims.mk_range
                                                   "Steel.ST.GenElim.Base.fsti"
-                                                  (Prims.of_int (534))
+                                                  (Prims.of_int (539))
                                                   (Prims.of_int (10))
-                                                  (Prims.of_int (566))
+                                                  (Prims.of_int (571))
                                                   (Prims.of_int (13)))
                                                (match lbody with
                                                 | (ty,
@@ -650,15 +650,15 @@ let rec (solve_gen_elim :
                                                            (FStar_Tactics_Effect.tac_bind
                                                               (Prims.mk_range
                                                                  "Steel.ST.GenElim.Base.fsti"
-                                                                 (Prims.of_int (540))
+                                                                 (Prims.of_int (545))
                                                                  (Prims.of_int (22))
-                                                                 (Prims.of_int (540))
+                                                                 (Prims.of_int (545))
                                                                  (Prims.of_int (36)))
                                                               (Prims.mk_range
                                                                  "Steel.ST.GenElim.Base.fsti"
-                                                                 (Prims.of_int (540))
+                                                                 (Prims.of_int (545))
                                                                  (Prims.of_int (16))
-                                                                 (Prims.of_int (565))
+                                                                 (Prims.of_int (570))
                                                                  (Prims.of_int (21)))
                                                               (Obj.magic
                                                                  (FStar_Tactics_Builtins.inspect
@@ -677,29 +677,29 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (542))
+                                                                    (Prims.of_int (547))
                                                                     (Prims.of_int (17))
-                                                                    (Prims.of_int (542))
+                                                                    (Prims.of_int (547))
                                                                     (Prims.of_int (53)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (542))
+                                                                    (Prims.of_int (547))
                                                                     (Prims.of_int (14))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (75)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (542))
+                                                                    (Prims.of_int (547))
                                                                     (Prims.of_int (21))
-                                                                    (Prims.of_int (542))
+                                                                    (Prims.of_int (547))
                                                                     (Prims.of_int (53)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (542))
+                                                                    (Prims.of_int (547))
                                                                     (Prims.of_int (17))
-                                                                    (Prims.of_int (542))
+                                                                    (Prims.of_int (547))
                                                                     (Prims.of_int (53)))
                                                                     (Obj.magic
                                                                     (term_has_head
@@ -728,15 +728,15 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (544))
+                                                                    (Prims.of_int (549))
                                                                     (Prims.of_int (28))
-                                                                    (Prims.of_int (544))
+                                                                    (Prims.of_int (549))
                                                                     (Prims.of_int (53)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (545))
-                                                                    (Prims.of_int (16))
                                                                     (Prims.of_int (550))
+                                                                    (Prims.of_int (16))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (75)))
                                                                     (Obj.magic
                                                                     (solve_gen_unit_elim
@@ -749,57 +749,57 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (75)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (545))
-                                                                    (Prims.of_int (16))
                                                                     (Prims.of_int (550))
+                                                                    (Prims.of_int (16))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (75)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (40))
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (74)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (75)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (41))
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (73)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (40))
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (74)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (41))
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (59)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (41))
-                                                                    (Prims.of_int (550))
+                                                                    (Prims.of_int (555))
                                                                     (Prims.of_int (73)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.mk_abs
@@ -863,15 +863,15 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (552))
+                                                                    (Prims.of_int (557))
                                                                     (Prims.of_int (28))
-                                                                    (Prims.of_int (552))
+                                                                    (Prims.of_int (557))
                                                                     (Prims.of_int (48)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (553))
-                                                                    (Prims.of_int (16))
                                                                     (Prims.of_int (558))
+                                                                    (Prims.of_int (16))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (75)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim
@@ -884,57 +884,57 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (75)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (553))
-                                                                    (Prims.of_int (16))
                                                                     (Prims.of_int (558))
+                                                                    (Prims.of_int (16))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (75)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (40))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (74)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (75)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (41))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (73)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (40))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (74)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (41))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (59)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (41))
-                                                                    (Prims.of_int (558))
+                                                                    (Prims.of_int (563))
                                                                     (Prims.of_int (73)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.mk_abs
@@ -1036,15 +1036,15 @@ let rec (solve_gen_elim :
                                  (FStar_Tactics_Effect.tac_bind
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (567))
+                                       (Prims.of_int (572))
                                        (Prims.of_int (16))
-                                       (Prims.of_int (567))
+                                       (Prims.of_int (572))
                                        (Prims.of_int (35)))
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (567))
+                                       (Prims.of_int (572))
                                        (Prims.of_int (13))
-                                       (Prims.of_int (587))
+                                       (Prims.of_int (592))
                                        (Prims.of_int (68)))
                                     (Obj.magic (is_star_or_vstar hd))
                                     (fun uu___4 ->
@@ -1062,15 +1062,15 @@ let rec (solve_gen_elim :
                                                       FStar_Tactics_Effect.tac_bind
                                                         (Prims.mk_range
                                                            "Steel.ST.GenElim.Base.fsti"
-                                                           (Prims.of_int (571))
+                                                           (Prims.of_int (576))
                                                            (Prims.of_int (15))
-                                                           (Prims.of_int (571))
+                                                           (Prims.of_int (576))
                                                            (Prims.of_int (42)))
                                                         (Prims.mk_range
                                                            "Steel.ST.GenElim.Base.fsti"
-                                                           (Prims.of_int (571))
+                                                           (Prims.of_int (576))
                                                            (Prims.of_int (12))
-                                                           (Prims.of_int (584))
+                                                           (Prims.of_int (589))
                                                            (Prims.of_int (72)))
                                                         (Obj.magic
                                                            (term_has_head tl
@@ -1090,15 +1090,15 @@ let rec (solve_gen_elim :
                                                                   (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (573))
+                                                                    (Prims.of_int (578))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (573))
+                                                                    (Prims.of_int (578))
                                                                     (Prims.of_int (41)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (574))
+                                                                    (Prims.of_int (579))
                                                                     (Prims.of_int (14))
-                                                                    (Prims.of_int (580))
+                                                                    (Prims.of_int (585))
                                                                     (Prims.of_int (74)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim
@@ -1111,15 +1111,15 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (574))
+                                                                    (Prims.of_int (579))
                                                                     (Prims.of_int (17))
-                                                                    (Prims.of_int (574))
+                                                                    (Prims.of_int (579))
                                                                     (Prims.of_int (44)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (574))
+                                                                    (Prims.of_int (579))
                                                                     (Prims.of_int (14))
-                                                                    (Prims.of_int (580))
+                                                                    (Prims.of_int (585))
                                                                     (Prims.of_int (74)))
                                                                     (Obj.magic
                                                                     (term_has_head
@@ -1141,15 +1141,15 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (576))
+                                                                    (Prims.of_int (581))
                                                                     (Prims.of_int (26))
-                                                                    (Prims.of_int (576))
+                                                                    (Prims.of_int (581))
                                                                     (Prims.of_int (43)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (577))
+                                                                    (Prims.of_int (582))
                                                                     (Prims.of_int (16))
-                                                                    (Prims.of_int (577))
+                                                                    (Prims.of_int (582))
                                                                     (Prims.of_int (73)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim
@@ -1178,15 +1178,15 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (579))
+                                                                    (Prims.of_int (584))
                                                                     (Prims.of_int (26))
-                                                                    (Prims.of_int (579))
+                                                                    (Prims.of_int (584))
                                                                     (Prims.of_int (48)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (580))
+                                                                    (Prims.of_int (585))
                                                                     (Prims.of_int (16))
-                                                                    (Prims.of_int (580))
+                                                                    (Prims.of_int (585))
                                                                     (Prims.of_int (74)))
                                                                     (Obj.magic
                                                                     (solve_gen_unit_elim
@@ -1217,15 +1217,15 @@ let rec (solve_gen_elim :
                                                                   (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (582))
+                                                                    (Prims.of_int (587))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (582))
+                                                                    (Prims.of_int (587))
                                                                     (Prims.of_int (46)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (583))
+                                                                    (Prims.of_int (588))
                                                                     (Prims.of_int (14))
-                                                                    (Prims.of_int (584))
+                                                                    (Prims.of_int (589))
                                                                     (Prims.of_int (72)))
                                                                     (Obj.magic
                                                                     (solve_gen_unit_elim
@@ -1238,15 +1238,15 @@ let rec (solve_gen_elim :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (583))
+                                                                    (Prims.of_int (588))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (583))
+                                                                    (Prims.of_int (588))
                                                                     (Prims.of_int (41)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (584))
+                                                                    (Prims.of_int (589))
                                                                     (Prims.of_int (14))
-                                                                    (Prims.of_int (584))
+                                                                    (Prims.of_int (589))
                                                                     (Prims.of_int (72)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim
@@ -1329,11 +1329,11 @@ let rec (solve_gen_elim_nondep' :
                    (Obj.repr
                       (FStar_Tactics_Effect.tac_bind
                          (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                            (Prims.of_int (676)) (Prims.of_int (19))
-                            (Prims.of_int (676)) (Prims.of_int (34)))
+                            (Prims.of_int (681)) (Prims.of_int (19))
+                            (Prims.of_int (681)) (Prims.of_int (34)))
                          (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                            (Prims.of_int (676)) (Prims.of_int (4))
-                            (Prims.of_int (719)) (Prims.of_int (13)))
+                            (Prims.of_int (681)) (Prims.of_int (4))
+                            (Prims.of_int (724)) (Prims.of_int (13)))
                          (FStar_Tactics_Effect.lift_div_tac
                             (fun uu___1 ->
                                FStar_Reflection_Derived.collect_app t))
@@ -1353,15 +1353,15 @@ let rec (solve_gen_elim_nondep' :
                                                (FStar_Tactics_Effect.tac_bind
                                                   (Prims.mk_range
                                                      "Steel.ST.GenElim.Base.fsti"
-                                                     (Prims.of_int (681))
+                                                     (Prims.of_int (686))
                                                      (Prims.of_int (10))
-                                                     (Prims.of_int (683))
+                                                     (Prims.of_int (688))
                                                      (Prims.of_int (93)))
                                                   (Prims.mk_range
                                                      "Steel.ST.GenElim.Base.fsti"
-                                                     (Prims.of_int (685))
+                                                     (Prims.of_int (690))
                                                      (Prims.of_int (8))
-                                                     (Prims.of_int (699))
+                                                     (Prims.of_int (704))
                                                      (Prims.of_int (9)))
                                                   (FStar_Tactics_Effect.lift_div_tac
                                                      (fun uu___2 ->
@@ -1371,15 +1371,15 @@ let rec (solve_gen_elim_nondep' :
                                                               FStar_Tactics_Effect.tac_bind
                                                                 (Prims.mk_range
                                                                    "Steel.ST.GenElim.Base.fsti"
-                                                                   (Prims.of_int (681))
+                                                                   (Prims.of_int (686))
                                                                    (Prims.of_int (24))
-                                                                   (Prims.of_int (681))
+                                                                   (Prims.of_int (686))
                                                                    (Prims.of_int (26)))
                                                                 (Prims.mk_range
                                                                    "Steel.ST.GenElim.Base.fsti"
-                                                                   (Prims.of_int (681))
+                                                                   (Prims.of_int (686))
                                                                    (Prims.of_int (10))
-                                                                   (Prims.of_int (683))
+                                                                   (Prims.of_int (688))
                                                                    (Prims.of_int (93)))
                                                                 (FStar_Tactics_Effect.lift_div_tac
                                                                    (fun
@@ -1399,15 +1399,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (682))
+                                                                    (Prims.of_int (687))
                                                                     (Prims.of_int (19))
-                                                                    (Prims.of_int (682))
+                                                                    (Prims.of_int (687))
                                                                     (Prims.of_int (26)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (683))
+                                                                    (Prims.of_int (688))
                                                                     (Prims.of_int (10))
-                                                                    (Prims.of_int (683))
+                                                                    (Prims.of_int (688))
                                                                     (Prims.of_int (93)))
                                                                     (Obj.magic
                                                                     (accu ()))
@@ -1443,15 +1443,15 @@ let rec (solve_gen_elim_nondep' :
                                                           (FStar_Tactics_Effect.tac_bind
                                                              (Prims.mk_range
                                                                 "Steel.ST.GenElim.Base.fsti"
-                                                                (Prims.of_int (685))
+                                                                (Prims.of_int (690))
                                                                 (Prims.of_int (41))
-                                                                (Prims.of_int (685))
+                                                                (Prims.of_int (690))
                                                                 (Prims.of_int (89)))
                                                              (Prims.mk_range
                                                                 "Steel.ST.GenElim.Base.fsti"
-                                                                (Prims.of_int (686))
+                                                                (Prims.of_int (691))
                                                                 (Prims.of_int (8))
-                                                                (Prims.of_int (699))
+                                                                (Prims.of_int (704))
                                                                 (Prims.of_int (9)))
                                                              (FStar_Tactics_Effect.lift_div_tac
                                                                 (fun uu___3
@@ -1491,15 +1491,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (686))
+                                                                    (Prims.of_int (691))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (686))
+                                                                    (Prims.of_int (691))
                                                                     (Prims.of_int (86)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (687))
+                                                                    (Prims.of_int (692))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (699))
+                                                                    (Prims.of_int (704))
                                                                     (Prims.of_int (9)))
                                                                     (Obj.magic
                                                                     (FStar_List_Tot_Base.fold_left
@@ -1516,15 +1516,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (687))
+                                                                    (Prims.of_int (692))
                                                                     (Prims.of_int (22))
-                                                                    (Prims.of_int (687))
+                                                                    (Prims.of_int (692))
                                                                     (Prims.of_int (75)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (688))
+                                                                    (Prims.of_int (693))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (699))
+                                                                    (Prims.of_int (704))
                                                                     (Prims.of_int (9)))
                                                                     (FStar_Tactics_Effect.lift_div_tac
                                                                     (fun
@@ -1542,15 +1542,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (688))
+                                                                    (Prims.of_int (693))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (688))
+                                                                    (Prims.of_int (693))
                                                                     (Prims.of_int (82)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (689))
+                                                                    (Prims.of_int (694))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (699))
+                                                                    (Prims.of_int (704))
                                                                     (Prims.of_int (9)))
                                                                     (FStar_Tactics_Effect.lift_div_tac
                                                                     (fun
@@ -1570,15 +1570,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (689))
+                                                                    (Prims.of_int (694))
                                                                     (Prims.of_int (17))
-                                                                    (Prims.of_int (689))
+                                                                    (Prims.of_int (694))
                                                                     (Prims.of_int (35)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (690))
+                                                                    (Prims.of_int (695))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (699))
+                                                                    (Prims.of_int (704))
                                                                     (Prims.of_int (9)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.mk_abs
@@ -1591,15 +1591,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (690))
+                                                                    (Prims.of_int (695))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (690))
+                                                                    (Prims.of_int (695))
                                                                     (Prims.of_int (121)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (691))
+                                                                    (Prims.of_int (696))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (699))
+                                                                    (Prims.of_int (704))
                                                                     (Prims.of_int (9)))
                                                                     (Obj.magic
                                                                     (norm_term
@@ -1638,15 +1638,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (691))
+                                                                    (Prims.of_int (696))
                                                                     (Prims.of_int (17))
-                                                                    (Prims.of_int (691))
+                                                                    (Prims.of_int (696))
                                                                     (Prims.of_int (35)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (692))
+                                                                    (Prims.of_int (697))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (699))
+                                                                    (Prims.of_int (704))
                                                                     (Prims.of_int (9)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.mk_abs
@@ -1659,15 +1659,15 @@ let rec (solve_gen_elim_nondep' :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (692))
+                                                                    (Prims.of_int (697))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (692))
+                                                                    (Prims.of_int (697))
                                                                     (Prims.of_int (120)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (693))
+                                                                    (Prims.of_int (698))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (699))
+                                                                    (Prims.of_int (704))
                                                                     (Prims.of_int (9)))
                                                                     (Obj.magic
                                                                     (norm_term
@@ -1731,15 +1731,15 @@ let rec (solve_gen_elim_nondep' :
                                                  (FStar_Tactics_Effect.tac_bind
                                                     (Prims.mk_range
                                                        "Steel.ST.GenElim.Base.fsti"
-                                                       (Prims.of_int (704))
+                                                       (Prims.of_int (709))
                                                        (Prims.of_int (16))
-                                                       (Prims.of_int (704))
+                                                       (Prims.of_int (709))
                                                        (Prims.of_int (49)))
                                                     (Prims.mk_range
                                                        "Steel.ST.GenElim.Base.fsti"
-                                                       (Prims.of_int (705))
+                                                       (Prims.of_int (710))
                                                        (Prims.of_int (12))
-                                                       (Prims.of_int (707))
+                                                       (Prims.of_int (712))
                                                        (Prims.of_int (17)))
                                                     (FStar_Tactics_Effect.lift_div_tac
                                                        (fun uu___4 ->
@@ -1760,15 +1760,15 @@ let rec (solve_gen_elim_nondep' :
                                                             (FStar_Tactics_Effect.tac_bind
                                                                (Prims.mk_range
                                                                   "Steel.ST.GenElim.Base.fsti"
-                                                                  (Prims.of_int (705))
+                                                                  (Prims.of_int (710))
                                                                   (Prims.of_int (18))
-                                                                  (Prims.of_int (705))
+                                                                  (Prims.of_int (710))
                                                                   (Prims.of_int (29)))
                                                                (Prims.mk_range
                                                                   "Steel.ST.GenElim.Base.fsti"
-                                                                  (Prims.of_int (705))
+                                                                  (Prims.of_int (710))
                                                                   (Prims.of_int (12))
-                                                                  (Prims.of_int (707))
+                                                                  (Prims.of_int (712))
                                                                   (Prims.of_int (17)))
                                                                (Obj.magic
                                                                   (FStar_Tactics_Builtins.inspect
@@ -1822,15 +1822,15 @@ let rec (solve_gen_elim_nondep' :
                                                      (FStar_Tactics_Effect.tac_bind
                                                         (Prims.mk_range
                                                            "Steel.ST.GenElim.Base.fsti"
-                                                           (Prims.of_int (713))
+                                                           (Prims.of_int (718))
                                                            (Prims.of_int (16))
-                                                           (Prims.of_int (713))
+                                                           (Prims.of_int (718))
                                                            (Prims.of_int (49)))
                                                         (Prims.mk_range
                                                            "Steel.ST.GenElim.Base.fsti"
-                                                           (Prims.of_int (714))
+                                                           (Prims.of_int (719))
                                                            (Prims.of_int (12))
-                                                           (Prims.of_int (716))
+                                                           (Prims.of_int (721))
                                                            (Prims.of_int (17)))
                                                         (FStar_Tactics_Effect.lift_div_tac
                                                            (fun uu___5 ->
@@ -1851,15 +1851,15 @@ let rec (solve_gen_elim_nondep' :
                                                                 (FStar_Tactics_Effect.tac_bind
                                                                    (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (714))
+                                                                    (Prims.of_int (719))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (714))
+                                                                    (Prims.of_int (719))
                                                                     (Prims.of_int (29)))
                                                                    (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (714))
+                                                                    (Prims.of_int (719))
                                                                     (Prims.of_int (12))
-                                                                    (Prims.of_int (716))
+                                                                    (Prims.of_int (721))
                                                                     (Prims.of_int (17)))
                                                                    (Obj.magic
                                                                     (FStar_Tactics_Builtins.inspect
@@ -1927,11 +1927,11 @@ let (solve_gen_elim_nondep0 :
                         | () ->
                             FStar_Tactics_Effect.tac_bind
                               (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                 (Prims.of_int (726)) (Prims.of_int (17))
-                                 (Prims.of_int (726)) (Prims.of_int (64)))
+                                 (Prims.of_int (731)) (Prims.of_int (17))
+                                 (Prims.of_int (731)) (Prims.of_int (64)))
                               (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                 (Prims.of_int (727)) (Prims.of_int (6))
-                                 (Prims.of_int (728)) (Prims.of_int (36)))
+                                 (Prims.of_int (732)) (Prims.of_int (6))
+                                 (Prims.of_int (733)) (Prims.of_int (36)))
                               (FStar_Tactics_Effect.lift_div_tac
                                  (fun uu___1 ->
                                     FStar_Reflection_Derived.mk_app
@@ -1950,15 +1950,15 @@ let (solve_gen_elim_nondep0 :
                                       (FStar_Tactics_Effect.tac_bind
                                          (Prims.mk_range
                                             "Steel.ST.GenElim.Base.fsti"
-                                            (Prims.of_int (727))
+                                            (Prims.of_int (732))
                                             (Prims.of_int (15))
-                                            (Prims.of_int (727))
+                                            (Prims.of_int (732))
                                             (Prims.of_int (76)))
                                          (Prims.mk_range
                                             "Steel.ST.GenElim.Base.fsti"
-                                            (Prims.of_int (728))
+                                            (Prims.of_int (733))
                                             (Prims.of_int (6))
-                                            (Prims.of_int (728))
+                                            (Prims.of_int (733))
                                             (Prims.of_int (36)))
                                          (Obj.magic
                                             (FStar_Tactics_Derived.norm_term
@@ -1992,10 +1992,10 @@ let (solve_gen_elim_nondep :
   fun enable_nondep_opt ->
     fun t ->
       FStar_Tactics_Effect.tac_bind
-        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (733))
-           (Prims.of_int (8)) (Prims.of_int (733)) (Prims.of_int (50)))
-        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (733))
-           (Prims.of_int (2)) (Prims.of_int (747)) (Prims.of_int (9)))
+        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (738))
+           (Prims.of_int (8)) (Prims.of_int (738)) (Prims.of_int (50)))
+        (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (738))
+           (Prims.of_int (2)) (Prims.of_int (752)) (Prims.of_int (9)))
         (Obj.magic (solve_gen_elim_nondep0 enable_nondep_opt t))
         (fun uu___ ->
            FStar_Tactics_Effect.lift_div_tac
@@ -2026,16 +2026,16 @@ let (solve_gen_elim_prop :
   unit -> (unit, unit) FStar_Tactics_Effect.tac_repr) =
   fun uu___ ->
     FStar_Tactics_Effect.tac_bind
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (753))
-         (Prims.of_int (17)) (Prims.of_int (753)) (Prims.of_int (46)))
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (753))
-         (Prims.of_int (2)) (Prims.of_int (791)) (Prims.of_int (35)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (758))
+         (Prims.of_int (17)) (Prims.of_int (758)) (Prims.of_int (46)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (758))
+         (Prims.of_int (2)) (Prims.of_int (796)) (Prims.of_int (35)))
       (Obj.magic
          (FStar_Tactics_Effect.tac_bind
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (753))
-               (Prims.of_int (31)) (Prims.of_int (753)) (Prims.of_int (46)))
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (753))
-               (Prims.of_int (17)) (Prims.of_int (753)) (Prims.of_int (46)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (758))
+               (Prims.of_int (31)) (Prims.of_int (758)) (Prims.of_int (46)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (758))
+               (Prims.of_int (17)) (Prims.of_int (758)) (Prims.of_int (46)))
             (Obj.magic (FStar_Tactics_Derived.cur_goal ()))
             (fun uu___1 ->
                FStar_Tactics_Effect.lift_div_tac
@@ -2047,27 +2047,27 @@ let (solve_gen_elim_prop :
                 Obj.magic
                   (FStar_Tactics_Effect.tac_bind
                      (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                        (Prims.of_int (754)) (Prims.of_int (2))
-                        (Prims.of_int (755)) (Prims.of_int (33)))
+                        (Prims.of_int (759)) (Prims.of_int (2))
+                        (Prims.of_int (760)) (Prims.of_int (33)))
                      (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                        (Prims.of_int (756)) (Prims.of_int (2))
-                        (Prims.of_int (791)) (Prims.of_int (35)))
+                        (Prims.of_int (761)) (Prims.of_int (2))
+                        (Prims.of_int (796)) (Prims.of_int (35)))
                      (Obj.magic
                         (FStar_Tactics_Effect.tac_bind
                            (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                              (Prims.of_int (754)) (Prims.of_int (5))
-                              (Prims.of_int (754)) (Prims.of_int (23)))
+                              (Prims.of_int (759)) (Prims.of_int (5))
+                              (Prims.of_int (759)) (Prims.of_int (23)))
                            (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                              (Prims.of_int (754)) (Prims.of_int (2))
-                              (Prims.of_int (755)) (Prims.of_int (33)))
+                              (Prims.of_int (759)) (Prims.of_int (2))
+                              (Prims.of_int (760)) (Prims.of_int (33)))
                            (Obj.magic
                               (FStar_Tactics_Effect.tac_bind
                                  (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                    (Prims.of_int (754)) (Prims.of_int (9))
-                                    (Prims.of_int (754)) (Prims.of_int (23)))
+                                    (Prims.of_int (759)) (Prims.of_int (9))
+                                    (Prims.of_int (759)) (Prims.of_int (23)))
                                  (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                    (Prims.of_int (754)) (Prims.of_int (5))
-                                    (Prims.of_int (754)) (Prims.of_int (23)))
+                                    (Prims.of_int (759)) (Prims.of_int (5))
+                                    (Prims.of_int (759)) (Prims.of_int (23)))
                                  (Obj.magic (is_squash hd))
                                  (fun uu___2 ->
                                     FStar_Tactics_Effect.lift_div_tac
@@ -2093,15 +2093,15 @@ let (solve_gen_elim_prop :
                                  (FStar_Tactics_Effect.tac_bind
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (758))
+                                       (Prims.of_int (763))
                                        (Prims.of_int (21))
-                                       (Prims.of_int (758))
+                                       (Prims.of_int (763))
                                        (Prims.of_int (40)))
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (758))
+                                       (Prims.of_int (763))
                                        (Prims.of_int (4))
-                                       (Prims.of_int (790))
+                                       (Prims.of_int (795))
                                        (Prims.of_int (7)))
                                     (FStar_Tactics_Effect.lift_div_tac
                                        (fun uu___3 ->
@@ -2115,15 +2115,15 @@ let (solve_gen_elim_prop :
                                                 (FStar_Tactics_Effect.tac_bind
                                                    (Prims.mk_range
                                                       "Steel.ST.GenElim.Base.fsti"
-                                                      (Prims.of_int (759))
+                                                      (Prims.of_int (764))
                                                       (Prims.of_int (4))
-                                                      (Prims.of_int (760))
+                                                      (Prims.of_int (765))
                                                       (Prims.of_int (42)))
                                                    (Prims.mk_range
                                                       "Steel.ST.GenElim.Base.fsti"
-                                                      (Prims.of_int (761))
+                                                      (Prims.of_int (766))
                                                       (Prims.of_int (10))
-                                                      (Prims.of_int (789))
+                                                      (Prims.of_int (794))
                                                       (Prims.of_int (44)))
                                                    (if
                                                       Prims.op_Negation
@@ -2164,15 +2164,15 @@ let (solve_gen_elim_prop :
                                                                (FStar_Tactics_Effect.tac_bind
                                                                   (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (763))
+                                                                    (Prims.of_int (768))
                                                                     (Prims.of_int (30))
-                                                                    (Prims.of_int (763))
+                                                                    (Prims.of_int (768))
                                                                     (Prims.of_int (74)))
                                                                   (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (764))
+                                                                    (Prims.of_int (769))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                   (Obj.magic
                                                                     (FStar_Tactics_Builtins.term_eq_old
@@ -2190,15 +2190,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (764))
+                                                                    (Prims.of_int (769))
                                                                     (Prims.of_int (15))
-                                                                    (Prims.of_int (764))
+                                                                    (Prims.of_int (769))
                                                                     (Prims.of_int (31)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (765))
+                                                                    (Prims.of_int (770))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim
@@ -2212,15 +2212,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (765))
+                                                                    (Prims.of_int (770))
                                                                     (Prims.of_int (20))
-                                                                    (Prims.of_int (765))
+                                                                    (Prims.of_int (770))
                                                                     (Prims.of_int (73)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (766))
+                                                                    (Prims.of_int (771))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                     (FStar_Tactics_Effect.lift_div_tac
                                                                     (fun
@@ -2244,29 +2244,29 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (766))
+                                                                    (Prims.of_int (771))
                                                                     (Prims.of_int (12))
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (46)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (784))
+                                                                    (Prims.of_int (789))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (766))
+                                                                    (Prims.of_int (771))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (766))
+                                                                    (Prims.of_int (771))
                                                                     (Prims.of_int (61)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (766))
+                                                                    (Prims.of_int (771))
                                                                     (Prims.of_int (12))
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (46)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim_nondep0
@@ -2317,15 +2317,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (773))
+                                                                    (Prims.of_int (778))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (780))
+                                                                    (Prims.of_int (785))
                                                                     (Prims.of_int (10)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (781))
+                                                                    (Prims.of_int (786))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (46)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.apply_lemma
@@ -2361,15 +2361,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (781))
+                                                                    (Prims.of_int (786))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (781))
+                                                                    (Prims.of_int (786))
                                                                     (Prims.of_int (46)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (8))
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (46)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.focus
@@ -2379,15 +2379,15 @@ let (solve_gen_elim_prop :
                                                                     FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (781))
+                                                                    (Prims.of_int (786))
                                                                     (Prims.of_int (26))
-                                                                    (Prims.of_int (781))
+                                                                    (Prims.of_int (786))
                                                                     (Prims.of_int (33)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (781))
+                                                                    (Prims.of_int (786))
                                                                     (Prims.of_int (35))
-                                                                    (Prims.of_int (781))
+                                                                    (Prims.of_int (786))
                                                                     (Prims.of_int (45)))
                                                                     (Obj.magic
                                                                     (norm ()))
@@ -2415,15 +2415,15 @@ let (solve_gen_elim_prop :
                                                                     FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (26))
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (33)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (35))
-                                                                    (Prims.of_int (782))
+                                                                    (Prims.of_int (787))
                                                                     (Prims.of_int (45)))
                                                                     (Obj.magic
                                                                     (norm ()))
@@ -2450,15 +2450,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (784))
+                                                                    (Prims.of_int (789))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (784))
+                                                                    (Prims.of_int (789))
                                                                     (Prims.of_int (44)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.focus
@@ -2468,15 +2468,15 @@ let (solve_gen_elim_prop :
                                                                     FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (784))
+                                                                    (Prims.of_int (789))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (784))
+                                                                    (Prims.of_int (789))
                                                                     (Prims.of_int (31)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (784))
+                                                                    (Prims.of_int (789))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (784))
+                                                                    (Prims.of_int (789))
                                                                     (Prims.of_int (43)))
                                                                     (Obj.magic
                                                                     (norm ()))
@@ -2500,15 +2500,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (56)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (786))
+                                                                    (Prims.of_int (791))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.focus
@@ -2518,15 +2518,15 @@ let (solve_gen_elim_prop :
                                                                     FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (31)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (55)))
                                                                     (Obj.magic
                                                                     (norm ()))
@@ -2540,15 +2540,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (45)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (47))
-                                                                    (Prims.of_int (785))
+                                                                    (Prims.of_int (790))
                                                                     (Prims.of_int (55)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.trivial
@@ -2574,15 +2574,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (786))
+                                                                    (Prims.of_int (791))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (786))
+                                                                    (Prims.of_int (791))
                                                                     (Prims.of_int (44)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (787))
+                                                                    (Prims.of_int (792))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.focus
@@ -2592,15 +2592,15 @@ let (solve_gen_elim_prop :
                                                                     FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (786))
+                                                                    (Prims.of_int (791))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (786))
+                                                                    (Prims.of_int (791))
                                                                     (Prims.of_int (31)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (786))
+                                                                    (Prims.of_int (791))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (786))
+                                                                    (Prims.of_int (791))
                                                                     (Prims.of_int (43)))
                                                                     (Obj.magic
                                                                     (norm ()))
@@ -2624,15 +2624,15 @@ let (solve_gen_elim_prop :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (787))
+                                                                    (Prims.of_int (792))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (787))
+                                                                    (Prims.of_int (792))
                                                                     (Prims.of_int (44)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (44)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.focus
@@ -2642,15 +2642,15 @@ let (solve_gen_elim_prop :
                                                                     FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (787))
+                                                                    (Prims.of_int (792))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (787))
+                                                                    (Prims.of_int (792))
                                                                     (Prims.of_int (31)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (787))
+                                                                    (Prims.of_int (792))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (787))
+                                                                    (Prims.of_int (792))
                                                                     (Prims.of_int (43)))
                                                                     (Obj.magic
                                                                     (norm ()))
@@ -2678,15 +2678,15 @@ let (solve_gen_elim_prop :
                                                                     FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (24))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (31)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (788))
+                                                                    (Prims.of_int (793))
                                                                     (Prims.of_int (43)))
                                                                     (Obj.magic
                                                                     (norm ()))
@@ -2721,16 +2721,16 @@ let (solve_gen_elim_prop_placeholder :
   unit -> (Prims.bool, unit) FStar_Tactics_Effect.tac_repr) =
   fun uu___ ->
     FStar_Tactics_Effect.tac_bind
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (797))
-         (Prims.of_int (17)) (Prims.of_int (797)) (Prims.of_int (46)))
-      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (797))
-         (Prims.of_int (2)) (Prims.of_int (833)) (Prims.of_int (35)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (802))
+         (Prims.of_int (17)) (Prims.of_int (802)) (Prims.of_int (46)))
+      (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (802))
+         (Prims.of_int (2)) (Prims.of_int (838)) (Prims.of_int (35)))
       (Obj.magic
          (FStar_Tactics_Effect.tac_bind
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (797))
-               (Prims.of_int (31)) (Prims.of_int (797)) (Prims.of_int (46)))
-            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (797))
-               (Prims.of_int (17)) (Prims.of_int (797)) (Prims.of_int (46)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (802))
+               (Prims.of_int (31)) (Prims.of_int (802)) (Prims.of_int (46)))
+            (Prims.mk_range "Steel.ST.GenElim.Base.fsti" (Prims.of_int (802))
+               (Prims.of_int (17)) (Prims.of_int (802)) (Prims.of_int (46)))
             (Obj.magic (FStar_Tactics_Derived.cur_goal ()))
             (fun uu___1 ->
                FStar_Tactics_Effect.lift_div_tac
@@ -2742,27 +2742,27 @@ let (solve_gen_elim_prop_placeholder :
                 Obj.magic
                   (FStar_Tactics_Effect.tac_bind
                      (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                        (Prims.of_int (798)) (Prims.of_int (2))
-                        (Prims.of_int (799)) (Prims.of_int (33)))
+                        (Prims.of_int (803)) (Prims.of_int (2))
+                        (Prims.of_int (804)) (Prims.of_int (33)))
                      (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                        (Prims.of_int (800)) (Prims.of_int (2))
-                        (Prims.of_int (833)) (Prims.of_int (35)))
+                        (Prims.of_int (805)) (Prims.of_int (2))
+                        (Prims.of_int (838)) (Prims.of_int (35)))
                      (Obj.magic
                         (FStar_Tactics_Effect.tac_bind
                            (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                              (Prims.of_int (798)) (Prims.of_int (5))
-                              (Prims.of_int (798)) (Prims.of_int (23)))
+                              (Prims.of_int (803)) (Prims.of_int (5))
+                              (Prims.of_int (803)) (Prims.of_int (23)))
                            (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                              (Prims.of_int (798)) (Prims.of_int (2))
-                              (Prims.of_int (799)) (Prims.of_int (33)))
+                              (Prims.of_int (803)) (Prims.of_int (2))
+                              (Prims.of_int (804)) (Prims.of_int (33)))
                            (Obj.magic
                               (FStar_Tactics_Effect.tac_bind
                                  (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                    (Prims.of_int (798)) (Prims.of_int (9))
-                                    (Prims.of_int (798)) (Prims.of_int (23)))
+                                    (Prims.of_int (803)) (Prims.of_int (9))
+                                    (Prims.of_int (803)) (Prims.of_int (23)))
                                  (Prims.mk_range "Steel.ST.GenElim.Base.fsti"
-                                    (Prims.of_int (798)) (Prims.of_int (5))
-                                    (Prims.of_int (798)) (Prims.of_int (23)))
+                                    (Prims.of_int (803)) (Prims.of_int (5))
+                                    (Prims.of_int (803)) (Prims.of_int (23)))
                                  (Obj.magic (is_squash hd))
                                  (fun uu___2 ->
                                     FStar_Tactics_Effect.lift_div_tac
@@ -2788,15 +2788,15 @@ let (solve_gen_elim_prop_placeholder :
                                  (FStar_Tactics_Effect.tac_bind
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (802))
+                                       (Prims.of_int (807))
                                        (Prims.of_int (21))
-                                       (Prims.of_int (802))
+                                       (Prims.of_int (807))
                                        (Prims.of_int (40)))
                                     (Prims.mk_range
                                        "Steel.ST.GenElim.Base.fsti"
-                                       (Prims.of_int (802))
+                                       (Prims.of_int (807))
                                        (Prims.of_int (4))
-                                       (Prims.of_int (832))
+                                       (Prims.of_int (837))
                                        (Prims.of_int (7)))
                                     (FStar_Tactics_Effect.lift_div_tac
                                        (fun uu___3 ->
@@ -2810,15 +2810,15 @@ let (solve_gen_elim_prop_placeholder :
                                                 (FStar_Tactics_Effect.tac_bind
                                                    (Prims.mk_range
                                                       "Steel.ST.GenElim.Base.fsti"
-                                                      (Prims.of_int (803))
+                                                      (Prims.of_int (808))
                                                       (Prims.of_int (4))
-                                                      (Prims.of_int (804))
+                                                      (Prims.of_int (809))
                                                       (Prims.of_int (54)))
                                                    (Prims.mk_range
                                                       "Steel.ST.GenElim.Base.fsti"
-                                                      (Prims.of_int (805))
+                                                      (Prims.of_int (810))
                                                       (Prims.of_int (10))
-                                                      (Prims.of_int (831))
+                                                      (Prims.of_int (836))
                                                       (Prims.of_int (56)))
                                                    (if
                                                       Prims.op_Negation
@@ -2859,43 +2859,43 @@ let (solve_gen_elim_prop_placeholder :
                                                                (FStar_Tactics_Effect.tac_bind
                                                                   (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (808))
+                                                                    (Prims.of_int (813))
                                                                     (Prims.of_int (47)))
                                                                   (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (809))
+                                                                    (Prims.of_int (814))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                   (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (9))
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (32)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (808))
+                                                                    (Prims.of_int (813))
                                                                     (Prims.of_int (47)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (9))
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (27)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (9))
-                                                                    (Prims.of_int (807))
+                                                                    (Prims.of_int (812))
                                                                     (Prims.of_int (32)))
                                                                     (Obj.magic
                                                                     (Steel_Effect_Common.slterm_nbr_uvars
@@ -2941,29 +2941,29 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (809))
+                                                                    (Prims.of_int (814))
                                                                     (Prims.of_int (22))
-                                                                    (Prims.of_int (809))
+                                                                    (Prims.of_int (814))
                                                                     (Prims.of_int (46)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (810))
+                                                                    (Prims.of_int (815))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (809))
+                                                                    (Prims.of_int (814))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (809))
+                                                                    (Prims.of_int (814))
                                                                     (Prims.of_int (46)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (809))
+                                                                    (Prims.of_int (814))
                                                                     (Prims.of_int (22))
-                                                                    (Prims.of_int (809))
+                                                                    (Prims.of_int (814))
                                                                     (Prims.of_int (46)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.inspect
@@ -2987,29 +2987,29 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (810))
+                                                                    (Prims.of_int (815))
                                                                     (Prims.of_int (22))
-                                                                    (Prims.of_int (810))
+                                                                    (Prims.of_int (815))
                                                                     (Prims.of_int (46)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (811))
+                                                                    (Prims.of_int (816))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (810))
+                                                                    (Prims.of_int (815))
                                                                     (Prims.of_int (33))
-                                                                    (Prims.of_int (810))
+                                                                    (Prims.of_int (815))
                                                                     (Prims.of_int (46)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (810))
+                                                                    (Prims.of_int (815))
                                                                     (Prims.of_int (22))
-                                                                    (Prims.of_int (810))
+                                                                    (Prims.of_int (815))
                                                                     (Prims.of_int (46)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.inspect
@@ -3033,29 +3033,29 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (811))
+                                                                    (Prims.of_int (816))
                                                                     (Prims.of_int (25))
-                                                                    (Prims.of_int (811))
+                                                                    (Prims.of_int (816))
                                                                     (Prims.of_int (52)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (812))
+                                                                    (Prims.of_int (817))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (811))
+                                                                    (Prims.of_int (816))
                                                                     (Prims.of_int (36))
-                                                                    (Prims.of_int (811))
+                                                                    (Prims.of_int (816))
                                                                     (Prims.of_int (52)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (811))
+                                                                    (Prims.of_int (816))
                                                                     (Prims.of_int (25))
-                                                                    (Prims.of_int (811))
+                                                                    (Prims.of_int (816))
                                                                     (Prims.of_int (52)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.inspect
@@ -3079,15 +3079,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (812))
+                                                                    (Prims.of_int (817))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (813))
+                                                                    (Prims.of_int (818))
                                                                     (Prims.of_int (63)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (814))
+                                                                    (Prims.of_int (819))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (if
                                                                     Prims.op_Negation
@@ -3118,15 +3118,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (814))
+                                                                    (Prims.of_int (819))
                                                                     (Prims.of_int (30))
-                                                                    (Prims.of_int (814))
+                                                                    (Prims.of_int (819))
                                                                     (Prims.of_int (74)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (815))
+                                                                    (Prims.of_int (820))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.term_eq_old
@@ -3144,15 +3144,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (815))
+                                                                    (Prims.of_int (820))
                                                                     (Prims.of_int (15))
-                                                                    (Prims.of_int (815))
+                                                                    (Prims.of_int (820))
                                                                     (Prims.of_int (31)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (816))
+                                                                    (Prims.of_int (821))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim
@@ -3166,15 +3166,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (816))
+                                                                    (Prims.of_int (821))
                                                                     (Prims.of_int (15))
-                                                                    (Prims.of_int (816))
+                                                                    (Prims.of_int (821))
                                                                     (Prims.of_int (57)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (817))
+                                                                    (Prims.of_int (822))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (solve_gen_elim_nondep
@@ -3189,15 +3189,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (817))
+                                                                    (Prims.of_int (822))
                                                                     (Prims.of_int (22))
-                                                                    (Prims.of_int (817))
+                                                                    (Prims.of_int (822))
                                                                     (Prims.of_int (80)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (818))
+                                                                    (Prims.of_int (823))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (FStar_Tactics_Effect.lift_div_tac
                                                                     (fun
@@ -3219,15 +3219,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (818))
+                                                                    (Prims.of_int (823))
                                                                     (Prims.of_int (15))
-                                                                    (Prims.of_int (818))
+                                                                    (Prims.of_int (823))
                                                                     (Prims.of_int (89)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (819))
+                                                                    (Prims.of_int (824))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (FStar_Tactics_Effect.lift_div_tac
                                                                     (fun
@@ -3256,15 +3256,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (819))
+                                                                    (Prims.of_int (824))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (819))
+                                                                    (Prims.of_int (824))
                                                                     (Prims.of_int (37)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (820))
+                                                                    (Prims.of_int (825))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.term_to_string
@@ -3278,15 +3278,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (820))
+                                                                    (Prims.of_int (825))
                                                                     (Prims.of_int (15))
-                                                                    (Prims.of_int (820))
+                                                                    (Prims.of_int (825))
                                                                     (Prims.of_int (27)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (821))
+                                                                    (Prims.of_int (826))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (norm_term
@@ -3300,15 +3300,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (821))
+                                                                    (Prims.of_int (826))
                                                                     (Prims.of_int (15))
-                                                                    (Prims.of_int (821))
+                                                                    (Prims.of_int (826))
                                                                     (Prims.of_int (101)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (822))
+                                                                    (Prims.of_int (827))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (norm_term
@@ -3335,15 +3335,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (822))
+                                                                    (Prims.of_int (827))
                                                                     (Prims.of_int (18))
-                                                                    (Prims.of_int (822))
+                                                                    (Prims.of_int (827))
                                                                     (Prims.of_int (107)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (823))
+                                                                    (Prims.of_int (828))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (norm_term
@@ -3370,15 +3370,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (823))
+                                                                    (Prims.of_int (828))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (823))
+                                                                    (Prims.of_int (828))
                                                                     (Prims.of_int (18)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (824))
+                                                                    (Prims.of_int (829))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.unshelve
@@ -3393,15 +3393,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (824))
+                                                                    (Prims.of_int (829))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (824))
+                                                                    (Prims.of_int (829))
                                                                     (Prims.of_int (16)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (825))
-                                                                    (Prims.of_int (6))
                                                                     (Prims.of_int (830))
+                                                                    (Prims.of_int (6))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.exact
@@ -3416,15 +3416,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (825))
+                                                                    (Prims.of_int (830))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (825))
+                                                                    (Prims.of_int (830))
                                                                     (Prims.of_int (18)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (826))
+                                                                    (Prims.of_int (831))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.unshelve
@@ -3439,15 +3439,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (826))
+                                                                    (Prims.of_int (831))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (826))
+                                                                    (Prims.of_int (831))
                                                                     (Prims.of_int (16)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (827))
+                                                                    (Prims.of_int (832))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.exact
@@ -3462,15 +3462,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (827))
+                                                                    (Prims.of_int (832))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (827))
+                                                                    (Prims.of_int (832))
                                                                     (Prims.of_int (21)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (828))
+                                                                    (Prims.of_int (833))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Builtins.unshelve
@@ -3485,15 +3485,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (828))
+                                                                    (Prims.of_int (833))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (828))
+                                                                    (Prims.of_int (833))
                                                                     (Prims.of_int (19)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (829))
+                                                                    (Prims.of_int (834))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.exact
@@ -3508,15 +3508,15 @@ let (solve_gen_elim_prop_placeholder :
                                                                     (FStar_Tactics_Effect.tac_bind
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (829))
+                                                                    (Prims.of_int (834))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (829))
+                                                                    (Prims.of_int (834))
                                                                     (Prims.of_int (54)))
                                                                     (Prims.mk_range
                                                                     "Steel.ST.GenElim.Base.fsti"
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (6))
-                                                                    (Prims.of_int (830))
+                                                                    (Prims.of_int (835))
                                                                     (Prims.of_int (10)))
                                                                     (Obj.magic
                                                                     (FStar_Tactics_Derived.apply_lemma
