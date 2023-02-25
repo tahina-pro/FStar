@@ -76,19 +76,26 @@ let rec compute_gen_elim_p
 
 let compute_gen_elim_p' = compute_gen_elim_p
 
-module U = FStar.Universe
+[@@noextract_to "Plugin"]
+noeq
+type uunit : Type u#a = | UUnit
+
+[@@noextract_to "Plugin"]
+noeq
+type utuple1 (t1: Type u#u1) : Type u#(max u1 u0) =
+  | UTuple1: t1 -> utuple1 t1
 
 [@@ gen_elim_reduce; __steel_reduce__; noextract_to "Plugin"]
 let rec compute_gen_elim_a
   (x: gen_elim_i)
 : Tot (Type u#1)
 = match x with
-  | GEUnit _ -> U.raise_t unit
+  | GEUnit _ -> uunit
   | GEStarL left _ -> compute_gen_elim_a left
   | GEStarR _ right -> compute_gen_elim_a right
   | GEStar left right -> (compute_gen_elim_a left & compute_gen_elim_a right)
   | GEExistsNoAbs0 #a _
-  | GEExistsUnit0 #a _ -> U.raise_t a
+  | GEExistsUnit0 #a _ -> utuple1 a
   | GEExists0 #a body -> dtuple2 a (fun x -> compute_gen_elim_a (body x))
   | GEExistsNoAbs1 #a _
   | GEExistsUnit1 #a _ -> a
@@ -121,8 +128,8 @@ let rec compute_gen_elim_q
     fun v ->
       let v' : (tleft & tright) = coerce_with_trefl v in
       compute_gen_elim_q left (fstp #tleft #tright v') `star` compute_gen_elim_q right (sndp #tleft #tright v')
-  | GEExistsNoAbs0 #a p -> fun v -> p (U.downgrade_val v)
-  | GEExistsUnit0 #a p -> fun v -> compute_gen_unit_elim_q (p (U.downgrade_val v))
+  | GEExistsNoAbs0 #a p -> fun v -> p v._0
+  | GEExistsUnit0 #a p -> fun v -> compute_gen_unit_elim_q (p v._0)
   | GEExists0 #a body ->
     let dept = (fun x -> compute_gen_elim_a (body x)) in
     fun v ->
@@ -156,7 +163,7 @@ let rec compute_gen_elim_post
       let v' : (tleft & tright) = coerce_with_trefl v in
       compute_gen_elim_post left (fstp #tleft #tright v') /\ compute_gen_elim_post right (sndp #tleft #tright v')
   | GEExistsNoAbs0 #a p -> fun _ -> True
-  | GEExistsUnit0 #a p -> fun v -> compute_gen_unit_elim_post (p (U.downgrade_val v))
+  | GEExistsUnit0 #a p -> fun v -> compute_gen_unit_elim_post (p v._0)
   | GEExists0 #a body ->
     let dept = (fun x -> compute_gen_elim_a (body x)) in
     fun v ->
@@ -344,11 +351,10 @@ let rec compute_gen_elim_nondep_a_tac
     )
 
 [@@gen_elim_reduce; noextract_to "Plugin"]
-let compute_gen_elim_nondep_a' (ty: list (tagged_type)) : Tot Type =
+let compute_gen_elim_nondep_a' (ty: list (tagged_type)) : Tot (Type u#1) =
     match ty with
-    | [] -> U.raise_t unit
-    | [T0 t1] -> U.raise_t t1
-    | [T1 t1] -> t1
+    | [] -> uunit
+    | [t1] -> _ by (compute_gen_elim_nondep_a_tac (`utuple1) [(quote t1)])
     | [t1; t2] -> _ by (compute_gen_elim_nondep_a_tac (`utuple2) [(quote t1); (quote t2)])
     | [t1; t2; t3] -> _ by (compute_gen_elim_nondep_a_tac (`utuple3) [(quote t1); (quote t2); (quote t3)])
     | [t1; t2; t3; t4] -> _ by (compute_gen_elim_nondep_a_tac (`utuple4) [(quote t1); (quote t2); (quote t3); (quote t4)])
@@ -367,7 +373,7 @@ let compute_gen_elim_nondep_a' (ty: list (tagged_type)) : Tot Type =
     | [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13] -> tuple13 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13
     | [t1; t2; t3; t4; t5; t6; t7; t8; t9; t10; t11; t12; t13; t14] -> tuple14 t1 t2 t3 t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14
 *)    
-    | _ -> U.raise_t unit // unsupported
+    | _ -> uunit // unsupported
 
 [@@gen_elim_reduce; noextract_to "Plugin"]
 let compute_gen_elim_nondep_a (i0: gen_elim_i) (i: gen_elim_nondep_t) : Tot Type =
@@ -415,8 +421,7 @@ let rec compute_uncurry_tac
 let compute_uncurry (ret_type: Type u#(max 1 a)) (def: ret_type) (ty: list (tagged_type)) : curried_function_type ty ret_type -> compute_gen_elim_nondep_a' ty -> ret_type =
     match ty as ty' returns (curried_function_type ty' ret_type -> compute_gen_elim_nondep_a' ty' -> ret_type) with
     | [] -> fun q _ -> q
-    | [T0 _] -> fun q x -> q (U.downgrade_val x)
-    | [T1 _] -> fun q -> q
+    | [t1] -> (_ by (compute_uncurry_tac [(quote t1)] [(`UTuple1?._0)]))
     | [t1; t2] -> (_ by (compute_uncurry_tac [(quote t1); (quote t2)] [(`UTuple2?._0); (`UTuple2?._1)]))
     | [t1; t2; t3] -> (_ by (compute_uncurry_tac [(quote t1); (quote t2); (quote t3)] [(`UTuple3?._0); (`UTuple3?._1); (`UTuple3?._2)]))
     | [t1; t2; t3; t4] -> (_ by (compute_uncurry_tac [(quote t1); (quote t2); (quote t3); (quote t4)] [(`UTuple4?._0); (`UTuple4?._1); (`UTuple4?._2); (`UTuple4?._3)]))

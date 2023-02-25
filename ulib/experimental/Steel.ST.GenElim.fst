@@ -8,15 +8,13 @@ let gen_elim_f
 : Tot Type
 = ((opened: inames) -> STGhost a opened p q True post)
 
-module U = FStar.Universe
-
 let gen_unit_elim_t (i: gen_unit_elim_i) : Tot Type =
-  gen_elim_f (compute_gen_unit_elim_p i) (U.raise_t u#_ u#1 unit) (fun _ -> compute_gen_unit_elim_q i) (fun _ -> compute_gen_unit_elim_post i)
+  gen_elim_f (compute_gen_unit_elim_p i) uunit (fun _ -> compute_gen_unit_elim_q i) (fun _ -> compute_gen_unit_elim_post i)
 
 let compute_gen_unit_elim_f_id
   (v: vprop)
 : Tot (gen_unit_elim_t (GUEId v))
-= fun _ -> noop (); U.raise_val ()
+= fun _ -> noop (); UUnit
 
 let compute_gen_unit_elim_f_pure
   (p: prop)
@@ -24,7 +22,7 @@ let compute_gen_unit_elim_f_pure
 = fun _ ->
   rewrite (compute_gen_unit_elim_p (GUEPure p)) (pure p);
   elim_pure p;
-  U.raise_val ()
+  UUnit
 
 let compute_gen_unit_elim_f_star
   (i1 i2: gen_unit_elim_i)
@@ -36,7 +34,7 @@ let compute_gen_unit_elim_f_star
   let _ = f1 _ in
   let _ = f2 _ in
   rewrite (compute_gen_unit_elim_q i1 `star` compute_gen_unit_elim_q i2) (compute_gen_unit_elim_q (GUEStar i1 i2));
-  U.raise_val ()
+  UUnit
 
 let rec compute_gen_unit_elim_f
   (i: gen_unit_elim_i)
@@ -103,7 +101,7 @@ let compute_gen_elim_f_exists_no_abs0
 = fun _ ->
   rewrite (compute_gen_elim_p (GEExistsNoAbs0 body)) (exists_ body);
   let gres = elim_exists () in
-  let res : compute_gen_elim_a (GEExistsNoAbs0 body) = U.raise_val (Ghost.reveal gres) in //  coerce_with_trefl (Ghost.reveal gres) in
+  let res : compute_gen_elim_a (GEExistsNoAbs0 body) = UTuple1 (Ghost.reveal gres) in //  coerce_with_trefl (Ghost.reveal gres) in
   rewrite (body gres) (compute_gen_elim_q (GEExistsNoAbs0 body) res);
   res
 
@@ -123,7 +121,7 @@ let compute_gen_elim_f_exists_unit0
   rewrite_with_trefl (compute_gen_elim_p (GEExistsUnit0 body)) (exists_ (fun x -> compute_gen_unit_elim_p (body x)));
   let gres = elim_exists () in
   let _ = compute_gen_unit_elim_f (body gres) _ in
-  let res : compute_gen_elim_a (GEExistsUnit0 body) = U.raise_val (Ghost.reveal gres) in // coerce_with_trefl (Ghost.reveal gres) in
+  let res : compute_gen_elim_a (GEExistsUnit0 body) = UTuple1 (Ghost.reveal gres) in // coerce_with_trefl (Ghost.reveal gres) in
   rewrite (compute_gen_unit_elim_q (body gres)) (compute_gen_elim_q (GEExistsUnit0 body) res);
   res
 
@@ -550,41 +548,46 @@ let compute_gen_elim_nondep_correct0
 = fun q post intro _ ->
     intro _;
     rewrite_with_trefl (gen_elim_nondep_p _ _ _) (q `star` pure (post));
-    let res = U.raise_val () in
+    let res = UUnit in
     elim_pure _;
     rewrite_with_trefl (q) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res);
     res
-
-let compute_gen_elim_nondep_correct1_0
-  (i0: gen_elim_i)
-  (t1: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [T0 t1])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> q x1 `star` pure (post x1)));
-    let x1 = elim_exists' () in
-    let res = U.raise_val u#_ u#1 x1 in
-    rewrite (q _) (compute_uncurry vprop (compute_gen_elim_p' i0) [T0 t1] q res);
-    elim_pure (post x1);
-    res
-
-let compute_gen_elim_nondep_correct1_1
-  (i0: gen_elim_i)
-  (t1: Type)
-: Tot (compute_gen_elim_nondep_correct_t i0 [T1 t1])
-= fun q post intro _ ->
-    intro _;
-    rewrite_with_trefl (gen_elim_nondep_p _ _ _) (exists_ (fun x1 -> q x1 `star` pure (post x1)));
-    let x1 = elim_exists' () in
-    rewrite (q _) (compute_uncurry vprop (compute_gen_elim_p' i0) [T1 t1] q x1);
-    elim_pure (post x1);
-    x1
 
 let rewrite_with_squash (#opened:inames)
             (p q: vprop)
             (sq: squash (p == q))
   : STGhostT unit opened p (fun _ -> q)
 = rewrite p q
+
+let compute_gen_elim_nondep_correct1_gen
+  (t1: Type u#u1)
+  (i0: gen_elim_i)
+  (l: list tagged_type)
+  (prf: (mktuple: (t1 -> compute_gen_elim_nondep_a' l) & (
+    (q: curried_function_type u#2 l vprop) ->
+    (post: curried_function_type l prop) ->
+    (q': (t1 -> vprop) & (
+      (post': (t1 -> prop) & (
+        squash (gen_elim_nondep_p l q post == exists_ (fun x1 -> q' x1 `star` pure (post' x1))) &
+        ((x1: t1) -> (
+          squash (q' x1 == compute_uncurry vprop (compute_gen_elim_p' i0) l q (mktuple x1)) &
+          squash (post' x1 == compute_uncurry prop True l post (mktuple x1))
+        ))
+      ))
+    ))
+  )))
+: Tot (compute_gen_elim_nondep_correct_t i0 l)
+= fun q post intro _ ->
+    intro _;
+    let (| mktuple, rewrites |) = prf in
+    let (| q', (| post', (sq1, f) |) |) = rewrites q post in
+    rewrite_with_squash (gen_elim_nondep_p l q post) (exists_ (fun x1 -> q' x1 `star` pure (post' x1))) sq1;
+    let x1 = elim_exists' () in
+    let res = mktuple x1 in
+    let (sq2, _) = f x1 in
+    elim_pure _;
+    rewrite_with_squash (q' _) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res) sq2;
+    res
 
 let compute_gen_elim_nondep_correct2_gen
   (t1: Type u#u1)
@@ -757,7 +760,7 @@ let compute_gen_elim_nondep_correct_default
 : Tot (compute_gen_elim_nondep_correct_t i0 (t1 :: t2 :: t3 :: t4 :: t5 (* :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq))
 = fun q post intro _ ->
     // default case: no exists is opened
-    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 :: t4 :: t5 (* :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq) = (U.raise_val ()) in
+    let res : compute_gen_elim_nondep_a' (t1 :: t2 :: t3 :: t4 :: t5 (* :: t6 :: t7 :: t8 :: t9 :: t10 :: t11 :: t12 :: t13 :: t14 :: t15 *) :: tq) = UUnit in
     rewrite (compute_gen_elim_p i0) (compute_uncurry _ (compute_gen_elim_p' i0) _ _ res);
     res
 
@@ -767,8 +770,7 @@ let compute_gen_elim_nondep_correct'
 : Tot (compute_gen_elim_nondep_correct_t i0 ty)
 = match ty as ty' returns compute_gen_elim_nondep_correct_t i0 ty' with
   | [] -> compute_gen_elim_nondep_correct0 i0
-  | [T0 t1] -> compute_gen_elim_nondep_correct1_0 i0 t1
-  | [T1 t1] -> compute_gen_elim_nondep_correct1_1 i0 t1
+  | [_] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct1_gen) (`UTuple1)))
   | [_; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct2_gen) (`UTuple2)))
   | [_; _; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct3_gen) (`UTuple3)))
   | [_; _; _; _] -> (_ by (compute_gen_elim_nondep_correct_tac (`compute_gen_elim_nondep_correct4_gen) (`UTuple4)))
