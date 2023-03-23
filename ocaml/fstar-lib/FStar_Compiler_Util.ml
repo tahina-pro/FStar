@@ -1,3 +1,4 @@
+module Z = FStar_BigInt
 let max_int = Z.of_int max_int
 let is_letter c = if c > 255 then false else BatChar.is_letter (BatChar.chr c)
 let is_digit  c = if c > 255 then false else BatChar.is_digit  (BatChar.chr c)
@@ -395,8 +396,8 @@ let psmap_modify (m: 'value psmap) (k: string) (upd: 'value option -> 'value) =
 let psmap_merge (m1: 'value psmap) (m2: 'value psmap) : 'value psmap =
   psmap_fold m1 (fun k v m -> psmap_add m k v) m2
 
-module ZHashtbl = BatHashtbl.Make(Z)
-module ZMap = BatMap.Make(Z)
+module ZHashtbl = BatHashtbl.Make(Z.HashedType)
+module ZMap = BatMap.Make(Z.OrderedType)
 
 type 'value imap = 'value ZHashtbl.t
 let imap_create (i:Z.t) : 'value imap = ZHashtbl.create (Z.to_int i)
@@ -865,8 +866,8 @@ let for_range lo hi f =
   done
 
 
-let incr r = FStar_ST.(Z.(write r (read r + one)))
-let decr r = FStar_ST.(Z.(write r (read r - one)))
+let incr r = FStar_ST.(Z.(write r (add_big_int (read r) one)))
+let decr r = FStar_ST.(Z.(write r (sub_big_int (read r) one)))
 let geq (i:int) (j:int) = i >= j
 
 let get_exec_dir () = Filename.dirname (Sys.executable_name)
@@ -1229,7 +1230,7 @@ type width = | Int8 | Int16 | Int32 | Int64
 
 let rec z_pow2 n =
   if n = Z.zero then Z.one
-  else Z.mul (Z.of_string "2") (z_pow2 (Z.sub n Z.one))
+  else Z.mult_big_int (Z.of_string "2") (z_pow2 (Z.sub_big_int n Z.one))
 
 let bounds signedness width =
     let n =
@@ -1242,17 +1243,17 @@ let bounds signedness width =
     let lower, upper =
       match signedness with
       | Unsigned ->
-        Z.zero, Z.sub (z_pow2 n) Z.one
+        Z.zero, Z.sub_big_int (z_pow2 n) Z.one
       | Signed ->
-        let upper = z_pow2 (Z.sub n Z.one) in
-        Z.neg upper, Z.sub upper Z.one
+        let upper = z_pow2 (Z.sub_big_int n Z.one) in
+        Z.minus_big_int upper, Z.sub_big_int upper Z.one
     in
     lower, upper
 
 let within_bounds repr signedness width =
   let lower, upper = bounds signedness width in
   let value = Z.of_string (ensure_decimal repr) in
-  Z.leq lower value && Z.leq value upper
+  Z.le_big_int lower value && Z.le_big_int value upper
 
 let print_array (f: 'a -> string) 
                 (s: 'a array)
