@@ -109,8 +109,8 @@ let build_constant (c: mlconstant): Parsetree.constant =
   let stdint_module (s:FStar_Const.signedness) (w:FStar_Const.width) : string =
     let sign = match s with
       | FStar_Const.Signed -> "Int"
-      | FStar_Const.Unsigned -> "Uint" in
-    let with_w ws = BatString.concat "" ["Stdint."; sign; ws] in
+      | FStar_Const.Unsigned -> "UInt" in
+    let with_w ws = BatString.concat "" ["FStar_"; sign; ws] in
     match w with
     | FStar_Const.Int8 -> with_w "8"
     | FStar_Const.Int16 -> with_w "16"
