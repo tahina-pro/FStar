@@ -61,8 +61,8 @@ module IntegerOps (T: IntegerType) (S: ShiftAmountType) = struct
   let mul_mod = mul
 
   (* Conversions to Zarith's int *)
-  let to_int (x:t) : Z.t = Z.of_string (to_string x)
-  let of_int (x:Z.t) : t = of_string (Z.to_string x)
+  let to_int (x:t) : Z.t = Z.big_int_of_string (to_string x)
+  let of_int (x:Z.t) : t = of_string (Z.string_of_big_int x)
   let uint_to_t = of_int
   let __uint_to_t = uint_to_t
   let int_to_t = of_int

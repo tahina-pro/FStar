@@ -514,7 +514,7 @@ let unicode_of_string (string:string) =
 let base64_encode s = BatBase64.str_encode s
 let base64_decode s = BatBase64.str_decode s
 let char_of_int i = Z.to_int i
-let int_of_string = Z.of_string
+let int_of_string = Z.big_int_of_string
 let safe_int_of_string x = try Some (int_of_string x) with Invalid_argument _ -> None
 let int_of_char x = Z.of_int x
 let int_of_byte x = x
@@ -530,7 +530,7 @@ let float_of_int64 = BatInt64.to_float
 let int_of_int32 i = i
 let int32_of_int i = BatInt32.of_int i
 
-let string_of_int = Z.to_string
+let string_of_int = Z.string_of_big_int
 let string_of_bool = string_of_bool
 let string_of_int32 = BatInt32.to_string
 let string_of_int64 = BatInt64.to_string
@@ -1050,7 +1050,7 @@ let touch_file (fname:string) : unit =
   (* Sets access and modification times to current time *)
   Unix.utimes fname 0.0 0.0
 
-let ensure_decimal s = Z.to_string (Z.of_string s)
+let ensure_decimal s = Z.string_of_big_int (Z.big_int_of_string s)
 
 let measure_execution_time tag f =
   let t = Sys.time () in
@@ -1230,15 +1230,15 @@ type width = | Int8 | Int16 | Int32 | Int64
 
 let rec z_pow2 n =
   if n = Z.zero then Z.one
-  else Z.mult_big_int (Z.of_string "2") (z_pow2 (Z.sub_big_int n Z.one))
+  else Z.mult_big_int (Z.big_int_of_string "2") (z_pow2 (Z.sub_big_int n Z.one))
 
 let bounds signedness width =
     let n =
         match width with
-        | Int8 -> Z.of_string "8"
-        | Int16 -> Z.of_string "16"
-        | Int32 -> Z.of_string "32"
-        | Int64 -> Z.of_string "64"
+        | Int8 -> Z.big_int_of_string "8"
+        | Int16 -> Z.big_int_of_string "16"
+        | Int32 -> Z.big_int_of_string "32"
+        | Int64 -> Z.big_int_of_string "64"
     in
     let lower, upper =
       match signedness with
@@ -1252,7 +1252,7 @@ let bounds signedness width =
 
 let within_bounds repr signedness width =
   let lower, upper = bounds signedness width in
-  let value = Z.of_string (ensure_decimal repr) in
+  let value = Z.big_int_of_string (ensure_decimal repr) in
   Z.le_big_int lower value && Z.le_big_int value upper
 
 let print_array (f: 'a -> string) 

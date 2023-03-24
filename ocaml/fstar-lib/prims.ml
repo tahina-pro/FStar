@@ -1,9 +1,10 @@
 type int = FStar_BigInt.t [@printer FStar_BigInt.pp_print]
+let pp_int = FStar_BigInt.pp_print
 let of_int = FStar_BigInt.of_int
 let int_zero = FStar_BigInt.zero
 let int_one = FStar_BigInt.one
-let parse_int = FStar_BigInt.of_string
-let to_string = FStar_BigInt.to_string
+let parse_int = FStar_BigInt.big_int_of_string
+let to_string = FStar_BigInt.string_of_big_int
 
 type tmp = string [@@deriving yojson]
 let int_to_yojson x = tmp_to_yojson (to_string x)
@@ -190,7 +191,7 @@ let op_Modulus x y = x mod y
 let op_Division x y = x / y
 let rec (pow2 : nat -> pos) =
   fun x  ->
-    FStar_BigInt.shift_left_big_int FStar_BigInt.one (FStar_BigInt.to_int x)
+    FStar_BigInt.shift_left_big_int FStar_BigInt.one x
 
 let (min : int -> int -> int) =
   fun x  -> fun y  -> if x <= y then x else y

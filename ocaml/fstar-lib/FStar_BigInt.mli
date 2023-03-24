@@ -31,8 +31,10 @@ val logor_big_int: bigint -> bigint -> bigint
 val logxor_big_int: bigint -> bigint -> bigint
 val lognot_big_int: bigint -> bigint
 
-val shift_left_big_int: bigint -> int -> bigint
-val shift_right_big_int: bigint -> int -> bigint
+val shift_left_big_int: bigint -> bigint -> bigint
+val shift_right_big_int: bigint -> bigint -> bigint
+val shift_arithmetic_left_big_int: bigint -> int -> bigint
+val shift_arithmetic_right_big_int: bigint -> int -> bigint
 
 val sqrt_big_int: bigint -> bigint
 
@@ -46,12 +48,12 @@ val to_int: bigint -> int
 val of_int_fs: bigint -> bigint
 val to_int_fs: bigint -> bigint
 
-val of_string: string -> bigint
-val to_string: bigint -> string
+val big_int_of_string: string -> bigint
+val string_of_big_int: bigint -> string
 
 val of_hex: string -> bigint
 
-val pp_pprint: Format.formatter -> t -> unit
+val pp_print: Format.formatter -> t -> unit
 
 (* Needed by FStar_Compiler_Util.time_diff *)
 val of_float: float -> bigint
@@ -61,6 +63,9 @@ val to_float: bigint -> float
 
 (* Needed by FStar_Date.seconds_from_dawn *)
 val of_int64: int64 -> bigint
+
+(* Needed by FStar_Bytes.bytes_of_int *)
+val to_int64: bigint -> int64
 
 (* Needed by FStar_Compiler_Util.ZHashTbl *)
 module HashedType: BatHashtbl.HashedType with type t = t
