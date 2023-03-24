@@ -3,39 +3,21 @@
  (name fstar_lib)
  (public_name fstar.lib)
  (libraries
-    batteries
-;    zarith
-;    stdint
-    yojson
-    ppxlib
-    dynlink
-    menhirLib
-    pprint
-    process
-    sedlex
+   zarith
+   stdint
  )
- (modules_without_implementation
-   FStar_BigInt
-   FStar_Int8_Base
-   FStar_Int16_Base
-   FStar_Int32_Base
-   FStar_Int64_Base
-   FStar_UInt16_Base
-   FStar_UInt32_Base
-   FStar_UInt64_Base
- )
+ (implements fstar.lib.base)
  (modes native)
- (wrapped false)
  (preprocess (pps ppx_deriving.show ppx_deriving_yojson sedlex.ppx))
 )
 
-(rule
-  (target FStar_Version.ml)
-  (deps (:script make_fstar_version.sh)
-        (:version ../../version.txt))
-  (action
-    (progn
-      (copy %{version} version.txt)
-      (with-stdout-to
-        FStar_Version.ml
-        (run bash %{script})))))
+ ; (modules_without_implementation
+ ;   FStar_BigInt
+ ;   FStar_Int8_Base
+ ;   FStar_Int16_Base
+ ;   FStar_Int32_Base
+ ;   FStar_Int64_Base
+ ;   FStar_UInt16_Base
+ ;   FStar_UInt32_Base
+ ;   FStar_UInt64_Base
+ ; )
