@@ -17,7 +17,8 @@ DUNE_SNAPSHOT ?= $(FSTAR_HOME)/ocaml
 TARGET_DIR=$(DUNE_SNAPSHOT)/fstar-lib/generated/
 INTFILES=$(addprefix $(TARGET_DIR),$(INTFILES_RAW))
 
-intfiles: $(INTFILES)
+# intfiles: $(INTFILES)
+intfiles:
 
 $(TARGET_DIR)%.ml: %.ml.prefix FStar_Ints.ml.body
 	>$@

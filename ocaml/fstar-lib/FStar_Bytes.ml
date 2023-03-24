@@ -1,3 +1,4 @@
+module Z = FStar_BigInt
 module U8 = FStar_UInt8
 module U16 = FStar_UInt16
 module U32 = FStar_UInt32
