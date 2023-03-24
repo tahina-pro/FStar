@@ -19,8 +19,8 @@ let (update_frozen_until_alloc :
     -> unit)
   =
   fun b ->
-    LowStar_Endianness.store32_le_i b Stdint.Uint32.zero
-      (Stdint.Uint32.of_int (4));
+    LowStar_Endianness.store32_le_i b FStar_UInt32.zero
+      (FStar_UInt32.of_native_int (4));
     LowStar_Monotonic_Buffer.witness_p b ()
 let (gcmalloc : unit -> u32 -> buffer) =
   fun r ->
@@ -28,7 +28,7 @@ let (gcmalloc : unit -> u32 -> buffer) =
       let h0 = FStar_HyperStack_ST.get () in
       let b =
         LowStar_Monotonic_Buffer.mgcmalloc () 0
-          (FStar_UInt32.add len (Stdint.Uint32.of_int (4))) in
+          (FStar_UInt32.add len (FStar_UInt32.of_native_int (4))) in
       let h = FStar_HyperStack_ST.get () in update_frozen_until_alloc b; b
 let (malloc : unit -> u32 -> buffer) =
   fun r ->
@@ -36,7 +36,7 @@ let (malloc : unit -> u32 -> buffer) =
       let h0 = FStar_HyperStack_ST.get () in
       let b =
         LowStar_Monotonic_Buffer.mmalloc () 0
-          (FStar_UInt32.add len (Stdint.Uint32.of_int (4))) in
+          (FStar_UInt32.add len (FStar_UInt32.of_native_int (4))) in
       let h = FStar_HyperStack_ST.get () in update_frozen_until_alloc b; b
 type 'len alloca_pre = unit
 let (alloca : u32 -> buffer) =
@@ -44,7 +44,7 @@ let (alloca : u32 -> buffer) =
     let h0 = FStar_HyperStack_ST.get () in
     let b =
       LowStar_Monotonic_Buffer.malloca 0
-        (FStar_UInt32.add len (Stdint.Uint32.of_int (4))) in
+        (FStar_UInt32.add len (FStar_UInt32.of_native_int (4))) in
     let h = FStar_HyperStack_ST.get () in update_frozen_until_alloc b; b
 let (upd : buffer -> u32 -> u8 -> unit) =
   fun b ->
@@ -57,10 +57,10 @@ let (freeze : buffer -> u32 -> unit) =
   fun b ->
     fun i ->
       LowStar_Monotonic_Buffer.recall_p b ();
-      LowStar_Endianness.store32_le_i b Stdint.Uint32.zero i;
+      LowStar_Endianness.store32_le_i b FStar_UInt32.zero i;
       LowStar_Monotonic_Buffer.witness_p b ()
 let (frozen_until_st : buffer -> u32) =
-  fun b -> LowStar_Endianness.load32_le_i b Stdint.Uint32.zero
+  fun b -> LowStar_Endianness.load32_le_i b FStar_UInt32.zero
 let (witness_slice : buffer -> u32 -> u32 -> unit -> unit) =
   fun b ->
     fun i -> fun j -> fun snap -> LowStar_Monotonic_Buffer.witness_p b ()

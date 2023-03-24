@@ -9,7 +9,7 @@ let (constant_time_carry :
         (FStar_UInt64.logxor a
            (FStar_UInt64.logor (FStar_UInt64.logxor a b)
               (FStar_UInt64.logxor (FStar_UInt64.sub_mod a b) b)))
-        (Stdint.Uint32.of_int (63))
+        (FStar_UInt32.of_native_int (63))
 type uint128 = {
   low: FStar_UInt64.t ;
   high: FStar_UInt64.t }
@@ -138,7 +138,7 @@ let (add_u64_shift_left_respec :
 let (shift_left_small : t -> FStar_UInt32.t -> t) =
   fun a ->
     fun s ->
-      if FStar_UInt32.eq s Stdint.Uint32.zero
+      if FStar_UInt32.eq s FStar_UInt32.zero
       then a
       else
         {
@@ -171,7 +171,7 @@ let (add_u64_shift_right_respec :
 let (shift_right_small : t -> FStar_UInt32.t -> t) =
   fun a ->
     fun s ->
-      if FStar_UInt32.eq s Stdint.Uint32.zero
+      if FStar_UInt32.eq s FStar_UInt32.zero
       then a
       else
         {

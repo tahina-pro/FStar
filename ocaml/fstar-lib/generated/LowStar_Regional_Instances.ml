@@ -27,8 +27,8 @@ let buffer_copy :
         fun dst ->
           match uu___1 with
           | (ia, len) ->
-              LowStar_Monotonic_Buffer.blit src Stdint.Uint32.zero dst
-                Stdint.Uint32.zero len
+              LowStar_Monotonic_Buffer.blit src FStar_UInt32.zero dst
+                FStar_UInt32.zero len
 let buffer_regional :
   'a .
     'a ->
@@ -51,7 +51,7 @@ let vector_dummy :
   'a 'uuuuu . unit -> ('a, 'uuuuu, unit) LowStar_RVector.rvector =
   fun uu___ ->
     LowStar_Vector.Vec
-      (Stdint.Uint32.zero, Stdint.Uint32.zero,
+      (FStar_UInt32.zero, FStar_UInt32.zero,
         (LowStar_Monotonic_Buffer.mnull ()))
 type ('a, 'rst, 'rg, 'h, 'v) vector_r_inv = unit
 type ('a, 'rst, 'rg) vector_repr = unit FStar_Seq_Base.seq
@@ -64,7 +64,7 @@ let vector_r_alloc :
   fun rg ->
     fun r ->
       FStar_HyperStack_ST.new_region ();
-      LowStar_Vector.alloc_reserve Stdint.Uint32.one
+      LowStar_Vector.alloc_reserve FStar_UInt32.one
         (LowStar_Regional.__proj__Rgl__item__dummy rg) ()
 let vector_r_free :
   'uuuuu 'uuuuu1 .

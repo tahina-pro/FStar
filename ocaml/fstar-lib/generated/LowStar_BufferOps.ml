@@ -17,7 +17,7 @@ let op_Array_Assignment :
         LowStar_Monotonic_Buffer.upd' b i v
 let op_Bang_Star :
   'a 'rrel 'rel . ('a, 'rrel, 'rel) LowStar_Monotonic_Buffer.mbuffer -> 'a =
-  fun p -> LowStar_Monotonic_Buffer.index p Stdint.Uint32.zero
+  fun p -> LowStar_Monotonic_Buffer.index p FStar_UInt32.zero
 let op_Star_Equals :
   'a 'rrel 'rel .
     ('a, 'rrel, 'rel) LowStar_Monotonic_Buffer.mbuffer -> 'a -> unit
@@ -25,7 +25,7 @@ let op_Star_Equals :
   fun p ->
     fun v ->
       let h = FStar_HyperStack_ST.get () in
-      LowStar_Monotonic_Buffer.upd' p Stdint.Uint32.zero v
+      LowStar_Monotonic_Buffer.upd' p FStar_UInt32.zero v
 let blit :
   'a 'rrel1 'rel1 'rrel2 'rel2 .
     unit ->

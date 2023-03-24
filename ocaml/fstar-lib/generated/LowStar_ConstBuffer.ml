@@ -53,9 +53,9 @@ let (test :
       let c1 = of_buffer x in
       let c2 = of_ibuffer y in
       (let h = FStar_HyperStack_ST.get () in
-       LowStar_Monotonic_Buffer.upd' x Stdint.Uint32.zero Stdint.Uint32.one);
-      (let a = index c1 Stdint.Uint32.zero in
-       let a' = index c2 Stdint.Uint32.zero in
-       let c3 = sub c2 Stdint.Uint32.one () in
-       let a'' = index c3 Stdint.Uint32.zero in
+       LowStar_Monotonic_Buffer.upd' x FStar_UInt32.zero FStar_UInt32.one);
+      (let a = index c1 FStar_UInt32.zero in
+       let a' = index c2 FStar_UInt32.zero in
+       let c3 = sub c2 FStar_UInt32.one () in
+       let a'' = index c3 FStar_UInt32.zero in
        FStar_UInt32.add (FStar_UInt32.add a a') a'')

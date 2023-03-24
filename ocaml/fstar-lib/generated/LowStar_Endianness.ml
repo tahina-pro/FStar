@@ -113,72 +113,76 @@ let load128_be_i :
   = fun b -> fun i -> failwith "Not yet implemented:load128_be_i"
 let (store16_le :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt16.t -> unit) =
-  fun b -> fun z -> store16_le_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store16_le_i b FStar_UInt32.zero z
 let (load16_le : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt16.t) =
-  fun b -> load16_le_i b Stdint.Uint32.zero
+  fun b -> load16_le_i b FStar_UInt32.zero
 let (store16_be :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt16.t -> unit) =
-  fun b -> fun z -> store16_be_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store16_be_i b FStar_UInt32.zero z
 let (load16_be : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt16.t) =
-  fun b -> load16_be_i b Stdint.Uint32.zero
+  fun b -> load16_be_i b FStar_UInt32.zero
 let (store32_le :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt32.t -> unit) =
-  fun b -> fun z -> store32_le_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store32_le_i b FStar_UInt32.zero z
 let (load32_le : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt32.t) =
-  fun b -> load32_le_i b Stdint.Uint32.zero
+  fun b -> load32_le_i b FStar_UInt32.zero
 let (store32_be :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt32.t -> unit) =
-  fun b -> fun z -> store32_be_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store32_be_i b FStar_UInt32.zero z
 let (load32_be : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt32.t) =
-  fun b -> load32_be_i b Stdint.Uint32.zero
+  fun b -> load32_be_i b FStar_UInt32.zero
 let (store64_le :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt64.t -> unit) =
-  fun b -> fun z -> store64_le_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store64_le_i b FStar_UInt32.zero z
 let (load64_le : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt64.t) =
-  fun b -> load64_le_i b Stdint.Uint32.zero
+  fun b -> load64_le_i b FStar_UInt32.zero
 let (load64_be : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt64.t) =
-  fun b -> load64_be_i b Stdint.Uint32.zero
+  fun b -> load64_be_i b FStar_UInt32.zero
 let (store64_be :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt64.t -> unit) =
-  fun b -> fun z -> store64_be_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store64_be_i b FStar_UInt32.zero z
 let (load128_le : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt128.t) =
-  fun b -> load128_le_i b Stdint.Uint32.zero
+  fun b -> load128_le_i b FStar_UInt32.zero
 let (store128_le :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt128.t -> unit) =
-  fun b -> fun z -> store128_le_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store128_le_i b FStar_UInt32.zero z
 let (load128_be : FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt128.t) =
-  fun b -> load128_be_i b Stdint.Uint32.zero
+  fun b -> load128_be_i b FStar_UInt32.zero
 let (store128_be :
   FStar_UInt8.t LowStar_Buffer.buffer -> FStar_UInt128.t -> unit) =
-  fun b -> fun z -> store128_be_i b Stdint.Uint32.zero z
+  fun b -> fun z -> store128_be_i b FStar_UInt32.zero z
 let index_32_be :
   'rrel 'rel .
     (FStar_UInt8.t, 'rrel, 'rel) LowStar_Monotonic_Buffer.mbuffer ->
       FStar_UInt32.t -> FStar_UInt32.t
   =
   fun b ->
-    fun i -> load32_be_i b (FStar_UInt32.mul (Stdint.Uint32.of_int (4)) i)
+    fun i ->
+      load32_be_i b (FStar_UInt32.mul (FStar_UInt32.of_native_int (4)) i)
 let index_32_le :
   'rrel 'rel .
     (FStar_UInt8.t, 'rrel, 'rel) LowStar_Monotonic_Buffer.mbuffer ->
       FStar_UInt32.t -> FStar_UInt32.t
   =
   fun b ->
-    fun i -> load32_le_i b (FStar_UInt32.mul (Stdint.Uint32.of_int (4)) i)
+    fun i ->
+      load32_le_i b (FStar_UInt32.mul (FStar_UInt32.of_native_int (4)) i)
 let index_64_be :
   'rrel 'rel .
     (FStar_UInt8.t, 'rrel, 'rel) LowStar_Monotonic_Buffer.mbuffer ->
       FStar_UInt32.t -> FStar_UInt64.t
   =
   fun b ->
-    fun i -> load64_be_i b (FStar_UInt32.mul (Stdint.Uint32.of_int (8)) i)
+    fun i ->
+      load64_be_i b (FStar_UInt32.mul (FStar_UInt32.of_native_int (8)) i)
 let index_64_le :
   'rrel 'rel .
     (FStar_UInt8.t, 'rrel, 'rel) LowStar_Monotonic_Buffer.mbuffer ->
       FStar_UInt32.t -> FStar_UInt64.t
   =
   fun b ->
-    fun i -> load64_le_i b (FStar_UInt32.mul (Stdint.Uint32.of_int (8)) i)
+    fun i ->
+      load64_le_i b (FStar_UInt32.mul (FStar_UInt32.of_native_int (8)) i)
 let upd_32_be :
   'rrel 'rel .
     (FStar_UInt8.t, 'rrel, 'rel) LowStar_Monotonic_Buffer.mbuffer ->
@@ -188,5 +192,6 @@ let upd_32_be :
     fun i ->
       fun v ->
         let h0 = FStar_HyperStack_ST.get () in
-        store32_be_i b (FStar_UInt32.mul (Stdint.Uint32.of_int (4)) i) v;
+        store32_be_i b (FStar_UInt32.mul (FStar_UInt32.of_native_int (4)) i)
+          v;
         (let h1 = FStar_HyperStack_ST.get () in ())

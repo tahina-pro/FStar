@@ -81,10 +81,10 @@ let rec assign_list : 'a . 'a Prims.list -> 'a buffer -> unit =
       match l with
       | [] -> let h = FStar_HyperStack_ST.get () in ()
       | hd::tl ->
-          let b_hd = LowStar_Monotonic_Buffer.msub b Stdint.Uint32.zero () in
-          let b_tl = LowStar_Monotonic_Buffer.moffset b Stdint.Uint32.one in
+          let b_hd = LowStar_Monotonic_Buffer.msub b FStar_UInt32.zero () in
+          let b_tl = LowStar_Monotonic_Buffer.moffset b FStar_UInt32.one in
           let h = FStar_HyperStack_ST.get () in
           ((let h1 = FStar_HyperStack_ST.get () in
-            LowStar_Monotonic_Buffer.upd' b_hd Stdint.Uint32.zero hd);
+            LowStar_Monotonic_Buffer.upd' b_hd FStar_UInt32.zero hd);
            (let h0 = FStar_HyperStack_ST.get () in
             assign_list tl b_tl; (let h1 = FStar_HyperStack_ST.get () in ())))
