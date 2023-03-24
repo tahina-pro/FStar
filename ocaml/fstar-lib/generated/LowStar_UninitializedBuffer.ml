@@ -97,9 +97,9 @@ let ublit :
                       LowStar_Monotonic_Buffer.index src
                         (FStar_UInt32.add idx_src j) in
                     uupd dst (FStar_UInt32.add idx_dst j) uu___2);
-                   aux (FStar_UInt32.add j Stdint.Uint32.one))
+                   aux (FStar_UInt32.add j FStar_UInt32.one))
                 else () in
-            aux Stdint.Uint32.zero
+            aux FStar_UInt32.zero
 let witness_initialized : 'a . 'a ubuffer -> Prims.nat -> unit =
   fun b -> fun i -> LowStar_Monotonic_Buffer.witness_p b ()
 let recall_initialized : 'a . 'a ubuffer -> Prims.nat -> unit =

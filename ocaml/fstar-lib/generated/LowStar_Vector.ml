@@ -1,6 +1,6 @@
 open Prims
 type uint32_t = FStar_UInt32.t
-let (max_uint32 : uint32_t) = (Stdint.Uint32.of_string "4294967295")
+let (max_uint32 : uint32_t) = (FStar_UInt32.of_string "4294967295")
 type 'a vector_str =
   | Vec of uint32_t * uint32_t * 'a LowStar_Buffer.buffer 
 let uu___is_Vec : 'a . 'a vector_str -> Prims.bool = fun projectee -> true
@@ -16,7 +16,7 @@ let size_of : 'a . 'a vector -> uint32_t =
 let capacity_of : 'a . 'a vector -> uint32_t =
   fun vec -> match vec with | Vec (sz, cap, vs) -> cap
 let is_empty : 'a . 'a vector -> Prims.bool =
-  fun vec -> (match vec with | Vec (sz, cap, vs) -> sz) = Stdint.Uint32.zero
+  fun vec -> (match vec with | Vec (sz, cap, vs) -> sz) = FStar_UInt32.zero
 type ('a, 'h, 'vec) live =
   ('a, unit, unit, unit, unit) LowStar_Monotonic_Buffer.live
 type ('a, 'vec) freeable =
@@ -26,7 +26,7 @@ type ('h0, 'h1) hmap_dom_eq = (unit, unit, unit) FStar_Set.equal
 let alloc_empty : 'a . unit -> 'a vector =
   fun uu___ ->
     Vec
-      (Stdint.Uint32.zero, Stdint.Uint32.zero,
+      (FStar_UInt32.zero, FStar_UInt32.zero,
         (LowStar_Monotonic_Buffer.mnull ()))
 let alloc_rid : 'a . uint32_t -> 'a -> unit -> 'a vector =
   fun len ->
@@ -41,7 +41,7 @@ let alloc_reserve : 'a . uint32_t -> 'a -> unit -> 'a vector =
     fun ia ->
       fun rid ->
         let uu___ = LowStar_Monotonic_Buffer.mmalloc () ia len in
-        Vec (Stdint.Uint32.zero, len, uu___)
+        Vec (FStar_UInt32.zero, len, uu___)
 let alloc_by_buffer : 'a . uint32_t -> 'a LowStar_Buffer.buffer -> 'a vector
   = fun len -> fun buf -> Vec (len, len, buf)
 let free : 'a . 'a vector -> unit =
@@ -55,16 +55,16 @@ let index : 'a . 'a vector -> uint32_t -> 'a =
 let front : 'a . 'a vector -> 'a =
   fun vec ->
     LowStar_Monotonic_Buffer.index (match vec with | Vec (sz, cap, vs) -> vs)
-      Stdint.Uint32.zero
+      FStar_UInt32.zero
 let back : 'a . 'a vector -> 'a =
   fun vec ->
     LowStar_Monotonic_Buffer.index (match vec with | Vec (sz, cap, vs) -> vs)
       (FStar_UInt32.sub (match vec with | Vec (sz, cap, vs) -> sz)
-         Stdint.Uint32.one)
+         FStar_UInt32.one)
 let clear : 'a . 'a vector -> 'a vector =
   fun vec ->
     Vec
-      (Stdint.Uint32.zero, (match vec with | Vec (sz, cap, vs) -> cap),
+      (FStar_UInt32.zero, (match vec with | Vec (sz, cap, vs) -> cap),
         (match vec with | Vec (sz, cap, vs) -> vs))
 let assign : 'a . 'a vector -> uint32_t -> 'a -> unit =
   fun vec ->
@@ -75,16 +75,16 @@ let assign : 'a . 'a vector -> uint32_t -> 'a -> unit =
            LowStar_Monotonic_Buffer.msub
              (match vec with | Vec (sz, cap, vs) -> vs) i () in
          let h = FStar_HyperStack_ST.get () in
-         LowStar_Monotonic_Buffer.upd' uu___1 Stdint.Uint32.zero v);
+         LowStar_Monotonic_Buffer.upd' uu___1 FStar_UInt32.zero v);
         (let hh1 = FStar_HyperStack_ST.get () in ())
-let (resize_ratio : uint32_t) = (Stdint.Uint32.of_int (2))
+let (resize_ratio : uint32_t) = (FStar_UInt32.of_native_int (2))
 let (new_capacity : uint32_t -> uint32_t) =
   fun cap ->
     if FStar_UInt32.gte cap (FStar_UInt32.div max_uint32 resize_ratio)
     then max_uint32
     else
-      if cap = Stdint.Uint32.zero
-      then Stdint.Uint32.one
+      if cap = FStar_UInt32.zero
+      then FStar_UInt32.one
       else FStar_UInt32.mul cap resize_ratio
 let insert : 'a . 'a vector -> 'a -> 'a vector =
   fun vec ->
@@ -96,16 +96,16 @@ let insert : 'a . 'a vector -> 'a -> 'a vector =
       then
         let ncap = new_capacity cap in
         let nvs = LowStar_Monotonic_Buffer.mmalloc () v ncap in
-        (LowStar_Monotonic_Buffer.blit vs Stdint.Uint32.zero nvs
-           Stdint.Uint32.zero sz;
+        (LowStar_Monotonic_Buffer.blit vs FStar_UInt32.zero nvs
+           FStar_UInt32.zero sz;
          (let h = FStar_HyperStack_ST.get () in
           LowStar_Monotonic_Buffer.upd' nvs sz v);
          LowStar_Monotonic_Buffer.free vs;
-         Vec ((FStar_UInt32.add sz Stdint.Uint32.one), ncap, nvs))
+         Vec ((FStar_UInt32.add sz FStar_UInt32.one), ncap, nvs))
       else
         ((let h = FStar_HyperStack_ST.get () in
           LowStar_Monotonic_Buffer.upd' vs sz v);
-         Vec ((FStar_UInt32.add sz Stdint.Uint32.one), cap, vs))
+         Vec ((FStar_UInt32.add sz FStar_UInt32.one), cap, vs))
 let flush : 'a . 'a vector -> 'a -> uint32_t -> 'a vector =
   fun vec ->
     fun ia ->
@@ -114,11 +114,11 @@ let flush : 'a . 'a vector -> 'a -> uint32_t -> 'a vector =
           FStar_UInt32.sub (match vec with | Vec (sz, cap, vs) -> sz) i in
         let asz =
           if (match vec with | Vec (sz, cap, vs) -> sz) = i
-          then Stdint.Uint32.one
+          then FStar_UInt32.one
           else fsz in
         let vs = match vec with | Vec (sz, cap, vs1) -> vs1 in
         let fvs = LowStar_Monotonic_Buffer.mmalloc () ia asz in
-        LowStar_Monotonic_Buffer.blit vs i fvs Stdint.Uint32.zero fsz;
+        LowStar_Monotonic_Buffer.blit vs i fvs FStar_UInt32.zero fsz;
         LowStar_Monotonic_Buffer.free vs;
         Vec (fsz, asz, fvs)
 let shrink : 'a . 'a vector -> uint32_t -> 'a vector =
@@ -135,16 +135,16 @@ let rec fold_left_buffer :
     fun buf ->
       fun f ->
         fun ib ->
-          if len = Stdint.Uint32.zero
+          if len = FStar_UInt32.zero
           then ib
           else
             (let uu___1 =
-               LowStar_Monotonic_Buffer.msub buf Stdint.Uint32.one () in
+               LowStar_Monotonic_Buffer.msub buf FStar_UInt32.one () in
              let uu___2 =
                let uu___3 =
-                 LowStar_Monotonic_Buffer.index buf Stdint.Uint32.zero in
+                 LowStar_Monotonic_Buffer.index buf FStar_UInt32.zero in
                f ib uu___3 in
-             fold_left_buffer (FStar_UInt32.sub len Stdint.Uint32.one) uu___1
+             fold_left_buffer (FStar_UInt32.sub len FStar_UInt32.one) uu___1
                f uu___2)
 let fold_left : 'a 'b . 'a vector -> ('b -> 'a -> 'b) -> 'b -> 'b =
   fun vec ->
@@ -152,7 +152,7 @@ let fold_left : 'a 'b . 'a vector -> ('b -> 'a -> 'b) -> 'b -> 'b =
       fun ib ->
         let uu___ =
           LowStar_Monotonic_Buffer.msub
-            (match vec with | Vec (sz, cap, vs) -> vs) Stdint.Uint32.zero () in
+            (match vec with | Vec (sz, cap, vs) -> vs) FStar_UInt32.zero () in
         fold_left_buffer (match vec with | Vec (sz, cap, vs) -> sz) uu___ f
           ib
 type ('a, 'seq, 'i, 'j, 'p) forall_seq = unit

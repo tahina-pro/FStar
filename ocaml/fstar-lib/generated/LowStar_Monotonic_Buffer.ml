@@ -241,7 +241,7 @@ let alloc_heap_common :
             if mm
             then FStar_HyperStack_ST.ralloc_mm () s
             else FStar_HyperStack_ST.ralloc () s in
-          let b = Buffer (len, content, Stdint.Uint32.zero, ()) in b
+          let b = Buffer (len, content, FStar_UInt32.zero, ()) in b
 let mgcmalloc :
   'uuuuu 'uuuuu1 .
     unit -> 'uuuuu -> FStar_UInt32.t -> ('uuuuu, 'uuuuu1, 'uuuuu1) mbuffer
@@ -323,7 +323,7 @@ let malloca : 'a 'rrel . 'a -> FStar_UInt32.t -> ('a, 'rrel, 'rrel) mbuffer =
       let content =
         FStar_HyperStack_ST.salloc
           (FStar_Seq_Base.create (FStar_UInt32.v len) init) in
-      Buffer (len, content, Stdint.Uint32.zero, ())
+      Buffer (len, content, FStar_UInt32.zero, ())
 let malloca_and_blit :
   'a 'rrel 'uuuuu 'uuuuu1 .
     ('a, 'uuuuu, 'uuuuu1) mbuffer ->
@@ -335,7 +335,7 @@ let malloca_and_blit :
         let content =
           let uu___ = read_sub_buffer src id_src len in
           FStar_HyperStack_ST.salloc uu___ in
-        Buffer (len, content, Stdint.Uint32.zero, ())
+        Buffer (len, content, FStar_UInt32.zero, ())
 type ('a, 'init) alloca_of_list_pre = unit
 let malloca_of_list : 'a 'rrel . 'a Prims.list -> ('a, 'rrel, 'rrel) mbuffer
   =
@@ -343,7 +343,7 @@ let malloca_of_list : 'a 'rrel . 'a Prims.list -> ('a, 'rrel, 'rrel) mbuffer
     let len = FStar_UInt32.uint_to_t (FStar_List_Tot_Base.length init) in
     let s = FStar_Seq_Properties.seq_of_list init in
     let content = FStar_HyperStack_ST.salloc s in
-    Buffer (len, content, Stdint.Uint32.zero, ())
+    Buffer (len, content, FStar_UInt32.zero, ())
 type ('a, 'r, 'init) gcmalloc_of_list_pre = unit
 let mgcmalloc_of_list :
   'a 'rrel . unit -> 'a Prims.list -> ('a, 'rrel, 'rrel) mbuffer =
@@ -352,7 +352,7 @@ let mgcmalloc_of_list :
       let len = FStar_UInt32.uint_to_t (FStar_List_Tot_Base.length init) in
       let s = FStar_Seq_Properties.seq_of_list init in
       let content = FStar_HyperStack_ST.ralloc () s in
-      Buffer (len, content, Stdint.Uint32.zero, ())
+      Buffer (len, content, FStar_UInt32.zero, ())
 let mgcmalloc_of_list_partial :
   'a 'rrel . unit -> 'a Prims.list -> ('a, 'rrel, 'rrel) mbuffer =
   fun r -> fun init -> mgcmalloc_of_list () init
@@ -368,7 +368,7 @@ let mmalloc_drgn :
         let content =
           FStar_HyperStack_ST.ralloc_drgn d
             (FStar_Seq_Base.create (FStar_UInt32.v len) init) in
-        Buffer (len, content, Stdint.Uint32.zero, ())
+        Buffer (len, content, FStar_UInt32.zero, ())
 let mmalloc_drgn_mm :
   'a 'rrel .
     FStar_HyperStack_ST.drgn ->
@@ -380,7 +380,7 @@ let mmalloc_drgn_mm :
         let content =
           FStar_HyperStack_ST.ralloc_drgn_mm d
             (FStar_Seq_Base.create (FStar_UInt32.v len) init) in
-        Buffer (len, content, Stdint.Uint32.zero, ())
+        Buffer (len, content, FStar_UInt32.zero, ())
 let mmalloc_drgn_and_blit :
   'a 'rrel 'uuuuu 'uuuuu1 .
     FStar_HyperStack_ST.drgn ->
@@ -394,7 +394,7 @@ let mmalloc_drgn_and_blit :
           let content =
             let uu___ = read_sub_buffer src id_src len in
             FStar_HyperStack_ST.ralloc_drgn d uu___ in
-          Buffer (len, content, Stdint.Uint32.zero, ())
+          Buffer (len, content, FStar_UInt32.zero, ())
 let blit :
   'a 'rrel1 'rrel2 'rel1 'rel2 .
     ('a, 'rrel1, 'rel1) mbuffer ->
@@ -410,7 +410,7 @@ let blit :
             match (src, dst) with
             | (Buffer (uu___, uu___1, uu___2, uu___3), Buffer
                (uu___4, uu___5, uu___6, uu___7)) ->
-                if len = Stdint.Uint32.zero
+                if len = FStar_UInt32.zero
                 then ()
                 else
                   (let h = FStar_HyperStack_ST.get () in
@@ -455,7 +455,7 @@ let fill' :
   fun b ->
     fun z ->
       fun len ->
-        if len = Stdint.Uint32.zero
+        if len = FStar_UInt32.zero
         then ()
         else
           (let h = FStar_HyperStack_ST.get () in

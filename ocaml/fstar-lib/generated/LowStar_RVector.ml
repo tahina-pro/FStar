@@ -25,7 +25,7 @@ let alloc_empty :
   =
   fun rg ->
     LowStar_Vector.Vec
-      (Stdint.Uint32.zero, Stdint.Uint32.zero,
+      (FStar_UInt32.zero, FStar_UInt32.zero,
         (LowStar_Monotonic_Buffer.mnull ()))
 let rec alloc_ :
   'a 'rst .
@@ -36,7 +36,7 @@ let rec alloc_ :
     fun rv ->
       fun cidx ->
         let hh0 = FStar_HyperStack_ST.get () in
-        if cidx = Stdint.Uint32.zero
+        if cidx = FStar_UInt32.zero
         then ()
         else
           (FStar_HyperStack_ST.new_region ();
@@ -44,10 +44,10 @@ let rec alloc_ :
               LowStar_Regional.__proj__Rgl__item__r_alloc rg
                 (LowStar_Regional.__proj__Rgl__item__state rg) () in
             let hh1 = FStar_HyperStack_ST.get () in
-            LowStar_Vector.assign rv
-              (FStar_UInt32.sub cidx Stdint.Uint32.one) v;
+            LowStar_Vector.assign rv (FStar_UInt32.sub cidx FStar_UInt32.one)
+              v;
             (let hh2 = FStar_HyperStack_ST.get () in
-             alloc_ rg rv (FStar_UInt32.sub cidx Stdint.Uint32.one);
+             alloc_ rg rv (FStar_UInt32.sub cidx FStar_UInt32.one);
              (let hh3 = FStar_HyperStack_ST.get () in ()))))
 let alloc_rid :
   'a 'rst .
@@ -148,8 +148,8 @@ let rec free_elems :
          LowStar_Regional.__proj__Rgl__item__r_free rg
            (LowStar_Regional.__proj__Rgl__item__state rg) uu___1);
         (let hh1 = FStar_HyperStack_ST.get () in
-         if idx <> Stdint.Uint32.zero
-         then free_elems rg rv (FStar_UInt32.sub idx Stdint.Uint32.one)
+         if idx <> FStar_UInt32.zero
+         then free_elems rg rv (FStar_UInt32.sub idx FStar_UInt32.one)
          else ())
 let flush :
   'a 'rst .
@@ -161,9 +161,9 @@ let flush :
     fun rv ->
       fun i ->
         let hh0 = FStar_HyperStack_ST.get () in
-        if i = Stdint.Uint32.zero
+        if i = FStar_UInt32.zero
         then ()
-        else free_elems rg rv (FStar_UInt32.sub i Stdint.Uint32.one);
+        else free_elems rg rv (FStar_UInt32.sub i FStar_UInt32.one);
         (let hh1 = FStar_HyperStack_ST.get () in
          let frv =
            LowStar_Vector.flush rv
@@ -183,9 +183,9 @@ let rec free_elems_from :
            (LowStar_Regional.__proj__Rgl__item__state rg) uu___1);
         (let hh1 = FStar_HyperStack_ST.get () in
          if
-           FStar_UInt32.lt (FStar_UInt32.add idx Stdint.Uint32.one)
+           FStar_UInt32.lt (FStar_UInt32.add idx FStar_UInt32.one)
              (match rv with | LowStar_Vector.Vec (sz, cap, vs) -> sz)
-         then free_elems_from rg rv (FStar_UInt32.add idx Stdint.Uint32.one)
+         then free_elems_from rg rv (FStar_UInt32.add idx FStar_UInt32.one)
          else ())
 let shrink :
   'a 'rst .
@@ -214,11 +214,11 @@ let free :
       let hh0 = FStar_HyperStack_ST.get () in
       if
         (match rv with | LowStar_Vector.Vec (sz, cap, vs) -> sz) =
-          Stdint.Uint32.zero
+          FStar_UInt32.zero
       then ()
       else
         free_elems rg rv
           (FStar_UInt32.sub
              (match rv with | LowStar_Vector.Vec (sz, cap, vs) -> sz)
-             Stdint.Uint32.one);
+             FStar_UInt32.one);
       (let hh1 = FStar_HyperStack_ST.get () in LowStar_Vector.free rv)
