@@ -1,3 +1,5 @@
+module Z = FStar_BigInt
+
 type uint8 = int[@@deriving yojson,show]
 type byte = uint8[@@deriving yojson,show]
 type t = uint8[@@deriving yojson,show]
@@ -35,8 +37,8 @@ let lognot (a:uint8) : uint8 = lnot a
        
 let int_to_uint8 (x:Prims.int) : uint8 = Z.to_int x % 256
 
-let shift_right (a:uint8) (b:Stdint.Uint32.t) : uint8 = a lsr (Stdint.Uint32.to_int b)
-let shift_left  (a:uint8) (b:Stdint.Uint32.t) : uint8 = (a lsl (Stdint.Uint32.to_int b)) land 255
+let shift_right (a:uint8) (b:FStar_UInt32.t) : uint8 = a lsr (FStar_UInt32.to_native_int b)
+let shift_left  (a:uint8) (b:FStar_UInt32.t) : uint8 = (a lsl (FStar_UInt32.to_native_int b)) land 255
 
 (* Comparison operators *)
 let eq (a:uint8) (b:uint8) : bool = a = b
