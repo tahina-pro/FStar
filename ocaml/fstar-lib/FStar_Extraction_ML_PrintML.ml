@@ -137,7 +137,7 @@ let build_constant (c: mlconstant): Parsetree.constant =
         | x when x = Z.one ->
             BatString.concat "" [stdint_module s w; ".one"]
         | x when (min_of_int_const < x) && (x < max_of_int_const) ->
-            BatString.concat "" ["("; stdint_module s w; ".of_int ("; v; "))"]
+            BatString.concat "" ["("; stdint_module s w; ".of_native_int ("; v; "))"]
         | x ->
             BatString.concat "" ["("; stdint_module s w; ".of_string \""; v; "\")"] in
       Const.integer s
