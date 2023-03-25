@@ -10,6 +10,20 @@ module Z = struct
   let ediv_big_int = div_big_int
   let erem_big_int = mod_big_int
 
+  (* Zarith div truncates towards zero, rather than (Euclidean) flooring.
+     So we NEED to mimic that behavior here. *)
+  let div_big_int x y =
+    if lt_big_int x zero
+    then minus_big_int (ediv_big_int (minus_big_int x) y)
+    else ediv_big_int x y
+  let mod_big_int x y =
+    if lt_big_int x zero
+    then minus_big_int (erem_big_int (minus_big_int x) y)
+    else erem_big_int x y
+(*
+    sub_big_int x (mult_big_int (div_big_int x y) y)
+*)
+
   let logand_big_int = and_big_int
   let logor_big_int = or_big_int
   let logxor_big_int = xor_big_int
