@@ -67,26 +67,7 @@ module Z = struct
     let s = string_of_big_int x in
     Format.pp_print_string fmt s
 
-  let of_float x =
-    if not (Float.is_integer x)
-    then
-      big_int_of_int (Float.to_int x)
-    else
-      let (signif, expon) = Float.frexp x in
-      let rec aux lo hi =
-        if hi - lo <= 1
-        then
-          let mantissa = big_int_of_int (Float.to_int (Float.ldexp signif hi)) in (* assuming 64-bit machines *)
-          shift_left_big_int mantissa (expon - hi)
-        else
-          let n = (lo + hi) / 2 in
-          let x = Float.ldexp signif n in
-          if Float.is_integer x
-          then aux lo n
-          else aux n hi
-      in
-      aux 0 expon
-
+  let of_float = BatBig_int.of_float
   let to_float = float_of_big_int
 
   let of_int64 = big_int_of_int64
