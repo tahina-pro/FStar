@@ -1,124 +1,24 @@
-module BIGINT = struct
-  include Big_int
-  type bigint = big_int
-  type t = bigint
+(* We want to use Big_int from the num library. However, this type
+   does not support OCaml comparisons, failing with "abstract
+   value". Thus, we need to represent them with compare-enabled OCaml
+   values, and convert to and from them.
 
-  let zero = zero_big_int
-  let one = big_int_of_int 1
-  let two = big_int_of_int 2
+   We represent a nonnegative big integer as its length
+   and its representation as a decimal number.
 
-  let ediv_big_int = div_big_int
-  let erem_big_int = mod_big_int
+   We represent a negative big integer as 0 - its length, and its
+   representation as a decimal number where each digit x is replaced
+   with (10-x)%10 (i.e. 0 becomes 9, 1 becomes 8, etc.)
 
-  (* Zarith div truncates towards zero, rather than (Euclidean) flooring.
-     So we NEED to mimic that behavior here. *)
-  let div_big_int x y =
-    if lt_big_int x zero
-    then minus_big_int (ediv_big_int (minus_big_int x) y)
-    else ediv_big_int x y
-  let mod_big_int x y =
-    if lt_big_int x zero
-    then minus_big_int (erem_big_int (minus_big_int x) y)
-    else erem_big_int x y
-(*
-    sub_big_int x (mult_big_int (div_big_int x y) y)
+   This way, OCaml comparisons not only work, but also are correct:
+
+   - OCaml compares strings lexicographically starting from index 0,
+     and compares records lexicographically following the order in which
+     record fields are declared
+
+   - Replacing the digits of negative number representations is
+     actually equivalent to taking the 10's complement
 *)
-
-  let logand_big_int = and_big_int
-  let logor_big_int = or_big_int
-  let logxor_big_int = xor_big_int
-  let lognot_big_int x =
-    if eq_big_int x zero then one else
-    logxor_big_int (sub_big_int (power_int_positive_int 2 (num_bits_big_int x)) one) x
-
-  let shift_left_big_int x y = Big_int.shift_left_big_int x (int_of_big_int x)
-  let shift_right_big_int x y = Big_int.shift_right_big_int x (int_of_big_int x)
-  let shift_arithmetic_left_big_int = Big_int.shift_left_big_int
-  let shift_arithmetic_right_big_int = Big_int.shift_right_big_int
-
-  let of_int = big_int_of_int
-  let to_int = int_of_big_int
-
-  let of_int_fs x = x
-  let to_int_fs x = x
-
-  let hex_of_char = function
-    | '0' -> 0
-    | '1' -> 1
-    | '2' -> 2
-    | '3' -> 3
-    | '4' -> 4
-    | '5' -> 5
-    | '6' -> 6
-    | '7' -> 7
-    | '8' -> 8
-    | '9' -> 9
-    | 'a' | 'A' -> 10
-    | 'b' | 'B' -> 11
-    | 'c' | 'C' -> 12
-    | 'd' | 'D' -> 13
-    | 'e' | 'E' -> 14
-    | 'f' | 'F' -> 15
-    | _ -> failwith "FStar_BigInt.hex_of_char"
-
-  let sixteen = big_int_of_int 16
-
-  let of_hex s =
-    let len = String.length s in
-    let rec aux accu i =
-      if i = 0
-      then accu
-      else
-        let accu = if i = len then accu else mult_big_int accu sixteen in
-        let i = i - 1 in
-        let c = String.get s i in
-        let accu = add_big_int accu (big_int_of_int (hex_of_char c)) in
-        aux accu i
-    in
-    aux zero_big_int len
-
-  let pp_print fmt x =
-    let s = string_of_big_int x in
-    Format.pp_print_string fmt s
-
-  let of_float = BatBig_int.of_float
-  let to_float = float_of_big_int
-
-  let of_int64 = big_int_of_int64
-  let to_int64 = int64_of_big_int
-
-  let big_int_of_string x =
-    try
-      Big_int.big_int_of_string x
-    with _ ->
-      (* FStar_Compiler_Util.safe_int_of_string expects big_int_of_string
-         to raise Invalid_argument in case of failure *)
-      raise (Invalid_argument "big_int_of_string")
-
-end
-
-(*
-module BIGINTHashedType : BatHashtbl.HashedType with type t = big_int = struct
-  open BIGINT
-  type t = big_int
-  let pow2_63 = power_int_positive_int 2 63
-  let rec uint63_list_of_big_int accu x =
-    let (q, r) = quomod_big_int x pow2_63 in
-    let accu' = int64_of_big_int r :: accu in
-    if eq_big_int q zero_big_int
-    then accu'
-    else if eq_big_int q (minus_big_int unit_big_int)
-    then (-1L) :: accu'
-    else uint63_list_of_big_int accu' q
-  let hash x = BatHashtbl.hash (uint63_list_of_big_int [] x)
-  let equal = eq_big_int
-end
-module BIGINTOrderedType : BatInterfaces.OrderedType with type t = big_int = struct
-  type t = big_int
-  let compare = Big_int.compare_big_int
-end
-*)
-
 type bigint = {
     length: int;
     value: string;
@@ -126,24 +26,27 @@ type bigint = {
 
 type t = bigint
 
-let mirror_char = function
-| '0' -> '9'
-| '1' -> '8'
-| '2' -> '7'
-| '3' -> '6'
-| '4' -> '5'
-| '5' -> '4'
-| '6' -> '3'
-| '7' -> '2'
-| '8' -> '1'
-| '9' -> '0'
-| x -> x
+(* BEGIN conversion functions *)
+
+  let mirror_char = function
+  | '0' -> '9'
+  | '1' -> '8'
+  | '2' -> '7'
+  | '3' -> '6'
+  | '4' -> '5'
+  | '5' -> '4'
+  | '6' -> '3'
+  | '7' -> '2'
+  | '8' -> '1'
+  | '9' -> '0'
+  | x -> x
+
 
 let bigint_of_big_int'
-  (x: BIGINT.big_int)
+  (x: Big_int.big_int)
 : bigint
 =
-  let open BIGINT in
+  let open Big_int in
   let nonneg = le_big_int zero_big_int x in
   let s = string_of_big_int x in
   let s0 = s in
@@ -161,9 +64,9 @@ let bigint_of_big_int'
 
 let big_int_of_bigint'
   (x: bigint)
-: BIGINT.big_int
+: Big_int.big_int
 =
-  let open BIGINT in
+  let open Big_int in
   let nonneg = x.length >= 0 in
   let s =
     if nonneg
@@ -183,36 +86,40 @@ let big_int_of_bigint x =
 (*  assert (bigint_of_big_int' y = x); *)
   y
 
-let zero = bigint_of_big_int BIGINT.zero
-let one = bigint_of_big_int BIGINT.one
-let two = bigint_of_big_int BIGINT.two
-
-let cto (f: 'a -> BIGINT.big_int) (x: 'a) : bigint =
+let cto (f: 'a -> Big_int.big_int) (x: 'a) : bigint =
   bigint_of_big_int (f x)
 
-let cfrom1 (f: BIGINT.big_int -> 'a) (x: bigint) : 'a =
+let cfrom1 (f: Big_int.big_int -> 'a) (x: bigint) : 'a =
   f (big_int_of_bigint x)
 
-let cfrom2 (f: BIGINT.big_int -> BIGINT.big_int -> 'a) : bigint -> bigint -> 'a =
+let cfrom2 (f: Big_int.big_int -> Big_int.big_int -> 'a) : bigint -> bigint -> 'a =
   cfrom1 (fun x -> cfrom1 (f x))
 
 let cunop f = cto (cfrom1 f)
 
-let succ_big_int = cunop BIGINT.succ_big_int
-let pred_big_int = cunop BIGINT.pred_big_int
-let minus_big_int = cunop BIGINT.minus_big_int
-let abs_big_int = cunop BIGINT.abs_big_int
-
 let cbinop f = cfrom2 (fun x -> cto (f x))
 
-let add_big_int = cbinop BIGINT.add_big_int
-let mult_big_int = cbinop BIGINT.mult_big_int
-let sub_big_int = cbinop BIGINT.sub_big_int
-let div_big_int = cbinop BIGINT.div_big_int
-let mod_big_int = cbinop BIGINT.mod_big_int
+let cbinop1 f = cfrom1 (fun x -> cto (f x))
 
-let ediv_big_int = cbinop BIGINT.ediv_big_int
-let erem_big_int = cbinop BIGINT.erem_big_int
+(* END conversion functions *)
+
+let zero = bigint_of_big_int Big_int.zero_big_int
+let one = bigint_of_big_int Big_int.unit_big_int
+let two = bigint_of_big_int (Big_int.big_int_of_int 2)
+
+let succ_big_int = cunop Big_int.succ_big_int
+let pred_big_int = cunop Big_int.pred_big_int
+let minus_big_int = cunop Big_int.minus_big_int
+let abs_big_int = cunop Big_int.abs_big_int
+
+let add_big_int = cbinop Big_int.add_big_int
+let mult_big_int = cbinop Big_int.mult_big_int
+let sub_big_int = cbinop Big_int.sub_big_int
+let div_big_int = cbinop Big_int.div_big_int
+let mod_big_int = cbinop Big_int.mod_big_int
+
+let ediv_big_int = cbinop Big_int.div_big_int
+let erem_big_int = cbinop Big_int.mod_big_int
 
 let eq_big_int = ( = )
 let le_big_int = ( <= )
@@ -220,37 +127,97 @@ let lt_big_int = ( < )
 let ge_big_int = ( >= )
 let gt_big_int = ( > )
 
-let logand_big_int = cbinop BIGINT.logand_big_int
-let logor_big_int = cbinop BIGINT.logor_big_int
-let logxor_big_int = cbinop BIGINT.logxor_big_int
-let lognot_big_int = cunop BIGINT.lognot_big_int
+let logand_big_int = cbinop Big_int.and_big_int
+let logor_big_int = cbinop Big_int.or_big_int
+let logxor_big_int = cbinop Big_int.xor_big_int
+let lognot_big_int' x =
+  Big_int.sub_big_int (Big_int.minus_big_int x) Big_int.unit_big_int
+let lognot_big_int = cunop lognot_big_int'
 
-let shift_left_big_int = cbinop BIGINT.shift_left_big_int
-let shift_right_big_int = cbinop BIGINT.shift_right_big_int
+let shift_left_big_int' x y =
+  Big_int.shift_left_big_int x (Big_int.int_of_big_int y)
+let shift_left_big_int = cbinop shift_left_big_int'
+let shift_right_big_int' x y =
+  Big_int.shift_right_big_int x (Big_int.int_of_big_int y)
+let shift_right_big_int = cbinop shift_right_big_int'
+let shift_arithmetic_left_big_int = cbinop1 Big_int.shift_left_big_int
+let shift_arithmetic_right_big_int = cbinop1 Big_int.shift_right_big_int
 
-let cbinop1 f = cfrom1 (fun x -> cto (f x))
+let sqrt_big_int = cunop Big_int.sqrt_big_int
 
-let shift_arithmetic_left_big_int = cbinop1 BIGINT.shift_arithmetic_left_big_int
-let shift_arithmetic_right_big_int = cbinop1 BIGINT.shift_arithmetic_right_big_int
-
-let sqrt_big_int = cunop BIGINT.sqrt_big_int
-
-let of_int = cto BIGINT.of_int
-let to_int = cfrom1 BIGINT.to_int
+let of_int = cto Big_int.big_int_of_int
+let to_int = cfrom1 Big_int.int_of_big_int
 
 let of_int_fs x = x
 let to_int_fs x = x
 
-let big_int_of_string = cto BIGINT.big_int_of_string
-let string_of_big_int = cfrom1 BIGINT.string_of_big_int
-let of_hex = cto BIGINT.of_hex
-let pp_print fmt = cfrom1 (BIGINT.pp_print fmt)
+let big_int_of_string' x =
+    try
+      Big_int.big_int_of_string x
+    with _ ->
+      (* FStar_Compiler_Util.safe_int_of_string expects big_int_of_string
+         to raise Invalid_argument in case of failure *)
+      raise (Invalid_argument "big_int_of_string")
+let big_int_of_string = cto big_int_of_string'
+let string_of_big_int = cfrom1 Big_int.string_of_big_int
 
-let of_float = cto BIGINT.of_float
-let to_float = cfrom1 BIGINT.to_float
+let of_hex' =
+  let v0 = Big_int.zero_big_int in
+  let v1 = Big_int.unit_big_int in
+  let v2 = Big_int.big_int_of_int 2 in
+  let v3 = Big_int.big_int_of_int 3 in
+  let v4 = Big_int.big_int_of_int 4 in
+  let v5 = Big_int.big_int_of_int 5 in
+  let v6 = Big_int.big_int_of_int 6 in
+  let v7 = Big_int.big_int_of_int 7 in
+  let v8 = Big_int.big_int_of_int 8 in
+  let v9 = Big_int.big_int_of_int 9 in
+  let va = Big_int.big_int_of_int 10 in
+  let vb = Big_int.big_int_of_int 11 in
+  let vc = Big_int.big_int_of_int 12 in
+  let vd = Big_int.big_int_of_int 13 in
+  let ve = Big_int.big_int_of_int 14 in
+  let vf = Big_int.big_int_of_int 15 in
+  let vsixteen = Big_int.big_int_of_int 16 in
+  let hex_of_char = function
+    | '0' -> v0
+    | '1' -> v1
+    | '2' -> v2
+    | '3' -> v3
+    | '4' -> v4
+    | '5' -> v5
+    | '6' -> v6
+    | '7' -> v7
+    | '8' -> v8
+    | '9' -> v9
+    | 'a' | 'A' -> va
+    | 'b' | 'B' -> vb
+    | 'c' | 'C' -> vc
+    | 'd' | 'D' -> vd
+    | 'e' | 'E' -> ve
+    | 'f' | 'F' -> vf
+    | _ -> failwith "hex_of_char"
+  in
+  fun s ->
+  let rec aux accu i =
+    if i = 0
+    then accu
+    else
+      let i = i - 1 in
+      let accu = Big_int.mult_big_int accu vsixteen in
+      let accu = Big_int.add_big_int accu (hex_of_char (String.get s i)) in
+      aux accu i
+  in
+  aux Big_int.zero_big_int (String.length s)
+let of_hex = cto of_hex'
+let pp_print' fmt x = Format.pp_print_string fmt (Big_int.string_of_big_int x)
+let pp_print fmt = cfrom1 (pp_print' fmt)
 
-let of_int64 = cto BIGINT.of_int64
-let to_int64 = cfrom1 BIGINT.to_int64
+let of_float = cto BatBig_int.of_float
+let to_float = cfrom1 Big_int.float_of_big_int
+
+let of_int64 = cto Big_int.big_int_of_int64
+let to_int64 = cfrom1 Big_int.int64_of_big_int
 
 module HashedType : BatHashtbl.HashedType with type t = bigint = struct
   type t = bigint
