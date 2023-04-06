@@ -3,6 +3,7 @@ on:
   push:
     branches-ignore:
     - _**
+    - taramana_macos
   pull_request:
   workflow_dispatch:
     inputs:
