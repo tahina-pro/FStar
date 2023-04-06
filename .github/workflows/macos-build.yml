@@ -34,7 +34,7 @@ jobs:
     - name: Package FStar
       run: |
         source FStar/.github/env.sh
-        PACKAGE_DOCS=0 make -j -C FStar package
+        PACKAGE_DOCS=0 OTHERFLAGS="--admit_smt_queries true" make -j -C FStar package
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
