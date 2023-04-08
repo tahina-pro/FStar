@@ -2,6 +2,9 @@ name: Build FStar Binaries for MacOS
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+    - _taramana_windows
 
 jobs:
 
