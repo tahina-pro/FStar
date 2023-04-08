@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Install Cygwin
       uses: cygwin/cygwin-install-action@master
+      with:
+        packages: wget
     - name: Set up git clone endlines
       run:  git config --global core.autocrlf input
     - name: Checkout FStar
