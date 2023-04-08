@@ -7,7 +7,7 @@
 cwd=$(cd $(dirname $0); pwd -P)
 cd $cwd/everest
 ./everest --yes check || {
+    echo '. "$HOME/.opam/opam-init/init.sh" > /dev/null 2>/dev/null' >> $HOME/.bash_profile &&
     source $HOME/.bash_profile &&
-        echo "PATH=$PATH" &&
-        exit 1
+    ./everest --yes check
 }
