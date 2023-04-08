@@ -9,8 +9,7 @@ set -x
 # The GitHub Actions workflow should take care of cloning everest.
 cwd=$(cd $(dirname $0); pwd -P)
 cd $cwd
-rm -f $HOME/.bashrc # sourced from .bash_profile, but blocked in non-interactive mode
-echo "export PATH=/usr/local/bin:$PATH" >> $HOME/.bash_profile # opam installs there
+echo "export PATH='/usr/local/bin:$PATH'" >> $HOME/.bash_profile # opam installs there
 source $HOME/.bash_profile
 cd $cwd/everest
 ./everest --yes check
