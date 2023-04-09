@@ -2,9 +2,6 @@ name: FStar Binary Release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-    - _taramana_windows_self_hosted
 
 jobs:
 
