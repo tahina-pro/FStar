@@ -16,7 +16,7 @@ jobs:
     - name: Install Cygwin
       uses: cygwin/cygwin-install-action@master
       with:
-        packages: wget git unzip rsync patch make m4
+        packages: wget git unzip rsync patch make m4 mingw64-x86_64-binutils gcc-core mingw64-x86_64-bzip2 mingw64-x86_64-gcc-core mingw64-x86_64-gcc-g++ mingw64-x86_64-gmp mingw64-x86_64-headers mingw64-x86_64-libffi mingw64-x86_64-openssl mingw64-x86_64-pcre mingw64-x86_64-pcre2 mingw64-x86_64-runtime mingw64-x86_64-sqlite3 mingw64-x86_64-windows-default-manifest mingw64-x86_64-winpthreads mingw64-x86_64-zlib automake findutils patchutils rlwrap which xz zip dos2unix curl diffutils perl less jq time
     - name: Set up git clone endlines
       run:  git config --global core.autocrlf input
     - name: Checkout FStar
