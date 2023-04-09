@@ -12,4 +12,4 @@ cd $cwd
 echo "export PATH='/usr/local/bin:$PATH'" >> $HOME/.bash_profile # opam installs there
 source $HOME/.bash_profile
 cd $cwd/everest
-./everest --yes check
+stdbuf -i0 -o0 -e0 ./everest --yes check
