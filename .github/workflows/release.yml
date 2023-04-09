@@ -15,14 +15,15 @@ jobs:
     steps:
     - name: Check out repo        
       uses: actions/checkout@v2
+      
     - name: Build a package
       shell: C:\cygwin64\bin\bash.exe --login '{0}'
       run: |
-          make -C FStar -j package
+          make -C $GITHUB_WORKSPACE -j package 
       env:
         DZOMO_GITHUB_TOKEN: ${{ secrets.DZOMO_GITHUB_TOKEN }}
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
         name: fstar-Windows_x86_64.zip
-        path: FStar/src/ocaml-output/fstar.zip
+        path: $GITHUB_WORKSPACE\src\ocaml-output\fstar.zip
