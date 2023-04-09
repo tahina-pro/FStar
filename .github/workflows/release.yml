@@ -26,4 +26,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: fstar-Windows_x86_64.zip
-        path: $GITHUB_WORKSPACE\src\ocaml-output\fstar.zip
+        path: src\ocaml-output\fstar.zip
