@@ -19,7 +19,7 @@ jobs:
     - name: Build a package
       shell: C:\cygwin64\bin\bash.exe --login '{0}'
       run: |
-          make -C $GITHUB_WORKSPACE -j package 
+          make -C $GITHUB_WORKSPACE -j package && echo "There is a CR at the end of this line"
       env:
         DZOMO_GITHUB_TOKEN: ${{ secrets.DZOMO_GITHUB_TOKEN }}
     - name: Upload artifact
