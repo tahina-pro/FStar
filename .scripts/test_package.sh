@@ -4,9 +4,6 @@ set -e
 set -o pipefail
 set -x
 
-# We need two FSTAR_HOMEs in this script: one for the host (from where
-# we build F*) and one for the package (from where we test the
-# obtained binary). FSTAR_HOST_HOME is the former.
 if [[ -z "$FSTAR_HOST_HOME" ]] ; then
   FSTAR_HOST_HOME=$(cd `dirname $0`/.. && pwd)
 fi
@@ -58,11 +55,6 @@ bin/fstar.exe --version
 bin/z3 --version
 
 diag "*** Test the binary package"
-# We need two FSTAR_HOMEs in this script: one for the host (from where
-# we build F*) and one for the package (from where we test the
-# obtained binary). FSTAR_HOME is the latter.
-export FSTAR_HOME="$PWD"
-
 # We need to add the bin subdirectory to the PATH,
 # to make z3 reachable
 export PATH="$PWD/bin:$PATH"
@@ -93,6 +85,4 @@ pushd $FSTAR_HOST_HOME
 # Cleanup
 rm -rf /tmp/fstar_examples /tmp/fstar_doc
 
-# From this point on, we should no longer need FSTAR_HOME.
-export FSTAR_HOME=
 popd
