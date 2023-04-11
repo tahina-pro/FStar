@@ -383,13 +383,38 @@ let abstr_has_exists
   | T.Tv_Abs _ body -> term_has_head body (`exists_)
   | _ -> false
 
-let rec get_universe
+let rec get_universe_opt
+  (u: T.universe)
+: T.Tac (option nat)
+= match T.inspect_universe u with
+  | T.Uv_Zero -> Some 0
+  | T.Uv_Succ u ->
+    begin match get_universe_opt u with
+    | None -> None
+    | Some n -> Some (1 + n)
+    end
+  | T.Uv_Max l ->
+      List.Tot.fold_left
+        (fun (accu: (unit -> T.Tac (option nat))) u () ->
+          match get_universe_opt u with
+          | None -> accu ()
+          | Some n ->
+            begin match accu () with
+            | None -> Some n
+            | Some n' -> Some (if n' > n then n' else n)
+            end
+        )
+        (fun _ -> None)
+        l
+        ()
+  | _ -> None
+
+let get_universe
   (u: T.universe)
 : T.Tac nat
-= match T.inspect_universe u with
-  | T.Uv_Zero -> 0
-  | T.Uv_Succ u -> 1 + get_universe u
-  | _ -> T.fail "get_universe: not an universe instantiation"
+= match get_universe_opt u with
+  | Some u -> u
+  | _ -> tac_fail "get_universe: not an universe instantiation"
 
 let rec solve_gen_elim
   (tl': T.term)
