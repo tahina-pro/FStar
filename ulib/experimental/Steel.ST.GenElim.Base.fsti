@@ -351,6 +351,11 @@ let rec term_has_head
     | _ -> false
   else false
 
+inline_for_extraction
+let tac_fail (#a: Type) (s: string) : T.Tac a =
+//  T.dump ("tac_fail " ^ s);
+  T.fail s
+
 let rec solve_gen_unit_elim
   (tl': T.term)
 : T.Tac T.term
@@ -367,7 +372,7 @@ let rec solve_gen_unit_elim
           let t1' = solve_gen_unit_elim t1 in
           let t2' = solve_gen_unit_elim t2 in
           T.mk_app (`GUEStar) [t1', T.Q_Explicit; t2', T.Q_Explicit]
-        | _ -> T.fail "ill-formed star"
+        | _ -> tac_fail "ill-formed star"
         else
           T.mk_app (`GUEId) [tl', T.Q_Explicit]
 
@@ -400,13 +405,13 @@ let rec solve_gen_elim
         then
           let universe = match T.inspect_ln_unascribe hd with
           | T.Tv_UInst _ (u :: _) -> get_universe u
-          | _ -> T.fail "ill-formed exists_: no universe found"
+          | _ -> tac_fail "ill-formed exists_: no universe found"
           in
           let (ty, body) =
             match lbody with
             | [(ty, T.Q_Implicit); (body, T.Q_Explicit)] -> ([(ty, T.Q_Implicit)], body)
             | [(body, T.Q_Explicit)] -> ([], body)
-            | _ -> T.fail "ill-formed exists_"
+            | _ -> tac_fail "ill-formed exists_"
           in
           begin match T.inspect body with
             | T.Tv_Abs b abody ->
@@ -453,7 +458,7 @@ let rec solve_gen_elim
               let tl' = solve_gen_unit_elim tl in
               let tr' = solve_gen_elim tr in
               T.mk_app (`GEStarR) [tl', T.Q_Explicit; tr', T.Q_Explicit]
-          | _ -> T.fail "ill-formed star"
+          | _ -> tac_fail "ill-formed star"
         else
           T.mk_app (`GEUnit) [T.mk_app (`GUEId) lbody, T.Q_Explicit]
 
@@ -619,11 +624,30 @@ let solve_gen_elim_nondep (enable_nondep_opt: bool) (t: T.term) : T.Tac T.term =
           p', T.Q_Explicit;
         ]
 
+inline_for_extraction
 let trefl_or_smt () : T.Tac unit =
   let ty = T.cur_goal () in
+//  T.dump "trefl_or_smt";
   match T.term_as_formula ty with
   | T.Comp _ _ _ -> T.trefl ()
   | _ -> T.smt (); T.qed ()
+
+inline_for_extraction
+let tac_apply_lemma (tm: T.term) : T.Tac unit =
+//  let s = T.term_to_string tm in 
+//  T.dump ("tac_apply_lemma " ^ s);
+  T.apply_lemma tm
+
+inline_for_extraction
+let tac_exact (tm: T.term) : T.Tac unit =
+//  let s = T.term_to_string tm in
+//  T.dump ("tac_exact " ^ s);
+  T.exact tm
+
+inline_for_extraction
+let tac_trefl () : T.Tac unit =
+//  T.dump "tac_trefl";
+  T.trefl ()
 
 let solve_gen_elim_prop
   ()
@@ -631,12 +655,12 @@ let solve_gen_elim_prop
 =
   let (hd, tl) = T.collect_app (T.cur_goal ()) in
   if not (is_squash hd)
-  then T.fail "not a squash goal";
+  then tac_fail "not a squash goal";
   match tl with
   | [body1, T.Q_Explicit] ->
     let (hd1, tl1) = T.collect_app body1 in
     if not (hd1 `is_fvar` (`%gen_elim_prop))
-    then T.fail "not a gen_elim_prop goal";
+    then tac_fail "not a gen_elim_prop goal";
     begin match List.Tot.filter (fun (_, x) -> T.Q_Explicit? x) tl1 with
     | [(enable_nondep_opt_tm, _); (p, _); (a, _); (q, _); (post, _)] ->
       let enable_nondep_opt = enable_nondep_opt_tm `T.term_eq_old` (`true) in
@@ -644,12 +668,12 @@ let solve_gen_elim_prop
       let norm () = T.norm [delta_attr [(`%gen_elim_reduce)]; zeta; iota] in
       begin match solve_gen_elim_nondep0 enable_nondep_opt i' with
       | None ->
-        T.apply_lemma (T.mk_app (`gen_elim_prop_intro') [
+        tac_apply_lemma (T.mk_app (`gen_elim_prop_intro') [
           i', T.Q_Explicit;
           (`GEDep), T.Q_Explicit;
         ])
       | Some (Mktuple5 type_list tvprop q0 tprop post0) ->
-        T.apply_lemma (T.mk_app (`gen_elim_prop_intro) [
+        tac_apply_lemma (T.mk_app (`gen_elim_prop_intro) [
           i', T.Q_Explicit;
           type_list, T.Q_Explicit;
           tvprop, T.Q_Explicit;
@@ -657,17 +681,17 @@ let solve_gen_elim_prop
           tprop, T.Q_Explicit;
           post0, T.Q_Explicit;
         ]);
-        T.focus (fun _ -> norm (); T.trefl ()); // tvprop
-        T.focus (fun _ -> norm (); T.trefl ()) // tprop
+        T.focus (fun _ -> norm (); tac_trefl ()); // tvprop
+        T.focus (fun _ -> norm (); tac_trefl ()) // tprop
       end;
-      T.focus (fun _ -> norm (); T.trefl ()); // p
+      T.focus (fun _ -> norm (); tac_trefl ()); // p
       T.focus (fun _ -> norm (); trefl_or_smt ()); // j
-      T.focus (fun _ -> norm (); T.trefl ()); // a
-      T.focus (fun _ -> norm (); T.trefl ()); // q
-      T.focus (fun _ -> norm (); T.trefl ()) // post
-    | _ -> T.fail "ill formed gen_elim_prop"
+      T.focus (fun _ -> norm (); tac_trefl ()); // a
+      T.focus (fun _ -> norm (); tac_trefl ()); // q
+      T.focus (fun _ -> norm (); tac_trefl ()) // post
+    | _ -> tac_fail "ill formed gen_elim_prop"
     end
-  | _ -> T.fail "ill-formed squash"
+  | _ -> tac_fail "ill-formed squash"
 
 let solve_gen_elim_prop_placeholder
   ()
@@ -675,41 +699,45 @@ let solve_gen_elim_prop_placeholder
 =
   let (hd, tl) = T.collect_app (T.cur_goal ()) in
   if not (is_squash hd)
-  then T.fail "not a squash goal";
+  then tac_fail "not a squash goal";
   match tl with
   | [body1, T.Q_Explicit] ->
     let (hd1, tl1) = T.collect_app body1 in
     if not (hd1 `is_fvar` (`%gen_elim_prop_placeholder))
-    then T.fail "not a gen_elim_prop_placeholder goal";
+    then tac_fail "not a gen_elim_prop_placeholder goal";
     begin match List.Tot.filter (fun (_, x) -> T.Q_Explicit? x) tl1 with
     | [(enable_nondep_opt_tm, _); (p, _); (a, _); (q, _); (post, _)] ->
       if slterm_nbr_uvars p <> 0
-      then T.fail "pre-resource not solved yet";
+      then tac_fail "pre-resource not solved yet";
       let a_is_uvar = T.Tv_Uvar? (T.inspect a) in
       let q_is_uvar = T.Tv_Uvar? (T.inspect q) in
       let post_is_uvar = T.Tv_Uvar? (T.inspect post) in
       if not (a_is_uvar && q_is_uvar && post_is_uvar)
-      then T.fail "gen_elim_prop_placeholder is already solved";
+      then tac_fail "gen_elim_prop_placeholder is already solved";
       let enable_nondep_opt = enable_nondep_opt_tm `T.term_eq_old` (`true) in
       let i' = solve_gen_elim p in
       let j' = solve_gen_elim_nondep enable_nondep_opt i' in
-      let norm_term = T.norm_term [delta_attr [(`%gen_elim_reduce)]; zeta; iota] in
+      let norm_term tm =
+//        let s = T.term_to_string tm in
+//        T.dump ("norm_term " ^ s);
+        T.norm_term [delta_attr [(`%gen_elim_reduce)]; zeta; iota] tm
+      in
       let a' = T.mk_app (`compute_gen_elim_nondep_a) [i', T.Q_Explicit; j', T.Q_Explicit] in
       let a'_ts = T.term_to_string a' in
       let a' = norm_term a' in
       let q' = norm_term (T.mk_app (`compute_gen_elim_nondep_q) [i', T.Q_Explicit; j', T.Q_Explicit]) in
       let post' = norm_term (T.mk_app (`compute_gen_elim_nondep_post) [i', T.Q_Explicit; j', T.Q_Explicit]) in
       T.unshelve a;
-      T.exact a';
+      tac_exact a';
       T.unshelve q;
-      T.exact q';
+      tac_exact q';
       T.unshelve post;
-      T.exact post';
-      T.apply_lemma (`gen_elim_prop_placeholder_intro);
+      tac_exact post';
+      tac_apply_lemma (`gen_elim_prop_placeholder_intro);
       true
-    | _ -> T.fail "ill-formed gen_elim_prop_placeholder"
+    | _ -> tac_fail "ill-formed gen_elim_prop_placeholder"
     end
-  | _ -> T.fail "ill-formed squash"
+  | _ -> tac_fail "ill-formed squash"
 
 [@@ resolve_implicits; framing_implicit; plugin;
     override_resolve_implicits_handler framing_implicit [`%Steel.Effect.Common.init_resolve_tac]]
