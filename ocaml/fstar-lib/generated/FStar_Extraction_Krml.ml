@@ -2926,39 +2926,11 @@ let (translate_let' :
                            let uu___7 = translate_flags meta in MustDisappear
                              :: uu___7
                        | uu___7 -> translate_flags meta in
-                     try
-                       (fun uu___7 ->
-                          match () with
-                          | () ->
-                              let body1 = translate_expr env4 body in
-                              FStar_Pervasives_Native.Some
-                                (DFunction
-                                   (cc1, meta1,
-                                     (FStar_Compiler_List.length tvars), t1,
-                                     name2, binders, body1))) ()
-                     with
-                     | e ->
-                         let msg = FStar_Compiler_Util.print_exn e in
-                         ((let uu___9 =
-                             let uu___10 =
-                               let uu___11 =
-                                 FStar_Extraction_ML_Syntax.string_of_mlpath
-                                   name2 in
-                               FStar_Compiler_Util.format2
-                                 "Error while extracting %s to KaRaMeL (%s)\n"
-                                 uu___11 msg in
-                             (FStar_Errors_Codes.Warning_FunctionNotExtacted,
-                               uu___10) in
-                           FStar_Errors.log_issue
-                             FStar_Compiler_Range_Type.dummyRange uu___9);
-                          (let msg1 =
-                             Prims.op_Hat
-                               "This function was not extracted:\n" msg in
-                           FStar_Pervasives_Native.Some
-                             (DFunction
-                                (cc1, meta1,
-                                  (FStar_Compiler_List.length tvars), t1,
-                                  name2, binders, (EAbortS msg1))))))))
+                     let body1 = translate_expr env4 body in
+                     FStar_Pervasives_Native.Some
+                       (DFunction
+                          (cc1, meta1, (FStar_Compiler_List.length tvars),
+                            t1, name2, binders, body1)))))
         | { FStar_Extraction_ML_Syntax.mllb_name = name1;
             FStar_Extraction_ML_Syntax.mllb_tysc =
               FStar_Pervasives_Native.Some (tvars, t);
@@ -3098,28 +3070,17 @@ let (translate : FStar_Extraction_ML_Syntax.mllib -> file Prims.list) =
                match uu___1 with
                | (path, uu___2, uu___3) ->
                    FStar_Extraction_ML_Syntax.string_of_mlpath path in
-             try
-               (fun uu___1 ->
-                  match () with
-                  | () ->
-                      ((let uu___3 =
-                          let uu___4 = FStar_Options.silent () in
-                          Prims.op_Negation uu___4 in
-                        if uu___3
-                        then
-                          FStar_Compiler_Util.print1
-                            "Attempting to translate module %s\n" m_name
-                        else ());
-                       (let uu___3 = translate_module m in
-                        FStar_Pervasives_Native.Some uu___3))) ()
-             with
-             | uu___1 ->
-                 ((let uu___3 = FStar_Compiler_Util.print_exn uu___1 in
-                   FStar_Compiler_Util.print2
-                     "Unable to translate module: %s because:\n  %s\n" m_name
-                     uu___3);
-                  FStar_Pervasives_Native.None)) modules
-let (uu___1714 : unit) =
+             (let uu___2 =
+                let uu___3 = FStar_Options.silent () in
+                Prims.op_Negation uu___3 in
+              if uu___2
+              then
+                FStar_Compiler_Util.print1
+                  "Attempting to translate module %s\n" m_name
+              else ());
+             (let uu___2 = translate_module m in
+              FStar_Pervasives_Native.Some uu___2)) modules
+let (uu___1698 : unit) =
   register_post_translate_type_without_decay translate_type_without_decay';
   register_post_translate_type translate_type';
   register_post_translate_type_decl translate_type_decl';

@@ -353,9 +353,6 @@ let mgcmalloc_of_list :
       let s = FStar_Seq_Properties.seq_of_list init in
       let content = FStar_HyperStack_ST.ralloc () s in
       Buffer (len, content, Stdint.Uint32.zero, ())
-let mgcmalloc_of_list_partial :
-  'a 'rrel . unit -> 'a Prims.list -> ('a, 'rrel, 'rrel) mbuffer =
-  fun r -> fun init -> mgcmalloc_of_list () init
 type ('h, 'd, 'len) alloc_drgn_pre = unit
 let mmalloc_drgn :
   'a 'rrel .
