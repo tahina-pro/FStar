@@ -1213,9 +1213,10 @@ let translate_let' env flavor lb: option decl =
           | E_PURE, TUnit -> MustDisappear :: translate_flags meta
           | _ -> translate_flags meta
         in
-        begin try
+        begin (* try *)
           let body = translate_expr env body in
           Some (DFunction (cc, meta, List.length tvars, t, name, binders, body))
+(*
         with e ->
           // JP: TODO: figure out what are the remaining things we don't extract
           let msg = BU.print_exn e in
@@ -1223,6 +1224,7 @@ let translate_let' env flavor lb: option decl =
           (Errors.Warning_FunctionNotExtacted, (BU.format2 "Error while extracting %s to KaRaMeL (%s)\n" (Syntax.string_of_mlpath name) msg));
           let msg = "This function was not extracted:\n" ^ msg in
           Some (DFunction (cc, meta, List.length tvars, t, name, binders, EAbortS msg))
+*)          
         end
 
   | {
@@ -1316,14 +1318,18 @@ let translate (MLLib modules): list file =
       let path, _, _ = m in
       Syntax.string_of_mlpath path
     in
+(*    
     try
+*)    
       if not (Options.silent()) then (BU.print1 "Attempting to translate module %s\n" m_name);
       Some (translate_module m)
+(*      
     with
     | e ->
         BU.print2 "Unable to translate module: %s because:\n  %s\n"
           m_name (BU.print_exn e);
         None
+*)
   ) modules
 
 let _ =

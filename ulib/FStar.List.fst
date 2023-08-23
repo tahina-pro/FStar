@@ -334,27 +334,27 @@ let rec splitAt n l =
 (** [filter_map f l] returns the list of [y] for all elements [x]
 appearing in [l] such that [f x = Some y] for some [y]. (Implemented
 here as a tail-recursive version of [choose] *)
-let filter_map (f:'a -> ML (option 'b)) (l:list 'a) : ML (list 'b) =
-  let rec filter_map_acc (acc:list 'b) (l:list 'a) : ML (list 'b) =
+
+  let rec filter_map_acc (f:'a -> ML (option 'b)) (acc:list 'b) (l:list 'a) : ML (list 'b) =
     match l with
     | [] ->
         rev acc
     | hd :: tl ->
         match f hd with
         | Some hd ->
-            filter_map_acc (hd :: acc) tl
+            filter_map_acc f (hd :: acc) tl
         | None ->
-            filter_map_acc acc tl
-  in
-  filter_map_acc [] l
+            filter_map_acc f acc tl
+
+let filter_map (f:'a -> ML (option 'b)) (l:list 'a) : ML (list 'b) =
+  filter_map_acc f [] l
 
 (** [index f l] returns the position index in list [l] of the first
 element [x] in [l] such that [f x] holds. Raises an exception if no
 such [x] exists. TODO: rename this function (it hides List.Tot.index
 which has a completely different semantics.) *)
-val index: ('a -> ML bool) -> list 'a -> ML int
-let index f l =
-  let rec index l i : ML int =
+
+  let rec index' (f: ('a -> ML bool)) l i : ML int =
     match l with
     | [] ->
         failwith "List.index: not found"
@@ -362,6 +362,9 @@ let index f l =
         if f hd then
           i
         else
-          index tl (i + 1)
-  in
-  index l 0
+          index' f tl (i + 1)
+
+
+val index: ('a -> ML bool) -> list 'a -> ML int
+let index f l =
+  index' f l 0

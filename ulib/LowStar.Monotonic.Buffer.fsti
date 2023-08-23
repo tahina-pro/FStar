@@ -2264,6 +2264,7 @@ val mgcmalloc_of_list (#a:Type0) (#rrel:srel a) (r:HS.rid) (init:list a)
  * See the Allocation comment above when changing the spec
  *)
 inline_for_extraction
+noextract
 let mgcmalloc_of_list_partial (#a:Type0) (#rrel:srel a) (r:HS.rid) (init:list a)
   :HST.ST (b:lmbuffer_or_null a rrel rrel (normalize_term (List.Tot.length init)) r{recallable b})
           (requires (fun _       -> gcmalloc_of_list_pre r init))
