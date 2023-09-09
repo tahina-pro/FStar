@@ -7,7 +7,9 @@ set -x
 # coreutils: for the `install` command used in install-ulib.sh
 export OPAMYES=1
 brew install opam bash gnu-getopt coreutils gnu-sed
-brew info gmp
+gmpdir=$(brew --prefix gmp)
+[[ -n $gmpdir ]]
+ls -laHR $gmpdir
 false
 
 opam init --compiler=4.12.0
