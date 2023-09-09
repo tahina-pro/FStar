@@ -3,6 +3,9 @@
 set -e
 set -x
 
+uname
+false
+
 # Install OCaml and other GNU build tools
 # coreutils: for the `install` command used in install-ulib.sh
 export OPAMYES=1
