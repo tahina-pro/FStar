@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
+set -e
+set -x
+
 # Install OCaml and other GNU build tools
 # coreutils: for the `install` command used in install-ulib.sh
 export OPAMYES=1
 brew install opam bash gnu-getopt coreutils gnu-sed
+brew info gmp
+false
+
 opam init --compiler=4.12.0
 eval $(opam env)
 
