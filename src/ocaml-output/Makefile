@@ -143,3 +143,6 @@ clean:
 	$(Q)rm -f *.tar.gz *.zip
 	$(Q)rm -f version_platform.txt
 	$(Q)rm -rf fstar
+
+echo-os:
+	echo $(OS)

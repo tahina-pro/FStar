@@ -7,6 +7,10 @@ set -x
 # coreutils: for the `install` command used in install-ulib.sh
 export OPAMYES=1
 brew install opam bash gnu-getopt coreutils gnu-sed
+cwd=$(cd $(dirname $0); pwd -P)
+gmake -C $cwd/../src/ocaml-output echo-os
+false
+
 gmpdir=$(brew --prefix gmp)
 [[ -n $gmpdir ]]
 ls -laHR $gmpdir
