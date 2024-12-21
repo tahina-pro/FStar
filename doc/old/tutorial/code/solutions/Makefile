@@ -43,6 +43,8 @@ LowStar.Ex1.fst \
 LowStar.Ex2.fst \
 LowStar.Ex3.fst
 
+OCAML_DEFAULT_FLAGS += -thread
+
 include ../../../../Makefile.include
 
 verify-%: __force__
