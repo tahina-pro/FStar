@@ -380,6 +380,8 @@ let toggle_id_info env enabled =
   env.identifier_info :=
     FStarC.TypeChecker.Common.id_info_toggle !env.identifier_info enabled
 let insert_bv_info env bv ty =
+  if Debug.any () then
+    BU.print3 "insert_bv_info %s %s -- %s\n" (show bv) (show ty) (show (pos bv));
   env.identifier_info :=
     FStarC.TypeChecker.Common.id_info_insert_bv !env.identifier_info bv ty
 let insert_fv_info env fv ty =
