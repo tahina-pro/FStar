@@ -493,6 +493,7 @@ let entry (suf nm : string) : Tac decls =
   let post_other (se : sigelt) : Tac sigelt =
     let quals = filter (fun q -> not (Noeq? q || Unopteq? q)) quals in
     let se = set_sigelt_quals quals se in
+    let attrs = attrs @ [`"KrmlPrivate"] in
     let se = set_sigelt_attrs attrs se in
     se
   in
