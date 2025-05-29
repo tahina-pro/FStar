@@ -36,13 +36,16 @@ type named_ty =
   named_ty_pretty;
   Case1;
   Case2;
-  named_ty_pretty_bij;
+//  named_ty_pretty_bij; // bijection bundle is no longer generated
 ] (entry "_pretty" (`%named_ty))
 
+(*
 // test bijection
+// Disabled because bijection bundle is no longer generated
 
 let _ = assert (Inl ((1, 2), (3, "a")) >> named_ty_pretty_bij == Case1 1 2 3 "a")
 let _ = assert (Case2 false << named_ty_pretty_bij == Inr false)
+*)
 
 (* This test doesn't work.. apparently the projectors from a spliced
 type can't be called? *)
