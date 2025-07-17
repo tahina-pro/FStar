@@ -277,6 +277,7 @@ jobs:
     container: mtzguido/dev-base
     needs:
       - build-krml
+      - build-pulse
     steps:
       - name: Cleanup
         run: sudo find . -delete
