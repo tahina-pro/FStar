@@ -307,7 +307,7 @@ jobs:
 
       - name: Build
         run: |
-          make -C everparse -skj$(nproc)
+          . $HOME/.cargo/env && make -C everparse -skj$(nproc)
 
       - uses: mtzguido/gci-upload@master
         with:
@@ -345,7 +345,7 @@ jobs:
           name: everparse
 
       - name: Test
-        run: make -C everparse -skj$(nproc) test
+        run: . $HOME/.cargo/env && make -C everparse -skj$(nproc) test
 
   build-merkle-tree:
     runs-on: ubuntu-latest
