@@ -295,6 +295,10 @@ jobs:
         with:
           name: karamel
 
+      - uses: mtzguido/gci-download@master
+        with:
+          name: pulse
+
       - name: Checkout everparse
         uses: actions/checkout@master
         with:
@@ -331,6 +335,10 @@ jobs:
       - uses: mtzguido/gci-download@master
         with:
           name: karamel
+
+      - uses: mtzguido/gci-download@master
+        with:
+          name: pulse
 
       - uses: mtzguido/gci-download@master
         with:
