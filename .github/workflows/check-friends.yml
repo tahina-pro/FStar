@@ -346,6 +346,7 @@ jobs:
         with:
           path: everparse/
           repository: project-everest/everparse
+          ref: _taramana_new_release
 
       - name: Build
         run: make -C everparse -skj$(nproc) all
