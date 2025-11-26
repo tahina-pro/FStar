@@ -96,7 +96,7 @@ jobs:
       - name: Build
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
-          eval "$(opam env)" && make -C "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar ADMIT=1 -skj$(nproc)
+          cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && eval "$(opam env)" && make ADMIT=1 -skj$(nproc)
         working-directory: fstar
 
       # TODO: run this test in a separate job without Cygwin
@@ -112,11 +112,11 @@ jobs:
       - name: Make binary package
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
-          eval "$(opam env)" &&
+          cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && eval "$(opam env)" &&
           KERNEL=Windows_NT &&
           ARCH=$(uname -m) &&
           export FSTAR_TAG=-$KERNEL-$ARCH &&
-          make -C "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar package
+          make package
         working-directory: fstar
         # $(uname -s)
         # ^ uname-s prints something like CYGWIN_NT-10.0-26100 or MINGW64_NT-10.0-20348
