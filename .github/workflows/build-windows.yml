@@ -86,10 +86,10 @@ jobs:
           name: package-src
       - name: Extract source package
         shell: C:\cygwin\bin\bash.exe --login '{0}'
-        run: tar xzf fstar-src.tar.gz
+        run: cd "$(cygpath -m "$GITHUB_WORKSPACE")" && tar xzf fstar-src.tar.gz
       - name: Install opam package dependencies
         shell: C:\cygwin\bin\bash.exe --login '{0}'
-        run: eval $(opam env) && opam install . --deps-only
+        run: cd "$(cygpath -m "$GITHUB_WORKSPACE")" && eval $(opam env) && opam install . --deps-only
         working-directory: fstar
 
       # Note: we admit queries here, like the OPAM build does.
@@ -97,7 +97,7 @@ jobs:
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
           eval $(opam env)
-          make ADMIT=1 -skj$(nproc)
+          make -C "$(cygpath -m "$GITHUB_WORKSPACE")" ADMIT=1 -skj$(nproc)
         working-directory: fstar
 
       # TODO: run this test in a separate job without Cygwin
@@ -107,6 +107,7 @@ jobs:
         continue-on-error: true
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
+          cd "$(cygpath -m "$GITHUB_WORKSPACE")"
           ./out/bin/fstar.exe out/lib/fstar/ulib/Prims.fst -f
           echo -e "module A\nopen FStar.Mul\nlet _ = assert (forall x. 1 + x*x > 0)" > A.fst
           ./out/bin/fstar.exe A.fst
@@ -121,12 +122,12 @@ jobs:
           # ^ uname-s prints something like CYGWIN_NT-10.0-26100 or MINGW64_NT-10.0-20348
           ARCH=$(uname -m)
           export FSTAR_TAG=-$KERNEL-$ARCH
-          make package
+          make -C "$(cygpath -m "$GITHUB_WORKSPACE")" package
         working-directory: fstar
 
       - name: Ensure some package has been built
         shell: C:\cygwin\bin\bash.exe --login '{0}'
-        run: find . -name '*.zip'
+        run: find "$(cygpath -m "$GITHUB_WORKSPACE")" -name '*.zip'
 
       - uses: actions/upload-artifact@v4
         if: ${{ always () }}
