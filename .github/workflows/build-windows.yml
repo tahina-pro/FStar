@@ -89,7 +89,7 @@ jobs:
         run: cd "$(cygpath -m "$GITHUB_WORKSPACE")" && tar xzf fstar-src.tar.gz
       - name: Install opam package dependencies
         shell: C:\cygwin\bin\bash.exe --login '{0}'
-        run: cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && eval $(opam env) && opam install . --deps-only
+        run: cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && eval "$(opam env)" && opam install . --deps-only
         working-directory: fstar
 
       # Note: we admit queries here, like the OPAM build does.
@@ -112,7 +112,7 @@ jobs:
       - name: Make binary package
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
-          eval $(opam env) &&
+          eval "$(opam env)" &&
           KERNEL=Windows_NT &&
           ARCH=$(uname -m) &&
           export FSTAR_TAG=-$KERNEL-$ARCH &&
