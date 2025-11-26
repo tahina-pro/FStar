@@ -96,7 +96,7 @@ jobs:
       - name: Build
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
-          eval $(opam env) && make -C "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar ADMIT=1 -skj$(nproc)
+          eval "$(opam env)" && make -C "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar ADMIT=1 -skj$(nproc)
         working-directory: fstar
 
       # TODO: run this test in a separate job without Cygwin
