@@ -14,11 +14,6 @@ on:
   workflow_call:
   workflow_dispatch:
 
-defaults:
-  run:
-    shell:
-      bash
-
 jobs:
   # We begin from a source package (built in Linux)
   build-src:
@@ -28,27 +23,24 @@ jobs:
     needs: build-src
     runs-on: windows-latest
     steps:
-      - uses: cygwin/cygwin-install-action@master
+
+      - uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 4.14.2
 
       # Print out some debug info
       - name: dbg
         continue-on-error: true
-        run: |
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
           echo 'uname -a'
           uname -a || true
           echo 'uname -s'
           uname -s || true
           echo 'uname -m'
-          uname -m || true
-          echo env
-          env || true
-          echo OS=$OS
+          uname -m || trueS
           which make || true
           make --version || true
-
-      - uses: ocaml/setup-ocaml@v3
-        with:
-          ocaml-compiler: 4.14.2
 
       # - name: Prepare
       #   shell: powershell # somehow in bash we fail to build ocamlfind?
@@ -58,7 +50,8 @@ jobs:
       #     opam install --deps-only FStar\fstar.opam
 
       - name: Set version
-        run: |
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
           # Setting FSTAR_VERSION for nightly and release builds. If unset,
           # we use $(version.txt)~dev. Setting it avoids the ~dev.
           if [[ "${{github.workflow_ref}}" =~ "nightly.yml" ]]; then
@@ -95,27 +88,37 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: package-src
-      - run: tar xzf fstar-src.tar.gz
-      - run: eval $(opam env) && opam install . --deps-only
+      - name: Extract source package
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: tar xzf fstar-src.tar.gz
+      - name: Install opam package dependencies
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: eval $(opam env) && opam install . --deps-only
         working-directory: fstar
 
       # Note: we admit queries here, like the OPAM build does.
       - name: Build
-        run: |
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
           eval $(opam env)
           make ADMIT=1 -skj$(nproc)
         working-directory: fstar
 
+      # TODO: run this test in a separate job without Cygwin
+      # to check that fstar.exe is a native Windows binary
+      # (the echo statement needs to be rewritten to this end)
       - name: Smoke test
         continue-on-error: true
-        run: |
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
           ./out/bin/fstar.exe out/lib/fstar/ulib/Prims.fst -f
           echo -e "module A\nopen FStar.Mul\nlet _ = assert (forall x. 1 + x*x > 0)" > A.fst
           ./out/bin/fstar.exe A.fst
         working-directory: fstar
 
       - name: Make binary package
-        run: |
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
           eval $(opam env)
           KERNEL=Windows_NT
           # $(uname -s)
@@ -125,7 +128,9 @@ jobs:
           make package
         working-directory: fstar
 
-      - run: find . -name '*.zip'
+      - name: Ensure some package has been built
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: find . -name '*.zip'
 
       - uses: actions/upload-artifact@v4
         if: ${{ always () }}
