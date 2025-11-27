@@ -71,9 +71,9 @@ type opt_type =
 | PostProcessed of ((option_val -> option_val) (* validator *) & opt_type (* elem spec *))
   // For options like --extract_module that require post-processing or validation
 | Accumulated of opt_type (* elem spec *)
-  // For options like --extract_module that can be repeated (LIFO)
+  // For options like --extract_module that can be repeated (LIFO, accumulate the new element via Cons, at the head)
 | ReverseAccumulated of opt_type (* elem spec *)
-  // For options like --include that can be repeated (FIFO)
+  // For options like --include that can be repeated (FIFO, accumulate the new element via snoc, at the tail)
 | WithSideEffect of ((unit -> unit) & opt_type (* elem spec *))
   // For options like --version that have side effects
 
@@ -102,9 +102,6 @@ val set_verification_options    : optionstate -> unit
 "--z3rlimit 25 --include /some/path" *)
 val show_options                : unit -> string
 
-val __unit_tests                : unit    -> bool
-val __set_unit_tests            : unit    -> unit
-val __clear_unit_tests          : unit    -> unit
 val parse_cmd_line              : unit    -> parse_cmdline_res & list string
 val add_verify_module           : string  -> unit
 
@@ -141,6 +138,7 @@ val detail_errors               : unit    -> bool
 val detail_hint_replay          : unit    -> bool
 val display_usage               : unit    -> unit
 val any_dump_module             : unit    -> bool
+val dump_ast                    : unit    -> bool
 val dump_module                 : string  -> bool
 val eager_subtyping             : unit    -> bool
 val error_contexts              : unit    -> bool
@@ -164,6 +162,7 @@ val initial_fuel                : unit    -> int
 val initial_ifuel               : unit    -> int
 val interactive                 : unit    -> bool
 val keep_query_captions         : unit    -> bool
+val lang_extensions             : unit    -> list string
 val lax                         : unit    -> bool
 val load                        : unit    -> list string
 val load_cmxs                   : unit    -> list string
@@ -178,6 +177,7 @@ val ml_ish                      : unit    -> bool
 val ml_ish_effect               : unit    -> string
 val set_ml_ish                  : unit    -> unit
 val no_location_info            : unit    -> bool
+val no_prelude                  : unit    -> bool
 val no_plugins                  : unit    -> bool
 val no_smt                      : unit    -> bool
 val normalize_pure_terms_for_extraction

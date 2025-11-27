@@ -30,3 +30,20 @@ val equal_term (t0 t1:term) : bool
 
 (* uses ext_hash_term (with memo) *)
 instance val hashable_term : hashable term
+
+instance val hashable_lident     : hashable Ident.lident
+instance val hashable_ident      : hashable Ident.ident
+instance val hashable_binding    : hashable binding
+instance val hashable_bv         : hashable bv
+instance val hashable_fv         : hashable fv
+instance val hashable_binder     : hashable binder
+instance val hashable_letbinding : hashable letbinding
+instance val hashable_pragma     : hashable pragma
+instance val hashable_sigelt     : hashable sigelt
+
+val term_map (a:Type) : Type0
+val term_map_empty  : #a:Type -> term_map a
+val term_map_add    : #a:Type -> t:term -> v:a -> term_map a -> term_map a
+val term_map_lookup : #a:Type -> t:term -> m:term_map a -> option a
+val term_map_mem    : #a:Type -> t:term -> m:term_map a -> bool
+val term_map_fold   : #a:Type -> #b:Type -> (term -> a -> b -> b) -> term_map a -> b -> b

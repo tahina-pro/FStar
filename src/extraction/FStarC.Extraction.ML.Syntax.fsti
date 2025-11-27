@@ -22,7 +22,6 @@ open FStarC
 open FStarC.Effect
 open FStarC.List
 open FStarC.Ident
-open FStarC.Util
 open FStarC.Const
 open FStarC.BaseTypes
 
@@ -70,7 +69,6 @@ type mlconstant =
 | MLC_Float  of float
 | MLC_Char   of char
 | MLC_String of string
-| MLC_Bytes  of FStarC.Array.array byte
 
 type mlpattern =
 | MLP_Wild

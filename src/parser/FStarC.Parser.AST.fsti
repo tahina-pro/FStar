@@ -21,6 +21,7 @@ open FStarC.Range
 open FStarC.Const
 open FStarC.Ident
 open FStarC.Class.Show
+open FStarC.Class.PP
 open FStarC.Class.HasRange
 
 (* AST produced by the parser, before desugaring
@@ -46,10 +47,11 @@ type term' =
   | Wild
   | Const     of sconst
   | Op        of ident & list term
-  | Tvar      of ident
   | Uvar      of ident                                (* universe variable *)
-  | Var       of lid // a qualified identifier that starts with a lowercase (Foo.Bar.baz)
-  | Name      of lid // a qualified identifier that starts with an uppercase (Foo.Bar.Baz)
+
+  | Var       of lid // a (possibly) qualified identifier that starts with a lowercase (Foo.Bar.baz)
+  | Name      of lid // a (possibly) qualified identifier that starts with an uppercase (Foo.Bar.Baz)
+
   | Projector of lid & ident (* a data constructor followed by one of
                                 its formal parameters, or an effect
                                 followed by one  of its actions or
@@ -80,11 +82,11 @@ type term' =
   | Refine    of binder & term
   | NamedTyp  of ident & term
   | Paren     of term
-  | Requires  of term & option string
-  | Ensures   of term & option string
+  | Requires  of term
+  | Ensures   of term
   | LexList   of list term  (* a decreases clause mentions either a lexicographically ordered list, *)
   | WFOrder   of term & term  (* or a well-founded relation or some type and an expression of the same type *)
-  | Decreases of term & option string
+  | Decreases of term
   | Labeled   of term & string & bool
   | Discrim   of lid   (* Some?  (formerly is_Some) *)
   | Attributes of list term   (* attributes decorating a term *)
@@ -122,9 +124,7 @@ and attributes_ = list term
 
 and binder' =
   | Variable of ident
-  | TVariable of ident
   | Annotated of ident & term
-  | TAnnotated of ident & term
   | NoName of term
 
 and binder = {b:binder'; brange:range; blevel:level; aqual:aqual; battributes:attributes_}
@@ -135,7 +135,6 @@ and pattern' =
   | PatApp      of pattern & list pattern
   | PatVar      of ident & aqual & attributes_
   | PatName     of lid
-  | PatTvar     of ident & aqual & attributes_
   | PatList     of list pattern
   | PatRest     (* For '..', which matches all extra args *)
   | PatTuple    of list pattern & bool (* dependent if flag is set *)
@@ -154,12 +153,13 @@ and arg_qualifier =
     | TypeClassArg
 and aqual = option arg_qualifier
 and imp =
-    | FsTypApp
     | Hash
     | UnivApp
     | HashBrace of term
     | Infix
     | Nothing
+
+instance val tagged_term : Class.Tagged.tagged term
 
 instance val hasRange_term    : hasRange term
 instance val hasRange_pattern : hasRange pattern
@@ -192,7 +192,6 @@ type qualifier =
   | Noeq
   | Unopteq
   | Assumption
-  | DefaultEffect
   | TotalEffect
   | Effect_qual
   | New
@@ -234,6 +233,7 @@ type pragma =
   | PopOptions
   | RestartSolver
   | PrintEffectsGraph
+  | Check of term
 
 type dep_scan_callbacks = {
    scan_term: term -> unit;
@@ -339,7 +339,6 @@ val mkRefSet : range -> list term -> term
 val focusLetBindings : list (bool & (pattern & term)) -> range -> list (pattern & term)
 val focusAttrLetBindings : list (option attributes_ & (bool & (pattern & term))) -> range -> list (option attributes_ & (pattern & term))
 
-val mkFsTypApp : term -> list term -> range -> term
 val mkTuple : list term -> range -> term
 val mkDTuple : list term -> range -> term
 val mkRefinedBinder : ident -> term -> bool -> option term -> range -> aqual -> list term -> binder
@@ -378,10 +377,23 @@ val check_id : ident -> unit
 val ident_of_binder : range -> binder -> ident
 val idents_of_binders : list binder -> range -> list ident
 
-instance val showable_decl : showable decl
-instance val showable_term : showable term
-
 val as_interface (m:modul) : modul
 
 val inline_let_attribute : term
 val inline_let_vc_attribute : term
+
+instance val showable_quote_kind : showable quote_kind
+instance val showable_decl    : showable decl
+instance val showable_term    : showable term
+instance val showable_pattern : showable pattern
+instance val showable_binder  : showable binder
+instance val showable_modul   : showable modul
+instance val showable_pragma  : showable pragma
+
+instance val pretty_quote_kind   : pretty quote_kind
+instance val pretty_decl    : pretty decl
+instance val pretty_term    : pretty term
+instance val pretty_pattern : pretty pattern
+instance val pretty_binder  : pretty binder
+instance val pretty_modul   : pretty modul
+instance val pretty_pragma  : pretty pragma

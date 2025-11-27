@@ -19,7 +19,6 @@ open FStarC.Effect
 open FStarC.List
 
 open FStarC
-open FStarC.Util
 open FStarC.Ident
 open FStarC.Range.Type
 open FStarC.Syntax
@@ -138,8 +137,8 @@ val is_lemma_comp (c:comp) : bool
 val is_lemma (t:typ) : bool
 
 val head_of (t : term) : term
-val head_and_args (t : term) : term & args
-val head_and_args_full (t : term) : term & args
+val head_and_args (t : term) : term & args  // Destructs a single Tm_app
+val head_and_args_full (t : term) : term & args // Collects all Tm_app nodes
 val head_and_args_full_unmeta (t : term) : term & args
 
 val leftmost_head (t : term) : term

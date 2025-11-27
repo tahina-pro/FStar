@@ -40,23 +40,11 @@ type withinfo_t 'a = {
 
 (* Free term and type variables *)
 [@@ PpxDerivingYoJson; PpxDerivingShow ]
-type var  = withinfo_t lident
+type var  = lident
 
 (* Term language *)
 [@@ PpxDerivingYoJson; PpxDerivingShow ]
 type sconst = FStarC.Const.sconst
-
-[@@ PpxDerivingYoJson; PpxDerivingShow ]
-type pragma =
-  | ShowOptions
-  | SetOptions of string
-  | ResetOptions of option string
-  | PushOptions of option string
-  | PopOptions
-  | RestartSolver
-  | PrintEffectsGraph  //#print-effects-graph dumps the current effects graph in a dot file named "effects.graph"
-
-instance val showable_pragma : showable pragma
 
 [@@ PpxDerivingYoJson; PpxDerivingShowConstant "None" ]
 type memo 'a = ref (option 'a)
@@ -417,6 +405,7 @@ and lazy_kind =
   | Lazy_comp
   | Lazy_env
   | Lazy_proofstate
+  | Lazy_ref_proofstate
   | Lazy_goal
   | Lazy_sigelt
   | Lazy_uvar
@@ -449,6 +438,18 @@ and arg_qualifier = {
   aqual_attributes : list attribute
 }
 and aqual = option arg_qualifier
+
+type pragma =
+  | ShowOptions
+  | SetOptions of string
+  | ResetOptions of option string
+  | PushOptions of option string
+  | PopOptions
+  | RestartSolver
+  | PrintEffectsGraph  //#print-effects-graph dumps the current effects graph in a dot file named "effects.graph"
+  | Check of term
+
+instance val showable_pragma : showable pragma
 
 type freenames_l = list bv
 type formula = typ
@@ -700,8 +701,9 @@ type sigelt' =
       ty_lid:lident;          //the inductive type of the value this constructs
       num_ty_params:int;        //and the number of parameters of the inductive
       mutuals:list lident;    //mutually defined types
-      injective_type_params:bool   //is this type injective in its type parameters?
-    }      
+      injective_type_params:bool;   //is this type injective in its type parameters?
+      proj_disc_lids : list lident; // the lids of the discriminators and projectors to come for this constructor
+    }
   | Sig_declare_typ     {
       lid:lident;
       us:univ_names;
@@ -787,9 +789,6 @@ val mod_name: modul -> lident
 type path = list string
 type subst_t = list subst_elt
 
-val contains_reflectable:  list qualifier -> bool
-
-val withsort: 'a -> withinfo_t 'a
 val withinfo: 'a -> range -> withinfo_t 'a
 
 (* Constructors for each term form; NO HASH CONSING; just makes all the auxiliary data at each node *)

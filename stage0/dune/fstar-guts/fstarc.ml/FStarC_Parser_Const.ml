@@ -300,6 +300,8 @@ let (steps_unmeta : FStarC_Ident.lident) = mk_norm_step_lid "unmeta"
 let (deprecated_attr : FStarC_Ident.lident) = pconst "deprecated"
 let (warn_on_use_attr : FStarC_Ident.lident) = pconst "warn_on_use"
 let (inline_let_attr : FStarC_Ident.lident) = attr "inline_let"
+let (inline_let_vc_attr : FStarC_Ident.lident) = attr "inline_let_vc"
+let (no_inline_let_attr : FStarC_Ident.lident) = attr "no_inline_let"
 let (rename_let_attr : FStarC_Ident.lident) = attr "rename_let"
 let (plugin_attr : FStarC_Ident.lident) = attr "plugin"
 let (tcnorm_attr : FStarC_Ident.lident) = attr "tcnorm"
@@ -347,6 +349,7 @@ let (no_auto_projectors_attr : FStarC_Ident.lident) =
   attr "no_auto_projectors"
 let (no_subtping_attr_lid : FStarC_Ident.lident) = attr "no_subtyping"
 let (admit_termination_lid : FStarC_Ident.lident) = attr "admit_termination"
+let (admitted_lid : FStarC_Ident.lident) = attr "admitted"
 let (unrefine_binder_attr : FStarC_Ident.lident) = pconst "unrefine"
 let (do_not_unrefine_attr : FStarC_Ident.lident) = pconst "do_not_unrefine"
 let (desugar_of_variant_record_lid : FStarC_Ident.lident) =
@@ -378,7 +381,7 @@ let (const_to_string : FStarC_Const.sconst -> Prims.string) =
     | FStarC_Const.Const_unit -> "()"
     | FStarC_Const.Const_bool b -> if b then "true" else "false"
     | FStarC_Const.Const_real r -> Prims.strcat r "R"
-    | FStarC_Const.Const_string (s, uu___) -> FStarC_Util.format1 "\"%s\"" s
+    | FStarC_Const.Const_string (s, uu___) -> FStarC_Format.fmt1 "\"%s\"" s
     | FStarC_Const.Const_int (x1, uu___) -> x1
     | FStarC_Const.Const_char c ->
         Prims.strcat "'" (Prims.strcat (FStarC_Util.string_of_char c) "'")
@@ -391,10 +394,10 @@ let (const_to_string : FStarC_Const.sconst -> Prims.string) =
           | FStar_Pervasives_Native.None -> ""
           | FStar_Pervasives_Native.Some l ->
               let uu___1 = FStarC_Ident.string_of_lid l in
-              FStarC_Util.format1 "<%s>" uu___1 in
-        FStarC_Util.format1 "reify%s" uu___
+              FStarC_Format.fmt1 "<%s>" uu___1 in
+        FStarC_Format.fmt1 "reify%s" uu___
     | FStarC_Const.Const_reflect l ->
-        let uu___ = sli l in FStarC_Util.format1 "[[%s.reflect]]" uu___
+        let uu___ = sli l in FStarC_Format.fmt1 "[[%s.reflect]]" uu___
 let (is_name : FStarC_Ident.lident -> Prims.bool) =
   fun lid ->
     let c =
@@ -418,6 +421,10 @@ let (fstar_stubs_tactics_lid' : Prims.string Prims.list -> FStarC_Ident.lid)
 let (fstar_tactics_lid : Prims.string -> FStarC_Ident.lid) =
   fun s -> fstar_tactics_lid' [s]
 let (tac_lid : FStarC_Ident.lid) = fstar_tactics_lid' ["Effect"; "tac"]
+let (tac_bind_lid : FStarC_Ident.lid) =
+  fstar_tactics_lid' ["Effect"; "tac_bind"]
+let (lift_div_tac_lid : FStarC_Ident.lid) =
+  fstar_tactics_lid' ["Effect"; "lift_div_tac"]
 let (tactic_lid : FStarC_Ident.lid) = fstar_tactics_lid' ["Effect"; "tactic"]
 let (tac_opaque_attr : FStarC_Ident.lident) = pconst "tac_opaque"
 let (meta_projectors_attr : FStarC_Ident.lid) =

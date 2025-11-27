@@ -18,7 +18,6 @@ open FStarC.Effect
 open FStarC.List
 
 open FStarC
-open FStarC.Util
 open FStarC.Ident
 open FStarC.Range
 open FStarC.Syntax
@@ -96,7 +95,7 @@ let args_of_binders (binders:Syntax.binders) : (Syntax.binders & args) =
 let name_binders binders =
     binders |> List.mapi (fun i b ->
             if is_null_binder b
-            then let bname = id_of_text ("_" ^ string_of_int i) in
+            then let bname = id_of_text ("_" ^ show i) in
                  let bv = {ppname=bname; index=0; sort=b.binder_bv.sort} in
                  { b with binder_bv = bv }
             else b)
@@ -282,10 +281,10 @@ let destruct_comp c : (universe & typ & typ) =
   let wp = match c.effect_args with
     | [(wp, _)] -> wp
     | _ ->
-      failwith (U.format2
+      failwith (Format.fmt2
         "Impossible: Got a computation %s with %s effect args"
         (string_of_lid c.effect_name)
-        (c.effect_args |> List.length |> string_of_int)) in
+        (c.effect_args |> List.length |> show)) in
   List.hd c.comp_univs, c.result_typ, wp
 
 let is_named_tot c =
@@ -333,16 +332,6 @@ let is_pure_or_ghost_effect l = is_pure_effect l || is_ghost_effect l
 let is_pure_or_ghost_function t = match (compress t).n with
     | Tm_arrow {comp=c} -> is_pure_or_ghost_comp c
     | _ -> true
-
-let is_lemma_comp c =
-    match c.n with
-    | Comp ct -> lid_equals ct.effect_name PC.effect_Lemma_lid
-    | _ -> false
-
-let is_lemma t =
-    match (compress t).n with
-    | Tm_arrow {comp=c} -> is_lemma_comp c
-    | _ -> false
 
 let rec head_of (t : term) : term =
     match (compress t).n with
@@ -452,7 +441,7 @@ let primops =
 let is_primop_lid l = primops |> U.for_some (lid_equals l)
 
 let is_primop f = match f.n with
-  | Tm_fvar fv -> is_primop_lid fv.fv_name.v
+  | Tm_fvar fv -> is_primop_lid fv.fv_name
   | _ -> false
 
 let rec unascribe e =
@@ -465,7 +454,7 @@ let rec ascribe t k = match t.n with
   | Tm_ascribed {tm=t'} -> ascribe t' k
   | _ -> mk (Tm_ascribed {tm=t; asc=k; eff_opt=None}) t.pos
 
-let unfold_lazy i = must !lazy_chooser i.lkind i
+let unfold_lazy i = Option.must !lazy_chooser i.lkind i
 
 let rec unlazy t =
     match (compress t).n with
@@ -488,7 +477,7 @@ let unlazy_as_t k t =
     | Tm_lazy ({lkind=k'; blob=v}) ->
       if k =? k'
       then Dyn.undyn v
-      else failwith (U.format2 "Expected Tm_lazy of kind %s, got %s"
+      else failwith (Format.fmt2 "Expected Tm_lazy of kind %s, got %s"
                        (show k) (show k'))
     | _ ->
       failwith "Not a Tm_lazy of the expected kind"
@@ -651,7 +640,7 @@ let mk_field_projector_name_from_ident lid (i : ident) =
 
 let mk_field_projector_name lid (x:bv) i =
     let nm = if Syntax.is_null_bv x
-             then mk_ident("_" ^ U.string_of_int i, Syntax.range_of_bv x)
+             then mk_ident("_" ^ show i, Syntax.range_of_bv x)
              else x.ppname in
     mk_field_projector_name_from_ident lid nm
 
@@ -663,8 +652,8 @@ let ses_of_sigbundle (se:sigelt) :list sigelt =
 let set_uvar uv t =
   match Unionfind.find uv with
     | Some t' ->
-      failwith (U.format3 "Changing a fixed uvar! ?%s to %s but \
-                           it is already set to %s\n" (U.string_of_int <| Unionfind.uvar_id uv)
+      failwith (Format.fmt3 "Changing a fixed uvar! ?%s to %s but \
+                           it is already set to %s\n" (show <| Unionfind.uvar_id uv)
                           (tts t)
                           (tts t'))
     | _ -> Unionfind.change uv t
@@ -685,7 +674,7 @@ let qualifier_equal q1 q2 = match q1, q2 with
 let abs bs t lopt =
   let close_lopt lopt = match lopt with
       | None -> None
-      | Some rc -> Some ({rc with residual_typ=FStarC.Util.map_opt rc.residual_typ (close bs)})
+      | Some rc -> Some ({rc with residual_typ = Option.map (close bs) rc.residual_typ })
   in
   match bs with
   | [] -> t
@@ -738,7 +727,7 @@ let branch b = Subst.close_branch b
 let has_decreases (c:comp) : bool =
   match c.n with
   | Comp ct ->
-    begin match ct.flags |> U.find_opt (function DECREASES _ -> true | _ -> false) with
+    begin match ct.flags |> Option.find (function DECREASES _ -> true | _ -> false) with
     | Some (DECREASES _) -> true
     | _ -> false
     end
@@ -797,7 +786,7 @@ let let_rec_arity (lb:letbinding) : int & option (list bool) =
         | Tm_arrow {bs; comp=c} ->
             let bs, c = Subst.open_comp bs c in
            (match
-                c |> comp_flags |> U.find_opt (function DECREASES _ -> true | _ -> false)
+                c |> comp_flags |> Option.find (function DECREASES _ -> true | _ -> false)
             with
             | Some (DECREASES d) ->
                 bs, Some d
@@ -815,7 +804,7 @@ let let_rec_arity (lb:letbinding) : int & option (list bool) =
     let bs, dopt = arrow_until_decreases lb.lbtyp in
     let n_univs = List.length lb.lbunivs in
     n_univs + List.length bs,
-    U.map_opt dopt (fun d ->
+    dopt |> Option.map (fun d ->
        let d_bvs =
          match d with
          | Decreases_lex l ->
@@ -829,7 +818,7 @@ let let_rec_arity (lb:letbinding) : int & option (list bool) =
 let abs_formals_maybe_unascribe_body maybe_unascribe t =
     let subst_lcomp_opt s l = match l with
         | Some rc ->
-          Some ({rc with residual_typ=FStarC.Util.map_opt rc.residual_typ (Subst.subst s)})
+          Some ({rc with residual_typ = Option.map (Subst.subst s) rc.residual_typ})
         | _ -> l
     in
     let rec aux t abs_body_lcomp =
@@ -879,7 +868,7 @@ let close_univs_and_mk_letbinding recs lbname univ_vars typ eff def attrs pos =
         | _, [] -> def
         | Some fvs, _ ->
           let universes = univ_vars |> List.map U_name in
-          let inst = fvs |> List.map (fun fv -> fv.fv_name.v, universes) in
+          let inst = fvs |> List.map (fun fv -> fv.fv_name, universes) in
           FStarC.Syntax.InstFV.instantiate inst def
     in
     let typ = Subst.close_univ_vars univ_vars typ in
@@ -903,11 +892,11 @@ let open_univ_vars_binders_and_comp uvs binders c =
 (********************************************************************************)
 
 let is_tuple_constructor (t:typ) = match t.n with
-  | Tm_fvar fv -> PC.is_tuple_constructor_lid fv.fv_name.v
+  | Tm_fvar fv -> PC.is_tuple_constructor_lid fv.fv_name
   | _ -> false
 
 let is_dtuple_constructor (t:typ) = match t.n with
-  | Tm_fvar fv -> PC.is_dtuple_constructor_lid fv.fv_name.v
+  | Tm_fvar fv -> PC.is_dtuple_constructor_lid fv.fv_name
   | _ -> false
 
 let is_lid_equality x = lid_equals x PC.eq2_lid
@@ -923,7 +912,7 @@ let lid_is_connective =
 
 let is_constructor t lid =
   match (pre_typ t).n with
-    | Tm_fvar tc -> lid_equals tc.fv_name.v lid
+    | Tm_fvar tc -> lid_equals tc.fv_name lid
     | _ -> false
 
 let rec is_constructed_typ t lid =
@@ -1139,7 +1128,7 @@ let mk_auto_squash u p =
     mk_app (mk_Tm_uinst sq [u]) [as_arg p]
 
 let un_squash t =
-    let head, args = head_and_args t in
+    let head, args = head_and_args_full t in
     let head = unascribe head in
     let head = un_uinst head in
     match (compress head).n, args with
@@ -1221,7 +1210,7 @@ let arrow_one_ln (t:typ) : option (binder & comp) =
         None
 
 let arrow_one (t:typ) : option (binder & comp) =
-    bind_opt (arrow_one_ln t) (fun (b, c) ->
+    Option.bind (arrow_one_ln t) (fun (b, c) ->
     let bs, c = Subst.open_comp [b] c in
     let b = match bs with
             | [b] -> b
@@ -1339,7 +1328,7 @@ let debug_term_eq = mk_ref false
 let check dbg msg cond =
   if cond
   then true
-  else (if dbg then U.print1 ">>> term_eq failing: %s\n" msg; false)
+  else (if dbg then Format.print1 ">>> term_eq failing: %s\n" msg; false)
 
 let fail dbg msg = check dbg msg false
 
@@ -1348,15 +1337,15 @@ let rec term_eq_dbg (dbg : bool) t1 t2 =
   let t2 = canon_app (unmeta_safe t2) in
   let check = check dbg in
   let fail = fail dbg in
-  match (compress (un_uinst t1)).n, (compress (un_uinst t2)).n with
-  | Tm_uinst _, _
-  | _, Tm_uinst _
-        (* -> eqlist eq_univs us1 us2 && term_eq_dbg dbg t1 t2 *)
+  match (compress t1).n, (compress t2).n with
   | Tm_delayed _, _
   | _, Tm_delayed _
   | Tm_ascribed _, _
   | _, Tm_ascribed _ ->
     failwith "term_eq: impossible, should have been removed"
+
+  | Tm_uinst(t1, us1), Tm_uinst(t2, us2) ->
+    eqlist eq_univs us1 us2 && term_eq_dbg dbg t1 t2
 
   | Tm_bvar x      , Tm_bvar y      -> check "bvar"  (x.index = y.index)
   | Tm_name x      , Tm_name y      -> check "name"  (x.index = y.index)
@@ -1589,7 +1578,7 @@ let process_pragma p r =
       with
       | Options.NotSettable x ->
         Errors.raise_error r Errors.Fatal_FailToProcessPragma [
-          Errors.Msg.text <| U.format1 "Option '%s' is not settable via a pragma." x;
+          Errors.Msg.text <| Format.fmt1 "Option '%s' is not settable via a pragma." x;
         ]
     in
     match p with
@@ -1622,6 +1611,7 @@ let process_pragma p r =
           "Cannot #pop-options, stack would become empty"
 
     | PrintEffectsGraph -> ()  //Typechecker handles it
+    | Check _ -> ()  //Typechecker handles it
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 let rec unbound_variables tm :  list bv =
@@ -1758,24 +1748,31 @@ let extract_attr (attr_lid:lid) (se:sigelt) : option (sigelt & args) =
     | None -> None
     | Some (attrs', t) -> Some ({ se with sigattrs = attrs' }, t)
 
+let is_lemma_comp c =
+    match c.n with
+    | Comp ct -> lid_equals ct.effect_name PC.effect_Lemma_lid
+    | _ -> false
+
+let is_lemma t =
+  let _, c = arrow_formals_comp t in
+  is_lemma_comp c
+
 (* Utilities for working with Lemma's decorated with SMTPat *)
-let is_smt_lemma t = match (compress t).n with
-    | Tm_arrow {comp=c} ->
-      begin match c.n with
-        | Comp ct when lid_equals ct.effect_name PC.effect_Lemma_lid ->
-            begin match ct.effect_args with
-                | _req::_ens::(pats, _)::_ ->
-                  let pats' = unmeta pats in
-                  let head, _ = head_and_args pats' in
-                  begin match (un_uinst head).n with
-                    | Tm_fvar fv -> fv_eq_lid fv PC.cons_lid
-                    | _ -> false
-                  end
-                | _ -> false
-            end
+let is_smt_lemma t =
+  let _, c = arrow_formals_comp t in
+  match c.n with
+  | Comp ct when lid_equals ct.effect_name PC.effect_Lemma_lid ->
+    begin match ct.effect_args with
+    | _req::_ens::(pats, _)::_ ->
+      let pats' = unmeta pats in
+      let head, _ = head_and_args_full pats' in
+      begin match (un_uinst head).n with
+        | Tm_fvar fv -> fv_eq_lid fv PC.cons_lid
         | _ -> false
       end
     | _ -> false
+    end
+  | _ -> false
 
 let rec list_elements (e:term) : option (list term) =
   let head, args = head_and_args (unmeta e) in
@@ -1783,7 +1780,7 @@ let rec list_elements (e:term) : option (list term) =
   | Tm_fvar fv, _ when fv_eq_lid fv PC.nil_lid ->
       Some []
   | Tm_fvar fv, [_; (hd, _); (tl, _)] when fv_eq_lid fv PC.cons_lid ->
-      Some (hd::must (list_elements tl))
+      Some (hd :: Option.must (list_elements tl))
   | _ ->
       None
 
@@ -1835,16 +1832,12 @@ let destruct_lemma_with_smt_patterns (t:term)
     )
     | _ -> [elts |> List.map one_pat]
   in
-  match (Subst.compress t).n with
-  | Tm_arrow {bs=binders; comp=c} ->
-    let binders, c = Subst.open_comp binders c in
-    begin match c.n with
-    | Comp ({effect_args=[(pre, _); (post, _); (pats, _)]}) ->
-      Some (binders, pre, post, lemma_pats pats)
-    | _ -> failwith "impos"
-    end
-
-  | _ -> None
+  let bs, c = arrow_formals_comp t in
+  match c.n with
+  | Comp ({effect_args=[(pre, _); (post, _); (pats, _)]}) ->
+    Some (bs, pre, post, lemma_pats pats)
+  | _ ->
+    None
 
 let triggers_of_smt_lemma (t:term)
 :  list (list lident) //for each disjunctive pattern
@@ -1940,9 +1933,9 @@ let apply_wp_eff_combinators (f:tscheme -> tscheme) (combs:wp_eff_combinators)
     close_wp = f combs.close_wp;
     trivial = f combs.trivial;
 
-    repr = map_option f combs.repr;
-    return_repr = map_option f combs.return_repr;
-    bind_repr = map_option f combs.bind_repr }
+    repr = Option.map f combs.repr;
+    return_repr = Option.map f combs.return_repr;
+    bind_repr = Option.map f combs.bind_repr }
 
 let apply_layered_eff_combinators (f:tscheme -> tscheme) (combs:layered_eff_combinators)
 : layered_eff_combinators
@@ -1953,7 +1946,7 @@ let apply_layered_eff_combinators (f:tscheme -> tscheme) (combs:layered_eff_comb
     l_bind = map3 combs.l_bind;
     l_subcomp = map3 combs.l_subcomp;
     l_if_then_else = map3 combs.l_if_then_else;
-    l_close = map_option map2 combs.l_close; }
+    l_close = Option.map map2 combs.l_close; }
 
 let apply_eff_combinators (f:tscheme -> tscheme) (combs:eff_combinators) : eff_combinators =
   match combs with

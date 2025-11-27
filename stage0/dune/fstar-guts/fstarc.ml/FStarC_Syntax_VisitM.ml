@@ -396,7 +396,7 @@ let rec (compress : FStarC_Syntax_Syntax.term -> FStarC_Syntax_Syntax.term) =
           let uu___ =
             let uu___1 =
               FStarC_Effect.op_Bang FStarC_Syntax_Syntax.lazy_chooser in
-            FStarC_Util.must uu___1 in
+            FStarC_Option.must uu___1 in
           uu___ li.FStarC_Syntax_Syntax.lkind li in
         compress tm'
     | uu___ -> tm1
@@ -1749,7 +1749,8 @@ let rec on_sub_sigelt' : 'm . 'm lvm -> FStarC_Syntax_Syntax.sigelt' -> 'm =
             FStarC_Syntax_Syntax.num_ty_params = num_ty_params;
             FStarC_Syntax_Syntax.mutuals1 = mutuals;
             FStarC_Syntax_Syntax.injective_type_params1 =
-              injective_type_params;_}
+              injective_type_params;
+            FStarC_Syntax_Syntax.proj_disc_lids = proj_disc_lids;_}
           ->
           let uu___ = f_term d t in
           FStarC_Class_Monad.op_let_Bang (_lvm_monad d) () () uu___
@@ -1769,7 +1770,9 @@ let rec on_sub_sigelt' : 'm . 'm lvm -> FStarC_Syntax_Syntax.sigelt' -> 'm =
                                  num_ty_params;
                                FStarC_Syntax_Syntax.mutuals1 = mutuals;
                                FStarC_Syntax_Syntax.injective_type_params1 =
-                                 injective_type_params
+                                 injective_type_params;
+                               FStarC_Syntax_Syntax.proj_disc_lids =
+                                 proj_disc_lids
                              })))) uu___1)
       | FStarC_Syntax_Syntax.Sig_declare_typ
           { FStarC_Syntax_Syntax.lid2 = lid; FStarC_Syntax_Syntax.us2 = us;
@@ -2015,6 +2018,17 @@ let rec on_sub_sigelt' : 'm . 'm lvm -> FStarC_Syntax_Syntax.sigelt' -> 'm =
                                                        = cflags1
                                                    })))) uu___3))) uu___2)))
                  uu___1)
+      | FStarC_Syntax_Syntax.Sig_pragma (FStarC_Syntax_Syntax.Check t) ->
+          let uu___ = f_term d t in
+          FStarC_Class_Monad.op_let_Bang (_lvm_monad d) () () uu___
+            (fun uu___1 ->
+               (fun t1 ->
+                  let t1 = Obj.magic t1 in
+                  Obj.magic
+                    (FStarC_Class_Monad.return (_lvm_monad d) ()
+                       (Obj.magic
+                          (FStarC_Syntax_Syntax.Sig_pragma
+                             (FStarC_Syntax_Syntax.Check t1))))) uu___1)
       | FStarC_Syntax_Syntax.Sig_pragma uu___ ->
           FStarC_Class_Monad.return (_lvm_monad d) () (Obj.magic se)
       | FStarC_Syntax_Syntax.Sig_polymonadic_bind

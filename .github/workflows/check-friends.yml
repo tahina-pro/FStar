@@ -23,6 +23,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - name: Checkout karamel
         uses: actions/checkout@master
@@ -61,6 +62,8 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
+
 
       # krml test needs node
       - uses: actions/setup-node@v4
@@ -89,6 +92,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - name: Checkout steel
         uses: actions/checkout@master
@@ -103,6 +107,36 @@ jobs:
         with:
           name: steel
           hometag: STEEL
+
+  build-steel-proofs:
+    runs-on: ubuntu-latest
+    container: mtzguido/dev-base
+    needs:
+      - build-krml
+      - build-steel
+    steps:
+      - name: Cleanup
+        run: sudo find . -delete
+      - run: echo "HOME=/home/user" >> $GITHUB_ENV
+      - uses: mtzguido/set-opam-env@master
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fstar.tar.gz
+      - run: tar -xzf fstar.tar.gz
+      - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery --z3version 4.15.3" >> $GITHUB_ENV
+
+      - uses: mtzguido/gci-download@master
+        with:
+          name: karamel
+
+      - uses: mtzguido/gci-download@master
+        with:
+          name: steel
+
+      - name: Test
+        run: make -C steel -skj$(nproc) verify-proofs
 
   test-steel:
     runs-on: ubuntu-latest
@@ -121,6 +155,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -153,6 +188,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - name: Build (after setting up cargo env)
         run: . $HOME/.cargo/env && make -C pulse -skj$(nproc)
@@ -214,6 +250,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -255,6 +292,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -294,6 +332,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -307,17 +346,22 @@ jobs:
       # not the root of the repo
       - run: echo "PULSE_HOME=$PULSE_HOME/out" >> $GITHUB_ENV
 
+      # everparse expects more environment variables to opt out of
+      # in-tree dependencies
+      - run: echo "EVERPARSE_USE_OPAMROOT=1" >> $GITHUB_ENV
+      - run: echo "EVERPARSE_USE_FSTAR_EXE=1" >> $GITHUB_ENV
+      - run: echo "EVERPARSE_USE_KRML_HOME=1" >> $GITHUB_ENV
+      - run: echo "EVERPARSE_USE_PULSE_HOME=1" >> $GITHUB_ENV
+
       - name: Checkout everparse
         uses: actions/checkout@master
         with:
           path: everparse/
+          ref: _nik_smt_univs_2025
           repository: project-everest/everparse
 
       - name: Build
-        # NOTE: override HACL_HOME to empty to skip some COSE tests
-        # that need HACL. Everparse CI can test that. Depending on
-        # HACL here would make the check-world workflow way too long.
-        run: make -C everparse -skj$(nproc) all HACL_HOME=
+        run: make -C everparse -skj$(nproc) all
 
       - uses: mtzguido/gci-upload@master
         with:
@@ -345,6 +389,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -361,11 +406,18 @@ jobs:
         with:
           name: everparse
 
+      # everparse expects more environment variables to opt out of
+      # in-tree dependencies
+      - run: echo "EVERPARSE_USE_OPAMROOT=1" >> $GITHUB_ENV
+      - run: echo "EVERPARSE_USE_FSTAR_EXE=1" >> $GITHUB_ENV
+      - run: echo "EVERPARSE_USE_KRML_HOME=1" >> $GITHUB_ENV
+      - run: echo "EVERPARSE_USE_PULSE_HOME=1" >> $GITHUB_ENV
+
       - name: Test
-        # NOTE: override HACL_HOME to empty to skip some COSE tests
-        # that need HACL. Everparse CI can test that. Depending on
-        # HACL here would make the check-world workflow way too long.
-        run: make -C everparse -skj$(nproc) test HACL_HOME=
+        # NOTE: We do not check against the expected C/Rust
+        # outputs, they are too noisy (they have gensym'd names) and do
+        # not really indicate a failure.
+        run: make -C everparse -skj$(nproc) test EVERPARSE_NO_DIFF=1
 
   build-merkle-tree:
     runs-on: ubuntu-latest
@@ -384,6 +436,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -423,6 +476,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -457,6 +511,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -500,6 +555,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -538,6 +594,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -581,6 +638,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - uses: mtzguido/gci-download@master
         with:
@@ -597,7 +655,7 @@ jobs:
       - name: Test
         run: make -C everquic-crypto -skj$(nproc) test
 
-  build-starmalloc:
+  starmalloc:
     runs-on: ubuntu-latest
     container: mtzguido/dev-base
     needs:
@@ -614,6 +672,7 @@ jobs:
           name: fstar.tar.gz
       - run: tar -xzf fstar.tar.gz
       - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
 
       - name: Checkout steel
         uses: actions/checkout@master
@@ -632,3 +691,56 @@ jobs:
       # to verify, extract, and build.
       - name: Build
         run: make -C starmalloc all -skj$(nproc)
+
+  secrefstar:
+    runs-on: ubuntu-latest
+    container: mtzguido/dev-base
+    steps:
+      - name: Cleanup
+        run: sudo find . -delete
+      - run: echo "HOME=/home/user" >> $GITHUB_ENV
+      - uses: mtzguido/set-opam-env@master
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fstar.tar.gz
+      - run: tar -xzf fstar.tar.gz
+      - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
+
+      - uses: actions/checkout@master
+        with:
+          path: repo/
+          repository: andricicezar/fstar-io
+
+      - name: Build
+        run: make -C repo/secrefstar -skj$(nproc)
+      - name: Build and run examples
+        run: make -C repo/secrefstar -skj$(nproc) build-all
+
+  sciostar:
+    runs-on: ubuntu-latest
+    container: mtzguido/dev-base
+    steps:
+      - name: Cleanup
+        run: sudo find . -delete
+      - run: echo "HOME=/home/user" >> $GITHUB_ENV
+      - uses: mtzguido/set-opam-env@master
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fstar.tar.gz
+      - run: tar -xzf fstar.tar.gz
+      - run: echo "FSTAR_EXE=$(pwd)/fstar/bin/fstar.exe" >> $GITHUB_ENV
+      - run: echo "OTHERFLAGS=--proof_recovery" >> $GITHUB_ENV
+
+      - uses: actions/checkout@master
+        with:
+          path: repo/
+          repository: andricicezar/fstar-io
+
+      - name: Build
+        run: make -C repo/sciostar -skj$(nproc) verify
+
+      - name: Verify and build case study
+        run: make -C repo/sciostar/case-studies/webserver -skj$(nproc) build

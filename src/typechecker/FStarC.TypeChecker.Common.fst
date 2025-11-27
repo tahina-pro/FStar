@@ -18,7 +18,6 @@ open FStarC.Effect
 open FStarC.List
 
 open FStarC
-open FStarC.Util
 open FStarC.Syntax
 open FStarC.Syntax.Syntax
 open FStarC.Ident
@@ -113,7 +112,7 @@ let id_info_table_empty =
 open FStarC.Range
 
 let print_identifier_info info =
-  BU.format3 "id info { %s, %s : %s}"
+  Format.fmt3 "id info { %s, %s : %s}"
     (Range.string_of_range info.identifier_range)
     (match info.identifier with
      | Inl x -> show x
@@ -180,7 +179,7 @@ let id_info_at_pos (table: id_info_table) (fn:string) (row:int) (col:int) : opti
 
 let check_uvar_ctx_invariant (reason:string) (r:range) (should_check:bool) (g:gamma) (bs:binders) =
      let fail () =
-         failwith (BU.format5
+         failwith (Format.fmt5
                    "Invariant violation: gamma and binders are out of sync\n\t\
                                reason=%s, range=%s, should_check=%s\n\t
                                gamma=%s\n\t\
@@ -205,12 +204,8 @@ let check_uvar_ctx_invariant (reason:string) (r:range) (should_check:bool) (g:ga
      | _ -> fail()
 
 instance showable_implicit : showable implicit = {
-  show = (fun i -> show i.imp_uvar.ctx_uvar_head);
+  show = (fun i -> show (i.imp_uvar.ctx_uvar_head, i.imp_uvar.ctx_uvar_reason));
 }
-
-let implicits_to_string imps =
-    let imp_to_string i = show i.imp_uvar.ctx_uvar_head in
-    FStarC.Common.string_of_list imp_to_string imps
 
 let trivial_guard =
   let open FStarC.Class.Listlike in
@@ -303,7 +298,7 @@ let lcomp_to_string lc =
     if Options.print_effect_args () then
         show (lc |> lcomp_comp |> fst)
     else
-        BU.format2 "%s %s" (show lc.eff_name) (show lc.res_typ)
+        Format.fmt2 "%s %s" (show lc.eff_name) (show lc.res_typ)
 
 let lcomp_set_flags lc fs =
     let comp_typ_set_flags (c:comp) =

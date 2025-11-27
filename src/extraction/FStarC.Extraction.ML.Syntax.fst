@@ -21,7 +21,6 @@ open FStarC.Effect
 open FStarC.List
 open FStarC
 open FStarC.Ident
-open FStarC.Util
 open FStarC.Const
 open FStarC.BaseTypes
 
@@ -203,21 +202,20 @@ and mllb_to_doc (lb) =
     fld "mllb_name" (doc_of_string lb.mllb_name);
     fld "mllb_attrs" (list_to_doc lb.mllb_attrs mlexpr_to_doc);
     fld "mllb_tysc" (option_to_doc lb.mllb_tysc (fun (_, t) -> mlty_to_doc t));
-    fld "mllb_add_unit" (doc_of_string (string_of_bool lb.mllb_add_unit));
+    fld "mllb_add_unit" (pp lb.mllb_add_unit);
     fld "mllb_def" (mlexpr_to_doc lb.mllb_def);
   ]
 
 and mlconstant_to_doc mlc =
   match mlc with
   | MLC_Unit -> doc_of_string "MLC_Unit"
-  | MLC_Bool b -> ctor "MLC_Bool" (doc_of_string (string_of_bool b))
+  | MLC_Bool b -> ctor "MLC_Bool" (pp b)
   | MLC_Int (s, None) -> ctor "MLC_Int" (doc_of_string s)
   | MLC_Int (s, Some (s1, s2)) ->
     ctor "MLC_Int" <| triple (doc_of_string s) underscore underscore
   | MLC_Float f -> ctor "MLC_Float" underscore
   | MLC_Char c -> ctor "MLC_Char" underscore
   | MLC_String s -> ctor "MLC_String" (doc_of_string s)
-  | MLC_Bytes b -> ctor "MLC_Bytes" underscore
 
 and mlpattern_to_doc mlp =
   match mlp with

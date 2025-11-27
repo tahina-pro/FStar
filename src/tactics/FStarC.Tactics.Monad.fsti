@@ -21,12 +21,14 @@ open FStarC.Tactics.Result
 open FStarC.Tactics.Types
 open FStarC.Class.Monad
 open FStarC.Errors.Msg
+open FStarC.Effect
 
 module Range = FStarC.Range
 module O     = FStarC.Options
 
 (* Type of tactics *)
-val tac (a:Type0) : Type0
+type tac (a:Type0) : Type0 =
+  ref proofstate -> a
 
 instance val monad_tac : monad tac
 
@@ -53,9 +55,6 @@ val fail : string -> tac 'a
 
 (* Catch exceptions, restore UF graph on a failure *)
 val catch : tac 'a -> tac (either exn 'a)
-
-(* Catch exceptions, but keep UF graph at the time of the failure *)
-val recover : tac 'a -> tac (either exn 'a)
 
 (* Try running a tactic. If it fails, return None. *)
 val trytac : tac 'a -> tac (option 'a)
@@ -159,7 +158,7 @@ val mk_tac : (proofstate -> __result 'a) -> tac 'a
 (* inform the core of a well-typed goal *)
 val register_goal (g:goal) : unit
 
-val divide (n:BigInt.t) (l : tac 'a) (r : tac 'b) : tac ('a & 'b)
+val divide (n:int) (l : tac 'a) (r : tac 'b) : tac ('a & 'b)
 val focus (f:tac 'a) : tac 'a
 
 (* Internal utilities *)

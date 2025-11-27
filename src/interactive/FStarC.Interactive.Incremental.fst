@@ -19,7 +19,6 @@ open FStarC.Effect
 open FStarC.List
 open FStarC
 open FStarC.Range
-open FStarC.Util
 open FStarC.Getopt
 open FStarC.Ident
 open FStarC.Errors
@@ -37,6 +36,7 @@ module BU = FStarC.Util
 open FStarC.Parser.AST
 open FStarC.Parser.AST.Util
 open FStarC.Parser.AST.Diff { eq_decl }
+open FStarC.Class.Show
 
 let qid = string & int
 let qst a = qid -> a & qid
@@ -77,7 +77,7 @@ let as_query (q:query')
     return 
       {
         qq=q;
-        qid=qid_prefix ^ "." ^ string_of_int i
+        qid=qid_prefix ^ "." ^ show i
       }
 
 (* This function dumps a symbol table for the decl that has just been checked *)
@@ -269,7 +269,12 @@ let run_full_buffer (st:repl_state)
                     (with_symbols:bool)
                     (write_full_buffer_fragment_progress: fragment_progress -> unit)
   : list query & list json
-  = let parse_result = parse_code None code in
+  = // updating the vfs entry allows dependence scanning on the file to
+    // to use the latest snapshot of the file, rather than what was present
+    // in the buffer when the IDE was started. This is especially useful when
+    // creating a new file and launching F* on it
+    FStarC.Parser.ParseIt.add_vfs_entry st.repl_fname code;
+    let parse_result = parse_code None code in
     let log_syntax_issues err =
       match err with
       | None -> ()
@@ -294,7 +299,7 @@ let run_full_buffer (st:repl_state)
       | IncrementalFragment (decls, _, err_opt) -> (
         // This is a diagnostic message that is send to the IDE as an info message
         // The script test-incremental.py in tests/ide/ depends on this message
-        BU.print1 "Parsed %s declarations\n" (string_of_int (List.length decls));
+        Format.print1 "Parsed %s declarations\n" (show (List.length decls));
         match request_type, decls with
         | ReloadDeps, d::_ ->
           run_qst (let! queries = reload_deps (!repl_stack) in
@@ -316,7 +321,7 @@ let run_full_buffer (st:repl_state)
           if request_type <> Cache then log_syntax_issues err_opt;
           if Debug.any()
           then (
-            BU.print1 "Generating queries\n%s\n" 
+            Format.print1 "Generating queries\n%s\n" 
                       (String.concat "\n" (List.map query_to_string queries))
           );
           if request_type <> Cache then (queries, issues) else ([] , issues)
@@ -342,7 +347,7 @@ let format_code (st:repl_state) (code:string)
     match parse_result with
     | IncrementalFragment (decls, comments, None) ->
       let doc_to_string doc =
-          FStarC.Pprint.pretty_string (float_of_string "1.0") 100 doc
+          FStarC.Pprint.pretty_string (Util.float_of_string "1.0") 100 doc
       in
       let formatted_code_rev, leftover_comments =
         List.fold_left

@@ -23,7 +23,6 @@ open FStarC.Syntax.Syntax
 open FStarC.TypeChecker.Common
 open FStarC.TypeChecker.Env
 open FStarC.Tactics.Types
-open FStarC.Tactics.Result
 open FStarC.Tactics.Printing
 open FStarC.Tactics.Common
 open FStarC.Errors.Msg
@@ -35,7 +34,6 @@ open FStarC.Syntax.Print {}
 module Setlike = FStarC.Class.Setlike
 module Listlike = FStarC.Class.Listlike
 
-module BU      = FStarC.Util
 module Err     = FStarC.Errors
 module Range   = FStarC.Range
 module U       = FStarC.Syntax.Util
@@ -74,94 +72,86 @@ let register_goal (g:goal) =
   if Allow_untyped? (U.ctx_uvar_should_check g.goal_ctx_uvar) then () else
   let env = {env with gamma = uv.ctx_uvar_gamma } in
   if !dbg_CoreEq
-  then BU.print1 "(%s) Registering goal\n" (show i);
+  then Format.print1 "(%s) Registering goal\n" (show i);
   let should_register = is_goal_safe_as_well_typed g in
   if not should_register
   then (
     if !dbg_Core || !dbg_RegisterGoal
-    then BU.print1 "(%s) Not registering goal since it has unresolved uvar deps\n"
+    then Format.print1 "(%s) Not registering goal since it has unresolved uvar deps\n"
                      (show i);
         
     ()
   )
   else (
     if !dbg_Core || !dbg_RegisterGoal
-    then BU.print2 "(%s) Registering goal for %s\n"
+    then Format.print2 "(%s) Registering goal for %s\n"
                      (show i)
                      (show uv);
     let goal_ty = U.ctx_uvar_typ uv in
-    match FStarC.TypeChecker.Core.compute_term_type_handle_guards env goal_ty (fun _ _ -> true) 
+    match FStarC.TypeChecker.Core.compute_term_type env goal_ty
     with
-    | Inl _ -> ()  // ghost is ok
+    | Inl (_, _, None) -> ()  // ghost is ok
+    | Inl (_, _, Some (g, tok)) ->
+      //register goal intentionally admits the guard; the goal is assumed to already be well-typed
+      FStarC.TypeChecker.Core.commit_guard tok
     | Inr err ->
       let msg = 
-          BU.format2 "Failed to check initial tactic goal %s because %s"
+          Format.fmt2 "Failed to check initial tactic goal %s because %s"
                      (show (U.ctx_uvar_typ uv))
                      (FStarC.TypeChecker.Core.print_error_short err)
       in
       Errors.log_issue uv.ctx_uvar_range Err.Warning_FailedToCheckInitialTacticGoal msg
   )
 
-(*
- * A record, so we can keep it somewhat encapsulated and
- * can more easily add things to it if need be.
- *)
-type tac (a:Type0) = {
-    tac_f : proofstate -> __result a;
-}
-
-let mk_tac (f : proofstate -> __result 'a) : tac 'a =
-    { tac_f = f }
+let mk_tac (f : proofstate -> __result 'a) : tac 'a = fun ps ->
+  let Success (x, ps') = f (!ps) in
+  ps := ps';
+  x
 
 let run (t:tac 'a) (ps:proofstate) : __result 'a =
-    t.tac_f ps
+  let ps = mk_ref ps in
+  let x = t ps in
+  Success (x, !ps)
 
 let run_safe t ps =
-    if Options.tactics_failhard ()
-    then run t ps
-    else try run t ps
-    with | e -> Failed (e, ps)
+    run t ps
 
 let ret (x:'a) : tac 'a =
-    mk_tac (fun ps -> Success (x, ps))
+  fun _ -> x
 
 let bind (t1:tac 'a) (t2:'a -> tac 'b) : tac 'b =
-    mk_tac (fun ps ->
-            match run t1 ps with
-            | Success (a, q)  -> run (t2 a) q
-            | Failed (msg, q) -> Failed (msg, q))
+  fun ps ->
+    let x = t1 ps in
+    t2 x ps
 
 instance monad_tac : monad tac = {
-    return   = ret;
-    ( let! ) = bind;
+    return = ret;
+    bind   = bind;
 }
 
 (* Set the current proofstate *)
 let set (ps:proofstate) : tac unit =
-    mk_tac (fun _ -> Success ((), ps))
+  fun ps_ref -> ps_ref := ps
 
 (* Get the current proof state *)
 let get : tac proofstate =
-    mk_tac (fun ps -> Success (ps, ps))
+  fun ps -> !ps
 
 let traise e =
-    mk_tac (fun ps -> Failed (e, ps))
+  fun _ -> raise e
 
 let do_log ps (f : unit -> unit) : unit =
   if ps.tac_verb_dbg then
     f ()
 
 let log (f : unit -> unit) : tac unit =
-  mk_tac (fun ps ->
-    do_log ps f;
-    Success ((), ps))
+  fun ps -> do_log (!ps) f
 
 let fail_doc (msg:error_message) =
-    mk_tac (fun ps ->
+  fun ps ->
         if !dbg_TacFail then
-          do_dump_proofstate ps ("TACTIC FAILING: " ^ renderdoc (hd msg));
-        Failed (TacticFailure (msg, None), ps)
-    )
+          do_dump_proofstate (!ps) ("TACTIC FAILING: " ^ renderdoc (hd msg));
+        raise <| TacticFailure (msg, None)
 
 let fail msg = fail_doc [text msg]
 
@@ -169,22 +159,14 @@ let catch (t : tac 'a) : tac (either exn 'a) =
     mk_tac (fun ps ->
             let idtable = !ps.main_context.identifier_info in
             let tx = UF.new_transaction () in
-            match run t ps with
-            | Success (a, q) ->
-                UF.commit tx;
-                Success (Inr a, q)
-            | Failed (m, q) ->
+            try
+              let Success (a, q) = run t ps in
+              UF.commit tx;
+              Success (Inr a, q)
+            with | m ->
                 UF.rollback tx;
                 ps.main_context.identifier_info := idtable;
-                let ps = { ps with freshness = q.freshness } in //propagate the freshness even on failures
                 Success (Inl m, ps)
-           )
-
-let recover (t : tac 'a) : tac (either exn 'a) =
-    mk_tac (fun ps ->
-            match run t ps with
-            | Success (a, q) -> Success (Inr a, q)
-            | Failed (m, q)  -> Success (Inl m, q)
            )
 
 let trytac (t : tac 'a) : tac (option 'a) =
@@ -197,7 +179,7 @@ let trytac_exn (t : tac 'a) : tac (option 'a) =
     mk_tac (fun ps ->
     try run (trytac t) ps
     with | Errors.Error (_, msg, _, _) ->
-           do_log ps (fun () -> BU.print1 "trytac_exn error: (%s)" (Errors.rendermsg msg));
+           do_log ps (fun () -> Format.print1 "trytac_exn error: (%s)" (Errors.rendermsg msg));
            Success (None, ps))
 
 let rec iter_tac f l =
@@ -238,7 +220,7 @@ let check_valid_goal g =
        if !nwarn < 5 then begin
          Err.log_issue (goal_type g)
            Errors.Warning_IllFormedGoal
-           (BU.format2 "The following goal is ill-formed (%s). Keeping calm and carrying on...\n<%s>\n\n" culprit (goal_to_string_verbose g));
+           (Format.fmt2 "The following goal is ill-formed (%s). Keeping calm and carrying on...\n<%s>\n\n" culprit (goal_to_string_verbose g));
          nwarn := !nwarn + 1
        end
   end
@@ -272,7 +254,7 @@ let cur_goal : tac goal =
     match check_goal_solved' hd with
     | None -> ret hd
     | Some t ->
-      BU.print2 "!!!!!!!!!!!! GOAL IS ALREADY SOLVED! %s\nsol is %s\n"
+      Format.print2 "!!!!!!!!!!!! GOAL IS ALREADY SOLVED! %s\nsol is %s\n"
               (goal_to_string_verbose hd)
               (show t);
       ret hd)
@@ -374,15 +356,10 @@ let goal_of_guard (reason:string) (e:Env.env)
 
 let wrap_err_doc (pref:error_message) (t : tac 'a) : tac 'a =
     mk_tac (fun ps ->
-            match run t ps with
-            | Success (a, q) ->
-                Success (a, q)
-
-            | Failed (TacticFailure (msg, r), q) ->
-                Failed (TacticFailure (pref @ msg, r), q)
-
-            | Failed (e, q) ->
-                Failed (e, q)
+            try run t ps with
+            | TacticFailure (msg, r) ->
+              raise (TacticFailure (pref @ msg, r))
+            | e -> raise e
            )
 
 let wrap_err (pref:string) (t : tac 'a) : tac 'a =
@@ -410,7 +387,7 @@ let compress_implicits : tac unit =
 
 module N = FStarC.TypeChecker.Normalize
 let get_phi (g:goal) : option term = U.un_squash (N.unfold_whnf (goal_env g) (goal_type g))
-let is_irrelevant (g:goal) : bool = Option.isSome (get_phi g)
+let is_irrelevant (g:goal) : bool = Some? (get_phi g)
 let goal_typedness_deps (g:goal) = U.ctx_uvar_typedness_deps g.goal_ctx_uvar
 
 let set_uvar_expected_typ (u:ctx_uvar) (t:typ)
@@ -437,12 +414,11 @@ let goal_with_type g t
     set_uvar_expected_typ u t;
     g
 
-module Z = FStarC.BigInt
 
-let divide (n:Z.t) (l : tac 'a) (r : tac 'b) : tac ('a & 'b) =
+let divide (n:int) (l : tac 'a) (r : tac 'b) : tac ('a & 'b) =
   let! p = get in
   let! lgs, rgs =
-    try return (List.splitAt (Z.to_int_fs n) p.goals) with
+    try return (List.splitAt n p.goals) with
     | _ -> fail "divide: not enough goals"
   in
   let lp = { p with goals = lgs; smt_goals = [] } in
@@ -463,5 +439,5 @@ let divide (n:Z.t) (l : tac 'a) (r : tac 'b) : tac ('a & 'b) =
 (* focus: runs f on the current goal only, and then restores all the goals *)
 (* There is a user defined version as well, we just use this one internally, but can't mark it as private *)
 let focus (f:tac 'a) : tac 'a =
-    let! (a, _) = divide FStarC.BigInt.one f (return ()) in
+    let! (a, _) = divide 1 f (return ()) in
     return a

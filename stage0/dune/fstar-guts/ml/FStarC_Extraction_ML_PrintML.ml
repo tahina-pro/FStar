@@ -1,11 +1,11 @@
 open List
 open Lexing
 open Ppxlib_ast
-open Astlib.Ast_502.Parsetree
+open Parsetree
 open Location
 open Pprintast
 open Ast_helper
-open Astlib.Ast_502.Asttypes
+open Ast
 open Longident
 
 open FStarC_Extraction_ML_Syntax
@@ -104,8 +104,8 @@ let try_with_ident () =
 (* For integer constants (not 0/1) in this range we will use Prims.of_int
  * Outside this range we will use string parsing to allow arbitrary sized
  * integers.
- * Using int_zero/int_one removes int processing to create the Z.t
- * Using of_int removes string processing to create the Z.t
+ * Using int_zero/int_one removes int processing to create the int
+ * Using of_int removes string processing to create the int
  *)
 let max_of_int_const = Z.of_int   65535
 let min_of_int_const = Z.of_int (-65536)
@@ -157,7 +157,6 @@ let build_constant (c: mlconstant): Parsetree.constant =
   | MLC_Float v -> Const.float (string_of_float v)
   | MLC_Char v -> Const.int v
   | MLC_String v -> Const.string v
-  | MLC_Bytes _ -> failwith "Case not handled" (* do we need this? *)
   | _ -> failwith "Case not handled"
 
 let build_constant_expr (c: mlconstant): expression =
@@ -264,7 +263,14 @@ let resugar_prims_ops path: expression =
   | (["Prims"], "op_GreaterThanOrEqual") -> mk_lident ">="
   | (["Prims"], "op_LessThan") -> mk_lident "<"
   | (["Prims"], "op_GreaterThan") -> mk_lident ">"
-  | (["Prims"], "op_Modulus") -> mk_lident "mod"
+  | (["Prims"], "op_Modulus") ->
+    (* Use "(mod)" here instead of "mod" to work around as issue in
+    newer versions of pprintast, which may print this as "\#mod" instead,
+    which is not supported in OCaml versions below 5.2.0. We could
+    revert this at some point.
+
+    https://github.com/ocaml/opam-repository/pull/28610#issuecomment-3362301901 *)
+    mk_lident "(mod)"
   | (["Prims"], "op_Minus") -> mk_lident "~-"
   | path -> path_to_ident path)
   |> Exp.ident
