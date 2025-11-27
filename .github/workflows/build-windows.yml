@@ -156,5 +156,5 @@ jobs:
         run: |
           dir
           cd fstar-*
-          .\fstar\bin\fstar.exe --help
+          .\fstar\bin\fstar.exe --version
 
