@@ -152,6 +152,8 @@ jobs:
           Expand-Archive -Path fstar-*.zip
 
       - name: Test fstar.exe
+        shell: cmd 
         run: |
+          dir
           .\fstar\bin\fstar.exe --help
 
