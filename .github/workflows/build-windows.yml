@@ -123,10 +123,35 @@ jobs:
 
       - name: Ensure some package has been built
         shell: C:\cygwin\bin\bash.exe --login '{0}'
-        run: find "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar -name '*.zip'
+        run: cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && { find . -name '*.zip' > packing.lst ; }
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ always () }}
+        with:
+          name: packing-lst
+          path: fstar/packing.lst
 
       - uses: actions/upload-artifact@v4
         if: ${{ always () }}
         with:
           name: package-win
           path: fstar/fstar-*.zip
+
+  test:
+    needs: build
+    runs-on: windows-latest
+    steps:
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-win
+
+      - name: Extract package 
+        shell: powershell 
+        run: |
+          Expand-Archive -Path fstar-*.zip
+
+      - name: Test fstar.exe
+        run: |
+          .\fstar\fstar.exe --help
+
