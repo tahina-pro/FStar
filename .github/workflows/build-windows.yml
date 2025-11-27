@@ -153,5 +153,5 @@ jobs:
 
       - name: Test fstar.exe
         run: |
-          .\fstar\fstar.exe --help
+          .\fstar\bin\fstar.exe --help
 
