@@ -609,7 +609,7 @@ let _commit = mk_ref ""
 
 let display_version () =
   Format.print_string (Format.fmt6 "F* %s\nplatform=%s\nsystem=%s\ncompiler=%s\ndate=%s\ncommit=%s\n"
-                                  !_version !_platform (FStarC.Class.Show.show FStarC.Platform.Base.system) !_compiler !_date !_commit)
+                                  !_version !_platform (FStarC.Class.Show.show FStarC.Platform.system) !_compiler !_date !_commit)
 
 let bold_doc (d:Pprint.document) : Pprint.document =
   let open FStarC.Pprint in
