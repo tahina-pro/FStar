@@ -173,4 +173,5 @@ jobs:
       - name: Smoke test
         shell: cmd
         run: |
-          .\fstar\bin\fstar.exe --already_cached *,-A .\A.fst
+          cd fstar-*
+          .\fstar\bin\fstar.exe --already_cached *,-A ..\A.fst
