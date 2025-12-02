@@ -104,6 +104,20 @@ jobs:
         run: cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && eval "$(opam env)" && opam install . --deps-only
         working-directory: fstar
 
+      # Print out some debug info
+      - name: dbg with opam env
+        continue-on-error: true
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
+          cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && eval "$(opam env)" &&
+          echo 'uname -a' && { uname -a || true ; } &&
+          echo 'uname -s' && { uname -s || true ; } &&
+          echo 'uname -m' && { uname -m || true ; } &&
+          echo env && { env || true ; } &&
+          echo OS=$OS &&
+          { which make || true ; } &&
+          { make --version || true ; }
+
       # Note: we admit queries here, like the OPAM build does.
       - name: Build
         shell: C:\cygwin\bin\bash.exe --login '{0}'
