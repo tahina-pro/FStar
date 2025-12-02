@@ -24,9 +24,21 @@ jobs:
     runs-on: windows-latest
     steps:
 
+      - name: Retrieve Cygwin package scripts
+        uses: actions/checkout@master
+        with:
+          sparse-checkout: |
+            .scripts/install-cygwin-packages.sh
+            .scripts/cygwin-packages
+
       - uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: 4.14.2
+
+      - name: Install Cygwin packages
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
+          bash "$GITHUB_WORKSPACE"/.scripts/install-cygwin-packages.sh
 
       # Print out some debug info
       - name: dbg
