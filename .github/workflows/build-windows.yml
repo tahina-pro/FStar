@@ -98,16 +98,6 @@ jobs:
           cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && eval "$(opam env)" && make ADMIT=1 -skj$(nproc)
         working-directory: fstar
 
-      # TODO: run this test in a separate job without Cygwin
-      # to check that fstar.exe is a native Windows binary
-      # (the echo statement needs to be rewritten to this end)
-      - name: Smoke test
-        continue-on-error: true
-        shell: C:\cygwin\bin\bash.exe --login '{0}'
-        run: >-
-          cd "$(cygpath -m "$GITHUB_WORKSPACE")"/fstar && ./out/bin/fstar.exe out/lib/fstar/ulib/Prims.fst -f && { echo -e "module A\nopen FStar.Mul\nlet _ = assert (forall x. 1 + x*x > 0)" > A.fst ; } && ./out/bin/fstar.exe A.fst
-        working-directory: fstar
-
       - name: Make binary package
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
@@ -130,6 +120,17 @@ jobs:
           name: package-win
           path: fstar/fstar-*.zip
 
+      - name: Prepare smoke test
+        shell: C:\cygwin\bin\bash.exe --login '{0}'
+        run: >-
+          echo -e "module A\nopen FStar.Mul\nlet _ = assert (forall x. 1 + x*x > 0)" > "$(cygpath -m "$GITHUB_WORKSPACE")"/A.fst
+
+      - name: Upload smoke test
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test
+          path: A.fst
+
   test:
     needs: build
     runs-on: windows-latest
@@ -151,3 +152,12 @@ jobs:
           cd fstar-*
           .\fstar\bin\fstar.exe --version
 
+      - name: Extract smoke test
+        uses: actions/download-artifact@v4
+        with:
+          name: smoke-test
+
+      - name: Smoke test
+        shell: cmd
+        run: |
+          .\fstar\bin\fstar.exe --already_cached *,-A .\A.fst
