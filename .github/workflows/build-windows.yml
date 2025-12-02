@@ -33,14 +33,13 @@ jobs:
         continue-on-error: true
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
-          echo 'uname -a'
-          uname -a || true
-          echo 'uname -s'
-          uname -s || true
-          echo 'uname -m'
-          uname -m || trueS
-          which make || true
-          make --version || true
+          echo 'uname -a' && { uname -a || true ; } &&
+          echo 'uname -s' && { uname -s || true ; } &&
+          echo 'uname -m' && { uname -m || true ; } &&
+          echo env && { env || true ; } &&
+          echo OS=$OS &&
+          { which make || true ; } &&
+          { make --version || true ; }
 
       # - name: Prepare
       #   shell: powershell # somehow in bash we fail to build ocamlfind?
