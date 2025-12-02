@@ -27,6 +27,7 @@ jobs:
       - name: Retrieve Cygwin package scripts
         uses: actions/checkout@master
         with:
+          path: cygwin-pkgs
           sparse-checkout: |
             .scripts/install-cygwin-packages.sh
             .scripts/cygwin-packages
@@ -38,7 +39,7 @@ jobs:
       - name: Install Cygwin packages
         shell: C:\cygwin\bin\bash.exe --login '{0}'
         run: >-
-          bash "$GITHUB_WORKSPACE"/.scripts/install-cygwin-packages.sh
+          bash "$GITHUB_WORKSPACE"/cygwin-pkgs/.scripts/install-cygwin-packages.sh
 
       # Print out some debug info
       - name: dbg
