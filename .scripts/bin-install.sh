@@ -4,6 +4,7 @@
 # prefix, so we add the rest of the files that go into a binary package.
 
 set -eu
+set -x
 
 windows () {
   # This seems portable enough and does not trigger an
