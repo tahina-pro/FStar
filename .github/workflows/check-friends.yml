@@ -314,7 +314,6 @@ jobs:
     runs-on: ubuntu-latest
     container: mtzguido/dev-base
     needs:
-      - build-krml
       - build-pulse
     steps:
       - name: Cleanup
@@ -336,10 +335,6 @@ jobs:
 
       - uses: mtzguido/gci-download@master
         with:
-          name: karamel
-
-      - uses: mtzguido/gci-download@master
-        with:
           name: pulse
 
       # everparse expects PULSE_HOME to be the root of the installation,
@@ -350,7 +345,6 @@ jobs:
       # in-tree dependencies
       - run: echo "EVERPARSE_USE_OPAMROOT=1" >> $GITHUB_ENV
       - run: echo "EVERPARSE_USE_FSTAR_EXE=1" >> $GITHUB_ENV
-      - run: echo "EVERPARSE_USE_KRML_HOME=1" >> $GITHUB_ENV
       - run: echo "EVERPARSE_USE_PULSE_HOME=1" >> $GITHUB_ENV
 
       - name: Checkout everparse
@@ -393,10 +387,6 @@ jobs:
 
       - uses: mtzguido/gci-download@master
         with:
-          name: karamel
-
-      - uses: mtzguido/gci-download@master
-        with:
           name: pulse
       # everparse expects PULSE_HOME to be the root of the installation,
       # not the root of the repo
@@ -410,7 +400,6 @@ jobs:
       # in-tree dependencies
       - run: echo "EVERPARSE_USE_OPAMROOT=1" >> $GITHUB_ENV
       - run: echo "EVERPARSE_USE_FSTAR_EXE=1" >> $GITHUB_ENV
-      - run: echo "EVERPARSE_USE_KRML_HOME=1" >> $GITHUB_ENV
       - run: echo "EVERPARSE_USE_PULSE_HOME=1" >> $GITHUB_ENV
 
       - name: Test
