@@ -29,7 +29,8 @@ jobs:
         uses: actions/checkout@master
         with:
           path: karamel/
-          repository: FStarLang/karamel
+          repository: tahina-pro/karamel
+          ref: _taramana_649
 
       - name: Build krml
         run: make -C karamel -skj$(nproc)
