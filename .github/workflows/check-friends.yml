@@ -29,7 +29,8 @@ jobs:
         uses: actions/checkout@master
         with:
           path: karamel/
-          repository: FStarLang/karamel
+          repository: tahina-pro/karamel
+          ref: _taramana_decl_order
 
       - name: Build krml
         run: make -C karamel -skj$(nproc)
@@ -357,8 +358,8 @@ jobs:
         uses: actions/checkout@master
         with:
           path: everparse/
-          ref: _nik_smt_univs_2025
-          repository: project-everest/everparse
+          ref: _taramana_smt_univs_20260217_krml_679_ci
+          repository: tahina-pro/quackyducky
 
       - name: Build
         run: make -C everparse -skj$(nproc) all
