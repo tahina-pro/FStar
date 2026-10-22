@@ -1843,7 +1843,19 @@ let rec request (st:state) (k:spec_key) : ML name =
           match rule with
           | Some (Builtins.Rule_extern e) -> e.Builtins.x_name, Some? e.Builtins.x_header
           | _ -> None, false in
-        HashTable.add st.foreign_choices key (target, header, c_decoration_flags attrs)
+        let target =
+          match decl_flags d |> List.tryPick (function CName s -> Some s | _ -> None) with
+          | None -> target
+          | Some s ->
+            (match target with
+             | Some t when t <> s ->
+               custard_error st E.Error_CustardExportCollision [
+                 text ("Custard: rename_let and custard_extern request different names for " ^
+                       Ident.string_of_lid l ^ ".") ]
+             | _ -> ());
+            Some s in
+        let flags = c_decoration_flags attrs @ List.filter DeclareInCHeader? (decl_flags d) in
+        HashTable.add st.foreign_choices key (target, header, flags)
       end;
       st.chain := saved;
       st.chainlids := saved_lids;
@@ -7244,6 +7256,8 @@ let link_homes (st:state) : ML (list string) = Unit.link_homes st.links
 let link_headers (st:state) : ML (list string) = Unit.link_headers st.links
 
 let link_no_prefix (st:state) : ML (list string) = Unit.link_no_prefix st.links
+let link_c_names (st:state) : ML (list (string & list (string & string))) =
+  Unit.link_c_names st.links
 
 let link_inits (st:state) : ML (list string) = Unit.link_inits st.links
 
